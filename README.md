@@ -81,3 +81,4 @@ g3p-vm-gpu/
 
 
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo

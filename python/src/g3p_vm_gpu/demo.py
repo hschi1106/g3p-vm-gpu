@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from pysubset.ast import (
+from g3p_vm_gpu.ast import (
     Block, Assign, IfStmt, ForRange, Return,
     Const, Var, Binary, UOp, BOp, Unary, Call
 )
-from pysubset.interp import run_program
-from pysubset.errors import Returned, Failed
+from g3p_vm_gpu.interp import run_program
+from g3p_vm_gpu.errors import Returned, Failed
 
 
 def main():
