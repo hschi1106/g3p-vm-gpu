@@ -78,3 +78,6 @@ g3p-vm-gpu/
   .github/
     workflows/
       ci.yml                    # Python tests + (可選) C++ build
+
+
+PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
