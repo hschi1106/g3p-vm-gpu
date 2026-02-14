@@ -1,0 +1,3 @@
+# Keep the agent on a leash by default.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
