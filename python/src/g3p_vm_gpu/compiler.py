@@ -192,6 +192,13 @@ class _Compiler:
             return
 
         if isinstance(s, ForRange):
+            # Keep VM behavior aligned with interpreter/spec:
+            # invalid range(K) must fail with TypeError when statement executes.
+            if not isinstance(s.k, int) or isinstance(s.k, bool) or s.k < 0:
+                self._emit("PUSH_CONST", self._const(True))
+                self._emit("NEG")
+                return
+
             idx_k = self._const(s.k)
             idx_0 = self._const(0)
             idx_1 = self._const(1)

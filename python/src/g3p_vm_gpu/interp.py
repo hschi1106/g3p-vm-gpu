@@ -156,15 +156,12 @@ def eval_expr(e: Expr, env: Env, fuel: int) -> tuple[Val | Err, int]:
                 return Err(ErrCode.TYPE, "ordering comparison on bool not supported"), fuel
 
             # none comparisons: only ==, !=
-            if ra is None and rb is None:
+            if ra is None or rb is None:
                 if op == BOp.EQ:
-                    return True, fuel
+                    return ra is rb, fuel
                 if op == BOp.NE:
-                    return False, fuel
+                    return ra is not rb, fuel
                 return Err(ErrCode.TYPE, "ordering comparison on None not supported"), fuel
-            if (ra is None) != (rb is None):
-                # strict: comparing None with non-None is a type error even for ==/!=
-                return Err(ErrCode.TYPE, "comparing None with non-None not supported"), fuel
 
             return Err(ErrCode.TYPE, "unsupported comparison operand types"), fuel
 
@@ -248,4 +245,6 @@ def exec_block(b: Block, env: Env, fuel: int) -> tuple[Env, Out, int]:
 def run_program(p: Block, inputs: Env | None = None, fuel: int = 10_000) -> tuple[Env, Out]:
     env0 = dict(inputs) if inputs else {}
     env1, out, _fuel_left = exec_block(p, env0, fuel)
+    if isinstance(out, Normal):
+        return env1, Failed(Err(ErrCode.VALUE, "program finished without return"))
     return env1, out

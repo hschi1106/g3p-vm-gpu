@@ -6,7 +6,7 @@ from src.g3p_vm_gpu.ast import (
     UOp, BOp
 )
 from src.g3p_vm_gpu.interp import run_program, eval_expr
-from src.g3p_vm_gpu.errors import Returned, Failed, ErrCode, Normal
+from src.g3p_vm_gpu.errors import Returned, Failed, ErrCode
 from src.g3p_vm_gpu.fuzz import make_random_program
 
 
@@ -63,6 +63,23 @@ class TestEval(unittest.TestCase):
         self.assertIsInstance(out, Failed)
         self.assertEqual(out.err.code, ErrCode.TIMEOUT)
 
+    def test_program_without_return_is_value_error(self):
+        prog = Block([Assign("x", Const(1))])
+        _, out = run_program(prog, {}, fuel=100)
+        self.assertIsInstance(out, Failed)
+        self.assertEqual(out.err.code, ErrCode.VALUE)
+
+    def test_none_eq_ne_with_non_none(self):
+        eq_prog = Block([Return(Binary(BOp.EQ, Const(None), Const(1)))])
+        _, eq_out = run_program(eq_prog, {}, fuel=100)
+        self.assertIsInstance(eq_out, Returned)
+        self.assertEqual(eq_out.value, False)
+
+        ne_prog = Block([Return(Binary(BOp.NE, Const(None), Const(1)))])
+        _, ne_out = run_program(ne_prog, {}, fuel=100)
+        self.assertIsInstance(ne_out, Returned)
+        self.assertEqual(ne_out.value, True)
+
     def test_fuzz_random_programs(self):
         """Test that interp can evaluate 1000 random fuzz-generated ASTs without crashing."""
         passed = 0
@@ -73,11 +90,11 @@ class TestEval(unittest.TestCase):
             prog = make_random_program(seed=i, depth=3)
             env, out = run_program(prog, {}, fuel=10000)
             
-            # Program should complete without crashing
-            # The outcome can be Normal, Returned, or Failed (with various error codes)
-            self.assertIn(type(out).__name__, ['Normal', 'Returned', 'Failed'])
+            # Program should complete without crashing.
+            # Top-level run_program outcomes are Returned or Failed.
+            self.assertIn(type(out).__name__, ['Returned', 'Failed'])
             
-            if isinstance(out, (Normal, Returned)):
+            if isinstance(out, Returned):
                 passed += 1
             elif isinstance(out, Failed):
                 if out.err.code == ErrCode.TIMEOUT:

@@ -31,7 +31,7 @@ class TestVMEquiv(unittest.TestCase):
             self.assertIsInstance(vm_out, VMError)
             self.assertEqual(interp_out.err.code, vm_out.err.code)
         else:
-            self.assertIsInstance(vm_out, VMError)
+            self.fail("run_program should not return Normal for top-level programs")
 
         # for variables assigned by this program, env values should match
         for name, idx in bc.var2idx.items():
@@ -66,6 +66,18 @@ class TestVMEquiv(unittest.TestCase):
             ]
         )
         self._assert_equiv(prog)
+
+    def test_invalid_for_range_k(self):
+        prog = Block([ForRange("i", -1, Block([])), Return(Const(0))])
+        self._assert_equiv(prog)
+
+    def test_program_without_return(self):
+        prog = Block([Assign("x", Const(1))])
+        self._assert_equiv(prog)
+
+    def test_none_eq_ne_with_non_none(self):
+        self._assert_equiv(Block([Return(Binary(BOp.EQ, Const(None), Const(1)))]))
+        self._assert_equiv(Block([Return(Binary(BOp.NE, Const(None), Const(1)))]))
 
     def test_fuzz_equivalence(self):
         for i in range(250):

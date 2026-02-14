@@ -55,15 +55,12 @@ def _cmp(op: str, a: Val, b: Val) -> bool | Err:
             return a != b
         return Err(ErrCode.TYPE, "ordering comparison on bool not supported")
 
-    if a is None and b is None:
+    if a is None or b is None:
         if op == "EQ":
-            return True
+            return a is b
         if op == "NE":
-            return False
+            return a is not b
         return Err(ErrCode.TYPE, "ordering comparison on None not supported")
-
-    if (a is None) != (b is None):
-        return Err(ErrCode.TYPE, "comparing None with non-None not supported")
 
     return Err(ErrCode.TYPE, "unsupported comparison operand types")
 
