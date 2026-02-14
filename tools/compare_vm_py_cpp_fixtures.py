@@ -30,18 +30,6 @@ def decode_value(raw: Dict[str, Any]) -> Any:
     raise ValueError(f"unknown value type: {t}")
 
 
-def encode_cli_value(v: Any) -> str:
-    if v is None:
-        return "none"
-    if isinstance(v, bool):
-        return f"bool {1 if v else 0}"
-    if isinstance(v, int):
-        return f"int {v}"
-    if isinstance(v, float):
-        return f"float {repr(v)}"
-    raise TypeError(f"unsupported value type: {type(v)}")
-
-
 def to_py_program(case: Dict[str, Any]) -> BytecodeProgram:
     bc = case["bytecode"]
     consts = [decode_value(v) for v in bc["consts"]]
@@ -56,20 +44,17 @@ def to_py_program(case: Dict[str, Any]) -> BytecodeProgram:
 
 def to_cli_input(case: Dict[str, Any]) -> str:
     bc = case["bytecode"]
-    lines = [
-        f"FUEL {case['fuel']}",
-        f"N_LOCALS {bc['n_locals']}",
-        f"N_CONSTS {len(bc['consts'])}",
-    ]
-    for c in bc["consts"]:
-        lines.append(f"CONST {encode_cli_value(decode_value(c))}")
-    lines.append(f"N_CODE {len(bc['code'])}")
-    for ins in bc["code"]:
-        a = "x" if ins["a"] is None else str(ins["a"])
-        b = "x" if ins["b"] is None else str(ins["b"])
-        lines.append(f"INS {ins['op']} {a} {b}")
-    lines.append("N_INPUTS 0")
-    return "\n".join(lines) + "\n"
+    req = {
+        "format_version": "bytecode-json-v0.1",
+        "fuel": int(case["fuel"]),
+        "bytecode": {
+            "n_locals": int(bc["n_locals"]),
+            "consts": bc["consts"],
+            "code": bc["code"],
+        },
+        "inputs": [],
+    }
+    return json.dumps(req, ensure_ascii=True)
 
 
 def parse_cpp_output(stdout: str) -> Tuple[str, Any]:

@@ -1,3 +1,4 @@
+import json
 import math
 import shutil
 import subprocess
@@ -16,30 +17,31 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def _encode_value(v):
     if v is None:
-        return "none"
+        return {"type": "none"}
     if isinstance(v, bool):
-        return f"bool {1 if v else 0}"
+        return {"type": "bool", "value": v}
     if isinstance(v, int):
-        return f"int {v}"
+        return {"type": "int", "value": v}
     if isinstance(v, float):
-        return f"float {repr(v)}"
+        return {"type": "float", "value": v}
     raise TypeError(f"unsupported value type: {type(v)}")
 
 
+def _to_json_request(program: BytecodeProgram, fuel: int = 20000):
+    return {
+        "format_version": "bytecode-json-v0.1",
+        "fuel": fuel,
+        "bytecode": {
+            "n_locals": program.n_locals,
+            "consts": [_encode_value(c) for c in program.consts],
+            "code": [{"op": ins.op, "a": ins.a, "b": ins.b} for ins in program.code],
+        },
+        "inputs": [],
+    }
+
+
 def _program_to_cli_input(program: BytecodeProgram, fuel: int = 20000) -> str:
-    lines = []
-    lines.append(f"FUEL {fuel}")
-    lines.append(f"N_LOCALS {program.n_locals}")
-    lines.append(f"N_CONSTS {len(program.consts)}")
-    for c in program.consts:
-        lines.append(f"CONST {_encode_value(c)}")
-    lines.append(f"N_CODE {len(program.code)}")
-    for ins in program.code:
-        a = "x" if ins.a is None else str(ins.a)
-        b = "x" if ins.b is None else str(ins.b)
-        lines.append(f"INS {ins.op} {a} {b}")
-    lines.append("N_INPUTS 0")
-    return "\n".join(lines) + "\n"
+    return json.dumps(_to_json_request(program, fuel=fuel), ensure_ascii=True)
 
 
 def _parse_cli_output(text: str):

@@ -151,8 +151,10 @@ def main() -> None:
         seed += 1
 
     output = {
+        "format_version": "bytecode-fixture-v0.1",
         "meta": {
             "generator": "tools/gen_bytecode_fixture_set.py",
+            "bytecode_format_version": "bytecode-json-v0.1",
             "depth": args.depth,
             "start_seed": args.start_seed,
             "final_seed_exclusive": seed,
