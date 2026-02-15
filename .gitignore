@@ -211,3 +211,6 @@ data/
 
 # Local benchmark logs
 logs/
+
+# Local C++ build artifacts
+cpp/build_release/
