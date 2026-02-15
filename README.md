@@ -8,7 +8,7 @@ Bytecode VM project with Python reference/runtime and C++ CPU/GPU backends.
   - language AST, compiler, interpreter, Python VM, fuzz generator
 - `cpp/`
   - C++ CPU VM
-  - CUDA GPU VM (`run_bytecode_gpu_batch`)
+  - CUDA GPU VM (`run_bytecode_gpu_multi_batch`, fitness)
   - CLIs and C++ tests
 - `spec/`
   - language, bytecode ISA, builtins, and test contracts
@@ -59,33 +59,13 @@ ctest --test-dir cpp/build --output-on-failure
 
 ## GPU API status
 
-GPU execution is batch-only now:
+GPU execution is multi/fitness only:
 
-- `run_bytecode_gpu_batch(program, cases, fuel, blocksize)`
 - `run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, blocksize)`
+- `run_bytecode_gpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, fuel, blocksize)`
 
-Single-case GPU API has been removed from the public interface. Use one-case batch input if needed.
-
-## Batch fixture generation
-
-Generate deterministic batch fixture (default: 2048 pass / 1024 fail / 1024 timeout):
-
-```bash
-PYTHONPATH=python python3 tools/gen_gpu_batch_cases.py --out data/fixtures/gpu_batch_cases.json
-```
-
-Run fixture with C++ GPU batch CLI:
-
-```bash
-cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
-```
-
-GPU runtime now auto-selects the least-used visible CUDA device by memory usage.
-If you still want to pin manually:
-
-```bash
-CUDA_VISIBLE_DEVICES=1 cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
-```
+GPU runtime auto-selects the least-used visible CUDA device by memory usage.
+If you want to pin manually, set `CUDA_VISIBLE_DEVICES`.
 
 ## CPU/GPU multi-program benchmark
 
@@ -115,7 +95,6 @@ cpp/build/g3pvm_vm_cpu_multi_bench 4096 1024 2048 1024 1024 64
 Generation scripts automatically create parent directories for output paths:
 
 - `tools/gen_bytecode_fixture_set.py`
-- `tools/gen_gpu_batch_cases.py`
 
 So commands like `--out data/fixtures/...` work even if directories do not exist yet.
 
