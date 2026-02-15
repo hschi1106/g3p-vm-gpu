@@ -26,10 +26,15 @@ add_library(g3pvm_cpu
 )
 target_include_directories(g3pvm_cpu PUBLIC include)
 
-  add_executable(g3pvm_vm_cpu_cli
-    src/vm_cpu_cli.cpp
-  )
-  target_link_libraries(g3pvm_vm_cpu_cli PRIVATE g3pvm_cpu)
+add_executable(g3pvm_vm_cpu_cli
+  src/vm_cpu_cli.cpp
+)
+target_link_libraries(g3pvm_vm_cpu_cli PRIVATE g3pvm_cpu)
+
+add_executable(g3pvm_vm_cpu_multi_bench
+  src/vm_cpu_multi_bench.cpp
+)
+target_link_libraries(g3pvm_vm_cpu_multi_bench PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/vm_gpu.cu
@@ -42,6 +47,11 @@ if(G3PVM_HAS_CUDA)
     src/vm_gpu_batch_cli.cpp
   )
   target_link_libraries(g3pvm_vm_gpu_batch_cli PRIVATE g3pvm_gpu)
+
+  add_executable(g3pvm_vm_gpu_multi_bench
+    src/vm_gpu_multi_bench.cpp
+  )
+  target_link_libraries(g3pvm_vm_gpu_multi_bench PRIVATE g3pvm_gpu)
 
   add_executable(g3pvm_test_vm_gpu_smoke
     tests/test_vm_gpu_smoke.cpp

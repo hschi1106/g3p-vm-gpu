@@ -62,6 +62,7 @@ ctest --test-dir cpp/build --output-on-failure
 GPU execution is batch-only now:
 
 - `run_bytecode_gpu_batch(program, cases, fuel, blocksize)`
+- `run_bytecode_gpu_multi_batch(programs, cases_by_program, fuel, blocksize)`
 
 Single-case GPU API has been removed from the public interface. Use one-case batch input if needed.
 
@@ -83,6 +84,27 @@ If GPU0 is busy, pin to GPU1:
 
 ```bash
 CUDA_VISIBLE_DEVICES=1 cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
+```
+
+## CPU/GPU multi-program benchmark
+
+The repo includes in-memory benchmarks for large multi-program workloads:
+
+- GPU: `g3pvm_vm_gpu_multi_bench`
+- CPU: `g3pvm_vm_cpu_multi_bench`
+
+Argument order:
+
+`<program_count> <cases_per_program> <pass_programs> <fail_programs> <timeout_programs> <fuel> [blocksize(gpu only)]`
+
+Example for your target workload (`4096 programs`, each `1024 cases`, program buckets `2048/1024/1024`):
+
+```bash
+# GPU (set CUDA_VISIBLE_DEVICES if needed)
+CUDA_VISIBLE_DEVICES=1 cpp/build/g3pvm_vm_gpu_multi_bench 4096 1024 2048 1024 1024 64 256
+
+# CPU
+cpp/build/g3pvm_vm_cpu_multi_bench 4096 1024 2048 1024 1024 64
 ```
 
 ## Data directory behavior
