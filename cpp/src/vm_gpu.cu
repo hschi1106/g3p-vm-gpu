@@ -492,10 +492,11 @@ __global__ void vm_kernel(const Value* consts, int n_consts, const DInstr* code,
   }
 }
 
-__global__ void vm_multi_kernel(const Value* all_consts, const DInstr* all_code,
-                                const DProgramMeta* metas, const Value* all_case_local_vals,
-                                const unsigned char* all_case_local_set, int n_programs, int fuel,
-                                DResult* all_out) {
+__global__ void vm_multi_kernel_shared_cases(const Value* all_consts, const DInstr* all_code,
+                                             const DProgramMeta* metas,
+                                             const Value* shared_case_local_vals,
+                                             const unsigned char* shared_case_local_set,
+                                             int n_programs, int fuel, DResult* all_out) {
   const int prog_idx = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
   if (prog_idx < 0 || prog_idx >= n_programs) return;
@@ -527,10 +528,10 @@ __global__ void vm_multi_kernel(const Value* all_consts, const DInstr* all_code,
       continue;
     }
 
-    const int base = meta.case_local_offset + (local_case * meta.n_locals);
+    const int base = local_case * MAX_LOCALS;
     for (int i = 0; i < meta.n_locals; ++i) {
-      locals[i] = all_case_local_vals[base + i];
-      local_set[i] = all_case_local_set[base + i];
+      locals[i] = shared_case_local_vals[base + i];
+      local_set[i] = shared_case_local_set[base + i];
     }
 
     int sp = 0;
@@ -746,11 +747,10 @@ __global__ void vm_multi_kernel(const Value* all_consts, const DInstr* all_code,
   }
 }
 
-__global__ void vm_multi_fitness_kernel(const Value* all_consts, const DInstr* all_code,
-                                        const DProgramMeta* metas, const Value* all_case_local_vals,
-                                        const unsigned char* all_case_local_set,
-                                        const Value* expected_values, int n_programs, int fuel,
-                                        int* fitness_out) {
+__global__ void vm_multi_fitness_kernel_shared_cases(
+    const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
+    const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
+    const Value* shared_answer, int n_programs, int fuel, int* fitness_out) {
   const int prog_idx = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
   if (prog_idx < 0 || prog_idx >= n_programs) return;
@@ -782,16 +782,15 @@ __global__ void vm_multi_fitness_kernel(const Value* all_consts, const DInstr* a
       continue;
     }
 
-    const int out_idx = meta.case_offset + local_case;
     DResult result;
     result.is_error = 0;
     result.err_code = DERR_VALUE;
     result.value = Value::none();
 
-    const int base = meta.case_local_offset + (local_case * meta.n_locals);
+    const int base = local_case * MAX_LOCALS;
     for (int i = 0; i < meta.n_locals; ++i) {
-      locals[i] = all_case_local_vals[base + i];
-      local_set[i] = all_case_local_set[base + i];
+      locals[i] = shared_case_local_vals[base + i];
+      local_set[i] = shared_case_local_set[base + i];
     }
 
     int sp = 0;
@@ -1006,7 +1005,7 @@ __global__ void vm_multi_fitness_kernel(const Value* all_consts, const DInstr* a
 
     if (result.is_error) {
       local_score -= 10;
-    } else if (d_value_equal_for_fitness(result.value, expected_values[out_idx])) {
+    } else if (d_value_equal_for_fitness(result.value, shared_answer[local_case])) {
       local_score += 1;
     }
   }
@@ -1295,14 +1294,11 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
 
 std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
     const std::vector<BytecodeProgram>& programs,
-    const std::vector<std::vector<InputCase>>& cases_by_program,
+    const std::vector<InputCase>& shared_cases,
     int fuel,
     int blocksize) {
-  if (programs.empty()) {
+  if (programs.empty() || shared_cases.empty()) {
     return multi_single_error(ErrCode::Value, "programs must not be empty");
-  }
-  if (programs.size() != cases_by_program.size()) {
-    return multi_single_error(ErrCode::Value, "programs and cases_by_program size mismatch");
   }
   if (blocksize <= 0) {
     return multi_single_error(ErrCode::Value, "invalid gpu blocksize");
@@ -1325,23 +1321,19 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
   std::vector<DInstr> all_code;
   std::vector<Value> all_consts;
   std::size_t total_cases = 0;
-  std::size_t total_case_locals = 0;
   std::size_t max_code_len = 0;
+  const int shared_case_count = static_cast<int>(shared_cases.size());
 
   for (std::size_t p = 0; p < programs.size(); ++p) {
     const BytecodeProgram& prog = programs[p];
-    const std::vector<InputCase>& prog_cases = cases_by_program[p];
-    if (prog_cases.empty()) {
-      return multi_single_error(ErrCode::Value, "each program must contain at least one case");
-    }
 
     DProgramMeta meta;
     meta.code_offset = static_cast<int>(all_code.size());
     meta.const_offset = static_cast<int>(all_consts.size());
     meta.n_locals = prog.n_locals;
     meta.case_offset = static_cast<int>(total_cases);
-    meta.case_count = static_cast<int>(prog_cases.size());
-    meta.case_local_offset = static_cast<int>(total_case_locals);
+    meta.case_count = shared_case_count;
+    meta.case_local_offset = 0;
     meta.is_valid = 1;
     meta.err_code = DERR_VALUE;
 
@@ -1372,22 +1364,11 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
       max_code_len = static_cast<std::size_t>(meta.code_len);
     }
 
-    if (prog.n_locals < 0) {
+    if (prog.n_locals < 0 || prog.n_locals > MAX_LOCALS) {
       meta.is_valid = 0;
       meta.err_code = DERR_VALUE;
-    } else {
-      const std::size_t locals_per_case = static_cast<std::size_t>(prog.n_locals);
-      if (locals_per_case > 0 &&
-          prog_cases.size() > (std::numeric_limits<std::size_t>::max() - total_case_locals) / locals_per_case) {
-        return multi_single_error(ErrCode::Value, "input case size overflow");
-      }
-      total_case_locals += prog_cases.size() * locals_per_case;
     }
-
-    if (prog_cases.size() > std::numeric_limits<std::size_t>::max() - total_cases) {
-      return multi_single_error(ErrCode::Value, "total case count overflow");
-    }
-    total_cases += prog_cases.size();
+    total_cases += static_cast<std::size_t>(shared_case_count);
     metas[p] = meta;
   }
 
@@ -1400,22 +1381,14 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
     return multi_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }
 
-  std::vector<Value> all_case_local_vals(total_case_locals, Value::none());
-  std::vector<unsigned char> all_case_local_set(total_case_locals, 0);
-
-  for (std::size_t p = 0; p < programs.size(); ++p) {
-    const DProgramMeta& meta = metas[p];
-    const int n_locals = meta.n_locals;
-    if (n_locals <= 0) continue;
-    for (int local_case = 0; local_case < meta.case_count; ++local_case) {
-      const std::size_t base =
-          static_cast<std::size_t>(meta.case_local_offset) + static_cast<std::size_t>(local_case) * n_locals;
-      for (const LocalBinding& binding : cases_by_program[p][static_cast<std::size_t>(local_case)]) {
-        const int idx = binding.idx;
-        if (idx >= 0 && idx < n_locals) {
-          all_case_local_vals[base + static_cast<std::size_t>(idx)] = binding.value;
-          all_case_local_set[base + static_cast<std::size_t>(idx)] = 1;
-        }
+  std::vector<Value> packed_case_local_vals(shared_cases.size() * MAX_LOCALS, Value::none());
+  std::vector<unsigned char> packed_case_local_set(shared_cases.size() * MAX_LOCALS, 0);
+  for (std::size_t case_idx = 0; case_idx < shared_cases.size(); ++case_idx) {
+    const std::size_t base = case_idx * MAX_LOCALS;
+    for (const LocalBinding& binding : shared_cases[case_idx]) {
+      if (binding.idx >= 0 && binding.idx < MAX_LOCALS) {
+        packed_case_local_vals[base + static_cast<std::size_t>(binding.idx)] = binding.value;
+        packed_case_local_set[base + static_cast<std::size_t>(binding.idx)] = 1;
       }
     }
   }
@@ -1423,25 +1396,26 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
   Value* d_consts = nullptr;
   DInstr* d_code = nullptr;
   DProgramMeta* d_metas = nullptr;
-  Value* d_case_local_vals = nullptr;
-  unsigned char* d_case_local_set = nullptr;
+  Value* d_shared_case_local_vals = nullptr;
+  unsigned char* d_shared_case_local_set = nullptr;
   DResult* d_out = nullptr;
 
   if (!cuda_alloc_and_copy_in(all_consts, &d_consts) || !cuda_alloc_and_copy_in(all_code, &d_code) ||
-      !cuda_alloc_and_copy_in(metas, &d_metas) || !cuda_alloc_and_copy_in(all_case_local_vals, &d_case_local_vals) ||
-      !cuda_alloc_and_copy_in(all_case_local_set, &d_case_local_set)) {
-    cuda_cleanup_multi(d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_out);
+      !cuda_alloc_and_copy_in(metas, &d_metas) ||
+      !cuda_alloc_and_copy_in(packed_case_local_vals, &d_shared_case_local_vals) ||
+      !cuda_alloc_and_copy_in(packed_case_local_set, &d_shared_case_local_set)) {
+    cuda_cleanup_multi(d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set, d_out);
     return multi_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
   if (cudaMalloc(reinterpret_cast<void**>(&d_out), sizeof(DResult) * total_cases) != cudaSuccess) {
-    cuda_cleanup_multi(d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_out);
+    cuda_cleanup_multi(d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set, d_out);
     return multi_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
-  vm_multi_kernel<<<static_cast<unsigned int>(programs.size()), blocksize, shared_bytes>>>(
-      d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, static_cast<int>(programs.size()), fuel,
-      d_out);
+  vm_multi_kernel_shared_cases<<<static_cast<unsigned int>(programs.size()), blocksize, shared_bytes>>>(
+      d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set,
+      static_cast<int>(programs.size()), fuel, d_out);
 
   const cudaError_t launch_err = cudaGetLastError();
   const cudaError_t sync_err = cudaDeviceSynchronize();
@@ -1455,17 +1429,17 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
       msg += " sync=";
       msg += cudaGetErrorString(sync_err);
     }
-    cuda_cleanup_multi(d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_out);
+    cuda_cleanup_multi(d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set, d_out);
     return multi_single_error(ErrCode::Value, msg);
   }
 
   std::vector<DResult> host_out(total_cases);
   if (cudaMemcpy(host_out.data(), d_out, sizeof(DResult) * total_cases, cudaMemcpyDeviceToHost) != cudaSuccess) {
-    cuda_cleanup_multi(d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_out);
+    cuda_cleanup_multi(d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set, d_out);
     return multi_single_error(ErrCode::Value, "cuda copy-back failure");
   }
 
-  cuda_cleanup_multi(d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_out);
+  cuda_cleanup_multi(d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set, d_out);
 
   for (std::size_t p = 0; p < programs.size(); ++p) {
     const DProgramMeta& meta = metas[p];
@@ -1485,16 +1459,16 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
   return result_by_program;
 }
 
-std::vector<int> run_bytecode_gpu_multi_fitness(
+std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
     const std::vector<BytecodeProgram>& programs,
-    const std::vector<std::vector<InputCase>>& cases_by_program,
-    const std::vector<std::vector<Value>>& expected_by_program,
+    const std::vector<InputCase>& shared_cases,
+    const std::vector<Value>& shared_answer,
     int fuel,
     int blocksize) {
-  if (programs.empty()) {
+  if (programs.empty() || shared_cases.empty()) {
     return {};
   }
-  if (programs.size() != cases_by_program.size() || programs.size() != expected_by_program.size()) {
+  if (shared_answer.size() != shared_cases.size()) {
     return {};
   }
   if (blocksize <= 0) {
@@ -1506,37 +1480,31 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
   if (!select_least_used_device(props, select_msg)) {
     return {};
   }
-
   if (blocksize > props.maxThreadsPerBlock) {
     return {};
   }
 
+  const int shared_case_count = static_cast<int>(shared_cases.size());
   std::vector<DProgramMeta> metas(programs.size());
   std::vector<DInstr> all_code;
   std::vector<Value> all_consts;
   std::size_t total_cases = 0;
-  std::size_t total_case_locals = 0;
   std::size_t max_code_len = 0;
 
   for (std::size_t p = 0; p < programs.size(); ++p) {
     const BytecodeProgram& prog = programs[p];
-    const std::vector<InputCase>& prog_cases = cases_by_program[p];
-    const std::vector<Value>& prog_expected = expected_by_program[p];
-    if (prog_cases.empty() || prog_cases.size() != prog_expected.size()) {
-      return {};
-    }
 
     DProgramMeta meta;
     meta.code_offset = static_cast<int>(all_code.size());
     meta.const_offset = static_cast<int>(all_consts.size());
     meta.n_locals = prog.n_locals;
     meta.case_offset = static_cast<int>(total_cases);
-    meta.case_count = static_cast<int>(prog_cases.size());
-    meta.case_local_offset = static_cast<int>(total_case_locals);
+    meta.case_count = shared_case_count;
+    meta.case_local_offset = 0;
     meta.is_valid = 1;
     meta.err_code = DERR_VALUE;
 
-    if (prog.n_locals > MAX_LOCALS) {
+    if (prog.n_locals > MAX_LOCALS || prog.n_locals < 0) {
       meta.is_valid = 0;
       meta.err_code = DERR_VALUE;
     }
@@ -1563,22 +1531,7 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
       max_code_len = static_cast<std::size_t>(meta.code_len);
     }
 
-    if (prog.n_locals < 0) {
-      meta.is_valid = 0;
-      meta.err_code = DERR_VALUE;
-    } else {
-      const std::size_t locals_per_case = static_cast<std::size_t>(prog.n_locals);
-      if (locals_per_case > 0 &&
-          prog_cases.size() > (std::numeric_limits<std::size_t>::max() - total_case_locals) / locals_per_case) {
-        return {};
-      }
-      total_case_locals += prog_cases.size() * locals_per_case;
-    }
-
-    if (prog_cases.size() > std::numeric_limits<std::size_t>::max() - total_cases) {
-      return {};
-    }
-    total_cases += prog_cases.size();
+    total_cases += static_cast<std::size_t>(shared_case_count);
     metas[p] = meta;
   }
 
@@ -1591,25 +1544,14 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
     return {};
   }
 
-  std::vector<Value> all_case_local_vals(total_case_locals, Value::none());
-  std::vector<unsigned char> all_case_local_set(total_case_locals, 0);
-  std::vector<Value> all_expected(total_cases, Value::none());
-
-  for (std::size_t p = 0; p < programs.size(); ++p) {
-    const DProgramMeta& meta = metas[p];
-    const int n_locals = meta.n_locals;
-    for (int local_case = 0; local_case < meta.case_count; ++local_case) {
-      const std::size_t case_idx = static_cast<std::size_t>(meta.case_offset + local_case);
-      all_expected[case_idx] = expected_by_program[p][static_cast<std::size_t>(local_case)];
-      if (n_locals <= 0) continue;
-      const std::size_t base =
-          static_cast<std::size_t>(meta.case_local_offset) + static_cast<std::size_t>(local_case) * n_locals;
-      for (const LocalBinding& binding : cases_by_program[p][static_cast<std::size_t>(local_case)]) {
-        const int idx = binding.idx;
-        if (idx >= 0 && idx < n_locals) {
-          all_case_local_vals[base + static_cast<std::size_t>(idx)] = binding.value;
-          all_case_local_set[base + static_cast<std::size_t>(idx)] = 1;
-        }
+  std::vector<Value> packed_case_local_vals(shared_cases.size() * MAX_LOCALS, Value::none());
+  std::vector<unsigned char> packed_case_local_set(shared_cases.size() * MAX_LOCALS, 0);
+  for (std::size_t case_idx = 0; case_idx < shared_cases.size(); ++case_idx) {
+    const std::size_t base = case_idx * MAX_LOCALS;
+    for (const LocalBinding& binding : shared_cases[case_idx]) {
+      if (binding.idx >= 0 && binding.idx < MAX_LOCALS) {
+        packed_case_local_vals[base + static_cast<std::size_t>(binding.idx)] = binding.value;
+        packed_case_local_set[base + static_cast<std::size_t>(binding.idx)] = 1;
       }
     }
   }
@@ -1617,20 +1559,21 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
   Value* d_consts = nullptr;
   DInstr* d_code = nullptr;
   DProgramMeta* d_metas = nullptr;
-  Value* d_case_local_vals = nullptr;
-  unsigned char* d_case_local_set = nullptr;
+  Value* d_shared_case_local_vals = nullptr;
+  unsigned char* d_shared_case_local_set = nullptr;
   Value* d_expected = nullptr;
   int* d_fitness = nullptr;
 
   if (!cuda_alloc_and_copy_in(all_consts, &d_consts) || !cuda_alloc_and_copy_in(all_code, &d_code) ||
-      !cuda_alloc_and_copy_in(metas, &d_metas) || !cuda_alloc_and_copy_in(all_case_local_vals, &d_case_local_vals) ||
-      !cuda_alloc_and_copy_in(all_case_local_set, &d_case_local_set) ||
-      !cuda_alloc_and_copy_in(all_expected, &d_expected)) {
+      !cuda_alloc_and_copy_in(metas, &d_metas) ||
+      !cuda_alloc_and_copy_in(packed_case_local_vals, &d_shared_case_local_vals) ||
+      !cuda_alloc_and_copy_in(packed_case_local_set, &d_shared_case_local_set) ||
+      !cuda_alloc_and_copy_in(shared_answer, &d_expected)) {
     if (d_consts) cudaFree(d_consts);
     if (d_code) cudaFree(d_code);
     if (d_metas) cudaFree(d_metas);
-    if (d_case_local_vals) cudaFree(d_case_local_vals);
-    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
+    if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
     if (d_expected) cudaFree(d_expected);
     if (d_fitness) cudaFree(d_fitness);
     return {};
@@ -1640,8 +1583,8 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
     if (d_consts) cudaFree(d_consts);
     if (d_code) cudaFree(d_code);
     if (d_metas) cudaFree(d_metas);
-    if (d_case_local_vals) cudaFree(d_case_local_vals);
-    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
+    if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
     if (d_expected) cudaFree(d_expected);
     if (d_fitness) cudaFree(d_fitness);
     return {};
@@ -1651,15 +1594,15 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
     if (d_consts) cudaFree(d_consts);
     if (d_code) cudaFree(d_code);
     if (d_metas) cudaFree(d_metas);
-    if (d_case_local_vals) cudaFree(d_case_local_vals);
-    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
+    if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
     if (d_expected) cudaFree(d_expected);
     if (d_fitness) cudaFree(d_fitness);
     return {};
   }
 
-  vm_multi_fitness_kernel<<<static_cast<unsigned int>(programs.size()), blocksize, shared_bytes>>>(
-      d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_expected,
+  vm_multi_fitness_kernel_shared_cases<<<static_cast<unsigned int>(programs.size()), blocksize, shared_bytes>>>(
+      d_consts, d_code, d_metas, d_shared_case_local_vals, d_shared_case_local_set, d_expected,
       static_cast<int>(programs.size()), fuel, d_fitness);
 
   const cudaError_t launch_err = cudaGetLastError();
@@ -1668,8 +1611,8 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
     if (d_consts) cudaFree(d_consts);
     if (d_code) cudaFree(d_code);
     if (d_metas) cudaFree(d_metas);
-    if (d_case_local_vals) cudaFree(d_case_local_vals);
-    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
+    if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
     if (d_expected) cudaFree(d_expected);
     if (d_fitness) cudaFree(d_fitness);
     return {};
@@ -1681,8 +1624,8 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
     if (d_consts) cudaFree(d_consts);
     if (d_code) cudaFree(d_code);
     if (d_metas) cudaFree(d_metas);
-    if (d_case_local_vals) cudaFree(d_case_local_vals);
-    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
+    if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
     if (d_expected) cudaFree(d_expected);
     if (d_fitness) cudaFree(d_fitness);
     return {};
@@ -1691,8 +1634,8 @@ std::vector<int> run_bytecode_gpu_multi_fitness(
   if (d_consts) cudaFree(d_consts);
   if (d_code) cudaFree(d_code);
   if (d_metas) cudaFree(d_metas);
-  if (d_case_local_vals) cudaFree(d_case_local_vals);
-  if (d_case_local_set) cudaFree(d_case_local_set);
+  if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
+  if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
   if (d_expected) cudaFree(d_expected);
   if (d_fitness) cudaFree(d_fitness);
   return host_fitness;

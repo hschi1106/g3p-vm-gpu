@@ -62,7 +62,7 @@ ctest --test-dir cpp/build --output-on-failure
 GPU execution is batch-only now:
 
 - `run_bytecode_gpu_batch(program, cases, fuel, blocksize)`
-- `run_bytecode_gpu_multi_batch(programs, cases_by_program, fuel, blocksize)`
+- `run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, blocksize)`
 
 Single-case GPU API has been removed from the public interface. Use one-case batch input if needed.
 
@@ -146,8 +146,8 @@ It returns one fitness value per program (`error=-10`, `wrong=0`, `correct=1` pe
     "fuel": 64,
     "blocksize": 256,
     "programs": [ { "n_locals": 1, "consts": [], "code": [] } ],
-    "cases_by_program": [ [ [] ] ],
-    "expected_by_program": [ [ { "type": "int", "value": 0 } ] ]
+    "shared_cases": [ [] ],
+    "shared_answer": [ { "type": "int", "value": 0 } ]
   }
 }
 ```

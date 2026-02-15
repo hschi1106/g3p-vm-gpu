@@ -331,42 +331,26 @@ g3pvm::InputCase decode_input_case(const JsonValue& v) {
   return one_case;
 }
 
-std::vector<std::vector<g3pvm::InputCase>> decode_cases_by_program(const JsonValue& v) {
+std::vector<g3pvm::InputCase> decode_cases(const JsonValue& v) {
   if (v.kind != JsonValue::Kind::Array) {
-    throw std::runtime_error("cases_by_program must be array");
+    throw std::runtime_error("shared_cases must be array");
   }
-  std::vector<std::vector<g3pvm::InputCase>> out;
+  std::vector<g3pvm::InputCase> out;
   out.reserve(v.array_v.size());
-  for (const JsonValue& cases_node : v.array_v) {
-    if (cases_node.kind != JsonValue::Kind::Array) {
-      throw std::runtime_error("cases_by_program entry must be array");
-    }
-    std::vector<g3pvm::InputCase> cases;
-    cases.reserve(cases_node.array_v.size());
-    for (const JsonValue& case_node : cases_node.array_v) {
-      cases.push_back(decode_input_case(case_node));
-    }
-    out.push_back(std::move(cases));
+  for (const JsonValue& case_node : v.array_v) {
+    out.push_back(decode_input_case(case_node));
   }
   return out;
 }
 
-std::vector<std::vector<Value>> decode_expected_by_program(const JsonValue& v) {
+std::vector<Value> decode_shared_answer(const JsonValue& v) {
   if (v.kind != JsonValue::Kind::Array) {
-    throw std::runtime_error("expected_by_program must be array");
+    throw std::runtime_error("shared_answer must be array");
   }
-  std::vector<std::vector<Value>> out;
+  std::vector<Value> out;
   out.reserve(v.array_v.size());
-  for (const JsonValue& expected_node : v.array_v) {
-    if (expected_node.kind != JsonValue::Kind::Array) {
-      throw std::runtime_error("expected_by_program entry must be array");
-    }
-    std::vector<Value> expected;
-    expected.reserve(expected_node.array_v.size());
-    for (const JsonValue& item : expected_node.array_v) {
-      expected.push_back(decode_typed_value(item));
-    }
-    out.push_back(std::move(expected));
+  for (const JsonValue& item : v.array_v) {
+    out.push_back(decode_typed_value(item));
   }
   return out;
 }
@@ -457,18 +441,18 @@ int main() {
       }
 
       std::vector<BytecodeProgram> programs = decode_programs(require_object_field(*req, "programs"));
-      std::vector<std::vector<g3pvm::InputCase>> cases_by_program =
-          decode_cases_by_program(require_object_field(*req, "cases_by_program"));
-      std::vector<std::vector<Value>> expected_by_program =
-          decode_expected_by_program(require_object_field(*req, "expected_by_program"));
+      std::vector<Value> shared_answer =
+          decode_shared_answer(require_object_field(*req, "shared_answer"));
+      std::vector<g3pvm::InputCase> shared_cases = decode_cases(require_object_field(*req, "shared_cases"));
 
       std::vector<int> fitness;
       if (engine == "cpu") {
-        fitness = g3pvm::run_bytecode_cpu_multi_fitness(programs, cases_by_program, expected_by_program, fuel);
+        fitness =
+            g3pvm::run_bytecode_cpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, fuel);
       } else if (engine == "gpu") {
 #ifdef G3PVM_HAS_CUDA
-        fitness =
-            g3pvm::run_bytecode_gpu_multi_fitness(programs, cases_by_program, expected_by_program, fuel, blocksize);
+        fitness = g3pvm::run_bytecode_gpu_multi_fitness_shared_cases(
+            programs, shared_cases, shared_answer, fuel, blocksize);
 #else
         throw std::runtime_error("gpu unsupported");
 #endif

@@ -67,45 +67,27 @@ int main() {
       make_type_error_program(),
   };
 
-  std::vector<std::vector<InputCase>> cases_by_program(3);
-  cases_by_program[0] = {
+  std::vector<InputCase> shared_cases = {
       InputCase{LocalBinding{0, Value::from_int(10)}},
       InputCase{LocalBinding{0, Value::from_int(20)}},
       InputCase{LocalBinding{0, Value::from_int(30)}},
   };
-  cases_by_program[1] = {
-      InputCase{},
-      InputCase{},
-  };
-  cases_by_program[2] = {
-      InputCase{},
-      InputCase{},
-  };
 
-  std::vector<std::vector<Value>> expected_by_program(3);
-  expected_by_program[0] = {
-      Value::from_int(11),   // correct => +1
-      Value::from_int(999),  // wrong => +0
-      Value::from_int(31),   // correct => +1
-  };
-  expected_by_program[1] = {
-      Value::from_int(7),  // correct => +1
-      Value::from_int(6),  // wrong => +0
-  };
-  expected_by_program[2] = {
-      Value::from_int(0),  // error => -10
-      Value::from_int(0),  // error => -10
+  std::vector<Value> shared_answer = {
+      Value::from_int(11),  // p0 correct, p1 wrong
+      Value::from_int(7),   // p0 wrong, p1 correct
+      Value::from_int(31),  // p0 correct, p1 wrong
   };
 
   const std::vector<int> cpu_fitness =
-      g3pvm::run_bytecode_cpu_multi_fitness(programs, cases_by_program, expected_by_program, 100);
+      g3pvm::run_bytecode_cpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, 100);
   if (!check(cpu_fitness.size() == 3, "cpu fitness size mismatch")) return 1;
   if (!check(cpu_fitness[0] == 2, "cpu fitness program0 mismatch")) return 1;
   if (!check(cpu_fitness[1] == 1, "cpu fitness program1 mismatch")) return 1;
-  if (!check(cpu_fitness[2] == -20, "cpu fitness program2 mismatch")) return 1;
+  if (!check(cpu_fitness[2] == -30, "cpu fitness program2 mismatch")) return 1;
 
-  const std::vector<int> gpu_fitness =
-      g3pvm::run_bytecode_gpu_multi_fitness(programs, cases_by_program, expected_by_program, 100, 128);
+  const std::vector<int> gpu_fitness = g3pvm::run_bytecode_gpu_multi_fitness_shared_cases(
+      programs, shared_cases, shared_answer, 100, 128);
   if (gpu_fitness.empty()) {
     std::cout << "g3pvm_test_vm_gpu_fitness: SKIP (cuda device unavailable)\n";
     return 0;

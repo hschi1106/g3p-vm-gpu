@@ -92,22 +92,14 @@ int main(int argc, char** argv) {
   for (int i = 0; i < fail_programs; ++i) programs.push_back(fail_p);
   for (int i = 0; i < timeout_programs; ++i) programs.push_back(timeout_p);
 
-  std::vector<std::vector<InputCase>> cases_by_program;
-  cases_by_program.resize(static_cast<std::size_t>(program_count));
-
-  for (int pi = 0; pi < program_count; ++pi) {
-    auto& v = cases_by_program[static_cast<std::size_t>(pi)];
-    v.resize(static_cast<std::size_t>(cases_per_program));
-    for (int ci = 0; ci < cases_per_program; ++ci) {
-      // Keep case shape identical across all programs. Programs that do not
-      // use locals will ignore this binding.
-      v[static_cast<std::size_t>(ci)].push_back(LocalBinding{0, Value::from_int(ci)});
-    }
+  std::vector<InputCase> shared_cases;
+  shared_cases.resize(static_cast<std::size_t>(cases_per_program));
+  for (int ci = 0; ci < cases_per_program; ++ci) {
+    shared_cases[static_cast<std::size_t>(ci)].push_back(LocalBinding{0, Value::from_int(ci)});
   }
 
   const auto t0 = std::chrono::steady_clock::now();
-  std::vector<std::vector<VMResult>> out =
-      g3pvm::run_bytecode_gpu_multi_batch(programs, cases_by_program, fuel, blocksize);
+  std::vector<std::vector<VMResult>> out = g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, blocksize);
   const auto t1 = std::chrono::steady_clock::now();
   const double ms =
       std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(t1 - t0).count();

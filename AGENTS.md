@@ -35,6 +35,11 @@
   - interpreter vs VM parity,
   - edge cases around fuel/timeouts and numeric/type operations.
 
+## Profiling Guidelines
+- GPU profiling must use `nsys` only.
+- Do not use `ncu` in this project environment (GPU performance counters are not available).
+- If GPU execution fails due to device contention/occupancy, explicitly retry with `CUDA_VISIBLE_DEVICES=0` and `CUDA_VISIBLE_DEVICES=1`.
+
 ## Commit & Pull Request Guidelines
 - Follow observed commit style: `<type>: <summary>` (for example, `feat: add bytecode jump validation`, `fix: handle unary negation type errors`).
 - Preferred types in this repo: `feat`, `fix`, `init` , `docs`, `test`, `refactor`, `chore`.

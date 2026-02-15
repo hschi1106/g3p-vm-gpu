@@ -82,21 +82,20 @@ bool test_multi_stride() {
   programs.push_back(make_add_one_program());
   programs.push_back(make_return_const_program(7));
 
-  std::vector<std::vector<InputCase>> cases_by_program(2);
-  cases_by_program[0].reserve(600);
+  std::vector<InputCase> shared_cases;
+  shared_cases.reserve(600);
   for (int i = 0; i < 600; ++i) {
     InputCase one;
     one.push_back(LocalBinding{0, Value::from_int(i)});
-    cases_by_program[0].push_back(one);
+    shared_cases.push_back(one);
   }
-  cases_by_program[1].assign(300, InputCase{});
 
   std::vector<std::vector<VMResult>> out =
-      g3pvm::run_bytecode_gpu_multi_batch(programs, cases_by_program, 1000, 256);
+      g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, 1000, 256);
 
   if (!check(out.size() == 2, "multi stride program count mismatch")) return false;
   if (!check(out[0].size() == 600, "multi stride program 0 case count mismatch")) return false;
-  if (!check(out[1].size() == 300, "multi stride program 1 case count mismatch")) return false;
+  if (!check(out[1].size() == 600, "multi stride program 1 case count mismatch")) return false;
 
   for (int i = 0; i < 600; ++i) {
     if (!check(!out[0][i].is_error, "multi stride p0 case should succeed")) return false;
@@ -104,7 +103,7 @@ bool test_multi_stride() {
     if (!check(out[0][i].value.i == i + 1, "multi stride p0 value mismatch")) return false;
   }
 
-  for (int i = 0; i < 300; ++i) {
+  for (int i = 0; i < 600; ++i) {
     if (!check(!out[1][i].is_error, "multi stride p1 case should succeed")) return false;
     if (!check(out[1][i].value.tag == ValueTag::Int, "multi stride p1 should return int")) return false;
     if (!check(out[1][i].value.i == 7, "multi stride p1 value mismatch")) return false;
@@ -119,16 +118,13 @@ bool test_multi_mixed_outcomes() {
   programs.push_back(make_type_error_program());
   programs.push_back(make_timeout_program());
 
-  std::vector<std::vector<InputCase>> cases_by_program(3);
-  cases_by_program[0] = {
+  std::vector<InputCase> shared_cases = {
       InputCase{LocalBinding{0, Value::from_int(10)}},
       InputCase{LocalBinding{0, Value::from_int(20)}},
   };
-  cases_by_program[1] = {InputCase{}, InputCase{}};
-  cases_by_program[2] = {InputCase{}, InputCase{}};
 
   std::vector<std::vector<VMResult>> out =
-      g3pvm::run_bytecode_gpu_multi_batch(programs, cases_by_program, 5, 128);
+      g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, 5, 128);
 
   if (!check(out.size() == 3, "mixed outcomes program count mismatch")) return false;
 
@@ -162,12 +158,10 @@ bool test_invalid_program_isolation() {
   bad.n_locals = 1000;
   programs.push_back(bad);
 
-  std::vector<std::vector<InputCase>> cases_by_program(2);
-  cases_by_program[0] = {InputCase{LocalBinding{0, Value::from_int(41)}}};
-  cases_by_program[1] = {InputCase{}};
+  std::vector<InputCase> shared_cases = {InputCase{LocalBinding{0, Value::from_int(41)}}};
 
   std::vector<std::vector<VMResult>> out =
-      g3pvm::run_bytecode_gpu_multi_batch(programs, cases_by_program, 100, 64);
+      g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, 100, 64);
 
   if (!check(out.size() == 2, "invalid isolation program count mismatch")) return false;
   if (!check(out[0].size() == 1 && out[1].size() == 1, "invalid isolation case count mismatch")) return false;
@@ -188,7 +182,7 @@ bool test_invalid_program_isolation() {
 
 int main() {
   std::vector<BytecodeProgram> probe_programs = {make_return_const_program(1)};
-  std::vector<std::vector<InputCase>> probe_cases = {{InputCase{}}};
+  std::vector<InputCase> probe_cases = {InputCase{}};
   std::vector<std::vector<VMResult>> probe_out =
       g3pvm::run_bytecode_gpu_multi_batch(probe_programs, probe_cases, 10, 1);
   if (should_skip_gpu(probe_out)) {

@@ -315,16 +315,6 @@ std::vector<BytecodeProgram> decode_programs(const JsonValue& v) {
   return out;
 }
 
-std::vector<std::vector<InputCase>> decode_cases_by_program(const JsonValue& v) {
-  if (v.kind != JsonValue::Kind::Array) throw std::runtime_error("cases_by_program must be array");
-  std::vector<std::vector<InputCase>> out;
-  out.reserve(v.array_v.size());
-  for (const JsonValue& cases_node : v.array_v) {
-    out.push_back(decode_cases(cases_node));
-  }
-  return out;
-}
-
 bool value_equal(const Value& a, const Value& b) {
   if (a.tag != b.tag) return false;
   if (a.tag == ValueTag::Int) return a.i == b.i;
@@ -396,10 +386,9 @@ int main(int argc, char** argv) {
 
     if (is_multi) {
       std::vector<BytecodeProgram> programs = decode_programs(require_object_field(*req, "programs"));
-      std::vector<std::vector<InputCase>> cases_by_program =
-          decode_cases_by_program(require_object_field(*req, "cases_by_program"));
+      std::vector<InputCase> shared_cases = decode_cases(require_object_field(*req, "shared_cases"));
       std::vector<std::vector<g3pvm::VMResult>> out =
-          g3pvm::run_bytecode_gpu_multi_batch(programs, cases_by_program, fuel, blocksize);
+          g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, blocksize);
 
       int total_cases = 0;
       int ok_count = 0;

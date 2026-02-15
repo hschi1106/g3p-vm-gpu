@@ -76,23 +76,19 @@ int main(int argc, char** argv) {
   for (int i = 0; i < fail_programs; ++i) programs.push_back(fail_p);
   for (int i = 0; i < timeout_programs; ++i) programs.push_back(timeout_p);
 
-  std::vector<std::vector<InputCase>> cases_by_program(programs.size());
-  std::vector<std::vector<Value>> expected_by_program(programs.size());
-  for (int pi = 0; pi < program_count; ++pi) {
-    auto& cases = cases_by_program[static_cast<std::size_t>(pi)];
-    auto& expected = expected_by_program[static_cast<std::size_t>(pi)];
-    cases.reserve(static_cast<std::size_t>(cases_per_program));
-    expected.reserve(static_cast<std::size_t>(cases_per_program));
-    for (int ci = 0; ci < cases_per_program; ++ci) {
-      cases.push_back(InputCase{LocalBinding{0, Value::from_int(ci)}});
-      if (pi < pass_programs) expected.push_back(Value::from_int(ci + 1));
-      else expected.push_back(Value::from_int(0));
-    }
+  std::vector<InputCase> shared_cases;
+  shared_cases.reserve(static_cast<std::size_t>(cases_per_program));
+  std::vector<Value> shared_answer;
+  shared_answer.reserve(static_cast<std::size_t>(cases_per_program));
+  for (int ci = 0; ci < cases_per_program; ++ci) {
+    shared_cases.push_back(InputCase{LocalBinding{0, Value::from_int(ci)}});
+    // Shared oracle targets pass-program behavior: LOAD(0)+1.
+    shared_answer.push_back(Value::from_int(ci + 1));
   }
 
   const auto t0 = std::chrono::steady_clock::now();
   std::vector<int> fitness =
-      g3pvm::run_bytecode_cpu_multi_fitness(programs, cases_by_program, expected_by_program, fuel);
+      g3pvm::run_bytecode_cpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, fuel);
   const auto t1 = std::chrono::steady_clock::now();
   const double ms =
       std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(t1 - t0).count();
