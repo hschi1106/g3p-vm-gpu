@@ -19,6 +19,7 @@ Top-level JSON object:
 ```json
 {
   "format_version": "bytecode-json-v0.1",
+  "engine": "cpu",
   "fuel": 20000,
   "bytecode": {
     "n_locals": 3,
@@ -30,6 +31,10 @@ Top-level JSON object:
   ]
 }
 ```
+
+`engine` is optional and defaults to `"cpu"`. Current values:
+- `"cpu"`: execute via CPU VM
+- `"gpu"`: execute via CUDA VM (if available)
 
 ### 2.1 Value
 

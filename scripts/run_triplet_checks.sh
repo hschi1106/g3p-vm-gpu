@@ -18,4 +18,7 @@ PYTHONPATH=python python3 tools/compare_vm_py_cpp_fixtures.py --fixture data/fix
 echo "[4/4] interp_py == vm_py == vm_cpp (non-timeout buckets)"
 PYTHONPATH=python python3 tools/compare_interp_vm_py_cpp.py --fixture data/fixtures/bytecode_cases.json
 
+echo "[optional] vm_py == vm_gpu on JSON fixtures (first 256 cases)"
+PYTHONPATH=python python3 tools/compare_vm_py_gpu_fixtures.py --fixture data/fixtures/bytecode_cases.json --limit 256
+
 echo "triplet checks: OK"

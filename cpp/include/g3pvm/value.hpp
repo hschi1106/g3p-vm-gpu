@@ -4,6 +4,12 @@
 
 namespace g3pvm {
 
+#ifdef __CUDACC__
+#define G3PVM_HD __host__ __device__
+#else
+#define G3PVM_HD
+#endif
+
 enum class ValueTag {
   Int,
   Float,
@@ -17,32 +23,34 @@ struct Value {
   double f = 0.0;
   bool b = false;
 
-  static Value from_int(std::int64_t v) {
+  G3PVM_HD static Value from_int(std::int64_t v) {
     Value out;
     out.tag = ValueTag::Int;
     out.i = v;
     return out;
   }
 
-  static Value from_float(double v) {
+  G3PVM_HD static Value from_float(double v) {
     Value out;
     out.tag = ValueTag::Float;
     out.f = v;
     return out;
   }
 
-  static Value from_bool(bool v) {
+  G3PVM_HD static Value from_bool(bool v) {
     Value out;
     out.tag = ValueTag::Bool;
     out.b = v;
     return out;
   }
 
-  static Value none() { return Value{}; }
+  G3PVM_HD static Value none() { return Value{}; }
 };
 
-inline bool is_numeric(const Value& v) {
+G3PVM_HD inline bool is_numeric(const Value& v) {
   return v.tag == ValueTag::Int || v.tag == ValueTag::Float;
 }
+
+#undef G3PVM_HD
 
 }  // namespace g3pvm

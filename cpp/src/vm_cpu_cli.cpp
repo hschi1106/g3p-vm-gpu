@@ -13,6 +13,9 @@
 #include "g3pvm/errors.hpp"
 #include "g3pvm/value.hpp"
 #include "g3pvm/vm_cpu.hpp"
+#ifdef G3PVM_HAS_CUDA
+#include "g3pvm/vm_gpu.hpp"
+#endif
 
 namespace {
 
@@ -332,6 +335,11 @@ int main() {
     }
 
     const int fuel = require_int(require_object_field(*req, "fuel"), "fuel");
+    std::string engine = "cpu";
+    auto engine_it = req->object_v.find("engine");
+    if (engine_it != req->object_v.end()) {
+      engine = require_string(engine_it->second, "engine");
+    }
     const JsonValue& bc = require_object_field(*req, "bytecode");
 
     BytecodeProgram program;
@@ -380,9 +388,23 @@ int main() {
       }
     }
 
-    g3pvm::VMResult result = g3pvm::run_bytecode(program, inputs, fuel);
+    g3pvm::VMResult result;
+    if (engine == "cpu") {
+      result = g3pvm::run_bytecode(program, inputs, fuel);
+    } else if (engine == "gpu") {
+#ifdef G3PVM_HAS_CUDA
+      result = g3pvm::run_bytecode_gpu(program, inputs, fuel);
+#else
+      result = g3pvm::VMResult{true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "gpu unsupported"}};
+#endif
+    } else {
+      result = g3pvm::VMResult{true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "unknown engine"}};
+    }
     if (result.is_error) {
       std::cout << "ERR " << g3pvm::err_code_name(result.err.code) << "\n";
+      if (!result.err.message.empty()) {
+        std::cout << "MSG " << result.err.message << "\n";
+      }
       return 0;
     }
 
