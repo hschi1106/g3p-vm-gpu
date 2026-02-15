@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 
 namespace g3pvm {
 
@@ -10,7 +11,7 @@ namespace g3pvm {
 #define G3PVM_HD
 #endif
 
-enum class ValueTag {
+enum class ValueTag : std::uint8_t {
   Int,
   Float,
   Bool,
@@ -18,13 +19,16 @@ enum class ValueTag {
 };
 
 struct Value {
-  ValueTag tag = ValueTag::None;
-  std::int64_t i = 0;
-  double f = 0.0;
+  union {
+    std::int64_t i;
+    double f;
+  };
   bool b = false;
+  ValueTag tag = ValueTag::None;
 
   G3PVM_HD static Value from_int(std::int64_t v) {
     Value out;
+    out.i = 0;
     out.tag = ValueTag::Int;
     out.i = v;
     return out;
@@ -32,6 +36,7 @@ struct Value {
 
   G3PVM_HD static Value from_float(double v) {
     Value out;
+    out.i = 0;
     out.tag = ValueTag::Float;
     out.f = v;
     return out;
@@ -39,17 +44,27 @@ struct Value {
 
   G3PVM_HD static Value from_bool(bool v) {
     Value out;
+    out.i = 0;
     out.tag = ValueTag::Bool;
     out.b = v;
     return out;
   }
 
-  G3PVM_HD static Value none() { return Value{}; }
+  G3PVM_HD static Value none() {
+    Value out;
+    out.i = 0;
+    out.b = false;
+    out.tag = ValueTag::None;
+    return out;
+  }
 };
 
 G3PVM_HD inline bool is_numeric(const Value& v) {
   return v.tag == ValueTag::Int || v.tag == ValueTag::Float;
 }
+
+static_assert(std::is_trivially_copyable<Value>::value, "Value must be trivially copyable");
+static_assert(sizeof(Value) <= 16, "Value should remain compact");
 
 #undef G3PVM_HD
 
