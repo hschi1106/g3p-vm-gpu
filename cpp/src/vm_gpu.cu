@@ -502,6 +502,14 @@ ErrCode from_device_err(const int code) {
   return ErrCode::Value;
 }
 
+const char* device_err_message(const int code) {
+  if (code == DERR_NAME) return "gpu vm name error";
+  if (code == DERR_TYPE) return "gpu vm type error";
+  if (code == DERR_ZERODIV) return "gpu vm zero division";
+  if (code == DERR_TIMEOUT) return "gpu vm timeout";
+  return "gpu vm value error";
+}
+
 template <typename T>
 bool cuda_alloc_and_copy_in(const std::vector<T>& host, T** dev) {
   if (host.empty()) {
@@ -542,7 +550,7 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
                                              int fuel,
                                              int blocksize) {
   if (cases.empty()) {
-    return {};
+    return batch_error(1, ErrCode::Value, "cases must not be empty");
   }
 
   if (program.n_locals > MAX_LOCALS) {
@@ -564,8 +572,13 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
     return batch_error(cases.size(), ErrCode::Value, msg);
   }
 
+  int dev = 0;
+  if (cudaGetDevice(&dev) != cudaSuccess) {
+    return batch_error(cases.size(), ErrCode::Value, "cuda current device query failure");
+  }
+
   cudaDeviceProp props;
-  if (cudaGetDeviceProperties(&props, 0) != cudaSuccess) {
+  if (cudaGetDeviceProperties(&props, dev) != cudaSuccess) {
     return batch_error(cases.size(), ErrCode::Value, "cuda device query failure");
   }
 
@@ -662,7 +675,8 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
   out.reserve(n_cases);
   for (const DResult& r : host_out) {
     if (r.is_error) {
-      out.push_back(VMResult{true, Value::none(), Err{from_device_err(r.err_code), "gpu vm error"}});
+      out.push_back(
+          VMResult{true, Value::none(), Err{from_device_err(r.err_code), device_err_message(r.err_code)}});
     } else {
       out.push_back(VMResult{false, r.value, Err{ErrCode::Value, ""}});
     }
