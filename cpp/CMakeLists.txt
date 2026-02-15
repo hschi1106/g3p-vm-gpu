@@ -35,11 +35,6 @@ add_executable(g3pvm_vm_cpu_multi_bench
   src/vm_cpu_multi_bench.cpp
 )
 target_link_libraries(g3pvm_vm_cpu_multi_bench PRIVATE g3pvm_cpu)
-
-add_executable(g3pvm_vm_cpu_fitness_multi_bench
-  src/vm_cpu_fitness_multi_bench.cpp
-)
-target_link_libraries(g3pvm_vm_cpu_fitness_multi_bench PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/vm_gpu.cu
@@ -53,11 +48,6 @@ if(G3PVM_HAS_CUDA)
   )
   target_link_libraries(g3pvm_vm_gpu_multi_bench PRIVATE g3pvm_gpu)
 
-  add_executable(g3pvm_vm_gpu_fitness_multi_bench
-    src/vm_gpu_fitness_multi_bench.cpp
-  )
-  target_link_libraries(g3pvm_vm_gpu_fitness_multi_bench PRIVATE g3pvm_gpu)
-
   add_executable(g3pvm_test_vm_gpu_smoke
     tests/test_vm_gpu_smoke.cpp
   )
@@ -70,11 +60,6 @@ if(G3PVM_HAS_CUDA)
   target_link_libraries(g3pvm_test_vm_gpu_multi_batch PRIVATE g3pvm_gpu)
   add_test(NAME g3pvm_test_vm_gpu_multi_batch COMMAND g3pvm_test_vm_gpu_multi_batch)
 
-  add_executable(g3pvm_test_vm_gpu_fitness
-    tests/test_vm_gpu_fitness.cpp
-  )
-  target_link_libraries(g3pvm_test_vm_gpu_fitness PRIVATE g3pvm_gpu g3pvm_cpu)
-  add_test(NAME g3pvm_test_vm_gpu_fitness COMMAND g3pvm_test_vm_gpu_fitness)
 endif()
 
 add_executable(g3pvm_test_vm_smoke

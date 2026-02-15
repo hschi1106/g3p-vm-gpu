@@ -28,15 +28,18 @@ def _encode_value(v):
 
 
 def _to_json_request(program: BytecodeProgram, fuel: int = 20000):
+    one_program = {
+        "n_locals": program.n_locals,
+        "consts": [_encode_value(c) for c in program.consts],
+        "code": [{"op": ins.op, "a": ins.a, "b": ins.b} for ins in program.code],
+    }
     return {
-        "format_version": "bytecode-json-v0.1",
-        "fuel": fuel,
-        "bytecode": {
-            "n_locals": program.n_locals,
-            "consts": [_encode_value(c) for c in program.consts],
-            "code": [{"op": ins.op, "a": ins.a, "b": ins.b} for ins in program.code],
-        },
-        "inputs": [],
+        "bytecode_program_inputs": {
+            "format_version": "bytecode-json-v0.1",
+            "fuel": fuel,
+            "programs": [one_program],
+            "shared_cases": [[]],
+        }
     }
 
 

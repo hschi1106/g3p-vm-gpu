@@ -385,11 +385,50 @@ void print_value(const Value& v) {
 
 }  // namespace
 
-int main() {
+struct CliOptions {
+  std::string engine;
+  int blocksize = 256;
+};
+
+CliOptions parse_cli_options(int argc, char** argv) {
+  CliOptions opts;
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if (arg == "--engine") {
+      if (i + 1 >= argc) {
+        throw std::runtime_error("missing value for --engine");
+      }
+      opts.engine = argv[++i];
+      continue;
+    }
+    if (arg == "--blocksize") {
+      if (i + 1 >= argc) {
+        throw std::runtime_error("missing value for --blocksize");
+      }
+      int value = 0;
+      try {
+        value = std::stoi(argv[++i]);
+      } catch (...) {
+        throw std::runtime_error("invalid --blocksize");
+      }
+      if (value <= 0) {
+        throw std::runtime_error("invalid --blocksize");
+      }
+      opts.blocksize = value;
+      continue;
+    }
+    throw std::runtime_error("unknown argument");
+  }
+  return opts;
+}
+
+int main(int argc, char** argv) {
   std::ios::sync_with_stdio(false);
   std::cin.tie(nullptr);
 
   try {
+    const CliOptions cli_opts = parse_cli_options(argc, argv);
+
     std::stringstream buf;
     buf << std::cin.rdbuf();
     const std::string text = buf.str();
@@ -401,15 +440,9 @@ int main() {
     JsonValue root = parser.parse();
 
     const JsonValue* req = &root;
-    bool is_fitness = false;
     if (root.kind == JsonValue::Kind::Object) {
-      auto fit_it = root.object_v.find("fitness_request");
-      if (fit_it != root.object_v.end()) {
-        req = &fit_it->second;
-        is_fitness = true;
-      }
-      auto it = root.object_v.find("request");
-      if (!is_fitness && it != root.object_v.end()) {
+      auto it = root.object_v.find("bytecode_program_inputs");
+      if (it != root.object_v.end()) {
         req = &it->second;
       }
     }
@@ -427,23 +460,23 @@ int main() {
     }
 
     const int fuel = require_int(require_object_field(*req, "fuel"), "fuel");
-    std::string engine = "cpu";
-    auto engine_it = req->object_v.find("engine");
-    if (engine_it != req->object_v.end()) {
-      engine = require_string(engine_it->second, "engine");
+    std::string engine = cli_opts.engine;
+    if (engine.empty()) {
+#ifdef G3PVM_HAS_CUDA
+      engine = "gpu";
+#else
+      engine = "cpu";
+#endif
     }
 
-    if (is_fitness) {
-      int blocksize = 256;
-      auto bs_it = req->object_v.find("blocksize");
-      if (bs_it != req->object_v.end()) {
-        blocksize = require_int(bs_it->second, "blocksize");
-      }
+    const int blocksize = cli_opts.blocksize;
 
-      std::vector<BytecodeProgram> programs = decode_programs(require_object_field(*req, "programs"));
-      std::vector<Value> shared_answer =
-          decode_shared_answer(require_object_field(*req, "shared_answer"));
-      std::vector<g3pvm::InputCase> shared_cases = decode_cases(require_object_field(*req, "shared_cases"));
+    std::vector<BytecodeProgram> programs = decode_programs(require_object_field(*req, "programs"));
+    std::vector<g3pvm::InputCase> shared_cases = decode_cases(require_object_field(*req, "shared_cases"));
+
+    auto shared_answer_it = req->object_v.find("shared_answer");
+    if (shared_answer_it != req->object_v.end()) {
+      std::vector<Value> shared_answer = decode_shared_answer(shared_answer_it->second);
 
       std::vector<int> fitness;
       if (engine == "cpu") {
@@ -472,59 +505,60 @@ int main() {
       return 0;
     }
 
-    const JsonValue& bc = require_object_field(*req, "bytecode");
-    BytecodeProgram program = decode_program(bc);
-
-    std::vector<std::pair<int, Value>> inputs;
-    auto in_it = req->object_v.find("inputs");
-    if (in_it != req->object_v.end()) {
-      if (in_it->second.kind != JsonValue::Kind::Array) {
-        throw std::runtime_error("inputs must be array");
-      }
-      for (const JsonValue& item : in_it->second.array_v) {
-        const int idx = require_int(require_object_field(item, "idx"), "idx");
-        const Value v = decode_typed_value(require_object_field(item, "value"));
-        inputs.push_back({idx, v});
-      }
-    }
-
-    g3pvm::VMResult result;
+    std::vector<std::vector<g3pvm::VMResult>> out;
     if (engine == "cpu") {
-      result = g3pvm::run_bytecode(program, inputs, fuel);
+      out.resize(programs.size());
+      for (std::size_t p = 0; p < programs.size(); ++p) {
+        auto& per_prog = out[p];
+        per_prog.reserve(shared_cases.size());
+        for (const auto& one_case : shared_cases) {
+          std::vector<std::pair<int, Value>> inputs;
+          inputs.reserve(one_case.size());
+          for (const auto& binding : one_case) {
+            inputs.push_back({binding.idx, binding.value});
+          }
+          per_prog.push_back(g3pvm::run_bytecode(programs[p], inputs, fuel));
+        }
+      }
     } else if (engine == "gpu") {
 #ifdef G3PVM_HAS_CUDA
-      // GPU path is multi-only; use one program + one shared case wrapper.
-      g3pvm::InputCase one_case;
-      one_case.reserve(inputs.size());
-      for (const auto& iv : inputs) {
-        one_case.push_back(g3pvm::LocalBinding{iv.first, iv.second});
-      }
-      std::vector<g3pvm::BytecodeProgram> programs{program};
-      std::vector<g3pvm::InputCase> shared_cases{std::move(one_case)};
-      std::vector<std::vector<g3pvm::VMResult>> out =
-          g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, 256);
-      if (out.empty() || out.front().empty()) {
-        result = g3pvm::VMResult{
-            true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "gpu multi wrapper failure"}};
-      } else {
-        result = out.front().front();
-      }
+      out = g3pvm::run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, blocksize);
 #else
-      result = g3pvm::VMResult{true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "gpu unsupported"}};
+      throw std::runtime_error("gpu unsupported");
 #endif
     } else {
-      result = g3pvm::VMResult{true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "unknown engine"}};
+      throw std::runtime_error("unknown engine");
     }
-    if (result.is_error) {
-      std::cout << "ERR " << g3pvm::err_code_name(result.err.code) << "\n";
-      if (!result.err.message.empty()) {
-        std::cout << "MSG " << result.err.message << "\n";
+
+    if (out.size() == 1 && out[0].size() == 1) {
+      const g3pvm::VMResult& result = out[0][0];
+      if (result.is_error) {
+        std::cout << "ERR " << g3pvm::err_code_name(result.err.code) << "\n";
+        if (!result.err.message.empty()) {
+          std::cout << "MSG " << result.err.message << "\n";
+        }
+        return 0;
       }
+      std::cout << "OK ";
+      print_value(result.value);
       return 0;
     }
 
-    std::cout << "OK ";
-    print_value(result.value);
+    int total = 0;
+    int ok = 0;
+    int err = 0;
+    for (const auto& per_prog : out) {
+      total += static_cast<int>(per_prog.size());
+      for (const auto& r : per_prog) {
+        if (r.is_error) {
+          err += 1;
+        } else {
+          ok += 1;
+        }
+      }
+    }
+    std::cout << "OK programs " << out.size() << " cases " << total << " return " << ok << " error " << err
+              << "\n";
     return 0;
   } catch (const std::exception&) {
     return 2;

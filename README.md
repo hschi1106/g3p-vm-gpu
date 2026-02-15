@@ -13,7 +13,7 @@ Bytecode VM project with Python reference/runtime and C++ CPU/GPU backends.
 - `spec/`
   - language, bytecode ISA, builtins, and test contracts
 - `tools/`
-  - fixture generation and cross-backend comparison scripts
+  - fixture generation and validation scripts
 
 ## Prerequisites
 
@@ -69,7 +69,7 @@ If you want to pin manually, set `CUDA_VISIBLE_DEVICES`.
 
 ## CPU/GPU multi-program benchmark
 
-The repo includes in-memory benchmarks for large multi-program workloads:
+The repo includes in-memory benchmark for non-fitness multi-program workloads:
 
 - GPU: `g3pvm_vm_gpu_multi_bench`
 - CPU: `g3pvm_vm_cpu_multi_bench`
@@ -94,36 +94,50 @@ cpp/build/g3pvm_vm_cpu_multi_bench 4096 1024 2048 1024 1024 64
 
 Generation scripts automatically create parent directories for output paths:
 
-- `tools/gen_bytecode_fixture_set.py`
+- `tools/gen_fitness_multi_bench_inputs.py`
 
 So commands like `--out data/fixtures/...` work even if directories do not exist yet.
 
-## Useful comparison tools
-
-- Python VM vs C++ CPU fixtures:
+Generate canonical fitness multi-bench input JSON:
 
 ```bash
-PYTHONPATH=python python3 tools/compare_vm_py_cpp_fixtures.py --fixture data/fixtures/bytecode_cases.json
+PYTHONPATH=python python3 tools/gen_fitness_multi_bench_inputs.py \
+  --out data/fixtures/fitness_multi_bench_inputs.json
 ```
 
-- Python VM vs C++ GPU fixtures:
+Validate CPU/GPU fitness against expected scores from that generated JSON:
 
 ```bash
-PYTHONPATH=python python3 tools/compare_vm_py_gpu_fixtures.py --fixture data/fixtures/bytecode_cases.json
+PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py \
+  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --cli cpp/build_release/g3pvm_vm_cpu_cli
+```
+
+Benchmark CPU/GPU fitness speed from the same generated JSON:
+
+```bash
+PYTHONPATH=python python3 tools/bench_fitness_fixture_cpu_gpu.py \
+  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --cli cpp/build_release/g3pvm_vm_cpu_cli \
+  --runs 5 \
+  --blocksize 256
 ```
 
 ## Fitness CLI (CPU/GPU aligned)
 
-Use `g3pvm_vm_cpu_cli` with a `fitness_request` payload.
+Use `g3pvm_vm_cpu_cli` with a `bytecode_program_inputs` payload.
 It returns one fitness value per program (`error=-10`, `wrong=0`, `correct=1` per case):
+
+Canonical request schema (use this one format for all tooling/scripts):
+- top-level key is always `bytecode_program_inputs`
+- `programs` + `shared_cases` are always required
+- `shared_answer` is included when you want fitness output
 
 ```json
 {
-  "fitness_request": {
+  "bytecode_program_inputs": {
     "format_version": "bytecode-json-v0.1",
-    "engine": "gpu",
     "fuel": 64,
-    "blocksize": 256,
     "programs": [ { "n_locals": 1, "consts": [], "code": [] } ],
     "shared_cases": [ [] ],
     "shared_answer": [ { "type": "int", "value": 0 } ]
@@ -134,7 +148,13 @@ It returns one fitness value per program (`error=-10`, `wrong=0`, `correct=1` pe
 Run:
 
 ```bash
-cpp/build/g3pvm_vm_cpu_cli < your_fitness_request.json
+cpp/build/g3pvm_vm_cpu_cli < your_bytecode_program_inputs.json
+```
+
+Optional runtime selection is via CLI args (not JSON fields):
+
+```bash
+cpp/build/g3pvm_vm_cpu_cli --engine gpu --blocksize 256 < your_bytecode_program_inputs.json
 ```
 
 Output format:

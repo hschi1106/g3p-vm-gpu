@@ -4,21 +4,32 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "[1/4] Python unit tests"
+echo "[1/5] Python unit tests"
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 
-echo "[2/4] Build and run native C++ VM tests"
+echo "[2/5] Build and run native C++ VM tests"
 cmake -S cpp -B cpp/build
 cmake --build cpp/build -j
 ctest --test-dir cpp/build --output-on-failure
 
-echo "[3/4] vm_py == vm_cpp on JSON fixtures"
-PYTHONPATH=python python3 tools/compare_vm_py_cpp_fixtures.py --fixture data/fixtures/bytecode_cases.json
+echo "[3/5] Generate canonical fitness fixture JSON"
+PYTHONPATH=python python3 tools/gen_fitness_multi_bench_inputs.py \
+  --out data/fixtures/fitness_multi_bench_inputs.json
 
-echo "[4/4] interp_py == vm_py == vm_cpp (non-timeout buckets)"
-PYTHONPATH=python python3 tools/compare_interp_vm_py_cpp.py --fixture data/fixtures/bytecode_cases.json
+echo "[4/5] Validate CPU/GPU multi + fitness from generated fixture JSON"
+PYTHONPATH=python python3 tools/check_multi_fixture_cpu_gpu.py \
+  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --cli cpp/build/g3pvm_vm_cpu_cli
 
-echo "[optional] vm_py == vm_gpu on JSON fixtures (first 256 cases)"
-PYTHONPATH=python python3 tools/compare_vm_py_gpu_fixtures.py --fixture data/fixtures/bytecode_cases.json --limit 256
+PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py \
+  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --cli cpp/build/g3pvm_vm_cpu_cli
+
+echo "[5/5] Benchmark CPU/GPU fitness from generated fixture JSON"
+PYTHONPATH=python python3 tools/bench_fitness_fixture_cpu_gpu.py \
+  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --cli cpp/build/g3pvm_vm_cpu_cli \
+  --runs 3 \
+  --blocksize 256
 
 echo "triplet checks: OK"
