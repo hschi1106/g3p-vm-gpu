@@ -91,6 +91,25 @@ VMResult compare_values(const std::string& op, const Value& a, const Value& b) {
   return fail(ErrCode::Type, "unsupported comparison operand types");
 }
 
+bool values_equal_for_fitness(const Value& a, const Value& b) {
+  if (a.tag != b.tag) {
+    return false;
+  }
+  if (a.tag == ValueTag::None) {
+    return true;
+  }
+  if (a.tag == ValueTag::Bool) {
+    return a.b == b.b;
+  }
+  if (a.tag == ValueTag::Int) {
+    return a.i == b.i;
+  }
+  if (a.tag == ValueTag::Float) {
+    return std::fabs(a.f - b.f) <= 1e-12;
+  }
+  return false;
+}
+
 }  // namespace
 
 VMResult run_bytecode(const BytecodeProgram& program, const std::vector<std::pair<int, Value>>& inputs,
@@ -305,6 +324,43 @@ VMResult run_bytecode(const BytecodeProgram& program, const std::vector<std::pai
   }
 
   return fail(ErrCode::Value, "program finished without return");
+}
+
+std::vector<int> run_bytecode_cpu_multi_fitness(
+    const std::vector<BytecodeProgram>& programs,
+    const std::vector<std::vector<InputCase>>& cases_by_program,
+    const std::vector<std::vector<Value>>& expected_by_program,
+    int fuel) {
+  if (programs.empty()) {
+    return {};
+  }
+  if (programs.size() != cases_by_program.size() || programs.size() != expected_by_program.size()) {
+    return {};
+  }
+
+  std::vector<int> fitness(programs.size(), 0);
+  for (std::size_t p = 0; p < programs.size(); ++p) {
+    const std::vector<InputCase>& cases = cases_by_program[p];
+    const std::vector<Value>& expected = expected_by_program[p];
+    if (cases.empty() || cases.size() != expected.size()) {
+      return {};
+    }
+    for (std::size_t c = 0; c < cases.size(); ++c) {
+      std::vector<std::pair<int, Value>> inputs;
+      inputs.reserve(cases[c].size());
+      for (const LocalBinding& binding : cases[c]) {
+        inputs.push_back({binding.idx, binding.value});
+      }
+      const VMResult out = run_bytecode(programs[p], inputs, fuel);
+      if (out.is_error) {
+        fitness[p] -= 10;
+      } else if (values_equal_for_fitness(out.value, expected[c])) {
+        fitness[p] += 1;
+      }
+    }
+  }
+
+  return fitness;
 }
 
 }  // namespace g3pvm

@@ -15,8 +15,24 @@ struct VMResult {
   Err err{ErrCode::Value, ""};
 };
 
+struct LocalBinding {
+  int idx = 0;
+  Value value = Value::none();
+};
+
+using InputCase = std::vector<LocalBinding>;
+
 VMResult run_bytecode(const BytecodeProgram& program,
                       const std::vector<std::pair<int, Value>>& inputs,
                       int fuel = 10000);
+
+// Returns one fitness score per program.
+// Scoring per case: error=-10, wrong=0, correct=1.
+// Returns empty vector when input shapes are invalid.
+std::vector<int> run_bytecode_cpu_multi_fitness(
+    const std::vector<BytecodeProgram>& programs,
+    const std::vector<std::vector<InputCase>>& cases_by_program,
+    const std::vector<std::vector<Value>>& expected_by_program,
+    int fuel = 10000);
 
 }  // namespace g3pvm

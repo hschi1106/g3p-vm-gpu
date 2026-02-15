@@ -281,6 +281,108 @@ Value decode_typed_value(const JsonValue& v) {
   throw std::runtime_error("unknown typed value type");
 }
 
+BytecodeProgram decode_program(const JsonValue& bc) {
+  BytecodeProgram program;
+  program.n_locals = require_int(require_object_field(bc, "n_locals"), "n_locals");
+
+  const JsonValue& consts = require_object_field(bc, "consts");
+  if (consts.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("bytecode.consts must be array");
+  }
+  for (const JsonValue& c : consts.array_v) {
+    program.consts.push_back(decode_typed_value(c));
+  }
+
+  const JsonValue& code = require_object_field(bc, "code");
+  if (code.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("bytecode.code must be array");
+  }
+  for (const JsonValue& ci : code.array_v) {
+    Instr ins;
+    ins.op = require_string(require_object_field(ci, "op"), "op");
+
+    auto a_it = ci.object_v.find("a");
+    if (a_it != ci.object_v.end() && a_it->second.kind != JsonValue::Kind::Null) {
+      ins.a = require_int(a_it->second, "a");
+      ins.has_a = true;
+    }
+
+    auto b_it = ci.object_v.find("b");
+    if (b_it != ci.object_v.end() && b_it->second.kind != JsonValue::Kind::Null) {
+      ins.b = require_int(b_it->second, "b");
+      ins.has_b = true;
+    }
+    program.code.push_back(ins);
+  }
+  return program;
+}
+
+g3pvm::InputCase decode_input_case(const JsonValue& v) {
+  if (v.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("input case must be array");
+  }
+  g3pvm::InputCase one_case;
+  one_case.reserve(v.array_v.size());
+  for (const JsonValue& item : v.array_v) {
+    const int idx = require_int(require_object_field(item, "idx"), "idx");
+    const Value value = decode_typed_value(require_object_field(item, "value"));
+    one_case.push_back(g3pvm::LocalBinding{idx, value});
+  }
+  return one_case;
+}
+
+std::vector<std::vector<g3pvm::InputCase>> decode_cases_by_program(const JsonValue& v) {
+  if (v.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("cases_by_program must be array");
+  }
+  std::vector<std::vector<g3pvm::InputCase>> out;
+  out.reserve(v.array_v.size());
+  for (const JsonValue& cases_node : v.array_v) {
+    if (cases_node.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("cases_by_program entry must be array");
+    }
+    std::vector<g3pvm::InputCase> cases;
+    cases.reserve(cases_node.array_v.size());
+    for (const JsonValue& case_node : cases_node.array_v) {
+      cases.push_back(decode_input_case(case_node));
+    }
+    out.push_back(std::move(cases));
+  }
+  return out;
+}
+
+std::vector<std::vector<Value>> decode_expected_by_program(const JsonValue& v) {
+  if (v.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("expected_by_program must be array");
+  }
+  std::vector<std::vector<Value>> out;
+  out.reserve(v.array_v.size());
+  for (const JsonValue& expected_node : v.array_v) {
+    if (expected_node.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("expected_by_program entry must be array");
+    }
+    std::vector<Value> expected;
+    expected.reserve(expected_node.array_v.size());
+    for (const JsonValue& item : expected_node.array_v) {
+      expected.push_back(decode_typed_value(item));
+    }
+    out.push_back(std::move(expected));
+  }
+  return out;
+}
+
+std::vector<BytecodeProgram> decode_programs(const JsonValue& v) {
+  if (v.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("programs must be array");
+  }
+  std::vector<BytecodeProgram> out;
+  out.reserve(v.array_v.size());
+  for (const JsonValue& p : v.array_v) {
+    out.push_back(decode_program(p));
+  }
+  return out;
+}
+
 void print_value(const Value& v) {
   if (v.tag == ValueTag::Int) {
     std::cout << "int " << v.i << "\n";
@@ -315,9 +417,15 @@ int main() {
     JsonValue root = parser.parse();
 
     const JsonValue* req = &root;
+    bool is_fitness = false;
     if (root.kind == JsonValue::Kind::Object) {
+      auto fit_it = root.object_v.find("fitness_request");
+      if (fit_it != root.object_v.end()) {
+        req = &fit_it->second;
+        is_fitness = true;
+      }
       auto it = root.object_v.find("request");
-      if (it != root.object_v.end()) {
+      if (!is_fitness && it != root.object_v.end()) {
         req = &it->second;
       }
     }
@@ -340,40 +448,48 @@ int main() {
     if (engine_it != req->object_v.end()) {
       engine = require_string(engine_it->second, "engine");
     }
+
+    if (is_fitness) {
+      int blocksize = 256;
+      auto bs_it = req->object_v.find("blocksize");
+      if (bs_it != req->object_v.end()) {
+        blocksize = require_int(bs_it->second, "blocksize");
+      }
+
+      std::vector<BytecodeProgram> programs = decode_programs(require_object_field(*req, "programs"));
+      std::vector<std::vector<g3pvm::InputCase>> cases_by_program =
+          decode_cases_by_program(require_object_field(*req, "cases_by_program"));
+      std::vector<std::vector<Value>> expected_by_program =
+          decode_expected_by_program(require_object_field(*req, "expected_by_program"));
+
+      std::vector<int> fitness;
+      if (engine == "cpu") {
+        fitness = g3pvm::run_bytecode_cpu_multi_fitness(programs, cases_by_program, expected_by_program, fuel);
+      } else if (engine == "gpu") {
+#ifdef G3PVM_HAS_CUDA
+        fitness =
+            g3pvm::run_bytecode_gpu_multi_fitness(programs, cases_by_program, expected_by_program, fuel, blocksize);
+#else
+        throw std::runtime_error("gpu unsupported");
+#endif
+      } else {
+        throw std::runtime_error("unknown engine");
+      }
+
+      if (fitness.empty()) {
+        std::cout << "ERR ValueError\n";
+        std::cout << "MSG fitness evaluation failure\n";
+        return 0;
+      }
+      std::cout << "OK fitness_count " << fitness.size() << "\n";
+      for (std::size_t i = 0; i < fitness.size(); ++i) {
+        std::cout << "FIT " << i << " " << fitness[i] << "\n";
+      }
+      return 0;
+    }
+
     const JsonValue& bc = require_object_field(*req, "bytecode");
-
-    BytecodeProgram program;
-    program.n_locals = require_int(require_object_field(bc, "n_locals"), "n_locals");
-
-    const JsonValue& consts = require_object_field(bc, "consts");
-    if (consts.kind != JsonValue::Kind::Array) {
-      throw std::runtime_error("bytecode.consts must be array");
-    }
-    for (const JsonValue& c : consts.array_v) {
-      program.consts.push_back(decode_typed_value(c));
-    }
-
-    const JsonValue& code = require_object_field(bc, "code");
-    if (code.kind != JsonValue::Kind::Array) {
-      throw std::runtime_error("bytecode.code must be array");
-    }
-    for (const JsonValue& ci : code.array_v) {
-      Instr ins;
-      ins.op = require_string(require_object_field(ci, "op"), "op");
-
-      auto a_it = ci.object_v.find("a");
-      if (a_it != ci.object_v.end() && a_it->second.kind != JsonValue::Kind::Null) {
-        ins.a = require_int(a_it->second, "a");
-        ins.has_a = true;
-      }
-
-      auto b_it = ci.object_v.find("b");
-      if (b_it != ci.object_v.end() && b_it->second.kind != JsonValue::Kind::Null) {
-        ins.b = require_int(b_it->second, "b");
-        ins.has_b = true;
-      }
-      program.code.push_back(ins);
-    }
+    BytecodeProgram program = decode_program(bc);
 
     std::vector<std::pair<int, Value>> inputs;
     auto in_it = req->object_v.find("inputs");

@@ -162,6 +162,15 @@ __device__ bool d_compare(const int op, const Value& a, const Value& b, bool& ou
   return false;
 }
 
+__device__ bool d_value_equal_for_fitness(const Value& a, const Value& b) {
+  if (a.tag != b.tag) return false;
+  if (a.tag == ValueTag::None) return true;
+  if (a.tag == ValueTag::Bool) return a.b == b.b;
+  if (a.tag == ValueTag::Int) return a.i == b.i;
+  if (a.tag == ValueTag::Float) return fabs(a.f - b.f) <= 1e-12;
+  return false;
+}
+
 __device__ bool d_builtin_call(int bid, const Value* args, int argc, Value& out, DeviceErrCode& err) {
   if (bid == 0) {
     if (argc != 1) {
@@ -737,6 +746,270 @@ __global__ void vm_multi_kernel(const Value* all_consts, const DInstr* all_code,
   }
 }
 
+__global__ void vm_multi_fitness_kernel(const Value* all_consts, const DInstr* all_code,
+                                        const DProgramMeta* metas, const Value* all_case_local_vals,
+                                        const unsigned char* all_case_local_set,
+                                        const Value* expected_values, int n_programs, int fuel,
+                                        int* fitness_out) {
+  const int prog_idx = static_cast<int>(blockIdx.x);
+  const int tid = static_cast<int>(threadIdx.x);
+  if (prog_idx < 0 || prog_idx >= n_programs) return;
+
+  const DProgramMeta meta = metas[prog_idx];
+
+  extern __shared__ DInstr shared_code[];
+  if (meta.is_valid && meta.code_len > 0) {
+    for (int i = tid; i < meta.code_len; i += static_cast<int>(blockDim.x)) {
+      shared_code[i] = all_code[meta.code_offset + i];
+    }
+  }
+  __syncthreads();
+
+  int local_score = 0;
+  Value stack[MAX_STACK];
+  Value locals[MAX_LOCALS];
+  unsigned char local_set[MAX_LOCALS];
+
+  for (int local_case = tid; local_case < meta.case_count; local_case += static_cast<int>(blockDim.x)) {
+    if (!meta.is_valid) {
+      local_score -= 10;
+      continue;
+    }
+
+    const int out_idx = meta.case_offset + local_case;
+    DResult result;
+    result.is_error = 0;
+    result.err_code = DERR_VALUE;
+    result.value = Value::none();
+
+    const int base = meta.case_local_offset + (local_case * meta.n_locals);
+    for (int i = 0; i < meta.n_locals; ++i) {
+      locals[i] = all_case_local_vals[base + i];
+      local_set[i] = all_case_local_set[base + i];
+    }
+
+    int sp = 0;
+    int ip = 0;
+    int fuel_left = fuel;
+    bool returned = false;
+
+    while (ip < meta.code_len) {
+      if (fuel_left <= 0) {
+        d_fail(result, DERR_TIMEOUT);
+        break;
+      }
+      fuel_left -= 1;
+
+      const DInstr ins = shared_code[ip];
+      ip += 1;
+
+      if (ins.op == OP_PUSH_CONST) {
+        if (!d_has_a(ins) || ins.a < 0 || ins.a >= meta.const_len || sp >= MAX_STACK) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        stack[sp++] = all_consts[meta.const_offset + ins.a];
+        continue;
+      }
+
+      if (ins.op == OP_LOAD) {
+        if (!d_has_a(ins) || ins.a < 0 || ins.a >= meta.n_locals || sp >= MAX_STACK) {
+          d_fail(result, DERR_NAME);
+          break;
+        }
+        if (!local_set[ins.a]) {
+          d_fail(result, DERR_NAME);
+          break;
+        }
+        stack[sp++] = locals[ins.a];
+        continue;
+      }
+
+      if (ins.op == OP_STORE) {
+        if (!d_has_a(ins) || ins.a < 0 || ins.a >= meta.n_locals) {
+          d_fail(result, DERR_NAME);
+          break;
+        }
+        if (sp < 1) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        locals[ins.a] = stack[--sp];
+        local_set[ins.a] = 1;
+        continue;
+      }
+
+      if (ins.op == OP_NEG || ins.op == OP_NOT) {
+        if (sp < 1) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        Value x = stack[--sp];
+        if (ins.op == OP_NEG) {
+          if (!d_is_num(x)) {
+            d_fail(result, DERR_TYPE);
+            break;
+          }
+          stack[sp++] = (x.tag == ValueTag::Float) ? Value::from_float(-x.f) : Value::from_int(-x.i);
+        } else {
+          if (x.tag != ValueTag::Bool) {
+            d_fail(result, DERR_TYPE);
+            break;
+          }
+          stack[sp++] = Value::from_bool(!x.b);
+        }
+        continue;
+      }
+
+      if (ins.op == OP_ADD || ins.op == OP_SUB || ins.op == OP_MUL || ins.op == OP_DIV ||
+          ins.op == OP_MOD) {
+        if (sp < 2) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        Value b = stack[--sp];
+        Value a = stack[--sp];
+        double a_num = 0.0;
+        double b_num = 0.0;
+        bool any_float = false;
+        if (!d_to_numeric_pair(a, b, a_num, b_num, any_float)) {
+          d_fail(result, DERR_TYPE);
+          break;
+        }
+        if ((ins.op == OP_DIV || ins.op == OP_MOD) && b_num == 0.0) {
+          d_fail(result, DERR_ZERODIV);
+          break;
+        }
+        if (ins.op == OP_ADD) {
+          stack[sp++] = any_float ? Value::from_float(a_num + b_num)
+                                  : Value::from_int(static_cast<long long>(a_num) +
+                                                    static_cast<long long>(b_num));
+        } else if (ins.op == OP_SUB) {
+          stack[sp++] = any_float ? Value::from_float(a_num - b_num)
+                                  : Value::from_int(static_cast<long long>(a_num) -
+                                                    static_cast<long long>(b_num));
+        } else if (ins.op == OP_MUL) {
+          stack[sp++] = any_float ? Value::from_float(a_num * b_num)
+                                  : Value::from_int(static_cast<long long>(a_num) *
+                                                    static_cast<long long>(b_num));
+        } else if (ins.op == OP_DIV) {
+          stack[sp++] = Value::from_float(a_num / b_num);
+        } else {
+          stack[sp++] = any_float
+                            ? Value::from_float(d_float_mod(a_num, b_num))
+                            : Value::from_int(d_int_mod(static_cast<long long>(a_num),
+                                                        static_cast<long long>(b_num)));
+        }
+        continue;
+      }
+
+      if (ins.op == OP_LT || ins.op == OP_LE || ins.op == OP_GT || ins.op == OP_GE ||
+          ins.op == OP_EQ || ins.op == OP_NE) {
+        if (sp < 2) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        Value b = stack[--sp];
+        Value a = stack[--sp];
+        bool cmp = false;
+        DeviceErrCode derr = DERR_TYPE;
+        if (!d_compare(ins.op, a, b, cmp, derr)) {
+          d_fail(result, derr);
+          break;
+        }
+        stack[sp++] = Value::from_bool(cmp);
+        continue;
+      }
+
+      if (ins.op == OP_JMP) {
+        if (!d_has_a(ins) || ins.a < 0 || ins.a > meta.code_len) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        ip = ins.a;
+        continue;
+      }
+
+      if (ins.op == OP_JMP_IF_FALSE || ins.op == OP_JMP_IF_TRUE) {
+        if (sp < 1) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        if (!d_has_a(ins) || ins.a < 0 || ins.a > meta.code_len) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        Value c = stack[--sp];
+        if (c.tag != ValueTag::Bool) {
+          d_fail(result, DERR_TYPE);
+          break;
+        }
+        if (ins.op == OP_JMP_IF_FALSE && !c.b) ip = ins.a;
+        if (ins.op == OP_JMP_IF_TRUE && c.b) ip = ins.a;
+        continue;
+      }
+
+      if (ins.op == OP_CALL_BUILTIN) {
+        const int bid = d_has_a(ins) ? ins.a : -1;
+        const int argc = d_has_b(ins) ? ins.b : -1;
+        if (argc < 0 || sp < argc) {
+          d_fail(result, (argc < 0) ? DERR_TYPE : DERR_VALUE);
+          break;
+        }
+        Value args_buf[4];
+        if (argc > 4) {
+          d_fail(result, DERR_TYPE);
+          break;
+        }
+        for (int i = 0; i < argc; ++i) {
+          args_buf[i] = stack[sp - argc + i];
+        }
+        sp -= argc;
+        DeviceErrCode derr = DERR_TYPE;
+        Value ret = Value::none();
+        if (!d_builtin_call(bid, args_buf, argc, ret, derr)) {
+          d_fail(result, derr);
+          break;
+        }
+        if (sp >= MAX_STACK) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        stack[sp++] = ret;
+        continue;
+      }
+
+      if (ins.op == OP_RETURN) {
+        if (sp < 1) {
+          d_fail(result, DERR_VALUE);
+          break;
+        }
+        result.is_error = 0;
+        result.value = stack[sp - 1];
+        returned = true;
+        break;
+      }
+
+      d_fail(result, DERR_TYPE);
+      break;
+    }
+
+    if (!returned && !result.is_error) {
+      d_fail(result, DERR_VALUE);
+    }
+
+    if (result.is_error) {
+      local_score -= 10;
+    } else if (d_value_equal_for_fitness(result.value, expected_values[out_idx])) {
+      local_score += 1;
+    }
+  }
+
+  if (local_score != 0) {
+    atomicAdd(&fitness_out[prog_idx], local_score);
+  }
+}
+
 int host_opcode(const std::string& op) {
   if (op == "PUSH_CONST") return OP_PUSH_CONST;
   if (op == "LOAD") return OP_LOAD;
@@ -1200,6 +1473,219 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
   }
 
   return result_by_program;
+}
+
+std::vector<int> run_bytecode_gpu_multi_fitness(
+    const std::vector<BytecodeProgram>& programs,
+    const std::vector<std::vector<InputCase>>& cases_by_program,
+    const std::vector<std::vector<Value>>& expected_by_program,
+    int fuel,
+    int blocksize) {
+  if (programs.empty()) {
+    return {};
+  }
+  if (programs.size() != cases_by_program.size() || programs.size() != expected_by_program.size()) {
+    return {};
+  }
+  if (blocksize <= 0) {
+    return {};
+  }
+
+  cudaDeviceProp props;
+  std::string select_msg;
+  if (!select_least_used_device(props, select_msg)) {
+    return {};
+  }
+
+  if (blocksize > props.maxThreadsPerBlock) {
+    return {};
+  }
+
+  std::vector<DProgramMeta> metas(programs.size());
+  std::vector<DInstr> all_code;
+  std::vector<Value> all_consts;
+  std::size_t total_cases = 0;
+  std::size_t total_case_locals = 0;
+  std::size_t max_code_len = 0;
+
+  for (std::size_t p = 0; p < programs.size(); ++p) {
+    const BytecodeProgram& prog = programs[p];
+    const std::vector<InputCase>& prog_cases = cases_by_program[p];
+    const std::vector<Value>& prog_expected = expected_by_program[p];
+    if (prog_cases.empty() || prog_cases.size() != prog_expected.size()) {
+      return {};
+    }
+
+    DProgramMeta meta;
+    meta.code_offset = static_cast<int>(all_code.size());
+    meta.const_offset = static_cast<int>(all_consts.size());
+    meta.n_locals = prog.n_locals;
+    meta.case_offset = static_cast<int>(total_cases);
+    meta.case_count = static_cast<int>(prog_cases.size());
+    meta.case_local_offset = static_cast<int>(total_case_locals);
+    meta.is_valid = 1;
+    meta.err_code = DERR_VALUE;
+
+    if (prog.n_locals > MAX_LOCALS) {
+      meta.is_valid = 0;
+      meta.err_code = DERR_VALUE;
+    }
+
+    all_consts.insert(all_consts.end(), prog.consts.begin(), prog.consts.end());
+    meta.const_len = static_cast<int>(prog.consts.size());
+
+    for (const Instr& ins : prog.code) {
+      const int op = host_opcode(ins.op);
+      if (op < 0) {
+        meta.is_valid = 0;
+        meta.err_code = DERR_TYPE;
+        continue;
+      }
+      DInstr di;
+      di.op = static_cast<std::uint8_t>(op);
+      di.flags = static_cast<std::uint8_t>((ins.has_a ? DINSTR_HAS_A : 0) | (ins.has_b ? DINSTR_HAS_B : 0));
+      di.a = static_cast<std::int32_t>(ins.a);
+      di.b = static_cast<std::int32_t>(ins.b);
+      all_code.push_back(di);
+    }
+    meta.code_len = static_cast<int>(all_code.size()) - meta.code_offset;
+    if (static_cast<std::size_t>(meta.code_len) > max_code_len) {
+      max_code_len = static_cast<std::size_t>(meta.code_len);
+    }
+
+    if (prog.n_locals < 0) {
+      meta.is_valid = 0;
+      meta.err_code = DERR_VALUE;
+    } else {
+      const std::size_t locals_per_case = static_cast<std::size_t>(prog.n_locals);
+      if (locals_per_case > 0 &&
+          prog_cases.size() > (std::numeric_limits<std::size_t>::max() - total_case_locals) / locals_per_case) {
+        return {};
+      }
+      total_case_locals += prog_cases.size() * locals_per_case;
+    }
+
+    if (prog_cases.size() > std::numeric_limits<std::size_t>::max() - total_cases) {
+      return {};
+    }
+    total_cases += prog_cases.size();
+    metas[p] = meta;
+  }
+
+  if (total_cases == 0) {
+    return {};
+  }
+
+  const std::size_t shared_bytes = max_code_len * sizeof(DInstr);
+  if (shared_bytes > static_cast<std::size_t>(props.sharedMemPerBlock)) {
+    return {};
+  }
+
+  std::vector<Value> all_case_local_vals(total_case_locals, Value::none());
+  std::vector<unsigned char> all_case_local_set(total_case_locals, 0);
+  std::vector<Value> all_expected(total_cases, Value::none());
+
+  for (std::size_t p = 0; p < programs.size(); ++p) {
+    const DProgramMeta& meta = metas[p];
+    const int n_locals = meta.n_locals;
+    for (int local_case = 0; local_case < meta.case_count; ++local_case) {
+      const std::size_t case_idx = static_cast<std::size_t>(meta.case_offset + local_case);
+      all_expected[case_idx] = expected_by_program[p][static_cast<std::size_t>(local_case)];
+      if (n_locals <= 0) continue;
+      const std::size_t base =
+          static_cast<std::size_t>(meta.case_local_offset) + static_cast<std::size_t>(local_case) * n_locals;
+      for (const LocalBinding& binding : cases_by_program[p][static_cast<std::size_t>(local_case)]) {
+        const int idx = binding.idx;
+        if (idx >= 0 && idx < n_locals) {
+          all_case_local_vals[base + static_cast<std::size_t>(idx)] = binding.value;
+          all_case_local_set[base + static_cast<std::size_t>(idx)] = 1;
+        }
+      }
+    }
+  }
+
+  Value* d_consts = nullptr;
+  DInstr* d_code = nullptr;
+  DProgramMeta* d_metas = nullptr;
+  Value* d_case_local_vals = nullptr;
+  unsigned char* d_case_local_set = nullptr;
+  Value* d_expected = nullptr;
+  int* d_fitness = nullptr;
+
+  if (!cuda_alloc_and_copy_in(all_consts, &d_consts) || !cuda_alloc_and_copy_in(all_code, &d_code) ||
+      !cuda_alloc_and_copy_in(metas, &d_metas) || !cuda_alloc_and_copy_in(all_case_local_vals, &d_case_local_vals) ||
+      !cuda_alloc_and_copy_in(all_case_local_set, &d_case_local_set) ||
+      !cuda_alloc_and_copy_in(all_expected, &d_expected)) {
+    if (d_consts) cudaFree(d_consts);
+    if (d_code) cudaFree(d_code);
+    if (d_metas) cudaFree(d_metas);
+    if (d_case_local_vals) cudaFree(d_case_local_vals);
+    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_expected) cudaFree(d_expected);
+    if (d_fitness) cudaFree(d_fitness);
+    return {};
+  }
+
+  if (cudaMalloc(reinterpret_cast<void**>(&d_fitness), sizeof(int) * programs.size()) != cudaSuccess) {
+    if (d_consts) cudaFree(d_consts);
+    if (d_code) cudaFree(d_code);
+    if (d_metas) cudaFree(d_metas);
+    if (d_case_local_vals) cudaFree(d_case_local_vals);
+    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_expected) cudaFree(d_expected);
+    if (d_fitness) cudaFree(d_fitness);
+    return {};
+  }
+
+  if (cudaMemset(d_fitness, 0, sizeof(int) * programs.size()) != cudaSuccess) {
+    if (d_consts) cudaFree(d_consts);
+    if (d_code) cudaFree(d_code);
+    if (d_metas) cudaFree(d_metas);
+    if (d_case_local_vals) cudaFree(d_case_local_vals);
+    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_expected) cudaFree(d_expected);
+    if (d_fitness) cudaFree(d_fitness);
+    return {};
+  }
+
+  vm_multi_fitness_kernel<<<static_cast<unsigned int>(programs.size()), blocksize, shared_bytes>>>(
+      d_consts, d_code, d_metas, d_case_local_vals, d_case_local_set, d_expected,
+      static_cast<int>(programs.size()), fuel, d_fitness);
+
+  const cudaError_t launch_err = cudaGetLastError();
+  const cudaError_t sync_err = cudaDeviceSynchronize();
+  if (launch_err != cudaSuccess || sync_err != cudaSuccess) {
+    if (d_consts) cudaFree(d_consts);
+    if (d_code) cudaFree(d_code);
+    if (d_metas) cudaFree(d_metas);
+    if (d_case_local_vals) cudaFree(d_case_local_vals);
+    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_expected) cudaFree(d_expected);
+    if (d_fitness) cudaFree(d_fitness);
+    return {};
+  }
+
+  std::vector<int> host_fitness(programs.size(), 0);
+  if (cudaMemcpy(host_fitness.data(), d_fitness, sizeof(int) * programs.size(), cudaMemcpyDeviceToHost) !=
+      cudaSuccess) {
+    if (d_consts) cudaFree(d_consts);
+    if (d_code) cudaFree(d_code);
+    if (d_metas) cudaFree(d_metas);
+    if (d_case_local_vals) cudaFree(d_case_local_vals);
+    if (d_case_local_set) cudaFree(d_case_local_set);
+    if (d_expected) cudaFree(d_expected);
+    if (d_fitness) cudaFree(d_fitness);
+    return {};
+  }
+
+  if (d_consts) cudaFree(d_consts);
+  if (d_code) cudaFree(d_code);
+  if (d_metas) cudaFree(d_metas);
+  if (d_case_local_vals) cudaFree(d_case_local_vals);
+  if (d_case_local_set) cudaFree(d_case_local_set);
+  if (d_expected) cudaFree(d_expected);
+  if (d_fitness) cudaFree(d_fitness);
+  return host_fitness;
 }
 
 }  // namespace g3pvm

@@ -132,3 +132,35 @@ PYTHONPATH=python python3 tools/compare_vm_py_cpp_fixtures.py --fixture data/fix
 ```bash
 PYTHONPATH=python python3 tools/compare_vm_py_gpu_fixtures.py --fixture data/fixtures/bytecode_cases.json
 ```
+
+## Fitness CLI (CPU/GPU aligned)
+
+Use `g3pvm_vm_cpu_cli` with a `fitness_request` payload.
+It returns one fitness value per program (`error=-10`, `wrong=0`, `correct=1` per case):
+
+```json
+{
+  "fitness_request": {
+    "format_version": "bytecode-json-v0.1",
+    "engine": "gpu",
+    "fuel": 64,
+    "blocksize": 256,
+    "programs": [ { "n_locals": 1, "consts": [], "code": [] } ],
+    "cases_by_program": [ [ [] ] ],
+    "expected_by_program": [ [ { "type": "int", "value": 0 } ] ]
+  }
+}
+```
+
+Run:
+
+```bash
+cpp/build/g3pvm_vm_cpu_cli < your_fitness_request.json
+```
+
+Output format:
+
+```text
+OK fitness_count <N>
+FIT <program_idx> <fitness>
+```
