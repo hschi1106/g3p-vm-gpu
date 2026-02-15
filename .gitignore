@@ -208,3 +208,6 @@ __marimo__/
 
 # Project data artifacts
 data/
+
+# Local benchmark logs
+logs/
