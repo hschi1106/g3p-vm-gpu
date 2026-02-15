@@ -23,4 +23,12 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
                                              int fuel = 10000,
                                              int blocksize = 256);
 
+// Returns nested results in program-major order: out[program_idx][case_idx].
+// Returns ValueError when CUDA runtime/device is unavailable.
+std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
+    const std::vector<BytecodeProgram>& programs,
+    const std::vector<std::vector<InputCase>>& cases_by_program,
+    int fuel = 10000,
+    int blocksize = 256);
+
 }  // namespace g3pvm

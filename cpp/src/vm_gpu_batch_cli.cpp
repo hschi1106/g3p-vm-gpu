@@ -305,6 +305,26 @@ std::vector<InputCase> decode_cases(const JsonValue& v) {
   return out;
 }
 
+std::vector<BytecodeProgram> decode_programs(const JsonValue& v) {
+  if (v.kind != JsonValue::Kind::Array) throw std::runtime_error("programs must be array");
+  std::vector<BytecodeProgram> out;
+  out.reserve(v.array_v.size());
+  for (const JsonValue& p : v.array_v) {
+    out.push_back(decode_program(p));
+  }
+  return out;
+}
+
+std::vector<std::vector<InputCase>> decode_cases_by_program(const JsonValue& v) {
+  if (v.kind != JsonValue::Kind::Array) throw std::runtime_error("cases_by_program must be array");
+  std::vector<std::vector<InputCase>> out;
+  out.reserve(v.array_v.size());
+  for (const JsonValue& cases_node : v.array_v) {
+    out.push_back(decode_cases(cases_node));
+  }
+  return out;
+}
+
 bool value_equal(const Value& a, const Value& b) {
   if (a.tag != b.tag) return false;
   if (a.tag == ValueTag::Int) return a.i == b.i;
@@ -339,11 +359,24 @@ int main(int argc, char** argv) {
     JsonValue root = parser.parse();
     if (root.kind != JsonValue::Kind::Object) throw std::runtime_error("top-level JSON must be object");
 
-    const JsonValue* req = &root;
-    auto br_it = root.object_v.find("batch_request");
-    if (br_it != root.object_v.end()) req = &br_it->second;
+    const JsonValue* req = nullptr;
+    bool is_multi = false;
+    auto mbr_it = root.object_v.find("multi_batch_request");
+    if (mbr_it != root.object_v.end()) {
+      req = &mbr_it->second;
+      is_multi = true;
+    }
+    if (req == nullptr) {
+      req = &root;
+    }
 
-    if (req->kind != JsonValue::Kind::Object) throw std::runtime_error("batch_request must be object");
+    auto br_it = root.object_v.find("batch_request");
+    if (!is_multi && br_it != root.object_v.end()) req = &br_it->second;
+
+    if (req->kind != JsonValue::Kind::Object) {
+      if (is_multi) throw std::runtime_error("multi_batch_request must be object");
+      throw std::runtime_error("batch_request must be object");
+    }
 
     auto fv_it = req->object_v.find("format_version");
     if (fv_it != req->object_v.end()) {
@@ -358,54 +391,107 @@ int main(int argc, char** argv) {
       blocksize = require_int(bs_it->second, "blocksize");
     }
 
-    BytecodeProgram program = decode_program(require_object_field(*req, "bytecode"));
-    std::vector<InputCase> cases = decode_cases(require_object_field(*req, "cases"));
-
-    std::vector<g3pvm::VMResult> out = g3pvm::run_bytecode_gpu_batch(program, cases, fuel, blocksize);
-
-    int ok_count = 0;
-    int err_count = 0;
-    for (const auto& r : out) {
-      if (r.is_error) err_count++;
-      else ok_count++;
-    }
-
     int mismatches = 0;
     auto exp_it = root.object_v.find("expected");
-    if (exp_it != root.object_v.end()) {
-      if (exp_it->second.kind != JsonValue::Kind::Array) throw std::runtime_error("expected must be array");
-      if (exp_it->second.array_v.size() != out.size()) {
-        throw std::runtime_error("expected size mismatch");
+
+    if (is_multi) {
+      std::vector<BytecodeProgram> programs = decode_programs(require_object_field(*req, "programs"));
+      std::vector<std::vector<InputCase>> cases_by_program =
+          decode_cases_by_program(require_object_field(*req, "cases_by_program"));
+      std::vector<std::vector<g3pvm::VMResult>> out =
+          g3pvm::run_bytecode_gpu_multi_batch(programs, cases_by_program, fuel, blocksize);
+
+      int total_cases = 0;
+      int ok_count = 0;
+      int err_count = 0;
+      for (const auto& prog_out : out) {
+        total_cases += static_cast<int>(prog_out.size());
+        for (const auto& r : prog_out) {
+          if (r.is_error) err_count++;
+          else ok_count++;
+        }
       }
 
-      for (std::size_t i = 0; i < out.size(); ++i) {
-        const JsonValue& e = exp_it->second.array_v[i];
-        const std::string kind = require_string(require_object_field(e, "kind"), "kind");
-        if (kind == "return") {
-          const Value expected_value = decode_typed_value(require_object_field(e, "value"));
-          if (out[i].is_error || !value_equal(out[i].value, expected_value)) {
-            mismatches++;
+      if (exp_it != root.object_v.end()) {
+        if (exp_it->second.kind != JsonValue::Kind::Array) throw std::runtime_error("expected must be array");
+        if (exp_it->second.array_v.size() != out.size()) throw std::runtime_error("expected size mismatch");
+        for (std::size_t pi = 0; pi < out.size(); ++pi) {
+          const JsonValue& e_prog = exp_it->second.array_v[pi];
+          if (e_prog.kind != JsonValue::Kind::Array) throw std::runtime_error("expected program entry must be array");
+          if (e_prog.array_v.size() != out[pi].size()) throw std::runtime_error("expected case size mismatch");
+          for (std::size_t ci = 0; ci < out[pi].size(); ++ci) {
+            const JsonValue& e = e_prog.array_v[ci];
+            const std::string kind = require_string(require_object_field(e, "kind"), "kind");
+            if (kind == "return") {
+              const Value expected_value = decode_typed_value(require_object_field(e, "value"));
+              if (out[pi][ci].is_error || !value_equal(out[pi][ci].value, expected_value)) mismatches++;
+              continue;
+            }
+            if (kind == "error") {
+              const std::string code = require_string(require_object_field(e, "code"), "code");
+              if (!out[pi][ci].is_error || code != g3pvm::err_code_name(out[pi][ci].err.code)) mismatches++;
+              continue;
+            }
+            throw std::runtime_error("expected.kind must be return/error");
           }
-          continue;
         }
-        if (kind == "error") {
-          const std::string code = require_string(require_object_field(e, "code"), "code");
-          if (!out[i].is_error || code != g3pvm::err_code_name(out[i].err.code)) {
-            mismatches++;
-          }
-          continue;
-        }
-        throw std::runtime_error("expected.kind must be return/error");
       }
-    }
 
-    std::cout << "OK cases=" << out.size() << " return=" << ok_count << " error=" << err_count
-              << " blocksize=" << blocksize << "\n";
-    if (exp_it != root.object_v.end()) {
-      std::cout << "CHECK mismatches=" << mismatches << "\n";
-      return mismatches == 0 ? 0 : 1;
+      std::cout << "OK programs=" << out.size() << " cases=" << total_cases << " return=" << ok_count
+                << " error=" << err_count << " blocksize=" << blocksize << "\n";
+      if (exp_it != root.object_v.end()) {
+        std::cout << "CHECK mismatches=" << mismatches << "\n";
+        return mismatches == 0 ? 0 : 1;
+      }
+      return 0;
+    } else {
+      BytecodeProgram program = decode_program(require_object_field(*req, "bytecode"));
+      std::vector<InputCase> cases = decode_cases(require_object_field(*req, "cases"));
+
+      std::vector<g3pvm::VMResult> out = g3pvm::run_bytecode_gpu_batch(program, cases, fuel, blocksize);
+
+      int ok_count = 0;
+      int err_count = 0;
+      for (const auto& r : out) {
+        if (r.is_error) err_count++;
+        else ok_count++;
+      }
+
+      if (exp_it != root.object_v.end()) {
+        if (exp_it->second.kind != JsonValue::Kind::Array) throw std::runtime_error("expected must be array");
+        if (exp_it->second.array_v.size() != out.size()) {
+          throw std::runtime_error("expected size mismatch");
+        }
+
+        for (std::size_t i = 0; i < out.size(); ++i) {
+          const JsonValue& e = exp_it->second.array_v[i];
+          const std::string kind = require_string(require_object_field(e, "kind"), "kind");
+          if (kind == "return") {
+            const Value expected_value = decode_typed_value(require_object_field(e, "value"));
+            if (out[i].is_error || !value_equal(out[i].value, expected_value)) {
+              mismatches++;
+            }
+            continue;
+          }
+          if (kind == "error") {
+            const std::string code = require_string(require_object_field(e, "code"), "code");
+            if (!out[i].is_error || code != g3pvm::err_code_name(out[i].err.code)) {
+              mismatches++;
+            }
+            continue;
+          }
+          throw std::runtime_error("expected.kind must be return/error");
+        }
+      }
+
+      std::cout << "OK cases=" << out.size() << " return=" << ok_count << " error=" << err_count
+                << " blocksize=" << blocksize << "\n";
+      if (exp_it != root.object_v.end()) {
+        std::cout << "CHECK mismatches=" << mismatches << "\n";
+        return mismatches == 0 ? 0 : 1;
+      }
+      return 0;
     }
-    return 0;
   } catch (const std::exception& e) {
     std::cerr << "parse/run error: " << e.what() << "\n";
     return 2;

@@ -54,6 +54,12 @@ if(G3PVM_HAS_CUDA)
   )
   target_link_libraries(g3pvm_test_vm_gpu_batch PRIVATE g3pvm_gpu)
   add_test(NAME g3pvm_test_vm_gpu_batch COMMAND g3pvm_test_vm_gpu_batch)
+
+  add_executable(g3pvm_test_vm_gpu_multi_batch
+    tests/test_vm_gpu_multi_batch.cpp
+  )
+  target_link_libraries(g3pvm_test_vm_gpu_multi_batch PRIVATE g3pvm_gpu)
+  add_test(NAME g3pvm_test_vm_gpu_multi_batch COMMAND g3pvm_test_vm_gpu_multi_batch)
 endif()
 
 add_executable(g3pvm_test_vm_smoke
