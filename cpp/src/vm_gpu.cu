@@ -758,6 +758,12 @@ __global__ void vm_multi_fitness_kernel(const Value* all_consts, const DInstr* a
   const DProgramMeta meta = metas[prog_idx];
 
   extern __shared__ DInstr shared_code[];
+  __shared__ int block_score;
+  if (tid == 0) {
+    block_score = 0;
+  }
+  __syncthreads();
+
   if (meta.is_valid && meta.code_len > 0) {
     for (int i = tid; i < meta.code_len; i += static_cast<int>(blockDim.x)) {
       shared_code[i] = all_code[meta.code_offset + i];
@@ -1006,7 +1012,11 @@ __global__ void vm_multi_fitness_kernel(const Value* all_consts, const DInstr* a
   }
 
   if (local_score != 0) {
-    atomicAdd(&fitness_out[prog_idx], local_score);
+    atomicAdd(&block_score, local_score);
+  }
+  __syncthreads();
+  if (tid == 0) {
+    fitness_out[prog_idx] = block_score;
   }
 }
 
