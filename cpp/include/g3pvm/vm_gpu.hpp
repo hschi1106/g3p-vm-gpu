@@ -23,10 +23,4 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
                                              int fuel = 10000,
                                              int blocksize = 256);
 
-// Returns ValueError when CUDA runtime/device is unavailable.
-VMResult run_bytecode_gpu(const BytecodeProgram& program,
-                          const std::vector<std::pair<int, Value>>& inputs,
-                          int fuel = 10000,
-                          int blocksize = 256);
-
 }  // namespace g3pvm

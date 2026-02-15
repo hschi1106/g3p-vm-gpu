@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "g3pvm/bytecode.hpp"
 #include "g3pvm/errors.hpp"
@@ -9,6 +10,7 @@
 namespace {
 
 using g3pvm::BytecodeProgram;
+using g3pvm::InputCase;
 using g3pvm::Value;
 using g3pvm::ValueTag;
 
@@ -30,7 +32,13 @@ int main() {
   p.consts = {Value::from_int(2), Value::from_int(3)};
   p.code = {ins_a("PUSH_CONST", 0), ins_a("PUSH_CONST", 1), ins("ADD"), ins("RETURN")};
 
-  g3pvm::VMResult out = g3pvm::run_bytecode_gpu(p, {}, 100);
+  std::vector<InputCase> cases(1);
+  std::vector<g3pvm::VMResult> batch_out = g3pvm::run_bytecode_gpu_batch(p, cases, 100, 1);
+  if (batch_out.empty()) {
+    std::cerr << "FAIL: gpu smoke should return one result\n";
+    return 1;
+  }
+  g3pvm::VMResult out = batch_out.front();
   if (out.is_error) {
     std::cout << "g3pvm_test_vm_gpu_smoke: SKIP (" << out.err.message << ")\n";
     return 0;

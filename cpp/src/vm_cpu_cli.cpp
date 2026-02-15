@@ -393,7 +393,20 @@ int main() {
       result = g3pvm::run_bytecode(program, inputs, fuel);
     } else if (engine == "gpu") {
 #ifdef G3PVM_HAS_CUDA
-      result = g3pvm::run_bytecode_gpu(program, inputs, fuel);
+      g3pvm::InputCase one_case;
+      one_case.reserve(inputs.size());
+      for (const auto& iv : inputs) {
+        one_case.push_back(g3pvm::LocalBinding{iv.first, iv.second});
+      }
+      std::vector<g3pvm::InputCase> cases;
+      cases.push_back(std::move(one_case));
+      std::vector<g3pvm::VMResult> out = g3pvm::run_bytecode_gpu_batch(program, cases, fuel);
+      if (out.empty()) {
+        result = g3pvm::VMResult{
+            true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "gpu batch wrapper failure"}};
+      } else {
+        result = out.front();
+      }
 #else
       result = g3pvm::VMResult{true, Value::none(), g3pvm::Err{g3pvm::ErrCode::Value, "gpu unsupported"}};
 #endif

@@ -670,23 +670,4 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
   return out;
 }
 
-VMResult run_bytecode_gpu(const BytecodeProgram& program,
-                          const std::vector<std::pair<int, Value>>& inputs,
-                          int fuel,
-                          int blocksize) {
-  InputCase in_case;
-  in_case.reserve(inputs.size());
-  for (const auto& iv : inputs) {
-    in_case.push_back(LocalBinding{iv.first, iv.second});
-  }
-
-  std::vector<InputCase> cases;
-  cases.push_back(std::move(in_case));
-  std::vector<VMResult> out = run_bytecode_gpu_batch(program, cases, fuel, blocksize);
-  if (out.empty()) {
-    return VMResult{true, Value::none(), Err{ErrCode::Value, "gpu batch wrapper failure"}};
-  }
-  return out.front();
-}
-
 }  // namespace g3pvm
