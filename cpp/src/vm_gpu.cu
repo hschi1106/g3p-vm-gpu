@@ -2,6 +2,7 @@
 
 #include <cuda_runtime.h>
 
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -815,6 +816,64 @@ std::vector<std::vector<VMResult>> multi_single_error(ErrCode code, const std::s
       std::vector<VMResult>{VMResult{true, Value::none(), Err{code, message}}}};
 }
 
+bool select_least_used_device(cudaDeviceProp& props_out, std::string& message_out) {
+  int device_count = 0;
+  const cudaError_t count_err = cudaGetDeviceCount(&device_count);
+  if (count_err != cudaSuccess || device_count <= 0) {
+    message_out = "cuda device unavailable";
+    if (count_err != cudaSuccess) {
+      message_out += " err=";
+      message_out += cudaGetErrorString(count_err);
+    }
+    return false;
+  }
+
+  int best_dev = -1;
+  double best_used_ratio = 2.0;
+  std::size_t best_used_bytes = std::numeric_limits<std::size_t>::max();
+
+  for (int dev = 0; dev < device_count; ++dev) {
+    if (cudaSetDevice(dev) != cudaSuccess) {
+      continue;
+    }
+    std::size_t free_bytes = 0;
+    std::size_t total_bytes = 0;
+    if (cudaMemGetInfo(&free_bytes, &total_bytes) != cudaSuccess || total_bytes == 0) {
+      continue;
+    }
+    const std::size_t used_bytes = total_bytes - free_bytes;
+    const double used_ratio = static_cast<double>(used_bytes) / static_cast<double>(total_bytes);
+
+    if (best_dev < 0 || used_ratio < best_used_ratio ||
+        (std::fabs(used_ratio - best_used_ratio) <= 1e-12 && used_bytes < best_used_bytes)) {
+      best_dev = dev;
+      best_used_ratio = used_ratio;
+      best_used_bytes = used_bytes;
+    }
+  }
+
+  if (best_dev < 0) {
+    message_out = "cuda device unavailable err=no usable device found";
+    return false;
+  }
+
+  const cudaError_t set_err = cudaSetDevice(best_dev);
+  if (set_err != cudaSuccess) {
+    message_out = "cuda device select failure err=";
+    message_out += cudaGetErrorString(set_err);
+    return false;
+  }
+
+  const cudaError_t prop_err = cudaGetDeviceProperties(&props_out, best_dev);
+  if (prop_err != cudaSuccess) {
+    message_out = "cuda device query failure err=";
+    message_out += cudaGetErrorString(prop_err);
+    return false;
+  }
+
+  return true;
+}
+
 void cuda_cleanup_multi(Value* d_consts, DInstr* d_code, DProgramMeta* d_metas,
                         Value* d_case_local_vals, unsigned char* d_case_local_set, DResult* d_out) {
   if (d_consts) cudaFree(d_consts);
@@ -843,25 +902,10 @@ std::vector<VMResult> run_bytecode_gpu_batch(const BytecodeProgram& program,
     return batch_error(cases.size(), ErrCode::Value, "invalid gpu blocksize");
   }
 
-  int device_count = 0;
-  const cudaError_t count_err = cudaGetDeviceCount(&device_count);
-  if (count_err != cudaSuccess || device_count <= 0) {
-    std::string msg = "cuda device unavailable";
-    if (count_err != cudaSuccess) {
-      msg += " err=";
-      msg += cudaGetErrorString(count_err);
-    }
-    return batch_error(cases.size(), ErrCode::Value, msg);
-  }
-
-  int dev = 0;
-  if (cudaGetDevice(&dev) != cudaSuccess) {
-    return batch_error(cases.size(), ErrCode::Value, "cuda current device query failure");
-  }
-
   cudaDeviceProp props;
-  if (cudaGetDeviceProperties(&props, dev) != cudaSuccess) {
-    return batch_error(cases.size(), ErrCode::Value, "cuda device query failure");
+  std::string select_msg;
+  if (!select_least_used_device(props, select_msg)) {
+    return batch_error(cases.size(), ErrCode::Value, select_msg);
   }
 
   if (blocksize > props.maxThreadsPerBlock) {
@@ -981,25 +1025,10 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
     return multi_single_error(ErrCode::Value, "invalid gpu blocksize");
   }
 
-  int device_count = 0;
-  const cudaError_t count_err = cudaGetDeviceCount(&device_count);
-  if (count_err != cudaSuccess || device_count <= 0) {
-    std::string msg = "cuda device unavailable";
-    if (count_err != cudaSuccess) {
-      msg += " err=";
-      msg += cudaGetErrorString(count_err);
-    }
-    return multi_single_error(ErrCode::Value, msg);
-  }
-
-  int dev = 0;
-  if (cudaGetDevice(&dev) != cudaSuccess) {
-    return multi_single_error(ErrCode::Value, "cuda current device query failure");
-  }
-
   cudaDeviceProp props;
-  if (cudaGetDeviceProperties(&props, dev) != cudaSuccess) {
-    return multi_single_error(ErrCode::Value, "cuda device query failure");
+  std::string select_msg;
+  if (!select_least_used_device(props, select_msg)) {
+    return multi_single_error(ErrCode::Value, select_msg);
   }
 
   if (blocksize > props.maxThreadsPerBlock) {

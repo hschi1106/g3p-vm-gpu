@@ -80,7 +80,8 @@ Run fixture with C++ GPU batch CLI:
 cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
 ```
 
-If GPU0 is busy, pin to GPU1:
+GPU runtime now auto-selects the least-used visible CUDA device by memory usage.
+If you still want to pin manually:
 
 ```bash
 CUDA_VISIBLE_DEVICES=1 cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
@@ -100,8 +101,8 @@ Argument order:
 Example for your target workload (`4096 programs`, each `1024 cases`, program buckets `2048/1024/1024`):
 
 ```bash
-# GPU (set CUDA_VISIBLE_DEVICES if needed)
-CUDA_VISIBLE_DEVICES=1 cpp/build/g3pvm_vm_gpu_multi_bench 4096 1024 2048 1024 1024 64 256
+# GPU (auto-selects least-used visible device; pin with CUDA_VISIBLE_DEVICES to override)
+cpp/build/g3pvm_vm_gpu_multi_bench 4096 1024 2048 1024 1024 64 256
 
 # CPU
 cpp/build/g3pvm_vm_cpu_multi_bench 4096 1024 2048 1024 1024 64
