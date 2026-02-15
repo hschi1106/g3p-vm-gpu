@@ -98,10 +98,10 @@ int main(int argc, char** argv) {
   for (int pi = 0; pi < program_count; ++pi) {
     auto& v = cases_by_program[static_cast<std::size_t>(pi)];
     v.resize(static_cast<std::size_t>(cases_per_program));
-    if (pi < pass_programs) {
-      for (int ci = 0; ci < cases_per_program; ++ci) {
-        v[static_cast<std::size_t>(ci)].push_back(LocalBinding{0, Value::from_int(ci)});
-      }
+    for (int ci = 0; ci < cases_per_program; ++ci) {
+      // Keep case shape identical across all programs. Programs that do not
+      // use locals will ignore this binding.
+      v[static_cast<std::size_t>(ci)].push_back(LocalBinding{0, Value::from_int(ci)});
     }
   }
 

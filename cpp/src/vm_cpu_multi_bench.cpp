@@ -83,10 +83,8 @@ int main(int argc, char** argv) {
 
   for (int pi = 0; pi < program_count; ++pi) {
     const BytecodeProgram* prog = nullptr;
-    bool pass_bucket = false;
     if (pi < pass_programs) {
       prog = &pass_p;
-      pass_bucket = true;
     } else if (pi < pass_programs + fail_programs) {
       prog = &fail_p;
     } else {
@@ -95,9 +93,9 @@ int main(int argc, char** argv) {
 
     for (int ci = 0; ci < cases_per_program; ++ci) {
       std::vector<std::pair<int, Value>> inputs;
-      if (pass_bucket) {
-        inputs.push_back({0, Value::from_int(ci)});
-      }
+      // Keep case shape identical across all programs. Programs that do not
+      // use locals will ignore this binding.
+      inputs.push_back({0, Value::from_int(ci)});
       VMResult out = g3pvm::run_bytecode(*prog, inputs, fuel);
       total += 1;
       if (!out.is_error) {
