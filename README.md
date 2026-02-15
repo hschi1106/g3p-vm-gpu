@@ -1,84 +1,111 @@
 # g3p-vm-gpu
 
-g3p-vm-gpu/
-  README.md
-  LICENSE
-  .gitignore
+Bytecode VM project with Python reference/runtime and C++ CPU/GPU backends.
 
-  spec/
-    subset_v0_1.md              # 你那套 Python-like subset 規格（語法/限制/錯誤）
-    bytecode_isa.md             # opcode/operand/stack effects/錯誤規則（單一真理來源）
-    builtins.md                 # abs/min/max/clip 的定義（含型別/錯誤）
-    test_contract.md            # 一致性契約：interp == vm_py == vm_gpu 的比較規則
+## What is in this repo
 
-  python/
-    pyproject.toml              # 或 setup.cfg/requirements.txt，選一個
-    src/
-      g3p_vm_gpu/
-        __init__.py
-        ast.py                  # AST nodes
-        errors.py               # ErrorKind/EvalError
-        builtins.py             # builtin_apply
-        interp.py               # reference interpreter (big-step + fuel)
-        compiler.py             # AST -> bytecode（label patching）
-        vm.py                   # CPU bytecode VM（驗證用，不追求快）
-        fuzz.py                 # grammar/AST fuzz generator
-        demo.py                 # 最小可跑 demo
-        benches/
-          microbench.py         # instruction mix / throughput（CPU）
-    tests/
-      test_interp.py
-      test_vm_equiv.py          # fuzz: interp == vm_py(compile)
-      test_builtins.py
+- `python/src/g3p_vm_gpu/`
+  - language AST, compiler, interpreter, Python VM, fuzz generator
+- `cpp/`
+  - C++ CPU VM
+  - CUDA GPU VM (`run_bytecode_gpu_batch`)
+  - CLIs and C++ tests
+- `spec/`
+  - language, bytecode ISA, builtins, and test contracts
+- `tools/`
+  - fixture generation and cross-backend comparison scripts
 
-  cpp/
-    CMakeLists.txt
-    include/
-      g3pvm/
-        bytecode.hpp            # BytecodeProgram struct, encoding helpers
-        value.hpp               # Value representation（tagged union）
-        errors.hpp              # error codes aligned with spec
-        builtins.hpp            # builtin ids + semantics
-        vm_cpu.hpp              # (可選) C++ CPU VM baseline
-        vm_gpu.hpp              # GPU runner interface
-    src/
-      bytecode.cpp
-      builtins.cpp
-      vm_cpu.cpp                # 可選
-      vm_gpu.cu                 # CUDA kernel + launcher
-      api.cpp                   # 對外 C API / Python binding glue
-    tests/
-      test_vm_smoke.cpp
-      test_equiv_small.cpp      # 小規模對照（跑固定 bytecode case）
+## Prerequisites
 
-  bindings/
-    python/
-      pybind/
-        CMakeLists.txt
-        module.cpp              # pybind11: run_gpu(bytecode, inputs) -> results
+- Python 3.10+
+- CMake 3.16+
+- C++17 compiler
+- CUDA toolkit + NVIDIA driver (for GPU path)
 
-  tools/
-    gen_random_programs.py      # 產生固定 seed 的測試集合（跨語言都用）
-    dump_bytecode.py            # human-readable disasm
-    compare_results.py          # 比較 interp/vm_py/vm_gpu 的結果差異
+## Python test commands
 
-  data/
-    benchmarks/
-      expr_regression/          # 你自己的小 benchmark 任務/資料
-      boolean_tasks/
-    fixtures/
-      bytecode_cases.json       # 固定測試向量（確保回歸）
+Run all Python tests:
 
-  scripts/
-    run_tests.sh
-    run_bench_cpu.sh
-    run_bench_gpu.sh
-    format.sh
-
-  .github/
-    workflows/
-      ci.yml                    # Python tests + (可選) C++ build
-
-
+```bash
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+```
+
+Run one module:
+
+```bash
+PYTHONPATH=python python3 -m unittest python.tests.test_vm_equiv -v
+```
+
+Run demo:
+
+```bash
 PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
+```
+
+## C++ build and tests
+
+Configure and build:
+
+```bash
+cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
+cmake --build cpp/build -j
+```
+
+Run C++ tests:
+
+```bash
+ctest --test-dir cpp/build --output-on-failure
+```
+
+## GPU API status
+
+GPU execution is batch-only now:
+
+- `run_bytecode_gpu_batch(program, cases, fuel, blocksize)`
+
+Single-case GPU API has been removed from the public interface. Use one-case batch input if needed.
+
+## Batch fixture generation
+
+Generate deterministic batch fixture (default: 2048 pass / 1024 fail / 1024 timeout):
+
+```bash
+PYTHONPATH=python python3 tools/gen_gpu_batch_cases.py --out data/fixtures/gpu_batch_cases.json
+```
+
+Run fixture with C++ GPU batch CLI:
+
+```bash
+cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
+```
+
+If GPU0 is busy, pin to GPU1:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 cpp/build/g3pvm_vm_gpu_batch_cli data/fixtures/gpu_batch_cases.json
+```
+
+## Data directory behavior
+
+`data/` is git-ignored on purpose. Generated fixtures are local artifacts.
+
+Generation scripts automatically create parent directories for output paths:
+
+- `tools/gen_bytecode_fixture_set.py`
+- `tools/gen_gpu_batch_cases.py`
+
+So commands like `--out data/fixtures/...` work even if directories do not exist yet.
+
+## Useful comparison tools
+
+- Python VM vs C++ CPU fixtures:
+
+```bash
+PYTHONPATH=python python3 tools/compare_vm_py_cpp_fixtures.py --fixture data/fixtures/bytecode_cases.json
+```
+
+- Python VM vs C++ GPU fixtures:
+
+```bash
+PYTHONPATH=python python3 tools/compare_vm_py_gpu_fixtures.py --fixture data/fixtures/bytecode_cases.json
+```
