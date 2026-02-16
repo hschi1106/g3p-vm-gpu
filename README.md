@@ -94,22 +94,24 @@ cpp/build/g3pvm_vm_cpu_multi_bench 4096 1024 2048 1024 1024 64
 
 Generation scripts automatically create parent directories for output paths:
 
-- `tools/gen_fitness_multi_bench_inputs.py`
+- `tools/gen_psb2_fitness_multi_bench_inputs.py`
 
 So commands like `--out data/fixtures/...` work even if directories do not exist yet.
 
-Generate canonical fitness multi-bench input JSON:
+Generate PSB2 (bouncing-balls) fitness multi-bench input JSON:
 
 ```bash
-PYTHONPATH=python python3 tools/gen_fitness_multi_bench_inputs.py \
-  --out data/fixtures/fitness_multi_bench_inputs.json
+PYTHONPATH=python python3 tools/gen_psb2_fitness_multi_bench_inputs.py \
+  --psb2-root data/psb2_datasets \
+  --out data/fixtures/fitness_multi_bench_inputs_psb2.json \
+  --require-psb2-fetch
 ```
 
 Validate CPU/GPU fitness against expected scores from that generated JSON:
 
 ```bash
 PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py \
-  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --fixture data/fixtures/fitness_multi_bench_inputs_psb2.json \
   --cli cpp/build_release/g3pvm_vm_cpu_cli
 ```
 
@@ -117,7 +119,7 @@ Benchmark CPU/GPU fitness speed from the same generated JSON:
 
 ```bash
 PYTHONPATH=python python3 tools/bench_fitness_fixture_cpu_gpu.py \
-  --fixture data/fixtures/fitness_multi_bench_inputs.json \
+  --fixture data/fixtures/fitness_multi_bench_inputs_psb2.json \
   --cli cpp/build_release/g3pvm_vm_cpu_cli \
   --runs 5 \
   --blocksize 256

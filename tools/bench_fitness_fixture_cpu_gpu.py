@@ -92,8 +92,8 @@ def one_parse_only_run(exe: Path, request_text: str, blocksize: int) -> float:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark CPU/GPU fitness from one generated fixture JSON.")
-    parser.add_argument("--fixture", default="data/fixtures/fitness_multi_bench_inputs.json")
+    parser = argparse.ArgumentParser(description="Benchmark CPU/GPU fitness from one generated PSB2 fixture JSON.")
+    parser.add_argument("--fixture", default="data/fixtures/fitness_multi_bench_inputs_psb2.json")
     parser.add_argument("--cli", default="cpp/build_release/g3pvm_vm_cpu_cli")
     parser.add_argument("--runs", type=int, default=5)
     parser.add_argument("--blocksize", type=int, default=256)

@@ -67,8 +67,8 @@ def run_cli(exe: Path, req_text: str, engine: str, blocksize: int) -> Tuple[bool
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate multi execution from generated fixture JSON.")
-    parser.add_argument("--fixture", default="data/fixtures/fitness_multi_bench_inputs.json")
+    parser = argparse.ArgumentParser(description="Validate multi execution from generated PSB2 fixture JSON.")
+    parser.add_argument("--fixture", default="data/fixtures/fitness_multi_bench_inputs_psb2.json")
     parser.add_argument("--cli", default="cpp/build_release/g3pvm_vm_cpu_cli")
     parser.add_argument("--blocksize", type=int, default=256)
     args = parser.parse_args()
