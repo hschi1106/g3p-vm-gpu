@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "g3pvm/builtins.hpp"
+#include "g3pvm/value_semantics.hpp"
 
 namespace g3pvm {
 
@@ -25,25 +26,7 @@ VMResult fail(ErrCode code, const std::string& message) {
 
 bool to_numeric_pair(const Value& a, const Value& b, double& a_out, double& b_out,
                      bool& any_float) {
-  if (!is_numeric(a) || !is_numeric(b)) {
-    return false;
-  }
-  any_float = (a.tag == ValueTag::Float) || (b.tag == ValueTag::Float);
-  a_out = (a.tag == ValueTag::Float) ? a.f : static_cast<double>(a.i);
-  b_out = (b.tag == ValueTag::Float) ? b.f : static_cast<double>(b.i);
-  return true;
-}
-
-double py_float_mod(double a, double b) {
-  return a - std::floor(a / b) * b;
-}
-
-long long py_int_mod(long long a, long long b) {
-  long long r = a % b;
-  if (r != 0 && ((r < 0) != (b < 0))) {
-    r += b;
-  }
-  return r;
+  return vm_semantics::to_numeric_pair(a, b, a_out, b_out, any_float);
 }
 
 bool value_to_bool(const Value& v, bool& out) {
@@ -55,59 +38,30 @@ bool value_to_bool(const Value& v, bool& out) {
 }
 
 VMResult compare_values(const std::string& op, const Value& a, const Value& b) {
-  double a_num = 0.0;
-  double b_num = 0.0;
-  bool any_float = false;
-  if (to_numeric_pair(a, b, a_num, b_num, any_float)) {
-    VMResult out;
-    if (op == "LT") out.value = Value::from_bool(a_num < b_num);
-    else if (op == "LE") out.value = Value::from_bool(a_num <= b_num);
-    else if (op == "GT") out.value = Value::from_bool(a_num > b_num);
-    else if (op == "GE") out.value = Value::from_bool(a_num >= b_num);
-    else if (op == "EQ") out.value = Value::from_bool(a_num == b_num);
-    else if (op == "NE") out.value = Value::from_bool(a_num != b_num);
-    else return fail(ErrCode::Type, "unknown comparison op");
-    return out;
-  }
+  vm_semantics::CmpOp cmp_op = vm_semantics::CmpOp::EQ;
+  if (op == "LT") cmp_op = vm_semantics::CmpOp::LT;
+  else if (op == "LE") cmp_op = vm_semantics::CmpOp::LE;
+  else if (op == "GT") cmp_op = vm_semantics::CmpOp::GT;
+  else if (op == "GE") cmp_op = vm_semantics::CmpOp::GE;
+  else if (op == "EQ") cmp_op = vm_semantics::CmpOp::EQ;
+  else if (op == "NE") cmp_op = vm_semantics::CmpOp::NE;
+  else return fail(ErrCode::Type, "unknown comparison op");
 
-  if (a.tag == ValueTag::Bool && b.tag == ValueTag::Bool) {
-    if (op == "EQ") return VMResult{false, Value::from_bool(a.b == b.b), Err{ErrCode::Value, ""}};
-    if (op == "NE") return VMResult{false, Value::from_bool(a.b != b.b), Err{ErrCode::Value, ""}};
+  bool out_bool = false;
+  const vm_semantics::CompareStatus status = vm_semantics::compare_values(cmp_op, a, b, out_bool);
+  if (status == vm_semantics::CompareStatus::Ok) {
+    return VMResult{false, Value::from_bool(out_bool), Err{ErrCode::Value, ""}};
+  }
+  if (status == vm_semantics::CompareStatus::BoolOrderingNotSupported) {
     return fail(ErrCode::Type, "ordering comparison on bool not supported");
   }
-
-  if (a.tag == ValueTag::None || b.tag == ValueTag::None) {
-    if (op == "EQ") {
-      return VMResult{false, Value::from_bool(a.tag == ValueTag::None && b.tag == ValueTag::None),
-                      Err{ErrCode::Value, ""}};
-    }
-    if (op == "NE") {
-      return VMResult{false, Value::from_bool(!(a.tag == ValueTag::None && b.tag == ValueTag::None)),
-                      Err{ErrCode::Value, ""}};
-    }
+  if (status == vm_semantics::CompareStatus::NoneOrderingNotSupported) {
     return fail(ErrCode::Type, "ordering comparison on None not supported");
   }
-
-  return fail(ErrCode::Type, "unsupported comparison operand types");
-}
-
-bool values_equal_for_fitness(const Value& a, const Value& b) {
-  if (a.tag != b.tag) {
-    return false;
+  if (status == vm_semantics::CompareStatus::UnsupportedTypes) {
+    return fail(ErrCode::Type, "unsupported comparison operand types");
   }
-  if (a.tag == ValueTag::None) {
-    return true;
-  }
-  if (a.tag == ValueTag::Bool) {
-    return a.b == b.b;
-  }
-  if (a.tag == ValueTag::Int) {
-    return a.i == b.i;
-  }
-  if (a.tag == ValueTag::Float) {
-    return std::fabs(a.f - b.f) <= 1e-12;
-  }
-  return false;
+  return fail(ErrCode::Type, "unknown comparison op");
 }
 
 }  // namespace
@@ -226,11 +180,11 @@ VMResult run_bytecode(const BytecodeProgram& program, const std::vector<std::pai
         stack.push_back(Value::from_float(a_num / b_num));
       } else {
         if (any_float) {
-          stack.push_back(Value::from_float(py_float_mod(a_num, b_num)));
+          stack.push_back(Value::from_float(vm_semantics::py_float_mod(a_num, b_num)));
         } else {
           const long long ai = static_cast<long long>(a_num);
           const long long bi = static_cast<long long>(b_num);
-          stack.push_back(Value::from_int(py_int_mod(ai, bi)));
+          stack.push_back(Value::from_int(vm_semantics::py_int_mod(ai, bi)));
         }
       }
       continue;
@@ -349,7 +303,7 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
       const VMResult out = run_bytecode(programs[p], inputs, fuel);
       if (out.is_error) {
         fitness[p] -= 10;
-      } else if (values_equal_for_fitness(out.value, shared_answer[c])) {
+      } else if (vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
         fitness[p] += 1;
       }
     }
