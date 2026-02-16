@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import subprocess
 import time
@@ -37,6 +38,29 @@ def one_run(exe: Path, request_text: str, engine: str, blocksize: int) -> Tuple[
     cmd = [str(exe), "--engine", engine]
     if engine == "gpu":
         cmd += ["--blocksize", str(blocksize)]
+        last_msg = "cuda device unavailable"
+        last = (0.0, False, last_msg)
+        for dev in ("0", "1"):
+            env = dict(os.environ)
+            env["CUDA_VISIBLE_DEVICES"] = dev
+            t0 = time.perf_counter()
+            proc = subprocess.run(
+                cmd,
+                input=request_text,
+                text=True,
+                capture_output=True,
+                check=True,
+                cwd=ROOT,
+                env=env,
+            )
+            t1 = time.perf_counter()
+            ok, _fitness, msg = parse_fitness_output(proc.stdout)
+            if ok:
+                return ((t1 - t0) * 1000.0, ok, msg)
+            last_msg = msg or last_msg
+            last = ((t1 - t0) * 1000.0, ok, last_msg)
+        return last
+
     t0 = time.perf_counter()
     proc = subprocess.run(
         cmd,

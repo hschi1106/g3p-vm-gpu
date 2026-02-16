@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import List, Tuple
@@ -35,6 +36,27 @@ def run_cli(exe: Path, payload_text: str, engine: str, blocksize: int) -> Tuple[
     cmd = [str(exe), "--engine", engine]
     if engine == "gpu":
         cmd += ["--blocksize", str(blocksize)]
+        last_msg = "cuda device unavailable"
+        last = (False, [], last_msg)
+        for dev in ("0", "1"):
+            env = dict(os.environ)
+            env["CUDA_VISIBLE_DEVICES"] = dev
+            proc = subprocess.run(
+                cmd,
+                input=payload_text,
+                text=True,
+                capture_output=True,
+                check=True,
+                cwd=ROOT,
+                env=env,
+            )
+            ok, vals, msg = parse_fitness_output(proc.stdout)
+            if ok:
+                return (ok, vals, msg)
+            last_msg = msg or last_msg
+            last = (ok, vals, last_msg)
+        return last
+
     proc = subprocess.run(
         cmd,
         input=payload_text,
@@ -91,4 +113,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
