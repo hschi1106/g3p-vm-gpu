@@ -26,10 +26,14 @@ PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py \
   --cli cpp/build/g3pvm_vm_cpu_cli
 
 echo "[5/5] Benchmark CPU/GPU fitness from generated fixture JSON"
+mkdir -p logs
+BENCH_LOG="logs/fitness_bench_subtract_parse_$(date +%Y%m%d_%H%M%S).log"
 PYTHONPATH=python python3 tools/bench_fitness_fixture_cpu_gpu.py \
   --fixture data/fixtures/fitness_multi_bench_inputs.json \
   --cli cpp/build/g3pvm_vm_cpu_cli \
   --runs 3 \
-  --blocksize 256
+  --blocksize 256 \
+  --subtract-parse | tee "$BENCH_LOG"
+echo "benchmark log: $BENCH_LOG"
 
 echo "triplet checks: OK"
