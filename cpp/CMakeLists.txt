@@ -38,6 +38,7 @@ target_link_libraries(g3pvm_vm_cpu_multi_bench PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/vm_gpu.cu
+    src/vm_gpu/opcode_map.cpp
   )
   target_include_directories(g3pvm_gpu PUBLIC include)
   target_link_libraries(g3pvm_vm_cpu_cli PRIVATE g3pvm_gpu)
