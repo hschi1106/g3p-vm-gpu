@@ -29,6 +29,9 @@ _TIMING_PHASE_RE = re.compile(
 _TIMING_GEN_RE = re.compile(
     r"^TIMING\s+gen=(?P<gen>\d+)\s+eval_ms=(?P<eval>[-+]?\d+(?:\.\d+)?)\s+repro_ms=(?P<repro>[-+]?\d+(?:\.\d+)?)\s+total_ms=(?P<total>[-+]?\d+(?:\.\d+)?)$"
 )
+_TIMING_GPU_GEN_RE = re.compile(
+    r"^TIMING\s+gpu_gen=(?P<gen>\d+)\s+compile_ms=(?P<compile>[-+]?\d+(?:\.\d+)?)\s+pack_upload_ms=(?P<upload>[-+]?\d+(?:\.\d+)?)\s+kernel_ms=(?P<kernel>[-+]?\d+(?:\.\d+)?)\s+copyback_ms=(?P<copyback>[-+]?\d+(?:\.\d+)?)$"
+)
 
 
 @dataclass
@@ -99,6 +102,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--input-indices", default="auto", help="For psb2_fixture: comma-separated shared_cases idx list.")
     p.add_argument("--input-names", default="x", help="For psb2_fixture: variable names mapped to input indices.")
+    p.add_argument("--engine", choices=["cpu", "gpu"], default="cpu", help="Evaluation engine for evolve_cli.")
+    p.add_argument("--blocksize", type=int, default=256, help="GPU blocksize when --engine gpu.")
     p.add_argument("--population-size", type=int, default=64)
     p.add_argument("--generations", type=int, default=40)
     p.add_argument("--elitism", type=int, default=2)
@@ -144,6 +149,7 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
     final: Optional[Dict[str, Any]] = None
     timing_summary: Dict[str, float] = {}
     timing_per_gen: List[Dict[str, Any]] = []
+    timing_gpu_per_gen: List[Dict[str, Any]] = []
 
     for line in lines:
         m = _GEN_RE.match(line)
@@ -180,6 +186,18 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
                     "total_ms": float(m.group("total")),
                 }
             )
+            continue
+        m = _TIMING_GPU_GEN_RE.match(line)
+        if m is not None:
+            timing_gpu_per_gen.append(
+                {
+                    "generation": int(m.group("gen")),
+                    "compile_ms": float(m.group("compile")),
+                    "pack_upload_ms": float(m.group("upload")),
+                    "kernel_ms": float(m.group("kernel")),
+                    "copyback_ms": float(m.group("copyback")),
+                }
+            )
 
     if not history:
         raise ValueError("missing GEN lines in cpp cli stdout")
@@ -191,6 +209,7 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
         "final": final,
         "timing_summary": timing_summary,
         "timing_per_gen": timing_per_gen,
+        "timing_gpu_per_gen": timing_gpu_per_gen,
     }
 
 
@@ -253,6 +272,10 @@ def main() -> None:
             args.input_indices,
             "--input-names",
             args.input_names,
+            "--engine",
+            args.engine,
+            "--blocksize",
+            str(args.blocksize),
             "--population-size",
             str(args.population_size),
             "--generations",
@@ -357,6 +380,21 @@ def main() -> None:
                     + f"{row['eval_ms']:12.3f} "
                     + f"{row['repro_ms']:12.3f} "
                     + f"{row['total_ms']:12.3f}"
+                )
+        if parsed["timing_gpu_per_gen"]:
+            timing_table += "\n\n[inner_cpp_gpu_per_gen]"
+            timing_table += (
+                "\n"
+                + f"{'gen':>5s} {'compile_ms':>12s} {'upload_ms':>12s} {'kernel_ms':>12s} {'copyback_ms':>12s}"
+            )
+            for row in parsed["timing_gpu_per_gen"]:
+                timing_table += (
+                    "\n"
+                    + f"{row['generation']:05d} "
+                    + f"{row['compile_ms']:12.3f} "
+                    + f"{row['pack_upload_ms']:12.3f} "
+                    + f"{row['kernel_ms']:12.3f} "
+                    + f"{row['copyback_ms']:12.3f}"
                 )
         stage_path.write_text(timing_table + "\n", encoding="utf-8")
 

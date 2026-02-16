@@ -7,12 +7,11 @@
 
 namespace g3pvm::gpu_detail {
 
-PackResult pack_programs_and_shared_cases(const std::vector<BytecodeProgram>& programs,
-                                          const std::vector<InputCase>& shared_cases) {
+PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
+                                                int shared_case_count) {
   PackResult out;
   out.metas.resize(programs.size());
 
-  const int shared_case_count = static_cast<int>(shared_cases.size());
   for (std::size_t p = 0; p < programs.size(); ++p) {
     const BytecodeProgram& prog = programs[p];
 
@@ -58,17 +57,29 @@ PackResult pack_programs_and_shared_cases(const std::vector<BytecodeProgram>& pr
     out.metas[p] = meta;
   }
 
-  out.packed_case_local_vals.assign(shared_cases.size() * MAX_LOCALS, Value::none());
-  out.packed_case_local_set.assign(shared_cases.size() * MAX_LOCALS, 0);
+  return out;
+}
+
+void pack_shared_cases_only(const std::vector<InputCase>& shared_cases,
+                            std::vector<Value>* packed_case_local_vals,
+                            std::vector<unsigned char>* packed_case_local_set) {
+  packed_case_local_vals->assign(shared_cases.size() * MAX_LOCALS, Value::none());
+  packed_case_local_set->assign(shared_cases.size() * MAX_LOCALS, 0);
   for (std::size_t case_idx = 0; case_idx < shared_cases.size(); ++case_idx) {
     const std::size_t base = case_idx * MAX_LOCALS;
     for (const LocalBinding& binding : shared_cases[case_idx]) {
       if (binding.idx >= 0 && binding.idx < MAX_LOCALS) {
-        out.packed_case_local_vals[base + static_cast<std::size_t>(binding.idx)] = binding.value;
-        out.packed_case_local_set[base + static_cast<std::size_t>(binding.idx)] = 1;
+        (*packed_case_local_vals)[base + static_cast<std::size_t>(binding.idx)] = binding.value;
+        (*packed_case_local_set)[base + static_cast<std::size_t>(binding.idx)] = 1;
       }
     }
   }
+}
+
+PackResult pack_programs_and_shared_cases(const std::vector<BytecodeProgram>& programs,
+                                          const std::vector<InputCase>& shared_cases) {
+  PackResult out = pack_programs_with_shared_case_count(programs, static_cast<int>(shared_cases.size()));
+  pack_shared_cases_only(shared_cases, &out.packed_case_local_vals, &out.packed_case_local_set);
 
   return out;
 }

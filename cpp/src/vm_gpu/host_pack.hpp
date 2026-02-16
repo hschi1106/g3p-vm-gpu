@@ -23,6 +23,11 @@ struct PackResult {
 
 PackResult pack_programs_and_shared_cases(const std::vector<BytecodeProgram>& programs,
                                           const std::vector<InputCase>& shared_cases);
+PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
+                                                int shared_case_count);
+void pack_shared_cases_only(const std::vector<InputCase>& shared_cases,
+                            std::vector<Value>* packed_case_local_vals,
+                            std::vector<unsigned char>* packed_case_local_set);
 
 struct DeviceArena {
   Value* d_consts = nullptr;

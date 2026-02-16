@@ -156,6 +156,7 @@ Quick start (`simple` cases):
 python3 tools/run_cpp_evolution.py \
   --cases data/fixtures/evolution_cases.json \
   --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --engine cpu \
   --cpp-timing all \
   --selection tournament \
   --crossover-method hybrid \
@@ -173,6 +174,8 @@ python3 tools/run_cpp_evolution.py \
   --input-indices 1 \
   --input-names x \
   --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --engine gpu \
+  --blocksize 256 \
   --cpp-timing all \
   --population-size 64 \
   --generations 40
@@ -203,12 +206,14 @@ Artifacts written to `--log-dir`:
 - `per_gen`: one line per generation (`eval_ms`, `repro_ms`, `total_ms`)
 - `all`: summary + per-generation
 
-If you run C++ CLI directly, use `--timing` with the same modes:
+If you run C++ CLI directly, use `--engine` / `--blocksize` / `--timing`:
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/evolution_cases.json \
   --cases-format simple \
+  --engine gpu \
+  --blocksize 256 \
   --timing all
 ```
 
@@ -221,6 +226,7 @@ TIMING phase=generations_repro_total ms=...
 TIMING phase=final_eval ms=...
 TIMING phase=total ms=...
 TIMING gen=000 eval_ms=... repro_ms=... total_ms=...
+TIMING gpu_gen=000 compile_ms=... pack_upload_ms=... kernel_ms=... copyback_ms=...
 ```
 
 Show all options:

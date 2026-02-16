@@ -199,6 +199,8 @@ ProgramGenome crossover(const ProgramGenome& parent_a,
                         const Limits& limits = Limits{});
 ValidationResult validate_genome(const ProgramGenome& genome, const Limits& limits = Limits{});
 BytecodeProgram compile_for_eval(const ProgramGenome& genome);
+BytecodeProgram compile_for_eval_with_preset_locals(const ProgramGenome& genome,
+                                                    const std::vector<std::string>& preset_locals);
 
 std::string ast_to_string(const Block& block);
 

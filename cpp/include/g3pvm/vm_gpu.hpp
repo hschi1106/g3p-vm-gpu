@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -34,6 +35,11 @@ std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
 struct GPUFitnessEvalResult {
   bool ok = false;
   std::vector<int> fitness;
+  double pack_programs_ms = 0.0;
+  double upload_programs_ms = 0.0;
+  double kernel_exec_ms = 0.0;
+  double copyback_ms = 0.0;
+  double total_ms = 0.0;
   Err err{ErrCode::Value, ""};
 };
 
@@ -43,5 +49,26 @@ GPUFitnessEvalResult run_bytecode_gpu_multi_fitness_shared_cases_debug(
     const std::vector<Value>& shared_answer,
     int fuel = 10000,
     int blocksize = 256);
+
+class GPUFitnessSession {
+ public:
+  GPUFitnessSession();
+  ~GPUFitnessSession();
+  GPUFitnessSession(const GPUFitnessSession&) = delete;
+  GPUFitnessSession& operator=(const GPUFitnessSession&) = delete;
+  GPUFitnessSession(GPUFitnessSession&&) noexcept;
+  GPUFitnessSession& operator=(GPUFitnessSession&&) noexcept;
+
+  GPUFitnessEvalResult init(const std::vector<InputCase>& shared_cases,
+                            const std::vector<Value>& shared_answer,
+                            int fuel = 10000,
+                            int blocksize = 256);
+  GPUFitnessEvalResult eval_programs(const std::vector<BytecodeProgram>& programs) const;
+  bool is_ready() const;
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
 
 }  // namespace g3pvm

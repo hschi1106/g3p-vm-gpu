@@ -19,6 +19,11 @@ enum class SelectionMethod {
   Random,
 };
 
+enum class EvalEngine {
+  CPU,
+  GPU,
+};
+
 using NamedInputs = std::unordered_map<std::string, Value>;
 
 struct FitnessCase {
@@ -34,6 +39,8 @@ struct EvolutionConfig {
   double crossover_rate = 0.9;
   CrossoverMethod crossover_method = CrossoverMethod::Hybrid;
   SelectionMethod selection_method = SelectionMethod::Tournament;
+  EvalEngine eval_engine = EvalEngine::CPU;
+  int gpu_blocksize = 256;
   int tournament_k = 3;
   double truncation_ratio = 0.5;
   std::uint64_t seed = 0;
@@ -43,7 +50,7 @@ struct EvolutionConfig {
   double float_rel_tol = 1e-12;
   double reward_match = 1.0;
   double penalty_mismatch = 0.0;
-  double penalty_error = -1.0;
+  double penalty_error = -10.0;
 };
 
 struct ScoredGenome {
@@ -61,11 +68,20 @@ struct EvolutionResult {
 
 struct EvolutionTiming {
   double init_population_ms = 0.0;
+  double gpu_session_init_ms = 0.0;
   double final_eval_ms = 0.0;
+  double gpu_generations_program_compile_ms_total = 0.0;
+  double gpu_generations_pack_upload_ms_total = 0.0;
+  double gpu_generations_kernel_ms_total = 0.0;
+  double gpu_generations_copyback_ms_total = 0.0;
   double total_ms = 0.0;
   std::vector<double> generation_eval_ms;
   std::vector<double> generation_repro_ms;
   std::vector<double> generation_total_ms;
+  std::vector<double> generation_gpu_program_compile_ms;
+  std::vector<double> generation_gpu_pack_upload_ms;
+  std::vector<double> generation_gpu_kernel_ms;
+  std::vector<double> generation_gpu_copyback_ms;
 };
 
 struct EvolutionRun {
@@ -93,5 +109,6 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
 
 std::string selection_method_name(SelectionMethod method);
 std::string crossover_method_name(CrossoverMethod method);
+std::string eval_engine_name(EvalEngine engine);
 
 }  // namespace g3pvm::evo

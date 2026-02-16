@@ -50,6 +50,7 @@ class TestRunCppEvolutionTool(unittest.TestCase):
                 "echo 'TIMING phase=init_population ms=1.234'\n"
                 "echo 'TIMING phase=total ms=9.876'\n"
                 "echo 'TIMING gen=000 eval_ms=3.210 repro_ms=1.230 total_ms=4.440'\n"
+                "echo 'TIMING gpu_gen=000 compile_ms=0.900 pack_upload_ms=0.500 kernel_ms=1.200 copyback_ms=0.300'\n"
                 "if [[ -n \"${out_json}\" ]]; then\n"
                 "  cat > \"${out_json}\" <<'JSON'\n"
                 "{\"history\":[{\"generation\":0}],\"final\":{\"best_fitness\":2}}\n"
@@ -105,6 +106,7 @@ class TestRunCppEvolutionTool(unittest.TestCase):
             self.assertEqual(summary["parsed"]["timing_summary"]["init_population"], 1.234)
             self.assertEqual(summary["parsed"]["timing_summary"]["total"], 9.876)
             self.assertEqual(len(summary["parsed"]["timing_per_gen"]), 1)
+            self.assertEqual(len(summary["parsed"]["timing_gpu_per_gen"]), 1)
 
             timing_stages = {row["stage"] for row in summary["timings"]}
             self.assertIn("run_cpp_cli", timing_stages)
@@ -115,6 +117,7 @@ class TestRunCppEvolutionTool(unittest.TestCase):
             self.assertIn("[outer_python]", timing_text)
             self.assertIn("[inner_cpp_summary]", timing_text)
             self.assertIn("[inner_cpp_per_gen]", timing_text)
+            self.assertIn("[inner_cpp_gpu_per_gen]", timing_text)
 
 
 if __name__ == "__main__":

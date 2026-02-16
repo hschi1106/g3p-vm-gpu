@@ -49,6 +49,8 @@ if(G3PVM_HAS_CUDA)
     src/vm_gpu/host_pack.cu
   )
   target_include_directories(g3pvm_gpu PUBLIC include)
+  target_compile_definitions(g3pvm_cpu PUBLIC G3PVM_HAS_CUDA=1)
+  target_link_libraries(g3pvm_cpu PUBLIC g3pvm_gpu)
   target_link_libraries(g3pvm_vm_cpu_cli PRIVATE g3pvm_gpu)
   target_compile_definitions(g3pvm_vm_cpu_cli PRIVATE G3PVM_HAS_CUDA=1)
 

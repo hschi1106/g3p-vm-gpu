@@ -1455,6 +1455,14 @@ ProgramGenome as_genome(const Block& ast) {
 
 class Compiler {
  public:
+  explicit Compiler(const std::vector<std::string>* preset_locals = nullptr) {
+    if (preset_locals != nullptr) {
+      for (const std::string& name : *preset_locals) {
+        local(name);
+      }
+    }
+  }
+
   void compile_block(const Block& b) {
     for (const StmtPtr& st : b.stmts) {
       compile_stmt(st);
@@ -1853,6 +1861,12 @@ ValidationResult validate_genome(const ProgramGenome& genome, const Limits& limi
 
 BytecodeProgram compile_for_eval(const ProgramGenome& genome) {
   Compiler c;
+  return c.build(genome.ast);
+}
+
+BytecodeProgram compile_for_eval_with_preset_locals(const ProgramGenome& genome,
+                                                    const std::vector<std::string>& preset_locals) {
+  Compiler c(&preset_locals);
   return c.build(genome.ast);
 }
 
