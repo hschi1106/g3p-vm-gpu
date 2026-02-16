@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "device_builtins.cuh"
 #include "device_exec.cuh"
 
@@ -24,12 +26,15 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
 
   Value stack[MAX_STACK];
   Value locals[MAX_LOCALS];
-  unsigned char local_set[MAX_LOCALS];
+  static_assert(MAX_LOCALS <= 64, "local_set_mask requires MAX_LOCALS <= 64");
+  std::uint64_t local_set_mask = 0;
 
   const int base = local_case * MAX_LOCALS;
   for (int i = 0; i < meta.n_locals; ++i) {
     locals[i] = shared_case_local_vals[base + i];
-    local_set[i] = shared_case_local_set[base + i];
+    if (shared_case_local_set[base + i]) {
+      local_set_mask |= (std::uint64_t{1} << i);
+    }
   }
 
   int sp = 0;
@@ -61,7 +66,7 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
         d_fail(result, DERR_NAME);
         break;
       }
-      if (!local_set[ins.a]) {
+      if ((local_set_mask & (std::uint64_t{1} << ins.a)) == 0) {
         d_fail(result, DERR_NAME);
         break;
       }
@@ -79,7 +84,7 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
         break;
       }
       locals[ins.a] = stack[--sp];
-      local_set[ins.a] = 1;
+      local_set_mask |= (std::uint64_t{1} << ins.a);
       continue;
     }
 
