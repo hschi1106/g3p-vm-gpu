@@ -5,7 +5,6 @@
 #include <cmath>
 #include <limits>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "vm_gpu/constants.hpp"
@@ -18,12 +17,9 @@ namespace g3pvm {
 
 namespace {
 
-using gpu_detail::DeviceErrCode;
 using gpu_detail::DInstr;
 using gpu_detail::DProgramMeta;
 using gpu_detail::DResult;
-using gpu_detail::DERR_TYPE;
-using gpu_detail::DERR_VALUE;
 
 std::vector<std::vector<VMResult>> multi_single_error(ErrCode code, const std::string& message) {
   return std::vector<std::vector<VMResult>>{

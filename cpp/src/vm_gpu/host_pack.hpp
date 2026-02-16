@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "g3pvm/bytecode.hpp"
-#include "g3pvm/errors.hpp"
 #include "g3pvm/vm_cpu.hpp"
 #include "types.hpp"
 
