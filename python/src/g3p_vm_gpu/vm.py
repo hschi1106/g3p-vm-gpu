@@ -7,6 +7,7 @@ from .ast import Val
 from .builtins import builtin_call
 from .compiler import BytecodeProgram
 from .errors import Err, ErrCode
+from .semantics import compare_values, is_num, promote_numeric
 
 
 @dataclass(frozen=True)
@@ -20,49 +21,6 @@ class VMError:
 
 
 VMResult = VMReturn | VMError
-
-
-def _is_num(v: Val) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
-
-
-def _promote(a: int | float, b: int | float) -> tuple[int | float, int | float]:
-    if isinstance(a, float) or isinstance(b, float):
-        return float(a), float(b)
-    return int(a), int(b)
-
-
-def _cmp(op: str, a: Val, b: Val) -> bool | Err:
-    if _is_num(a) and _is_num(b):
-        a2, b2 = _promote(a, b)  # type: ignore[arg-type]
-        if op == "LT":
-            return a2 < b2
-        if op == "LE":
-            return a2 <= b2
-        if op == "GT":
-            return a2 > b2
-        if op == "GE":
-            return a2 >= b2
-        if op == "EQ":
-            return a2 == b2
-        if op == "NE":
-            return a2 != b2
-
-    if isinstance(a, bool) and isinstance(b, bool):
-        if op == "EQ":
-            return a == b
-        if op == "NE":
-            return a != b
-        return Err(ErrCode.TYPE, "ordering comparison on bool not supported")
-
-    if a is None or b is None:
-        if op == "EQ":
-            return a is b
-        if op == "NE":
-            return a is not b
-        return Err(ErrCode.TYPE, "ordering comparison on None not supported")
-
-    return Err(ErrCode.TYPE, "unsupported comparison operand types")
 
 
 def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None, fuel: int = 10_000) -> VMResult:
@@ -118,7 +76,7 @@ def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None,
                 return fail(ErrCode.VALUE, "stack underflow")
             x = stack.pop()
             if ins.op == "NEG":
-                if not _is_num(x):
+                if not is_num(x):
                     return fail(ErrCode.TYPE, "NEG expects numeric")
                 stack.append(-x)  # type: ignore[operator]
             else:
@@ -132,9 +90,10 @@ def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None,
                 return fail(ErrCode.VALUE, "stack underflow")
             b = stack.pop()
             a = stack.pop()
-            if not _is_num(a) or not _is_num(b):
+            prom = promote_numeric(a, b)
+            if isinstance(prom, Err):
                 return fail(ErrCode.TYPE, f"{ins.op} expects numeric operands")
-            a2, b2 = _promote(a, b)  # type: ignore[arg-type]
+            a2, b2 = prom
             if ins.op == "ADD":
                 stack.append(a2 + b2)
             elif ins.op == "SUB":
@@ -156,7 +115,7 @@ def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None,
                 return fail(ErrCode.VALUE, "stack underflow")
             b = stack.pop()
             a = stack.pop()
-            r = _cmp(ins.op, a, b)
+            r = compare_values(ins.op, a, b)
             if isinstance(r, Err):
                 return VMError(r)
             stack.append(r)

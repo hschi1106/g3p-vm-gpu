@@ -10,6 +10,7 @@ from .ast import (
 )
 from .builtins import builtin_call
 from .errors import Err, ErrCode, Normal, Returned, Failed, Out
+from .semantics import compare_values, is_num, promote_numeric
 
 
 Env = Dict[str, Val]
@@ -19,18 +20,6 @@ def _consume_fuel(fuel: int) -> int | Err:
     if fuel <= 0:
         return Err(ErrCode.TIMEOUT, "fuel exhausted")
     return fuel - 1
-
-
-def _is_num(v: Val) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
-
-
-def _promote(a: Val, b: Val) -> tuple[Val, Val, type] | Err:
-    if not _is_num(a) or not _is_num(b):
-        return Err(ErrCode.TYPE, "numeric operands required")
-    if isinstance(a, float) or isinstance(b, float):
-        return float(a), float(b), float
-    return int(a), int(b), int
 
 
 def eval_expr(e: Expr, env: Env, fuel: int) -> tuple[Val | Err, int]:
@@ -56,7 +45,7 @@ def eval_expr(e: Expr, env: Env, fuel: int) -> tuple[Val | Err, int]:
         if isinstance(r, Err):
             return r, fuel
         if e.op == UOp.NEG:
-            if not _is_num(r):
+            if not is_num(r):
                 return Err(ErrCode.TYPE, "unary '-' expects numeric"), fuel
             return (-r), fuel
         if e.op == UOp.NOT:
@@ -109,10 +98,10 @@ def eval_expr(e: Expr, env: Env, fuel: int) -> tuple[Val | Err, int]:
 
         # arithmetic
         if op in (BOp.ADD, BOp.SUB, BOp.MUL, BOp.DIV, BOp.MOD):
-            prom = _promote(ra, rb)
+            prom = promote_numeric(ra, rb)
             if isinstance(prom, Err):
                 return prom, fuel
-            a2, b2, t = prom
+            a2, b2 = prom
             if op == BOp.ADD:
                 return a2 + b2, fuel
             if op == BOp.SUB:
@@ -131,39 +120,10 @@ def eval_expr(e: Expr, env: Env, fuel: int) -> tuple[Val | Err, int]:
 
         # comparisons
         if op in (BOp.LT, BOp.LE, BOp.GT, BOp.GE, BOp.EQ, BOp.NE):
-            # numeric comparisons
-            if _is_num(ra) and _is_num(rb):
-                a2, b2, _t = _promote(ra, rb)  # type: ignore
-                if op == BOp.LT:
-                    return a2 < b2, fuel
-                if op == BOp.LE:
-                    return a2 <= b2, fuel
-                if op == BOp.GT:
-                    return a2 > b2, fuel
-                if op == BOp.GE:
-                    return a2 >= b2, fuel
-                if op == BOp.EQ:
-                    return a2 == b2, fuel
-                if op == BOp.NE:
-                    return a2 != b2, fuel
-
-            # bool comparisons: only ==, !=
-            if isinstance(ra, bool) and isinstance(rb, bool):
-                if op == BOp.EQ:
-                    return ra == rb, fuel
-                if op == BOp.NE:
-                    return ra != rb, fuel
-                return Err(ErrCode.TYPE, "ordering comparison on bool not supported"), fuel
-
-            # none comparisons: only ==, !=
-            if ra is None or rb is None:
-                if op == BOp.EQ:
-                    return ra is rb, fuel
-                if op == BOp.NE:
-                    return ra is not rb, fuel
-                return Err(ErrCode.TYPE, "ordering comparison on None not supported"), fuel
-
-            return Err(ErrCode.TYPE, "unsupported comparison operand types"), fuel
+            rcmp = compare_values(op.value, ra, rb)
+            if isinstance(rcmp, Err):
+                return rcmp, fuel
+            return rcmp, fuel
 
         return Err(ErrCode.TYPE, f"unknown binary op: {op}"), fuel
 
