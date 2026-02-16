@@ -23,6 +23,12 @@ _GEN_RE = re.compile(
 _FINAL_RE = re.compile(
     r"^FINAL\s+best=(?P<best>[-+]?\d+(?:\.\d+)?)\s+hash=(?P<hash>[0-9a-fA-F]+)\s+selection=(?P<selection>[a-z_]+)\s+crossover=(?P<crossover>[a-z_]+)$"
 )
+_TIMING_PHASE_RE = re.compile(
+    r"^TIMING\s+phase=(?P<phase>[a-z_]+)\s+ms=(?P<ms>[-+]?\d+(?:\.\d+)?)$"
+)
+_TIMING_GEN_RE = re.compile(
+    r"^TIMING\s+gen=(?P<gen>\d+)\s+eval_ms=(?P<eval>[-+]?\d+(?:\.\d+)?)\s+repro_ms=(?P<repro>[-+]?\d+(?:\.\d+)?)\s+total_ms=(?P<total>[-+]?\d+(?:\.\d+)?)$"
+)
 
 
 @dataclass
@@ -110,6 +116,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-for-k", type=int, default=16)
     p.add_argument("--max-call-args", type=int, default=3)
     p.add_argument("--show-program", choices=["none", "ast", "bytecode", "both"], default="none")
+    p.add_argument(
+        "--cpp-timing",
+        choices=["none", "summary", "per_gen", "all"],
+        default="all",
+        help="Timing verbosity emitted by g3pvm_evolve_cli.",
+    )
 
     p.add_argument("--timeout-sec", type=int, default=0, help="Subprocess timeout in seconds, 0 means no timeout.")
     p.add_argument("--log-dir", default="logs/cpp_evolution", help="Directory for run logs and JSON artifacts.")
@@ -130,6 +142,8 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
     lines = [x.strip() for x in stdout.splitlines() if x.strip()]
     history: List[Dict[str, Any]] = []
     final: Optional[Dict[str, Any]] = None
+    timing_summary: Dict[str, float] = {}
+    timing_per_gen: List[Dict[str, Any]] = []
 
     for line in lines:
         m = _GEN_RE.match(line)
@@ -151,13 +165,33 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
                 "selection": m.group("selection"),
                 "crossover": m.group("crossover"),
             }
+            continue
+        m = _TIMING_PHASE_RE.match(line)
+        if m is not None:
+            timing_summary[m.group("phase")] = float(m.group("ms"))
+            continue
+        m = _TIMING_GEN_RE.match(line)
+        if m is not None:
+            timing_per_gen.append(
+                {
+                    "generation": int(m.group("gen")),
+                    "eval_ms": float(m.group("eval")),
+                    "repro_ms": float(m.group("repro")),
+                    "total_ms": float(m.group("total")),
+                }
+            )
 
     if not history:
         raise ValueError("missing GEN lines in cpp cli stdout")
     if final is None:
         raise ValueError("missing FINAL line in cpp cli stdout")
 
-    return {"history": history, "final": final}
+    return {
+        "history": history,
+        "final": final,
+        "timing_summary": timing_summary,
+        "timing_per_gen": timing_per_gen,
+    }
 
 
 def _dump_stage_table(records: List[StageRecord]) -> str:
@@ -253,6 +287,8 @@ def main() -> None:
             str(args.max_call_args),
             "--show-program",
             args.show_program,
+            "--timing",
+            args.cpp_timing,
             "--out-json",
             str(out_json_path),
         ]
@@ -306,6 +342,22 @@ def main() -> None:
         timing_table = _dump_stage_table(records)
         timing_table += f"\n{'write_artifacts':24s} {write_elapsed_ms:12.3f} ms"
         timing_table += f"\n{'total':24s} {sum(r.elapsed_ms for r in records) + write_elapsed_ms:12.3f} ms"
+        timing_table = "[outer_python]\n" + timing_table
+        if parsed["timing_summary"]:
+            timing_table += "\n\n[inner_cpp_summary]"
+            for k in sorted(parsed["timing_summary"].keys()):
+                timing_table += f"\n{k:24s} {parsed['timing_summary'][k]:12.3f} ms"
+        if parsed["timing_per_gen"]:
+            timing_table += "\n\n[inner_cpp_per_gen]"
+            timing_table += "\n" + f"{'gen':>5s} {'eval_ms':>12s} {'repro_ms':>12s} {'total_ms':>12s}"
+            for row in parsed["timing_per_gen"]:
+                timing_table += (
+                    "\n"
+                    + f"{row['generation']:05d} "
+                    + f"{row['eval_ms']:12.3f} "
+                    + f"{row['repro_ms']:12.3f} "
+                    + f"{row['total_ms']:12.3f}"
+                )
         stage_path.write_text(timing_table + "\n", encoding="utf-8")
 
         total_ms = (time.perf_counter() - overall_t0) * 1000.0

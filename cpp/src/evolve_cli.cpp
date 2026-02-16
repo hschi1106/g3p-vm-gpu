@@ -48,6 +48,7 @@ struct CliOptions {
   int max_for_k = 16;
   int max_call_args = 3;
   std::string show_program = "none";
+  std::string timing = "summary";
   std::string out_json;
 };
 
@@ -367,6 +368,8 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.max_call_args = std::stoi(need_value("--max-call-args"));
     } else if (arg == "--show-program") {
       opts.show_program = need_value("--show-program");
+    } else if (arg == "--timing") {
+      opts.timing = need_value("--timing");
     } else if (arg == "--out-json") {
       opts.out_json = need_value("--out-json");
     } else {
@@ -376,6 +379,9 @@ CliOptions parse_cli(int argc, char** argv) {
 
   if (opts.cases_path.empty()) {
     throw std::runtime_error("--cases is required");
+  }
+  if (opts.timing != "none" && opts.timing != "summary" && opts.timing != "per_gen" && opts.timing != "all") {
+    throw std::runtime_error("--timing must be one of: none|summary|per_gen|all");
   }
 
   return opts;
@@ -450,7 +456,8 @@ int main(int argc, char** argv) {
                                     args.max_for_k,
                                     args.max_call_args};
 
-    const g3pvm::evo::EvolutionResult result = g3pvm::evo::evolve_population(cases, cfg);
+    const g3pvm::evo::EvolutionRun run = g3pvm::evo::evolve_population_profiled(cases, cfg);
+    const g3pvm::evo::EvolutionResult& result = run.result;
 
     struct HistoryRow {
       int generation = 0;
@@ -495,6 +502,31 @@ int main(int argc, char** argv) {
               << " selection=" << g3pvm::evo::selection_method_name(cfg.selection_method)
               << " crossover=" << g3pvm::evo::crossover_method_name(cfg.crossover_method) << "\n";
 
+    if (args.timing == "summary" || args.timing == "all") {
+      double gen_eval_sum = 0.0;
+      double gen_repro_sum = 0.0;
+      for (double v : run.timing.generation_eval_ms) gen_eval_sum += v;
+      for (double v : run.timing.generation_repro_ms) gen_repro_sum += v;
+      std::cout << "TIMING phase=init_population ms=" << std::fixed << std::setprecision(3)
+                << run.timing.init_population_ms << "\n";
+      std::cout << "TIMING phase=generations_eval_total ms=" << std::fixed << std::setprecision(3)
+                << gen_eval_sum << "\n";
+      std::cout << "TIMING phase=generations_repro_total ms=" << std::fixed << std::setprecision(3)
+                << gen_repro_sum << "\n";
+      std::cout << "TIMING phase=final_eval ms=" << std::fixed << std::setprecision(3)
+                << run.timing.final_eval_ms << "\n";
+      std::cout << "TIMING phase=total ms=" << std::fixed << std::setprecision(3)
+                << run.timing.total_ms << "\n";
+    }
+    if (args.timing == "per_gen" || args.timing == "all") {
+      for (std::size_t i = 0; i < run.timing.generation_total_ms.size(); ++i) {
+        std::cout << "TIMING gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
+                  << " eval_ms=" << std::fixed << std::setprecision(3) << run.timing.generation_eval_ms[i]
+                  << " repro_ms=" << run.timing.generation_repro_ms[i]
+                  << " total_ms=" << run.timing.generation_total_ms[i] << "\n";
+      }
+    }
+
     if (!args.out_json.empty()) {
       std::ofstream out(args.out_json);
       if (!out) {
@@ -509,7 +541,12 @@ int main(int argc, char** argv) {
       out << "    \"selection\": \"" << g3pvm::evo::selection_method_name(cfg.selection_method) << "\",\n";
       out << "    \"crossover_method\": \"" << g3pvm::evo::crossover_method_name(cfg.crossover_method)
           << "\",\n";
-      out << "    \"seed\": " << cfg.seed << "\n";
+      out << "    \"seed\": " << cfg.seed << ",\n";
+      out << "    \"timing\": {\n";
+      out << "      \"init_population_ms\": " << std::setprecision(17) << run.timing.init_population_ms << ",\n";
+      out << "      \"final_eval_ms\": " << run.timing.final_eval_ms << ",\n";
+      out << "      \"total_ms\": " << run.timing.total_ms << "\n";
+      out << "    }\n";
       out << "  },\n";
 
       out << "  \"history\": [\n";
@@ -524,6 +561,27 @@ int main(int argc, char** argv) {
         out << "\n";
       }
       out << "  ],\n";
+
+      out << "  \"timing\": {\n";
+      out << "    \"generation_eval_ms\": [";
+      for (std::size_t i = 0; i < run.timing.generation_eval_ms.size(); ++i) {
+        if (i > 0) out << ", ";
+        out << std::setprecision(17) << run.timing.generation_eval_ms[i];
+      }
+      out << "],\n";
+      out << "    \"generation_repro_ms\": [";
+      for (std::size_t i = 0; i < run.timing.generation_repro_ms.size(); ++i) {
+        if (i > 0) out << ", ";
+        out << std::setprecision(17) << run.timing.generation_repro_ms[i];
+      }
+      out << "],\n";
+      out << "    \"generation_total_ms\": [";
+      for (std::size_t i = 0; i < run.timing.generation_total_ms.size(); ++i) {
+        if (i > 0) out << ", ";
+        out << std::setprecision(17) << run.timing.generation_total_ms[i];
+      }
+      out << "]\n";
+      out << "  },\n";
 
       out << "  \"final\": {\n";
       out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";

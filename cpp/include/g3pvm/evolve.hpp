@@ -59,6 +59,20 @@ struct EvolutionResult {
   std::vector<ScoredGenome> final_population;
 };
 
+struct EvolutionTiming {
+  double init_population_ms = 0.0;
+  double final_eval_ms = 0.0;
+  double total_ms = 0.0;
+  std::vector<double> generation_eval_ms;
+  std::vector<double> generation_repro_ms;
+  std::vector<double> generation_total_ms;
+};
+
+struct EvolutionRun {
+  EvolutionResult result;
+  EvolutionTiming timing;
+};
+
 double evaluate_genome(const ProgramGenome& genome,
                        const std::vector<FitnessCase>& cases,
                        const EvolutionConfig& cfg);
@@ -73,6 +87,9 @@ ProgramGenome select_parent(const std::vector<ScoredGenome>& scored,
 EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population = nullptr);
+EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
+                                        const EvolutionConfig& cfg,
+                                        const std::vector<ProgramGenome>* initial_population = nullptr);
 
 std::string selection_method_name(SelectionMethod method);
 std::string crossover_method_name(CrossoverMethod method);

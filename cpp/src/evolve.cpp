@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <numeric>
 #include <stdexcept>
 
@@ -189,6 +190,12 @@ ProgramGenome select_parent(const std::vector<ScoredGenome>& scored,
 EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population) {
+  return evolve_population_profiled(cases, cfg, initial_population).result;
+}
+
+EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
+                                        const EvolutionConfig& cfg,
+                                        const std::vector<ProgramGenome>* initial_population) {
   if (cases.empty()) {
     throw std::invalid_argument("cases must not be empty");
   }
@@ -202,17 +209,32 @@ EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
     throw std::invalid_argument("elitism must be in [0, population_size]");
   }
 
+  const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);
-  std::vector<ProgramGenome> population =
-      (initial_population == nullptr) ? init_population(cfg) : *initial_population;
+  const auto init_t0 = std::chrono::steady_clock::now();
+  std::vector<ProgramGenome> population;
+  if (initial_population == nullptr) {
+    population = init_population(cfg);
+  } else {
+    population = *initial_population;
+  }
+  const auto init_t1 = std::chrono::steady_clock::now();
   if (static_cast<int>(population.size()) != cfg.population_size) {
     throw std::invalid_argument("initial_population size must match population_size");
   }
 
-  EvolutionResult result;
+  EvolutionRun run;
+  run.timing.init_population_ms = std::chrono::duration<double, std::milli>(init_t1 - init_t0).count();
+  EvolutionResult& result = run.result;
+  run.timing.generation_eval_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  run.timing.generation_repro_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  run.timing.generation_total_ms.reserve(static_cast<std::size_t>(cfg.generations));
 
   for (int gen = 0; gen < cfg.generations; ++gen) {
+    const auto gen_t0 = std::chrono::steady_clock::now();
+    const auto eval_t0 = std::chrono::steady_clock::now();
     const std::vector<ScoredGenome> scored = evaluate_population(population, cases, cfg);
+    const auto eval_t1 = std::chrono::steady_clock::now();
     const ScoredGenome& best = scored.front();
     result.history_best.push_back(best);
     result.history_best_fitness.push_back(best.fitness);
@@ -233,6 +255,7 @@ EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
     std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
     std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
 
+    const auto repro_t0 = std::chrono::steady_clock::now();
     while (static_cast<int>(next_population.size()) < cfg.population_size) {
       const ProgramGenome p1 =
           select_parent(scored, rng, cfg.selection_method, cfg.tournament_k, cfg.truncation_ratio);
@@ -248,14 +271,28 @@ EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
       }
       next_population.push_back(child);
     }
+    const auto repro_t1 = std::chrono::steady_clock::now();
 
     population = std::move(next_population);
+    const auto gen_t1 = std::chrono::steady_clock::now();
+    run.timing.generation_eval_ms.push_back(
+        std::chrono::duration<double, std::milli>(eval_t1 - eval_t0).count());
+    run.timing.generation_repro_ms.push_back(
+        std::chrono::duration<double, std::milli>(repro_t1 - repro_t0).count());
+    run.timing.generation_total_ms.push_back(
+        std::chrono::duration<double, std::milli>(gen_t1 - gen_t0).count());
     (void)gen;
   }
 
+  const auto final_eval_t0 = std::chrono::steady_clock::now();
   result.final_population = evaluate_population(population, cases, cfg);
+  const auto final_eval_t1 = std::chrono::steady_clock::now();
   result.best = result.final_population.front();
-  return result;
+  run.timing.final_eval_ms = std::chrono::duration<double, std::milli>(final_eval_t1 - final_eval_t0).count();
+  run.timing.total_ms = std::chrono::duration<double, std::milli>(
+                            std::chrono::steady_clock::now() - all_t0)
+                            .count();
+  return run;
 }
 
 }  // namespace g3pvm::evo

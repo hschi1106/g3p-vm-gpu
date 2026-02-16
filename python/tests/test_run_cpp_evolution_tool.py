@@ -47,6 +47,9 @@ class TestRunCppEvolutionTool(unittest.TestCase):
                 "echo 'GEN 000 best=1.000000 mean=0.250000 hash=abc123abc123abcd'\n"
                 "echo 'GEN 001 best=2.000000 mean=0.750000 hash=def456def456def4'\n"
                 "echo 'FINAL best=2.000000 hash=def456def456def4 selection=tournament crossover=hybrid'\n"
+                "echo 'TIMING phase=init_population ms=1.234'\n"
+                "echo 'TIMING phase=total ms=9.876'\n"
+                "echo 'TIMING gen=000 eval_ms=3.210 repro_ms=1.230 total_ms=4.440'\n"
                 "if [[ -n \"${out_json}\" ]]; then\n"
                 "  cat > \"${out_json}\" <<'JSON'\n"
                 "{\"history\":[{\"generation\":0}],\"final\":{\"best_fitness\":2}}\n"
@@ -88,6 +91,9 @@ class TestRunCppEvolutionTool(unittest.TestCase):
             summary_line = next(x for x in proc.stdout.splitlines() if x.startswith("SUMMARY_JSON "))
             summary_path = Path(summary_line.split(" ", 1)[1].strip())
             self.assertTrue(summary_path.exists())
+            timing_line = next(x for x in proc.stdout.splitlines() if x.startswith("TIMINGS_LOG "))
+            timing_path = Path(timing_line.split(" ", 1)[1].strip())
+            self.assertTrue(timing_path.exists())
 
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             self.assertIn("timings", summary)
@@ -95,11 +101,20 @@ class TestRunCppEvolutionTool(unittest.TestCase):
             self.assertIn("parsed", summary)
             self.assertEqual(len(summary["parsed"]["history"]), 2)
             self.assertEqual(summary["parsed"]["final"]["best"], 2.0)
+            self.assertIn("timing_summary", summary["parsed"])
+            self.assertEqual(summary["parsed"]["timing_summary"]["init_population"], 1.234)
+            self.assertEqual(summary["parsed"]["timing_summary"]["total"], 9.876)
+            self.assertEqual(len(summary["parsed"]["timing_per_gen"]), 1)
 
             timing_stages = {row["stage"] for row in summary["timings"]}
             self.assertIn("run_cpp_cli", timing_stages)
             self.assertIn("parse_cli_output", timing_stages)
             self.assertIn("write_artifacts", timing_stages)
+
+            timing_text = timing_path.read_text(encoding="utf-8")
+            self.assertIn("[outer_python]", timing_text)
+            self.assertIn("[inner_cpp_summary]", timing_text)
+            self.assertIn("[inner_cpp_per_gen]", timing_text)
 
 
 if __name__ == "__main__":

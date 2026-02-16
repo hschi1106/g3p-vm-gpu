@@ -156,6 +156,7 @@ Quick start (`simple` cases):
 python3 tools/run_cpp_evolution.py \
   --cases data/fixtures/evolution_cases.json \
   --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --cpp-timing all \
   --selection tournament \
   --crossover-method hybrid \
   --population-size 64 \
@@ -172,6 +173,7 @@ python3 tools/run_cpp_evolution.py \
   --input-indices 1 \
   --input-names x \
   --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --cpp-timing all \
   --population-size 64 \
   --generations 40
 ```
@@ -193,6 +195,33 @@ Artifacts written to `--log-dir`:
 - `*.timings.log`: stage-by-stage elapsed time (`parse_args`, `resolve_paths`, `load_cases_payload`, `build_command`, `run_cpp_cli`, `parse_cli_output`, `write_artifacts`)
 - `*.summary.json`: command, args, parsed metrics, timing records
 - `*.evolution.json`: native C++ CLI `--out-json` payload
+
+`--cpp-timing` controls inner C++ breakdown:
+
+- `none`: no C++ internal timing lines
+- `summary`: phase totals (`init_population`, `generations_eval_total`, `generations_repro_total`, `final_eval`, `total`)
+- `per_gen`: one line per generation (`eval_ms`, `repro_ms`, `total_ms`)
+- `all`: summary + per-generation
+
+If you run C++ CLI directly, use `--timing` with the same modes:
+
+```bash
+cpp/build/g3pvm_evolve_cli \
+  --cases data/fixtures/evolution_cases.json \
+  --cases-format simple \
+  --timing all
+```
+
+Timing lines from C++ CLI look like:
+
+```text
+TIMING phase=init_population ms=...
+TIMING phase=generations_eval_total ms=...
+TIMING phase=generations_repro_total ms=...
+TIMING phase=final_eval ms=...
+TIMING phase=total ms=...
+TIMING gen=000 eval_ms=... repro_ms=... total_ms=...
+```
 
 Show all options:
 
