@@ -40,6 +40,20 @@
 - Do not use `ncu` in this project environment (GPU performance counters are not available).
 - If GPU execution fails due to device contention/occupancy, explicitly retry with `CUDA_VISIBLE_DEVICES=0` and `CUDA_VISIBLE_DEVICES=1`.
 
+## GPU Device Runbook (Important)
+- To avoid repeated GPU device-selection failures, always run GPU commands through:
+  ```bash
+  scripts/run_gpu_command.sh -- <gpu_command> [args...]
+  ```
+- The wrapper will automatically try `CUDA_VISIBLE_DEVICES=0` then `CUDA_VISIBLE_DEVICES=1` and stop at the first non-device-unavailable result.
+- Recommended examples:
+  ```bash
+  scripts/run_gpu_command.sh -- ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
+  scripts/run_gpu_command.sh -- PYTHONPATH=python python3 tools/check_multi_fixture_cpu_gpu.py --fixture data/fixtures/fitness_multi_bench_inputs.json --cli cpp/build/g3pvm_vm_cpu_cli
+  scripts/run_gpu_command.sh -- PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py --fixture data/fixtures/fitness_multi_bench_inputs.json --cli cpp/build/g3pvm_vm_cpu_cli
+  ```
+- In sandboxed agent sessions, GPU device access may still be unavailable even when host GPUs exist. In that case, rerun the same command with escalated permissions.
+
 ## Commit & Pull Request Guidelines
 - Follow observed commit style: `<type>: <summary>` (for example, `feat: add bytecode jump validation`, `fix: handle unary negation type errors`).
 - Preferred types in this repo: `feat`, `fix`, `init` , `docs`, `test`, `refactor`, `chore`.
