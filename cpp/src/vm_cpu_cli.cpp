@@ -84,8 +84,18 @@ int main(int argc, char** argv) {
         fitness = g3pvm::run_bytecode_cpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, fuel);
       } else if (engine == "gpu") {
 #ifdef G3PVM_HAS_CUDA
-        fitness = g3pvm::run_bytecode_gpu_multi_fitness_shared_cases(
+        const g3pvm::GPUFitnessEvalResult gpu_fit = g3pvm::run_bytecode_gpu_multi_fitness_shared_cases_debug(
             programs, shared_cases, shared_answer, fuel, blocksize);
+        if (!gpu_fit.ok) {
+          std::cout << "ERR " << g3pvm::err_code_name(gpu_fit.err.code) << "\n";
+          if (!gpu_fit.err.message.empty()) {
+            std::cout << "MSG " << gpu_fit.err.message << "\n";
+          } else {
+            std::cout << "MSG fitness evaluation failure\n";
+          }
+          return 0;
+        }
+        fitness = gpu_fit.fitness;
 #else
         throw std::runtime_error("gpu unsupported");
 #endif

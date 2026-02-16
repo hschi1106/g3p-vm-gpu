@@ -30,4 +30,18 @@ std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
     int fuel = 10000,
     int blocksize = 256);
 
+// Debug variant for fitness evaluation with observable CUDA failure reason.
+struct GPUFitnessEvalResult {
+  bool ok = false;
+  std::vector<int> fitness;
+  Err err{ErrCode::Value, ""};
+};
+
+GPUFitnessEvalResult run_bytecode_gpu_multi_fitness_shared_cases_debug(
+    const std::vector<BytecodeProgram>& programs,
+    const std::vector<InputCase>& shared_cases,
+    const std::vector<Value>& shared_answer,
+    int fuel = 10000,
+    int blocksize = 256);
+
 }  // namespace g3pvm

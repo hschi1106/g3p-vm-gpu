@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "vm_gpu/constants.hpp"
@@ -24,6 +25,13 @@ using gpu_detail::DResult;
 std::vector<std::vector<VMResult>> multi_single_error(ErrCode code, const std::string& message) {
   return std::vector<std::vector<VMResult>>{
       std::vector<VMResult>{VMResult{true, Value::none(), Err{code, message}}}};
+}
+
+GPUFitnessEvalResult fitness_single_error(ErrCode code, const std::string& message) {
+  GPUFitnessEvalResult out;
+  out.ok = false;
+  out.err = Err{code, message};
+  return out;
 }
 
 bool select_least_used_device(cudaDeviceProp& props_out, std::string& message_out) {
@@ -178,39 +186,39 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
   return result_by_program;
 }
 
-std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
+GPUFitnessEvalResult run_bytecode_gpu_multi_fitness_shared_cases_debug(
     const std::vector<BytecodeProgram>& programs,
     const std::vector<InputCase>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel,
     int blocksize) {
   if (programs.empty() || shared_cases.empty()) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "programs/shared_cases must not be empty");
   }
   if (shared_answer.size() != shared_cases.size()) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "shared_answer size mismatch");
   }
   if (blocksize <= 0) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "invalid gpu blocksize");
   }
 
   cudaDeviceProp props;
   std::string select_msg;
   if (!select_least_used_device(props, select_msg)) {
-    return {};
+    return fitness_single_error(ErrCode::Value, select_msg);
   }
   if (blocksize > props.maxThreadsPerBlock) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "gpu blocksize exceeds maxThreadsPerBlock");
   }
 
   const gpu_detail::PackResult packed = gpu_detail::pack_programs_and_shared_cases(programs, shared_cases);
   if (packed.total_cases == 0) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "cases must not be empty");
   }
 
   const std::size_t shared_bytes = packed.max_code_len * sizeof(DInstr);
   if (shared_bytes > static_cast<std::size_t>(props.sharedMemPerBlock)) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }
 
   gpu_detail::DeviceArena dev;
@@ -220,15 +228,15 @@ std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
       !gpu_detail::cuda_alloc_and_copy_in(packed.packed_case_local_vals, &dev.d_shared_case_local_vals) ||
       !gpu_detail::cuda_alloc_and_copy_in(packed.packed_case_local_set, &dev.d_shared_case_local_set) ||
       !gpu_detail::cuda_alloc_and_copy_in(shared_answer, &dev.d_expected)) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
   if (cudaMalloc(reinterpret_cast<void**>(&dev.d_fitness), sizeof(int) * programs.size()) != cudaSuccess) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
   if (cudaMemset(dev.d_fitness, 0, sizeof(int) * programs.size()) != cudaSuccess) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "cuda memset failure");
   }
 
   gpu_detail::vm_multi_fitness_kernel_shared_cases<<<static_cast<unsigned int>(programs.size()), blocksize,
@@ -239,16 +247,43 @@ std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
   const cudaError_t launch_err = cudaGetLastError();
   const cudaError_t sync_err = cudaDeviceSynchronize();
   if (launch_err != cudaSuccess || sync_err != cudaSuccess) {
-    return {};
+    std::string msg = "cuda kernel execution failure";
+    if (launch_err != cudaSuccess) {
+      msg += " launch=";
+      msg += cudaGetErrorString(launch_err);
+    }
+    if (sync_err != cudaSuccess) {
+      msg += " sync=";
+      msg += cudaGetErrorString(sync_err);
+    }
+    return fitness_single_error(ErrCode::Value, msg);
   }
 
   std::vector<int> host_fitness(programs.size(), 0);
   if (cudaMemcpy(host_fitness.data(), dev.d_fitness, sizeof(int) * programs.size(), cudaMemcpyDeviceToHost) !=
       cudaSuccess) {
-    return {};
+    return fitness_single_error(ErrCode::Value, "cuda copy-back failure");
   }
 
-  return host_fitness;
+  GPUFitnessEvalResult out;
+  out.ok = true;
+  out.fitness = std::move(host_fitness);
+  out.err = Err{ErrCode::Value, ""};
+  return out;
+}
+
+std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
+    const std::vector<BytecodeProgram>& programs,
+    const std::vector<InputCase>& shared_cases,
+    const std::vector<Value>& shared_answer,
+    int fuel,
+    int blocksize) {
+  const GPUFitnessEvalResult out = run_bytecode_gpu_multi_fitness_shared_cases_debug(
+      programs, shared_cases, shared_answer, fuel, blocksize);
+  if (!out.ok) {
+    return {};
+  }
+  return out.fitness;
 }
 
 }  // namespace g3pvm
