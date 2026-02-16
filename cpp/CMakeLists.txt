@@ -23,6 +23,8 @@ endif()
 add_library(g3pvm_cpu
   src/builtins.cpp
   src/vm_cpu.cpp
+  src/evo_ast.cpp
+  src/evolve.cpp
 )
 target_include_directories(g3pvm_cpu PUBLIC include)
 
@@ -35,6 +37,11 @@ add_executable(g3pvm_vm_cpu_multi_bench
   src/vm_cpu_multi_bench.cpp
 )
 target_link_libraries(g3pvm_vm_cpu_multi_bench PRIVATE g3pvm_cpu)
+
+add_executable(g3pvm_evolve_cli
+  src/evolve_cli.cpp
+)
+target_link_libraries(g3pvm_evolve_cli PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/vm_gpu.cu
@@ -75,3 +82,15 @@ add_executable(g3pvm_test_vm_edges
 )
 target_link_libraries(g3pvm_test_vm_edges PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_vm_edges COMMAND g3pvm_test_vm_edges)
+
+add_executable(g3pvm_test_evo_ast
+  tests/test_evo_ast.cpp
+)
+target_link_libraries(g3pvm_test_evo_ast PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_evo_ast COMMAND g3pvm_test_evo_ast)
+
+add_executable(g3pvm_test_evolve
+  tests/test_evolve.cpp
+)
+target_link_libraries(g3pvm_test_evolve PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_evolve COMMAND g3pvm_test_evolve)

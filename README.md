@@ -146,6 +146,60 @@ PYTHONPATH=python python3 tools/run_evolution.py \
   --crossover-method hybrid
 ```
 
+## C++ End-to-End Evolution Tool
+
+Use `tools/run_cpp_evolution.py` to run C++ evolution end-to-end with full parameter control and detailed timing logs.
+
+Quick start (`simple` cases):
+
+```bash
+python3 tools/run_cpp_evolution.py \
+  --cases data/fixtures/evolution_cases.json \
+  --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --selection tournament \
+  --crossover-method hybrid \
+  --population-size 64 \
+  --generations 40 \
+  --log-dir logs/cpp_evolution
+```
+
+PSB2 fixture example:
+
+```bash
+python3 tools/run_cpp_evolution.py \
+  --cases data/fixtures/fitness_multi_bench_inputs_psb2.json \
+  --cases-format psb2_fixture \
+  --input-indices 1 \
+  --input-names x \
+  --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --population-size 64 \
+  --generations 40
+```
+
+Main outputs (printed at end of run):
+
+- `RUN_TAG`
+- `SUMMARY_JSON`
+- `STDOUT_LOG`
+- `STDERR_LOG`
+- `TIMINGS_LOG`
+- `EVOLUTION_JSON`
+- `FINAL_METRIC`
+
+Artifacts written to `--log-dir`:
+
+- `*.stdout.log`: raw C++ CLI stdout (`GEN ...`, `FINAL ...`)
+- `*.stderr.log`: raw C++ CLI stderr
+- `*.timings.log`: stage-by-stage elapsed time (`parse_args`, `resolve_paths`, `load_cases_payload`, `build_command`, `run_cpp_cli`, `parse_cli_output`, `write_artifacts`)
+- `*.summary.json`: command, args, parsed metrics, timing records
+- `*.evolution.json`: native C++ CLI `--out-json` payload
+
+Show all options:
+
+```bash
+python3 tools/run_cpp_evolution.py --help
+```
+
 `cases` JSON minimal schema:
 
 ```json
