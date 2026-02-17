@@ -1,26 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence
+from typing import Dict, List
 
-from .ast import (
-    Assign,
-    BOp,
-    Binary,
-    Block,
-    Call,
-    Const,
-    Expr,
-    ForRange,
-    IfExpr,
-    IfStmt,
-    Return,
-    Stmt,
-    UOp,
-    Unary,
-    Var,
-    Val,
-)
+from .ast import AstProgram, NodeKind, Val, prefix_subtree_end, validate_prefix_program
 
 
 @dataclass(frozen=True)
@@ -39,7 +22,8 @@ class BytecodeProgram:
 
 
 class _Compiler:
-    def __init__(self) -> None:
+    def __init__(self, p: AstProgram) -> None:
+        self.p = p
         self.consts: List[Val] = []
         self.code: List[Instr | tuple[str, str, int | None]] = []
         self.labels: Dict[str, int] = {}
@@ -78,164 +62,167 @@ class _Compiler:
         self._tmp_counter += 1
         return name
 
-    def compile_expr(self, e: Expr) -> None:
-        if isinstance(e, Const):
-            self._emit("PUSH_CONST", self._const(e.value))
-            return
+    def _compile_expr(self, idx: int) -> int:
+        n = self.p.nodes[idx]
+        k = n.kind
 
-        if isinstance(e, Var):
-            self._emit("LOAD", self._local(e.name))
-            return
+        if k == NodeKind.CONST:
+            self._emit("PUSH_CONST", self._const(self.p.consts[n.i0]))
+            return idx + 1
 
-        if isinstance(e, Unary):
-            self.compile_expr(e.e)
-            if e.op == UOp.NEG:
-                self._emit("NEG")
-                return
-            if e.op == UOp.NOT:
-                self._emit("NOT")
-                return
-            raise ValueError(f"unknown unary op: {e.op}")
+        if k == NodeKind.VAR:
+            self._emit("LOAD", self._local(self.p.names[n.i0]))
+            return idx + 1
 
-        if isinstance(e, Binary):
-            if e.op == BOp.AND:
-                false_l = self._new_label("and_false")
-                end_l = self._new_label("and_end")
-                self.compile_expr(e.a)
-                self._emit_jump("JMP_IF_FALSE", false_l)
-                self.compile_expr(e.b)
-                self._emit("NOT")
-                self._emit("NOT")
-                self._emit_jump("JMP", end_l)
-                self._label(false_l)
-                self._emit("PUSH_CONST", self._const(False))
-                self._label(end_l)
-                return
+        if k == NodeKind.NEG:
+            j = self._compile_expr(idx + 1)
+            self._emit("NEG")
+            return j
 
-            if e.op == BOp.OR:
-                true_l = self._new_label("or_true")
-                end_l = self._new_label("or_end")
-                self.compile_expr(e.a)
-                self._emit_jump("JMP_IF_TRUE", true_l)
-                self.compile_expr(e.b)
-                self._emit("NOT")
-                self._emit("NOT")
-                self._emit_jump("JMP", end_l)
-                self._label(true_l)
-                self._emit("PUSH_CONST", self._const(True))
-                self._label(end_l)
-                return
+        if k == NodeKind.NOT:
+            j = self._compile_expr(idx + 1)
+            self._emit("NOT")
+            return j
 
-            self.compile_expr(e.a)
-            self.compile_expr(e.b)
-            opmap = {
-                BOp.ADD: "ADD",
-                BOp.SUB: "SUB",
-                BOp.MUL: "MUL",
-                BOp.DIV: "DIV",
-                BOp.MOD: "MOD",
-                BOp.LT: "LT",
-                BOp.LE: "LE",
-                BOp.GT: "GT",
-                BOp.GE: "GE",
-                BOp.EQ: "EQ",
-                BOp.NE: "NE",
-            }
-            op = opmap.get(e.op)
-            if op is None:
-                raise ValueError(f"unsupported binary op in compiler: {e.op}")
+        if k == NodeKind.AND:
+            false_l = self._new_label("and_false")
+            end_l = self._new_label("and_end")
+            j = self._compile_expr(idx + 1)
+            self._emit_jump("JMP_IF_FALSE", false_l)
+            h = self._compile_expr(j)
+            self._emit("NOT")
+            self._emit("NOT")
+            self._emit_jump("JMP", end_l)
+            self._label(false_l)
+            self._emit("PUSH_CONST", self._const(False))
+            self._label(end_l)
+            return h
+
+        if k == NodeKind.OR:
+            true_l = self._new_label("or_true")
+            end_l = self._new_label("or_end")
+            j = self._compile_expr(idx + 1)
+            self._emit_jump("JMP_IF_TRUE", true_l)
+            h = self._compile_expr(j)
+            self._emit("NOT")
+            self._emit("NOT")
+            self._emit_jump("JMP", end_l)
+            self._label(true_l)
+            self._emit("PUSH_CONST", self._const(True))
+            self._label(end_l)
+            return h
+
+        if k in {NodeKind.ADD, NodeKind.SUB, NodeKind.MUL, NodeKind.DIV, NodeKind.MOD, NodeKind.LT, NodeKind.LE, NodeKind.GT, NodeKind.GE, NodeKind.EQ, NodeKind.NE}:
+            j = self._compile_expr(idx + 1)
+            h = self._compile_expr(j)
+            op = {
+                NodeKind.ADD: "ADD",
+                NodeKind.SUB: "SUB",
+                NodeKind.MUL: "MUL",
+                NodeKind.DIV: "DIV",
+                NodeKind.MOD: "MOD",
+                NodeKind.LT: "LT",
+                NodeKind.LE: "LE",
+                NodeKind.GT: "GT",
+                NodeKind.GE: "GE",
+                NodeKind.EQ: "EQ",
+                NodeKind.NE: "NE",
+            }[k]
             self._emit(op)
-            return
+            return h
 
-        if isinstance(e, IfExpr):
+        if k == NodeKind.IF_EXPR:
             else_l = self._new_label("ifexpr_else")
             end_l = self._new_label("ifexpr_end")
-            self.compile_expr(e.cond)
+            j = self._compile_expr(idx + 1)
             self._emit_jump("JMP_IF_FALSE", else_l)
-            self.compile_expr(e.then_e)
+            h = self._compile_expr(j)
             self._emit_jump("JMP", end_l)
             self._label(else_l)
-            self.compile_expr(e.else_e)
+            t = self._compile_expr(h)
             self._label(end_l)
-            return
+            return t
 
-        if isinstance(e, Call):
-            for arg in e.args:
-                self.compile_expr(arg)
-            bid = {"abs": 0, "min": 1, "max": 2, "clip": 3}.get(e.name, -1)
-            self._emit("CALL_BUILTIN", bid, len(e.args))
-            return
+        if k in {NodeKind.CALL_ABS, NodeKind.CALL_MIN, NodeKind.CALL_MAX, NodeKind.CALL_CLIP}:
+            argc = {NodeKind.CALL_ABS: 1, NodeKind.CALL_MIN: 2, NodeKind.CALL_MAX: 2, NodeKind.CALL_CLIP: 3}[k]
+            cur = idx + 1
+            for _ in range(argc):
+                cur = self._compile_expr(cur)
+            bid = {NodeKind.CALL_ABS: 0, NodeKind.CALL_MIN: 1, NodeKind.CALL_MAX: 2, NodeKind.CALL_CLIP: 3}[k]
+            self._emit("CALL_BUILTIN", bid, argc)
+            return cur
 
-        raise ValueError(f"unknown Expr node: {type(e).__name__}")
+        raise ValueError(f"expected Expr at index {idx}, got {k}")
 
-    def compile_stmt(self, s: Stmt) -> None:
-        if isinstance(s, Assign):
-            self.compile_expr(s.e)
-            self._emit("STORE", self._local(s.name))
-            return
+    def _compile_stmt(self, idx: int) -> int:
+        n = self.p.nodes[idx]
+        k = n.kind
 
-        if isinstance(s, Return):
-            self.compile_expr(s.e)
+        if k == NodeKind.ASSIGN:
+            j = self._compile_expr(idx + 1)
+            self._emit("STORE", self._local(self.p.names[n.i0]))
+            return j
+
+        if k == NodeKind.RETURN:
+            j = self._compile_expr(idx + 1)
             self._emit("RETURN")
-            return
+            return j
 
-        if isinstance(s, IfStmt):
+        if k == NodeKind.IF_STMT:
             else_l = self._new_label("if_else")
             end_l = self._new_label("if_end")
-            self.compile_expr(s.cond)
+            j = self._compile_expr(idx + 1)
             self._emit_jump("JMP_IF_FALSE", else_l)
-            self.compile_block(s.then_block)
+            h = self._compile_block(j)
             self._emit_jump("JMP", end_l)
             self._label(else_l)
-            self.compile_block(s.else_block)
+            t = self._compile_block(h)
             self._label(end_l)
-            return
+            return t
 
-        if isinstance(s, ForRange):
-            # Keep VM behavior aligned with interpreter/spec:
-            # invalid range(K) must fail with TypeError when statement executes.
-            if not isinstance(s.k, int) or isinstance(s.k, bool) or s.k < 0:
+        if k == NodeKind.FOR_RANGE:
+            kval = n.i1
+            if not isinstance(kval, int) or isinstance(kval, bool) or kval < 0:
                 self._emit("PUSH_CONST", self._const(True))
                 self._emit("NEG")
-                return
+                return prefix_subtree_end(self.p.nodes, idx)
 
-            idx_k = self._const(s.k)
+            idx_k = self._const(kval)
             idx_0 = self._const(0)
             idx_1 = self._const(1)
-            counter_name = self._new_temp()
-            counter_i = self._local(counter_name)
-            user_i = self._local(s.var)
-
+            counter_i = self._local(self._new_temp())
+            user_i = self._local(self.p.names[n.i0])
             loop_l = self._new_label("for_loop")
             end_l = self._new_label("for_end")
 
             self._emit("PUSH_CONST", idx_0)
             self._emit("STORE", counter_i)
-
             self._label(loop_l)
             self._emit("LOAD", counter_i)
             self._emit("PUSH_CONST", idx_k)
             self._emit("LT")
             self._emit_jump("JMP_IF_FALSE", end_l)
-
             self._emit("LOAD", counter_i)
             self._emit("STORE", user_i)
-
-            self.compile_block(s.body)
-
+            j = self._compile_block(idx + 1)
             self._emit("LOAD", counter_i)
             self._emit("PUSH_CONST", idx_1)
             self._emit("ADD")
             self._emit("STORE", counter_i)
             self._emit_jump("JMP", loop_l)
             self._label(end_l)
-            return
+            return j
 
-        raise ValueError(f"unknown Stmt node: {type(s).__name__}")
+        raise ValueError(f"expected Stmt at index {idx}, got {k}")
 
-    def compile_block(self, b: Block) -> None:
-        for st in b.stmts:
-            self.compile_stmt(st)
+    def _compile_block(self, idx: int) -> int:
+        n = self.p.nodes[idx]
+        if n.kind == NodeKind.BLOCK_NIL:
+            return idx + 1
+        if n.kind != NodeKind.BLOCK_CONS:
+            raise ValueError(f"expected Block at index {idx}, got {n.kind}")
+        j = self._compile_stmt(idx + 1)
+        return self._compile_block(j)
 
     def finalize(self) -> BytecodeProgram:
         out_code: List[Instr] = []
@@ -257,7 +244,10 @@ class _Compiler:
         )
 
 
-def compile_program(p: Block) -> BytecodeProgram:
-    c = _Compiler()
-    c.compile_block(p)
+def compile_program(p: AstProgram) -> BytecodeProgram:
+    validate_prefix_program(p)
+    c = _Compiler(p)
+    end = c._compile_block(1)
+    if end != len(p.nodes):
+        raise ValueError("invalid trailing tokens")
     return c.finalize()

@@ -3,110 +3,95 @@ from __future__ import annotations
 import random
 from typing import List
 
-from .ast import (
-    Block, Assign, IfStmt, ForRange, Return,
-    Const, Var, Unary, Binary, IfExpr, Call,
-    UOp, BOp, Expr, Stmt,
-)
-
-BUILTINS = ["abs", "min", "max", "clip"]
+from .ast import AstProgram, build_program
 
 
-def rand_const(rng: random.Random):
+_BUILTINS = ("abs", "min", "max", "clip")
+_BIN = ("add", "sub", "mul", "div", "mod", "lt", "le", "gt", "ge", "eq", "ne", "and", "or")
+
+
+def _rand_const(rng: random.Random) -> tuple:
     t = rng.choice(["int", "float", "bool", "none"])
     if t == "int":
-        return Const(rng.randint(-5, 5))
+        return ("const", rng.randint(-5, 5))
     if t == "float":
-        return Const(rng.uniform(-5.0, 5.0))
+        return ("const", round(rng.uniform(-5.0, 5.0), 3))
     if t == "bool":
-        return Const(rng.choice([True, False]))
-    return Const(None)
+        return ("const", rng.choice([True, False]))
+    return ("const", None)
 
 
-def rand_var(rng: random.Random, vars: List[str]):
-    return Var(rng.choice(vars)) if vars else rand_const(rng)
+def _rand_var(rng: random.Random, vars_: List[str]) -> tuple:
+    if vars_ and rng.random() < 0.5:
+        return ("var", rng.choice(vars_))
+    return _rand_const(rng)
 
 
-def rand_expr(rng: random.Random, vars: List[str], depth: int) -> Expr:
+def _rand_expr(rng: random.Random, vars_: List[str], depth: int) -> tuple:
     if depth <= 0:
-        return rng.choice([rand_const(rng), rand_var(rng, vars)])
+        return _rand_var(rng, vars_)
 
-    choice = rng.randint(0, 6)
-    if choice == 0:
-        return rand_const(rng)
-    if choice == 1:
-        return rand_var(rng, vars)
-
-    if choice == 2:
-        op = rng.choice([UOp.NEG, UOp.NOT])
-        return Unary(op, rand_expr(rng, vars, depth - 1))
-
-    if choice == 3:
-        op = rng.choice([
-            BOp.ADD, BOp.SUB, BOp.MUL, BOp.DIV, BOp.MOD,
-            BOp.LT, BOp.LE, BOp.GT, BOp.GE, BOp.EQ, BOp.NE,
-            BOp.AND, BOp.OR,
-        ])
-        return Binary(op, rand_expr(rng, vars, depth - 1), rand_expr(rng, vars, depth - 1))
-
-    if choice == 4:
-        return IfExpr(
-            rand_expr(rng, vars, depth - 1),
-            rand_expr(rng, vars, depth - 1),
-            rand_expr(rng, vars, depth - 1),
+    mode = rng.randint(0, 6)
+    if mode == 0:
+        return _rand_const(rng)
+    if mode == 1:
+        return _rand_var(rng, vars_)
+    if mode == 2:
+        return (rng.choice(["neg", "not"]), _rand_expr(rng, vars_, depth - 1))
+    if mode == 3:
+        op = rng.choice(_BIN)
+        return (op, _rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1))
+    if mode == 4:
+        return (
+            "if_expr",
+            _rand_expr(rng, vars_, depth - 1),
+            _rand_expr(rng, vars_, depth - 1),
+            _rand_expr(rng, vars_, depth - 1),
         )
-
-    if choice == 5:
-        f = rng.choice(BUILTINS)
-        if f == "abs":
-            args = [rand_expr(rng, vars, depth - 1)]
-        elif f in ("min", "max"):
-            args = [rand_expr(rng, vars, depth - 1), rand_expr(rng, vars, depth - 1)]
+    if mode == 5:
+        b = rng.choice(_BUILTINS)
+        if b == "abs":
+            args = [_rand_expr(rng, vars_, depth - 1)]
+        elif b in ("min", "max"):
+            args = [_rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1)]
         else:
-            args = [rand_expr(rng, vars, depth - 1), rand_expr(rng, vars, depth - 1), rand_expr(rng, vars, depth - 1)]
-        return Call(f, args)
-
-    # fallback: small binary
-    return Binary(BOp.ADD, rand_expr(rng, vars, depth - 1), rand_expr(rng, vars, depth - 1))
+            args = [_rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1)]
+        return ("call", b, args)
+    return ("add", _rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1))
 
 
-def rand_stmt(rng: random.Random, vars: List[str], depth: int) -> Stmt:
+def _rand_stmt(rng: random.Random, vars_: List[str], depth: int) -> tuple:
     if depth <= 0:
-        # force progress
-        name = rng.choice(vars) if vars else "x"
-        return Assign(name, rand_expr(rng, vars, 0))
+        return ("assign", rng.choice(vars_) if vars_ else "x", _rand_expr(rng, vars_, 0))
 
-    choice = rng.randint(0, 3)
-    if choice == 0:
-        name = rng.choice(vars) if vars else "x"
-        return Assign(name, rand_expr(rng, vars, depth - 1))
-
-    if choice == 1:
-        return IfStmt(
-            rand_expr(rng, vars, depth - 1),
-            rand_block(rng, vars, depth - 1, max_stmts=2),
-            rand_block(rng, vars, depth - 1, max_stmts=2),
+    mode = rng.randint(0, 3)
+    if mode == 0:
+        return ("assign", rng.choice(vars_) if vars_ else "x", _rand_expr(rng, vars_, depth - 1))
+    if mode == 1:
+        return (
+            "if",
+            _rand_expr(rng, vars_, depth - 1),
+            _rand_block(rng, vars_, depth - 1, max_stmts=2),
+            _rand_block(rng, vars_, depth - 1, max_stmts=2),
         )
-
-    if choice == 2:
+    if mode == 2:
         loop_var = rng.choice(["i", "j", "k"])
-        k = rng.randint(0, 4)
-        return ForRange(loop_var, k, rand_block(rng, vars + [loop_var], depth - 1, max_stmts=2))
-
-    return Return(rand_expr(rng, vars, depth - 1))
+        return ("for", loop_var, rng.randint(0, 4), _rand_block(rng, vars_ + [loop_var], depth - 1, max_stmts=2))
+    return ("return", _rand_expr(rng, vars_, depth - 1))
 
 
-def rand_block(rng: random.Random, vars: List[str], depth: int, max_stmts: int = 4) -> Block:
+def _rand_block(rng: random.Random, vars_: List[str], depth: int, max_stmts: int = 4) -> List[tuple]:
     n = rng.randint(1, max_stmts)
-    stmts: List[Stmt] = []
+    stmts: List[tuple] = []
     for _ in range(n):
-        stmts.append(rand_stmt(rng, vars, depth))
-        if isinstance(stmts[-1], Return):
+        st = _rand_stmt(rng, vars_, depth)
+        stmts.append(st)
+        if st[0] == "return":
             break
-    return Block(stmts)
+    return stmts
 
 
-def make_random_program(seed: int = 0, depth: int = 4) -> Block:
+def make_random_program(seed: int = 0, depth: int = 4) -> AstProgram:
     rng = random.Random(seed)
-    vars = ["x", "y", "z"]
-    return rand_block(rng, vars, depth, max_stmts=6)
+    vars_ = ["x", "y", "z"]
+    return build_program(_rand_block(rng, vars_, depth, max_stmts=6))

@@ -1,35 +1,23 @@
 from __future__ import annotations
 
-from g3p_vm_gpu.ast import (
-    Block, Assign, IfStmt, ForRange, Return,
-    Const, Var, Binary, UOp, BOp, Unary, Call
-)
+from g3p_vm_gpu.ast import build_program
+from g3p_vm_gpu.errors import Failed, Returned
 from g3p_vm_gpu.interp import run_program
-from g3p_vm_gpu.errors import Returned, Failed
 
 
 def main():
-    # program:
-    # x = 0
-    # for i in range(3):
-    #   x = x + 1
-    # if (x == 3) and True:
-    #   return clip(x, 0, 2)
-    # else:
-    #   return 999
-    prog = Block([
-        Assign("x", Const(0)),
-        ForRange("i", 3, Block([
-            Assign("x", Binary(BOp.ADD, Var("x"), Const(1))),
-        ])),
-        IfStmt(
-            Binary(BOp.AND,
-                   Binary(BOp.EQ, Var("x"), Const(3)),
-                   Const(True)),
-            Block([Return(Call("clip", [Var("x"), Const(0), Const(2)]))]),
-            Block([Return(Const(999))]),
-        )
-    ])
+    prog = build_program(
+        [
+            ("assign", "x", ("const", 0)),
+            ("for", "i", 3, [("assign", "x", ("add", ("var", "x"), ("const", 1)))]),
+            (
+                "if",
+                ("and", ("eq", ("var", "x"), ("const", 3)), ("const", True)),
+                [("return", ("call", "clip", [("var", "x"), ("const", 0), ("const", 2)]))],
+                [("return", ("const", 999))],
+            ),
+        ]
+    )
 
     env, out = run_program(prog, inputs={}, fuel=10_000)
     if isinstance(out, Returned):

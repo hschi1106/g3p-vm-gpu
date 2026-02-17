@@ -1,16 +1,6 @@
 import unittest
 
-from src.g3p_vm_gpu.ast import (
-    Assign,
-    BOp,
-    Binary,
-    Block,
-    Call,
-    Const,
-    ForRange,
-    Return,
-    Var,
-)
+from src.g3p_vm_gpu.ast import build_program
 from src.g3p_vm_gpu.compiler import compile_program
 from src.g3p_vm_gpu.errors import Failed, Returned
 from src.g3p_vm_gpu.fuzz import make_random_program
@@ -19,7 +9,7 @@ from src.g3p_vm_gpu.vm import VMError, VMReturn, run_bytecode
 
 
 class TestVMEquiv(unittest.TestCase):
-    def _assert_equiv(self, prog: Block):
+    def _assert_equiv(self, prog):
         interp_env, interp_out = run_program(prog, {}, fuel=20_000)
         bc = compile_program(prog)
         vm_out = run_bytecode(bc, {}, fuel=20_000)
@@ -33,7 +23,6 @@ class TestVMEquiv(unittest.TestCase):
         else:
             self.fail("run_program should not return Normal for top-level programs")
 
-        # for variables assigned by this program, env values should match
         for name, idx in bc.var2idx.items():
             if name.startswith("\x00for_i_"):
                 continue
@@ -41,43 +30,38 @@ class TestVMEquiv(unittest.TestCase):
                 self.assertTrue(idx < bc.n_locals)
 
     def test_manual_program(self):
-        prog = Block(
+        prog = build_program(
             [
-                Assign("x", Const(0)),
-                ForRange(
+                ("assign", "x", ("const", 0)),
+                (
+                    "for",
                     "i",
                     5,
-                    Block(
-                        [
-                            Assign("x", Binary(BOp.ADD, Var("x"), Const(2))),
-                            Assign("x", Call("clip", [Var("x"), Const(0), Const(7)])),
-                        ]
-                    ),
+                    [
+                        ("assign", "x", ("add", ("var", "x"), ("const", 2))),
+                        ("assign", "x", ("call", "clip", [("var", "x"), ("const", 0), ("const", 7)])),
+                    ],
                 ),
-                Return(Var("x")),
+                ("return", ("var", "x")),
             ]
         )
         self._assert_equiv(prog)
 
     def test_short_circuit(self):
-        prog = Block(
-            [
-                Return(Binary(BOp.AND, Const(False), Binary(BOp.DIV, Const(1), Const(0))))
-            ]
-        )
+        prog = build_program([("return", ("and", ("const", False), ("div", ("const", 1), ("const", 0))))])
         self._assert_equiv(prog)
 
     def test_invalid_for_range_k(self):
-        prog = Block([ForRange("i", -1, Block([])), Return(Const(0))])
+        prog = build_program([("for", "i", -1, []), ("return", ("const", 0))])
         self._assert_equiv(prog)
 
     def test_program_without_return(self):
-        prog = Block([Assign("x", Const(1))])
+        prog = build_program([("assign", "x", ("const", 1))])
         self._assert_equiv(prog)
 
     def test_none_eq_ne_with_non_none(self):
-        self._assert_equiv(Block([Return(Binary(BOp.EQ, Const(None), Const(1)))]))
-        self._assert_equiv(Block([Return(Binary(BOp.NE, Const(None), Const(1)))]))
+        self._assert_equiv(build_program([("return", ("eq", ("const", None), ("const", 1)))]))
+        self._assert_equiv(build_program([("return", ("ne", ("const", None), ("const", 1)))]))
 
     def test_fuzz_equivalence(self):
         for i in range(250):

@@ -109,7 +109,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--elitism", type=int, default=2)
     p.add_argument("--mutation-rate", type=float, default=0.5)
     p.add_argument("--crossover-rate", type=float, default=0.9)
-    p.add_argument("--crossover-method", choices=["top_level_splice", "typed_subtree", "hybrid"], default="hybrid")
+    p.add_argument("--crossover-method", choices=["top_level_splice", "hybrid"], default="hybrid")
     p.add_argument("--selection", choices=["tournament", "roulette", "rank", "truncation", "random"], default="tournament")
     p.add_argument("--tournament-k", type=int, default=3)
     p.add_argument("--truncation-ratio", type=float, default=0.5)

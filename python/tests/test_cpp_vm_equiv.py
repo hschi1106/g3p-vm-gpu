@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.g3p_vm_gpu.ast import Assign, BOp, Binary, Block, Const, ForRange, Return, Var
+from src.g3p_vm_gpu.ast import build_program
 from src.g3p_vm_gpu.compiler import BytecodeProgram, compile_program
 from src.g3p_vm_gpu.fuzz import make_random_program
 from src.g3p_vm_gpu.vm import VMError, VMReturn, run_bytecode
@@ -95,7 +95,7 @@ class TestCppVMEquiv(unittest.TestCase):
         if hasattr(cls, "_tmpdir"):
             cls._tmpdir.cleanup()
 
-    def _run_cpp_vm(self, prog: Block):
+    def _run_cpp_vm(self, prog):
         bc = compile_program(prog)
         inp = _program_to_cli_input(bc, fuel=20000)
         proc = subprocess.run(
@@ -108,7 +108,7 @@ class TestCppVMEquiv(unittest.TestCase):
         )
         return _parse_cli_output(proc.stdout)
 
-    def _assert_equiv(self, prog: Block):
+    def _assert_equiv(self, prog):
         bc = compile_program(prog)
         py_out = run_bytecode(bc, {}, fuel=20000)
         cpp_status, cpp_value, _ = self._run_cpp_vm(prog)
@@ -125,21 +125,21 @@ class TestCppVMEquiv(unittest.TestCase):
             self.assertEqual(py_out.err.code.value, cpp_value)
 
     def test_manual_program(self):
-        prog = Block(
+        prog = build_program(
             [
-                Assign("x", Const(0)),
-                ForRange("i", 5, Block([Assign("x", Binary(BOp.ADD, Var("x"), Const(2)))])),
-                Return(Var("x")),
+                ("assign", "x", ("const", 0)),
+                ("for", "i", 5, [("assign", "x", ("add", ("var", "x"), ("const", 2)))]),
+                ("return", ("var", "x")),
             ]
         )
         self._assert_equiv(prog)
 
     def test_none_compare(self):
-        self._assert_equiv(Block([Return(Binary(BOp.EQ, Const(None), Const(1)))]))
-        self._assert_equiv(Block([Return(Binary(BOp.NE, Const(None), Const(1)))]))
+        self._assert_equiv(build_program([("return", ("eq", ("const", None), ("const", 1)))]))
+        self._assert_equiv(build_program([("return", ("ne", ("const", None), ("const", 1)))]))
 
     def test_no_return(self):
-        self._assert_equiv(Block([Assign("x", Const(1))]))
+        self._assert_equiv(build_program([("assign", "x", ("const", 1))]))
 
     def test_fuzz_equivalence(self):
         for i in range(120):

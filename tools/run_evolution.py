@@ -44,12 +44,12 @@ def _parse_cases(payload: Dict[str, Any]) -> List[FitnessCase]:
     for i, row in enumerate(payload["cases"]):
         if not isinstance(row, dict):
             raise ValueError(f"cases[{i}] must be an object")
-        raw_inputs = row.get("inputs", row.get("input"))
+        raw_inputs = row.get("inputs")
         if raw_inputs is None:
-            raise ValueError(f"cases[{i}] missing inputs/input")
-        raw_expected = row.get("expected", row.get("output"))
+            raise ValueError(f"cases[{i}] missing inputs")
+        raw_expected = row.get("expected")
         if raw_expected is None:
-            raise ValueError(f"cases[{i}] missing expected/output")
+            raise ValueError(f"cases[{i}] missing expected")
         out.append(FitnessCase(inputs=_decode_inputs(raw_inputs), expected=_decode_expected(raw_expected)))
     return out
 
@@ -163,7 +163,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--elitism", type=int, default=2)
     p.add_argument("--mutation-rate", type=float, default=0.5)
     p.add_argument("--crossover-rate", type=float, default=0.9)
-    p.add_argument("--crossover-method", default="hybrid", choices=["top_level_splice", "typed_subtree", "hybrid"])
+    p.add_argument("--crossover-method", default="hybrid", choices=["top_level_splice", "hybrid"])
     p.add_argument("--selection", default=SelectionMethod.TOURNAMENT.value, choices=[m.value for m in SelectionMethod])
     p.add_argument("--tournament-k", type=int, default=3)
     p.add_argument("--truncation-ratio", type=float, default=0.5)

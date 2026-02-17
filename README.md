@@ -1,371 +1,103 @@
 # g3p-vm-gpu
 
-Bytecode VM project with Python reference/runtime and C++ CPU/GPU backends.
+Prefix-AST genetic programming VM with Python reference implementation and C++ CPU/GPU evolution backends.
 
-## What is in this repo
+## Project Status
+
+- AST pipeline is **prefix-only** across Python and C++.
+- Tree AST legacy APIs are intentionally removed.
+- Evolution, compile, and runtime paths all consume prefix `AstProgram`.
+
+## Repository Layout
 
 - `python/src/g3p_vm_gpu/`
-  - language AST, compiler, interpreter, Python VM, fuzz generator
+  - `ast.py`: prefix AST model, validators, builders
+  - `compiler.py`: prefix AST -> bytecode compiler
+  - `interp.py`: prefix AST interpreter
+  - `vm.py`: bytecode VM
+  - `evo_encoding.py`: genome generation/mutation/crossover/validation
+  - `evolve.py`: evolution loop and selection
 - `cpp/`
-  - C++ CPU VM
-  - CUDA GPU VM (`run_bytecode_gpu_multi_batch`, fitness)
-  - CLIs and C++ tests
-- `spec/`
-  - language, bytecode ISA, builtins, and test contracts
+  - CPU VM, GPU VM, evolution core, CLIs, tests
 - `tools/`
-  - fixture generation and validation scripts
+  - end-to-end runners and benchmarking scripts
+- `scripts/`
+  - operational wrappers (notably GPU retry wrapper)
+- `spec/`
+  - language and bytecode contracts
+- `docs/`
+  - architecture and development runbook
 
-## Prerequisites
+## Quick Start
 
-- Python 3.10+
-- CMake 3.16+
-- C++17 compiler
-- CUDA toolkit + NVIDIA driver (for GPU path)
-
-## Python test commands
-
-Run all Python tests:
-
-```bash
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
-```
-
-Run one module:
-
-```bash
-PYTHONPATH=python python3 -m unittest python.tests.test_vm_equiv -v
-```
-
-Run demo:
-
-```bash
-PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
-```
-
-## Evolution Encoding (AST Genome)
-
-The repo now includes a typed AST encoding layer for evolutionary workflows:
-
-- module: `python/src/g3p_vm_gpu/evo_encoding.py`
-- key APIs:
-  - `make_random_genome(seed, limits)`
-  - `mutate(genome, seed, limits)`
-  - `crossover(parent_a, parent_b, seed, limits, method=...)`
-  - `crossover_top_level(parent_a, parent_b, seed, limits)`
-  - `crossover_typed_subtree(parent_a, parent_b, seed, limits)`
-  - `validate_genome(genome, limits)`
-  - `compile_for_eval(genome)` (AST -> bytecode)
-
-`crossover(..., method=...)` supports:
-
-- `"top_level_splice"`: one-point splice on top-level statements
-- `"typed_subtree"`: typed subtree swap (`Expr[NUM]`, `Expr[BOOL]`, etc.)
-- `"hybrid"`: mostly typed subtree with occasional top-level splice
-
-Default limits are designed to control bloat and keep programs VM-safe:
-
-- `max_expr_depth=5`
-- `max_stmts_per_block=6`
-- `max_total_nodes=80`
-- `max_for_k=16`
-- `max_call_args=3`
-
-Minimal usage:
-
-```python
-from src.g3p_vm_gpu.evo_encoding import Limits, make_random_genome, mutate, crossover, compile_for_eval
-from src.g3p_vm_gpu.vm import run_bytecode
-
-limits = Limits()
-g0 = make_random_genome(seed=0, limits=limits)
-g1 = mutate(g0, seed=1, limits=limits)
-g2 = crossover(g0, g1, seed=2, limits=limits, method="typed_subtree")
-
-bc = compile_for_eval(g2)
-out = run_bytecode(bc, {}, fuel=20_000)
-```
-
-Run encoding tests:
-
-```bash
-PYTHONPATH=python python3 -m unittest python.tests.test_evo_encoding -v
-```
-
-Run full evolution loop tests (AST -> bytecode eval -> selection -> crossover/mutation):
-
-```bash
-PYTHONPATH=python python3 -m unittest python.tests.test_evolve -v
-```
-
-Minimal end-to-end evolve loop:
-
-```python
-from src.g3p_vm_gpu.evolve import EvolutionConfig, FitnessCase, SelectionMethod, evolve_population
-
-cases = [
-    FitnessCase(inputs={"x": 1, "y": 2}, expected=3),
-    FitnessCase(inputs={"x": -1, "y": 4}, expected=3),
-]
-
-cfg = EvolutionConfig(
-    population_size=32,
-    generations=20,
-    selection_method=SelectionMethod.TOURNAMENT,
-    crossover_method="hybrid",
-    seed=0,
-)
-
-result = evolve_population(cases, cfg)
-print(result.best.fitness, result.best.genome.meta.hash_key)
-```
-
-Run evolution from JSON cases via CLI:
-
-```bash
-PYTHONPATH=python python3 tools/run_evolution.py \
-  --cases data/fixtures/evolution_cases.json \
-  --population-size 64 \
-  --generations 40 \
-  --selection tournament \
-  --crossover-method hybrid \
-  --show-program none \
-  --out-json data/fixtures/evolution_run_summary.json
-```
-
-Run directly from bouncing-balls PSB2 fixture (`shared_cases/shared_answer`):
-
-```bash
-PYTHONPATH=python python3 tools/run_evolution.py \
-  --cases data/fixtures/fitness_multi_bench_inputs_psb2.json \
-  --cases-format psb2_fixture \
-  --input-indices 1 \
-  --input-names x \
-  --population-size 64 \
-  --generations 40 \
-  --selection tournament \
-  --crossover-method hybrid
-```
-
-## C++ End-to-End Evolution Tool
-
-Use `tools/run_cpp_evolution.py` to run C++ evolution end-to-end with full parameter control and detailed timing logs.
-
-Quick start (`simple` cases):
-
-```bash
-python3 tools/run_cpp_evolution.py \
-  --cases data/fixtures/evolution_cases.json \
-  --cpp-cli cpp/build/g3pvm_evolve_cli \
-  --engine cpu \
-  --cpp-timing all \
-  --selection tournament \
-  --crossover-method hybrid \
-  --population-size 64 \
-  --generations 40 \
-  --log-dir logs/cpp_evolution
-```
-
-PSB2 fixture example:
-
-```bash
-python3 tools/run_cpp_evolution.py \
-  --cases data/fixtures/fitness_multi_bench_inputs_psb2.json \
-  --cases-format psb2_fixture \
-  --input-indices 1 \
-  --input-names x \
-  --cpp-cli cpp/build/g3pvm_evolve_cli \
-  --engine gpu \
-  --blocksize 256 \
-  --cpp-timing all \
-  --population-size 64 \
-  --generations 40
-```
-
-Main outputs (printed at end of run):
-
-- `RUN_TAG`
-- `SUMMARY_JSON`
-- `STDOUT_LOG`
-- `STDERR_LOG`
-- `TIMINGS_LOG`
-- `EVOLUTION_JSON`
-- `FINAL_METRIC`
-
-Artifacts written to `--log-dir`:
-
-- `*.stdout.log`: raw C++ CLI stdout (`GEN ...`, `FINAL ...`)
-- `*.stderr.log`: raw C++ CLI stderr
-- `*.timings.log`: stage-by-stage elapsed time (`parse_args`, `resolve_paths`, `load_cases_payload`, `build_command`, `run_cpp_cli`, `parse_cli_output`, `write_artifacts`)
-- `*.summary.json`: command, args, parsed metrics, timing records
-- `*.evolution.json`: native C++ CLI `--out-json` payload
-
-`--cpp-timing` controls inner C++ breakdown:
-
-- `none`: no C++ internal timing lines
-- `summary`: phase totals (`init_population`, `generations_eval_total`, `generations_repro_total`, `final_eval`, `total`)
-- `per_gen`: one line per generation (`eval_ms`, `repro_ms`, `total_ms`)
-- `all`: summary + per-generation
-
-If you run C++ CLI directly, use `--engine` / `--blocksize` / `--timing`:
-
-```bash
-cpp/build/g3pvm_evolve_cli \
-  --cases data/fixtures/evolution_cases.json \
-  --cases-format simple \
-  --engine gpu \
-  --blocksize 256 \
-  --timing all
-```
-
-Timing lines from C++ CLI look like:
-
-```text
-TIMING phase=init_population ms=...
-TIMING phase=generations_eval_total ms=...
-TIMING phase=generations_repro_total ms=...
-TIMING phase=final_eval ms=...
-TIMING phase=total ms=...
-TIMING gen=000 eval_ms=... repro_ms=... total_ms=...
-TIMING gpu_gen=000 compile_ms=... pack_upload_ms=... kernel_ms=... copyback_ms=...
-```
-
-Show all options:
-
-```bash
-python3 tools/run_cpp_evolution.py --help
-```
-
-`cases` JSON minimal schema:
-
-```json
-{
-  "cases": [
-    {"inputs": {"x": 1, "y": 2}, "expected": 3},
-    {"inputs": {"x": {"type": "int", "value": -1}}, "expected": {"type": "int", "value": -1}}
-  ]
-}
-```
-
-## C++ build and tests
-
-Configure and build:
+### Build C++
 
 ```bash
 cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build cpp/build -j
 ```
 
-Run C++ tests:
+### Run all tests
 
 ```bash
+PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 ctest --test-dir cpp/build --output-on-failure
 ```
 
-## GPU API status
-
-GPU execution is multi/fitness only:
-
-- `run_bytecode_gpu_multi_batch(programs, shared_cases, fuel, blocksize)`
-- `run_bytecode_gpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, fuel, blocksize)`
-
-GPU runtime auto-selects the least-used visible CUDA device by memory usage.
-If you want to pin manually, set `CUDA_VISIBLE_DEVICES`.
-
-## CPU/GPU multi-program benchmark
-
-The repo includes in-memory benchmark for non-fitness multi-program workloads:
-
-- GPU: `g3pvm_vm_gpu_multi_bench`
-- CPU: `g3pvm_vm_cpu_multi_bench`
-
-Argument order:
-
-`<program_count> <cases_per_program> <pass_programs> <fail_programs> <timeout_programs> <fuel> [blocksize(gpu only)]`
-
-Example for your target workload (`4096 programs`, each `1024 cases`, program buckets `2048/1024/1024`):
+### Run demo
 
 ```bash
-# GPU (auto-selects least-used visible device; pin with CUDA_VISIBLE_DEVICES to override)
-cpp/build/g3pvm_vm_gpu_multi_bench 4096 1024 2048 1024 1024 64 256
-
-# CPU
-cpp/build/g3pvm_vm_cpu_multi_bench 4096 1024 2048 1024 1024 64
+PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
 ```
 
-## Data directory behavior
+## Evolution / Benchmark Entrypoints
 
-`data/` is git-ignored on purpose. Generated fixtures are local artifacts.
-
-Generation scripts automatically create parent directories for output paths:
-
-- `tools/gen_psb2_fitness_multi_bench_inputs.py`
-
-So commands like `--out data/fixtures/...` work even if directories do not exist yet.
-
-Generate PSB2 (bouncing-balls) fitness multi-bench input JSON:
+### Python evolution CLI
 
 ```bash
-PYTHONPATH=python python3 tools/gen_psb2_fitness_multi_bench_inputs.py \
-  --psb2-root data/psb2_datasets \
-  --out data/fixtures/fitness_multi_bench_inputs_psb2.json \
-  --require-psb2-fetch
+PYTHONPATH=python python3 tools/run_evolution.py \
+  --cases data/fixtures/evolution_cases.json \
+  --population-size 64 \
+  --generations 40 \
+  --selection tournament \
+  --crossover-method hybrid
 ```
 
-Validate CPU/GPU fitness against expected scores from that generated JSON:
+### C++ evolution runner (CPU/GPU)
 
 ```bash
-PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py \
-  --fixture data/fixtures/fitness_multi_bench_inputs_psb2.json \
-  --cli cpp/build_release/g3pvm_vm_cpu_cli
+python3 tools/run_cpp_evolution.py \
+  --cases data/fixtures/fitness_multi_bench_inputs_psb2.json \
+  --cases-format psb2_fixture \
+  --input-indices 1 \
+  --input-names x \
+  --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --engine gpu \
+  --blocksize 256 \
+  --cpp-timing all
 ```
 
-Benchmark CPU/GPU fitness speed from the same generated JSON:
+### CPU vs GPU speedup experiment
 
 ```bash
-PYTHONPATH=python python3 tools/bench_fitness_fixture_cpu_gpu.py \
-  --fixture data/fixtures/fitness_multi_bench_inputs_psb2.json \
-  --cli cpp/build_release/g3pvm_vm_cpu_cli \
-  --runs 5 \
-  --blocksize 256
+bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
+bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 4096 --generations 40
 ```
 
-## Fitness CLI (CPU/GPU aligned)
+Output reports are written to `logs/cpu_gpu_compare_pop*_*/cpu_gpu_compare.report.md`.
 
-Use `g3pvm_vm_cpu_cli` with a `bytecode_program_inputs` payload.
-It returns one fitness value per program (`error=-10`, `wrong=0`, `correct=1` per case):
+## GPU Runbook
 
-Canonical request schema (use this one format for all tooling/scripts):
-- top-level key is always `bytecode_program_inputs`
-- `programs` + `shared_cases` are always required
-- `shared_answer` is included when you want fitness output
-
-```json
-{
-  "bytecode_program_inputs": {
-    "format_version": "bytecode-json-v0.1",
-    "fuel": 64,
-    "programs": [ { "n_locals": 1, "consts": [], "code": [] } ],
-    "shared_cases": [ [] ],
-    "shared_answer": [ { "type": "int", "value": 0 } ]
-  }
-}
-```
-
-Run:
+Always run GPU commands via:
 
 ```bash
-cpp/build/g3pvm_vm_cpu_cli < your_bytecode_program_inputs.json
+scripts/run_gpu_command.sh -- <gpu_command> [args...]
 ```
 
-Optional runtime selection is via CLI args (not JSON fields):
+The wrapper retries `CUDA_VISIBLE_DEVICES=0` then `1` on device-unavailable failures.
 
-```bash
-cpp/build/g3pvm_vm_cpu_cli --engine gpu --blocksize 256 < your_bytecode_program_inputs.json
-```
+## Docs
 
-Output format:
-
-```text
-OK fitness_count <N>
-FIT <program_idx> <fitness>
-```
+- Architecture: `docs/ARCHITECTURE.md`
+- Development/Test/Benchmark runbook: `docs/DEVELOPMENT.md`
+- Language and VM contracts: `spec/subset_v0_1.md`, `spec/bytecode_isa.md`, `spec/builtins.md`
