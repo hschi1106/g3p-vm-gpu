@@ -6,6 +6,7 @@
 #include <numeric>
 #include <set>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "g3pvm/value_semantics.hpp"
 #include "g3pvm/vm_cpu.hpp"
@@ -83,19 +84,38 @@ std::vector<Value> to_shared_answer(const std::vector<FitnessCase>& cases) {
 }
 
 #ifdef G3PVM_HAS_CUDA
+struct GPUCompileCache {
+  std::unordered_map<std::string, BytecodeProgram> by_hash;
+};
+
 std::vector<ScoredGenome> evaluate_population_gpu(
     const std::vector<ProgramGenome>& population,
     const std::vector<std::string>& input_names,
     GPUFitnessSession* session,
+    GPUCompileCache* compile_cache,
     EvolutionTiming* timing,
     bool record_per_gen) {
-  const auto compile_t0 = std::chrono::steady_clock::now();
+  double compile_ms = 0.0;
   std::vector<BytecodeProgram> programs;
   programs.reserve(population.size());
   for (const ProgramGenome& g : population) {
-    programs.push_back(compile_for_eval_with_preset_locals(g, input_names));
+    const std::string& key = g.meta.hash_key;
+    if (compile_cache != nullptr && !key.empty()) {
+      auto it = compile_cache->by_hash.find(key);
+      if (it != compile_cache->by_hash.end()) {
+        programs.push_back(it->second);
+        continue;
+      }
+    }
+    const auto one_t0 = std::chrono::steady_clock::now();
+    BytecodeProgram bc = compile_for_eval_with_preset_locals(g, input_names);
+    const auto one_t1 = std::chrono::steady_clock::now();
+    compile_ms += std::chrono::duration<double, std::milli>(one_t1 - one_t0).count();
+    if (compile_cache != nullptr && !key.empty()) {
+      compile_cache->by_hash.emplace(key, bc);
+    }
+    programs.push_back(std::move(bc));
   }
-  const auto compile_t1 = std::chrono::steady_clock::now();
 
   const GPUFitnessEvalResult fit = session->eval_programs(programs);
   if (!fit.ok) {
@@ -105,14 +125,12 @@ std::vector<ScoredGenome> evaluate_population_gpu(
     throw std::runtime_error("gpu fitness size mismatch");
   }
 
-  timing->gpu_generations_program_compile_ms_total +=
-      std::chrono::duration<double, std::milli>(compile_t1 - compile_t0).count();
+  timing->gpu_generations_program_compile_ms_total += compile_ms;
   timing->gpu_generations_pack_upload_ms_total += fit.upload_programs_ms + fit.pack_programs_ms;
   timing->gpu_generations_kernel_ms_total += fit.kernel_exec_ms;
   timing->gpu_generations_copyback_ms_total += fit.copyback_ms;
   if (record_per_gen) {
-    timing->generation_gpu_program_compile_ms.push_back(
-        std::chrono::duration<double, std::milli>(compile_t1 - compile_t0).count());
+    timing->generation_gpu_program_compile_ms.push_back(compile_ms);
     timing->generation_gpu_pack_upload_ms.push_back(fit.upload_programs_ms + fit.pack_programs_ms);
     timing->generation_gpu_kernel_ms.push_back(fit.kernel_exec_ms);
     timing->generation_gpu_copyback_ms.push_back(fit.copyback_ms);
@@ -333,6 +351,7 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
   std::vector<InputCase> gpu_shared_cases;
   std::vector<Value> gpu_shared_answer;
   GPUFitnessSession gpu_session;
+  GPUCompileCache gpu_compile_cache;
 #endif
   if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
@@ -359,7 +378,8 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
     std::vector<ScoredGenome> scored;
     if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-      scored = evaluate_population_gpu(population, case_input_names, &gpu_session, &run.timing, true);
+      scored = evaluate_population_gpu(
+          population, case_input_names, &gpu_session, &gpu_compile_cache, &run.timing, true);
 #else
       throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
@@ -419,7 +439,8 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
   const auto final_eval_t0 = std::chrono::steady_clock::now();
   if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-    result.final_population = evaluate_population_gpu(population, case_input_names, &gpu_session, &run.timing, false);
+    result.final_population = evaluate_population_gpu(
+        population, case_input_names, &gpu_session, &gpu_compile_cache, &run.timing, false);
 #else
     throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
