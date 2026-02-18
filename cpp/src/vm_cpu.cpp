@@ -1,5 +1,6 @@
 #include "g3pvm/vm_cpu.hpp"
 
+#include <climits>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -320,15 +321,29 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
       bool any_float = false;
       if (vm_semantics::to_numeric_pair(out.value, shared_answer[c], pred_num, expected_num, any_float)) {
         (void)any_float;
-        abs_error_sum += std::fabs(pred_num - expected_num);
+        const double diff = std::fabs(pred_num - expected_num);
+        if (std::isfinite(diff)) {
+          abs_error_sum += diff;
+        } else {
+          // Guard against NaN/Inf paths producing unstable fitness values.
+          non_numeric_mismatch_count += 1;
+        }
       } else if (!vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
         non_numeric_mismatch_count += 1;
       }
     }
     const double mean_abs_error = abs_error_sum / case_count;
-    const int rounded_mean_abs_error = static_cast<int>(std::llround(mean_abs_error));
-    fitness[p] =
-        exact_match_count - rounded_mean_abs_error - runtime_error_count * 10 - non_numeric_mismatch_count;
+    int rounded_mean_abs_error = static_cast<int>(shared_cases.size());
+    if (std::isfinite(mean_abs_error) && mean_abs_error >= 0.0) {
+      rounded_mean_abs_error = static_cast<int>(std::llround(mean_abs_error));
+    }
+
+    long long score =
+        static_cast<long long>(exact_match_count) - static_cast<long long>(rounded_mean_abs_error) -
+        static_cast<long long>(runtime_error_count) * 10LL - static_cast<long long>(non_numeric_mismatch_count);
+    if (score > static_cast<long long>(INT_MAX)) score = static_cast<long long>(INT_MAX);
+    if (score < static_cast<long long>(INT_MIN)) score = static_cast<long long>(INT_MIN);
+    fitness[p] = static_cast<int>(score);
   }
 
   return fitness;

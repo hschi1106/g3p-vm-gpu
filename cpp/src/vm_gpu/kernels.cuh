@@ -1,5 +1,6 @@
 #pragma once
 
+#include <climits>
 #include <cmath>
 #include <cstdint>
 
@@ -327,7 +328,12 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     bool any_float = false;
     if (vm_semantics::to_numeric_pair(result.value, shared_answer[local_case], pred_num, expected_num, any_float)) {
       (void)any_float;
-      local_abs_error_sum += fabs(pred_num - expected_num);
+      const double diff = fabs(pred_num - expected_num);
+      if (isfinite(diff)) {
+        local_abs_error_sum += diff;
+      } else {
+        local_non_numeric_mismatch_count += 1;
+      }
     } else if (!d_value_equal_for_fitness(result.value, shared_answer[local_case])) {
       local_non_numeric_mismatch_count += 1;
     }
@@ -349,9 +355,17 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   if (tid == 0) {
     const double case_count = static_cast<double>(meta.case_count);
     const double mean_abs_error = (case_count > 0.0) ? (block_abs_error_sum / case_count) : 0.0;
-    const int rounded_mean_abs_error = static_cast<int>(mean_abs_error + 0.5);
-    fitness_out[prog_idx] = block_exact_match_count - rounded_mean_abs_error - block_runtime_error_count * 10 -
-                            block_non_numeric_mismatch_count;
+    int rounded_mean_abs_error = meta.case_count;
+    if (isfinite(mean_abs_error) && mean_abs_error >= 0.0) {
+      rounded_mean_abs_error = static_cast<int>(mean_abs_error + 0.5);
+    }
+    long long score = static_cast<long long>(block_exact_match_count) -
+                      static_cast<long long>(rounded_mean_abs_error) -
+                      static_cast<long long>(block_runtime_error_count) * 10LL -
+                      static_cast<long long>(block_non_numeric_mismatch_count);
+    if (score > static_cast<long long>(INT_MAX)) score = static_cast<long long>(INT_MAX);
+    if (score < static_cast<long long>(INT_MIN)) score = static_cast<long long>(INT_MIN);
+    fitness_out[prog_idx] = static_cast<int>(score);
   }
 }
 
