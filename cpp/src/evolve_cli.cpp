@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -72,6 +73,27 @@ std::string json_escape(const std::string& s) {
     }
   }
   return oss.str();
+}
+
+void write_value_json(std::ostream& out, const Value& v) {
+  if (v.tag == ValueTag::None) {
+    out << "null";
+    return;
+  }
+  if (v.tag == ValueTag::Bool) {
+    out << (v.b ? "true" : "false");
+    return;
+  }
+  if (v.tag == ValueTag::Int) {
+    out << v.i;
+    return;
+  }
+  if (std::isfinite(v.f)) {
+    out << std::setprecision(17) << v.f;
+    return;
+  }
+  // Keep JSON valid if non-finite float appears.
+  out << "null";
 }
 
 bool is_integer_number(double x) {
@@ -654,7 +676,19 @@ int main(int argc, char** argv) {
       out << "  \"final\": {\n";
       out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";
       out << "    \"hash_key\": \"" << json_escape(result.best.genome.meta.hash_key) << "\",\n";
-      out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(result.best.genome.ast)) << "\"\n";
+      out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(result.best.genome.ast)) << "\",\n";
+      out << "    \"ast_names\": [";
+      for (std::size_t i = 0; i < result.best.genome.ast.names.size(); ++i) {
+        if (i > 0) out << ", ";
+        out << "\"" << json_escape(result.best.genome.ast.names[i]) << "\"";
+      }
+      out << "],\n";
+      out << "    \"ast_consts\": [";
+      for (std::size_t i = 0; i < result.best.genome.ast.consts.size(); ++i) {
+        if (i > 0) out << ", ";
+        write_value_json(out, result.best.genome.ast.consts[i]);
+      }
+      out << "]\n";
       out << "  }\n";
       out << "}\n";
     }

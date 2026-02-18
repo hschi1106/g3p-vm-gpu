@@ -27,7 +27,10 @@ VMResult run_bytecode(const BytecodeProgram& program,
                       int fuel = 10000);
 
 // Returns one fitness score per program.
-// Scoring per case: error=-10, wrong=0, correct=1.
+// Scoring:
+//   score = exact_match_count - round(mean_abs_error) + runtime_error_count * (-10)
+// where mean_abs_error is over numeric predictions/targets across all cases.
+// Non-numeric non-error mismatches contribute 0 to mean_abs_error and exact bonus.
 // All programs share one case set.
 std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
     const std::vector<BytecodeProgram>& programs,

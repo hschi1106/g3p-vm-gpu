@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 
 #include "device_builtins.cuh"
@@ -286,9 +287,13 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   const DProgramMeta meta = metas[prog_idx];
 
   extern __shared__ DInstr shared_code[];
-  __shared__ int block_score;
+  __shared__ int block_exact_match_count;
+  __shared__ int block_runtime_error_count;
+  __shared__ double block_abs_error_sum;
   if (tid == 0) {
-    block_score = 0;
+    block_exact_match_count = 0;
+    block_runtime_error_count = 0;
+    block_abs_error_sum = 0.0;
   }
   __syncthreads();
 
@@ -299,23 +304,46 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   }
   __syncthreads();
 
-  int local_score = 0;
+  int local_exact_match_count = 0;
+  int local_runtime_error_count = 0;
+  double local_abs_error_sum = 0.0;
   for (int local_case = tid; local_case < meta.case_count; local_case += static_cast<int>(blockDim.x)) {
     const DResult result = d_exec_one_case(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, local_case, fuel);
     if (result.is_error) {
-      local_score -= 10;
-    } else if (d_value_equal_for_fitness(result.value, shared_answer[local_case])) {
-      local_score += 1;
+      local_runtime_error_count += 1;
+      continue;
+    }
+
+    if (d_value_equal_for_fitness(result.value, shared_answer[local_case])) {
+      local_exact_match_count += 1;
+    }
+
+    double pred_num = 0.0;
+    double expected_num = 0.0;
+    bool any_float = false;
+    if (vm_semantics::to_numeric_pair(result.value, shared_answer[local_case], pred_num, expected_num, any_float)) {
+      (void)any_float;
+      local_abs_error_sum += fabs(pred_num - expected_num);
     }
   }
 
-  if (local_score != 0) {
-    atomicAdd(&block_score, local_score);
+  if (local_exact_match_count != 0) {
+    atomicAdd(&block_exact_match_count, local_exact_match_count);
+  }
+  if (local_runtime_error_count != 0) {
+    atomicAdd(&block_runtime_error_count, local_runtime_error_count);
+  }
+  if (local_abs_error_sum != 0.0) {
+    atomicAdd(&block_abs_error_sum, local_abs_error_sum);
   }
   __syncthreads();
   if (tid == 0) {
-    fitness_out[prog_idx] = block_score;
+    const double case_count = static_cast<double>(meta.case_count);
+    const double mean_abs_error = (case_count > 0.0) ? (block_abs_error_sum / case_count) : 0.0;
+    const int rounded_mean_abs_error = static_cast<int>(mean_abs_error + 0.5);
+    fitness_out[prog_idx] =
+        block_exact_match_count - rounded_mean_abs_error - block_runtime_error_count * 10;
   }
 }
 

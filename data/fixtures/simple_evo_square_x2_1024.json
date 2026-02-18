@@ -1,0 +1,6148 @@
+{
+  "cases": [
+    {
+      "inputs": {
+        "x": -511
+      },
+      "expected": 261121
+    },
+    {
+      "inputs": {
+        "x": -510
+      },
+      "expected": 260100
+    },
+    {
+      "inputs": {
+        "x": -509
+      },
+      "expected": 259081
+    },
+    {
+      "inputs": {
+        "x": -508
+      },
+      "expected": 258064
+    },
+    {
+      "inputs": {
+        "x": -507
+      },
+      "expected": 257049
+    },
+    {
+      "inputs": {
+        "x": -506
+      },
+      "expected": 256036
+    },
+    {
+      "inputs": {
+        "x": -505
+      },
+      "expected": 255025
+    },
+    {
+      "inputs": {
+        "x": -504
+      },
+      "expected": 254016
+    },
+    {
+      "inputs": {
+        "x": -503
+      },
+      "expected": 253009
+    },
+    {
+      "inputs": {
+        "x": -502
+      },
+      "expected": 252004
+    },
+    {
+      "inputs": {
+        "x": -501
+      },
+      "expected": 251001
+    },
+    {
+      "inputs": {
+        "x": -500
+      },
+      "expected": 250000
+    },
+    {
+      "inputs": {
+        "x": -499
+      },
+      "expected": 249001
+    },
+    {
+      "inputs": {
+        "x": -498
+      },
+      "expected": 248004
+    },
+    {
+      "inputs": {
+        "x": -497
+      },
+      "expected": 247009
+    },
+    {
+      "inputs": {
+        "x": -496
+      },
+      "expected": 246016
+    },
+    {
+      "inputs": {
+        "x": -495
+      },
+      "expected": 245025
+    },
+    {
+      "inputs": {
+        "x": -494
+      },
+      "expected": 244036
+    },
+    {
+      "inputs": {
+        "x": -493
+      },
+      "expected": 243049
+    },
+    {
+      "inputs": {
+        "x": -492
+      },
+      "expected": 242064
+    },
+    {
+      "inputs": {
+        "x": -491
+      },
+      "expected": 241081
+    },
+    {
+      "inputs": {
+        "x": -490
+      },
+      "expected": 240100
+    },
+    {
+      "inputs": {
+        "x": -489
+      },
+      "expected": 239121
+    },
+    {
+      "inputs": {
+        "x": -488
+      },
+      "expected": 238144
+    },
+    {
+      "inputs": {
+        "x": -487
+      },
+      "expected": 237169
+    },
+    {
+      "inputs": {
+        "x": -486
+      },
+      "expected": 236196
+    },
+    {
+      "inputs": {
+        "x": -485
+      },
+      "expected": 235225
+    },
+    {
+      "inputs": {
+        "x": -484
+      },
+      "expected": 234256
+    },
+    {
+      "inputs": {
+        "x": -483
+      },
+      "expected": 233289
+    },
+    {
+      "inputs": {
+        "x": -482
+      },
+      "expected": 232324
+    },
+    {
+      "inputs": {
+        "x": -481
+      },
+      "expected": 231361
+    },
+    {
+      "inputs": {
+        "x": -480
+      },
+      "expected": 230400
+    },
+    {
+      "inputs": {
+        "x": -479
+      },
+      "expected": 229441
+    },
+    {
+      "inputs": {
+        "x": -478
+      },
+      "expected": 228484
+    },
+    {
+      "inputs": {
+        "x": -477
+      },
+      "expected": 227529
+    },
+    {
+      "inputs": {
+        "x": -476
+      },
+      "expected": 226576
+    },
+    {
+      "inputs": {
+        "x": -475
+      },
+      "expected": 225625
+    },
+    {
+      "inputs": {
+        "x": -474
+      },
+      "expected": 224676
+    },
+    {
+      "inputs": {
+        "x": -473
+      },
+      "expected": 223729
+    },
+    {
+      "inputs": {
+        "x": -472
+      },
+      "expected": 222784
+    },
+    {
+      "inputs": {
+        "x": -471
+      },
+      "expected": 221841
+    },
+    {
+      "inputs": {
+        "x": -470
+      },
+      "expected": 220900
+    },
+    {
+      "inputs": {
+        "x": -469
+      },
+      "expected": 219961
+    },
+    {
+      "inputs": {
+        "x": -468
+      },
+      "expected": 219024
+    },
+    {
+      "inputs": {
+        "x": -467
+      },
+      "expected": 218089
+    },
+    {
+      "inputs": {
+        "x": -466
+      },
+      "expected": 217156
+    },
+    {
+      "inputs": {
+        "x": -465
+      },
+      "expected": 216225
+    },
+    {
+      "inputs": {
+        "x": -464
+      },
+      "expected": 215296
+    },
+    {
+      "inputs": {
+        "x": -463
+      },
+      "expected": 214369
+    },
+    {
+      "inputs": {
+        "x": -462
+      },
+      "expected": 213444
+    },
+    {
+      "inputs": {
+        "x": -461
+      },
+      "expected": 212521
+    },
+    {
+      "inputs": {
+        "x": -460
+      },
+      "expected": 211600
+    },
+    {
+      "inputs": {
+        "x": -459
+      },
+      "expected": 210681
+    },
+    {
+      "inputs": {
+        "x": -458
+      },
+      "expected": 209764
+    },
+    {
+      "inputs": {
+        "x": -457
+      },
+      "expected": 208849
+    },
+    {
+      "inputs": {
+        "x": -456
+      },
+      "expected": 207936
+    },
+    {
+      "inputs": {
+        "x": -455
+      },
+      "expected": 207025
+    },
+    {
+      "inputs": {
+        "x": -454
+      },
+      "expected": 206116
+    },
+    {
+      "inputs": {
+        "x": -453
+      },
+      "expected": 205209
+    },
+    {
+      "inputs": {
+        "x": -452
+      },
+      "expected": 204304
+    },
+    {
+      "inputs": {
+        "x": -451
+      },
+      "expected": 203401
+    },
+    {
+      "inputs": {
+        "x": -450
+      },
+      "expected": 202500
+    },
+    {
+      "inputs": {
+        "x": -449
+      },
+      "expected": 201601
+    },
+    {
+      "inputs": {
+        "x": -448
+      },
+      "expected": 200704
+    },
+    {
+      "inputs": {
+        "x": -447
+      },
+      "expected": 199809
+    },
+    {
+      "inputs": {
+        "x": -446
+      },
+      "expected": 198916
+    },
+    {
+      "inputs": {
+        "x": -445
+      },
+      "expected": 198025
+    },
+    {
+      "inputs": {
+        "x": -444
+      },
+      "expected": 197136
+    },
+    {
+      "inputs": {
+        "x": -443
+      },
+      "expected": 196249
+    },
+    {
+      "inputs": {
+        "x": -442
+      },
+      "expected": 195364
+    },
+    {
+      "inputs": {
+        "x": -441
+      },
+      "expected": 194481
+    },
+    {
+      "inputs": {
+        "x": -440
+      },
+      "expected": 193600
+    },
+    {
+      "inputs": {
+        "x": -439
+      },
+      "expected": 192721
+    },
+    {
+      "inputs": {
+        "x": -438
+      },
+      "expected": 191844
+    },
+    {
+      "inputs": {
+        "x": -437
+      },
+      "expected": 190969
+    },
+    {
+      "inputs": {
+        "x": -436
+      },
+      "expected": 190096
+    },
+    {
+      "inputs": {
+        "x": -435
+      },
+      "expected": 189225
+    },
+    {
+      "inputs": {
+        "x": -434
+      },
+      "expected": 188356
+    },
+    {
+      "inputs": {
+        "x": -433
+      },
+      "expected": 187489
+    },
+    {
+      "inputs": {
+        "x": -432
+      },
+      "expected": 186624
+    },
+    {
+      "inputs": {
+        "x": -431
+      },
+      "expected": 185761
+    },
+    {
+      "inputs": {
+        "x": -430
+      },
+      "expected": 184900
+    },
+    {
+      "inputs": {
+        "x": -429
+      },
+      "expected": 184041
+    },
+    {
+      "inputs": {
+        "x": -428
+      },
+      "expected": 183184
+    },
+    {
+      "inputs": {
+        "x": -427
+      },
+      "expected": 182329
+    },
+    {
+      "inputs": {
+        "x": -426
+      },
+      "expected": 181476
+    },
+    {
+      "inputs": {
+        "x": -425
+      },
+      "expected": 180625
+    },
+    {
+      "inputs": {
+        "x": -424
+      },
+      "expected": 179776
+    },
+    {
+      "inputs": {
+        "x": -423
+      },
+      "expected": 178929
+    },
+    {
+      "inputs": {
+        "x": -422
+      },
+      "expected": 178084
+    },
+    {
+      "inputs": {
+        "x": -421
+      },
+      "expected": 177241
+    },
+    {
+      "inputs": {
+        "x": -420
+      },
+      "expected": 176400
+    },
+    {
+      "inputs": {
+        "x": -419
+      },
+      "expected": 175561
+    },
+    {
+      "inputs": {
+        "x": -418
+      },
+      "expected": 174724
+    },
+    {
+      "inputs": {
+        "x": -417
+      },
+      "expected": 173889
+    },
+    {
+      "inputs": {
+        "x": -416
+      },
+      "expected": 173056
+    },
+    {
+      "inputs": {
+        "x": -415
+      },
+      "expected": 172225
+    },
+    {
+      "inputs": {
+        "x": -414
+      },
+      "expected": 171396
+    },
+    {
+      "inputs": {
+        "x": -413
+      },
+      "expected": 170569
+    },
+    {
+      "inputs": {
+        "x": -412
+      },
+      "expected": 169744
+    },
+    {
+      "inputs": {
+        "x": -411
+      },
+      "expected": 168921
+    },
+    {
+      "inputs": {
+        "x": -410
+      },
+      "expected": 168100
+    },
+    {
+      "inputs": {
+        "x": -409
+      },
+      "expected": 167281
+    },
+    {
+      "inputs": {
+        "x": -408
+      },
+      "expected": 166464
+    },
+    {
+      "inputs": {
+        "x": -407
+      },
+      "expected": 165649
+    },
+    {
+      "inputs": {
+        "x": -406
+      },
+      "expected": 164836
+    },
+    {
+      "inputs": {
+        "x": -405
+      },
+      "expected": 164025
+    },
+    {
+      "inputs": {
+        "x": -404
+      },
+      "expected": 163216
+    },
+    {
+      "inputs": {
+        "x": -403
+      },
+      "expected": 162409
+    },
+    {
+      "inputs": {
+        "x": -402
+      },
+      "expected": 161604
+    },
+    {
+      "inputs": {
+        "x": -401
+      },
+      "expected": 160801
+    },
+    {
+      "inputs": {
+        "x": -400
+      },
+      "expected": 160000
+    },
+    {
+      "inputs": {
+        "x": -399
+      },
+      "expected": 159201
+    },
+    {
+      "inputs": {
+        "x": -398
+      },
+      "expected": 158404
+    },
+    {
+      "inputs": {
+        "x": -397
+      },
+      "expected": 157609
+    },
+    {
+      "inputs": {
+        "x": -396
+      },
+      "expected": 156816
+    },
+    {
+      "inputs": {
+        "x": -395
+      },
+      "expected": 156025
+    },
+    {
+      "inputs": {
+        "x": -394
+      },
+      "expected": 155236
+    },
+    {
+      "inputs": {
+        "x": -393
+      },
+      "expected": 154449
+    },
+    {
+      "inputs": {
+        "x": -392
+      },
+      "expected": 153664
+    },
+    {
+      "inputs": {
+        "x": -391
+      },
+      "expected": 152881
+    },
+    {
+      "inputs": {
+        "x": -390
+      },
+      "expected": 152100
+    },
+    {
+      "inputs": {
+        "x": -389
+      },
+      "expected": 151321
+    },
+    {
+      "inputs": {
+        "x": -388
+      },
+      "expected": 150544
+    },
+    {
+      "inputs": {
+        "x": -387
+      },
+      "expected": 149769
+    },
+    {
+      "inputs": {
+        "x": -386
+      },
+      "expected": 148996
+    },
+    {
+      "inputs": {
+        "x": -385
+      },
+      "expected": 148225
+    },
+    {
+      "inputs": {
+        "x": -384
+      },
+      "expected": 147456
+    },
+    {
+      "inputs": {
+        "x": -383
+      },
+      "expected": 146689
+    },
+    {
+      "inputs": {
+        "x": -382
+      },
+      "expected": 145924
+    },
+    {
+      "inputs": {
+        "x": -381
+      },
+      "expected": 145161
+    },
+    {
+      "inputs": {
+        "x": -380
+      },
+      "expected": 144400
+    },
+    {
+      "inputs": {
+        "x": -379
+      },
+      "expected": 143641
+    },
+    {
+      "inputs": {
+        "x": -378
+      },
+      "expected": 142884
+    },
+    {
+      "inputs": {
+        "x": -377
+      },
+      "expected": 142129
+    },
+    {
+      "inputs": {
+        "x": -376
+      },
+      "expected": 141376
+    },
+    {
+      "inputs": {
+        "x": -375
+      },
+      "expected": 140625
+    },
+    {
+      "inputs": {
+        "x": -374
+      },
+      "expected": 139876
+    },
+    {
+      "inputs": {
+        "x": -373
+      },
+      "expected": 139129
+    },
+    {
+      "inputs": {
+        "x": -372
+      },
+      "expected": 138384
+    },
+    {
+      "inputs": {
+        "x": -371
+      },
+      "expected": 137641
+    },
+    {
+      "inputs": {
+        "x": -370
+      },
+      "expected": 136900
+    },
+    {
+      "inputs": {
+        "x": -369
+      },
+      "expected": 136161
+    },
+    {
+      "inputs": {
+        "x": -368
+      },
+      "expected": 135424
+    },
+    {
+      "inputs": {
+        "x": -367
+      },
+      "expected": 134689
+    },
+    {
+      "inputs": {
+        "x": -366
+      },
+      "expected": 133956
+    },
+    {
+      "inputs": {
+        "x": -365
+      },
+      "expected": 133225
+    },
+    {
+      "inputs": {
+        "x": -364
+      },
+      "expected": 132496
+    },
+    {
+      "inputs": {
+        "x": -363
+      },
+      "expected": 131769
+    },
+    {
+      "inputs": {
+        "x": -362
+      },
+      "expected": 131044
+    },
+    {
+      "inputs": {
+        "x": -361
+      },
+      "expected": 130321
+    },
+    {
+      "inputs": {
+        "x": -360
+      },
+      "expected": 129600
+    },
+    {
+      "inputs": {
+        "x": -359
+      },
+      "expected": 128881
+    },
+    {
+      "inputs": {
+        "x": -358
+      },
+      "expected": 128164
+    },
+    {
+      "inputs": {
+        "x": -357
+      },
+      "expected": 127449
+    },
+    {
+      "inputs": {
+        "x": -356
+      },
+      "expected": 126736
+    },
+    {
+      "inputs": {
+        "x": -355
+      },
+      "expected": 126025
+    },
+    {
+      "inputs": {
+        "x": -354
+      },
+      "expected": 125316
+    },
+    {
+      "inputs": {
+        "x": -353
+      },
+      "expected": 124609
+    },
+    {
+      "inputs": {
+        "x": -352
+      },
+      "expected": 123904
+    },
+    {
+      "inputs": {
+        "x": -351
+      },
+      "expected": 123201
+    },
+    {
+      "inputs": {
+        "x": -350
+      },
+      "expected": 122500
+    },
+    {
+      "inputs": {
+        "x": -349
+      },
+      "expected": 121801
+    },
+    {
+      "inputs": {
+        "x": -348
+      },
+      "expected": 121104
+    },
+    {
+      "inputs": {
+        "x": -347
+      },
+      "expected": 120409
+    },
+    {
+      "inputs": {
+        "x": -346
+      },
+      "expected": 119716
+    },
+    {
+      "inputs": {
+        "x": -345
+      },
+      "expected": 119025
+    },
+    {
+      "inputs": {
+        "x": -344
+      },
+      "expected": 118336
+    },
+    {
+      "inputs": {
+        "x": -343
+      },
+      "expected": 117649
+    },
+    {
+      "inputs": {
+        "x": -342
+      },
+      "expected": 116964
+    },
+    {
+      "inputs": {
+        "x": -341
+      },
+      "expected": 116281
+    },
+    {
+      "inputs": {
+        "x": -340
+      },
+      "expected": 115600
+    },
+    {
+      "inputs": {
+        "x": -339
+      },
+      "expected": 114921
+    },
+    {
+      "inputs": {
+        "x": -338
+      },
+      "expected": 114244
+    },
+    {
+      "inputs": {
+        "x": -337
+      },
+      "expected": 113569
+    },
+    {
+      "inputs": {
+        "x": -336
+      },
+      "expected": 112896
+    },
+    {
+      "inputs": {
+        "x": -335
+      },
+      "expected": 112225
+    },
+    {
+      "inputs": {
+        "x": -334
+      },
+      "expected": 111556
+    },
+    {
+      "inputs": {
+        "x": -333
+      },
+      "expected": 110889
+    },
+    {
+      "inputs": {
+        "x": -332
+      },
+      "expected": 110224
+    },
+    {
+      "inputs": {
+        "x": -331
+      },
+      "expected": 109561
+    },
+    {
+      "inputs": {
+        "x": -330
+      },
+      "expected": 108900
+    },
+    {
+      "inputs": {
+        "x": -329
+      },
+      "expected": 108241
+    },
+    {
+      "inputs": {
+        "x": -328
+      },
+      "expected": 107584
+    },
+    {
+      "inputs": {
+        "x": -327
+      },
+      "expected": 106929
+    },
+    {
+      "inputs": {
+        "x": -326
+      },
+      "expected": 106276
+    },
+    {
+      "inputs": {
+        "x": -325
+      },
+      "expected": 105625
+    },
+    {
+      "inputs": {
+        "x": -324
+      },
+      "expected": 104976
+    },
+    {
+      "inputs": {
+        "x": -323
+      },
+      "expected": 104329
+    },
+    {
+      "inputs": {
+        "x": -322
+      },
+      "expected": 103684
+    },
+    {
+      "inputs": {
+        "x": -321
+      },
+      "expected": 103041
+    },
+    {
+      "inputs": {
+        "x": -320
+      },
+      "expected": 102400
+    },
+    {
+      "inputs": {
+        "x": -319
+      },
+      "expected": 101761
+    },
+    {
+      "inputs": {
+        "x": -318
+      },
+      "expected": 101124
+    },
+    {
+      "inputs": {
+        "x": -317
+      },
+      "expected": 100489
+    },
+    {
+      "inputs": {
+        "x": -316
+      },
+      "expected": 99856
+    },
+    {
+      "inputs": {
+        "x": -315
+      },
+      "expected": 99225
+    },
+    {
+      "inputs": {
+        "x": -314
+      },
+      "expected": 98596
+    },
+    {
+      "inputs": {
+        "x": -313
+      },
+      "expected": 97969
+    },
+    {
+      "inputs": {
+        "x": -312
+      },
+      "expected": 97344
+    },
+    {
+      "inputs": {
+        "x": -311
+      },
+      "expected": 96721
+    },
+    {
+      "inputs": {
+        "x": -310
+      },
+      "expected": 96100
+    },
+    {
+      "inputs": {
+        "x": -309
+      },
+      "expected": 95481
+    },
+    {
+      "inputs": {
+        "x": -308
+      },
+      "expected": 94864
+    },
+    {
+      "inputs": {
+        "x": -307
+      },
+      "expected": 94249
+    },
+    {
+      "inputs": {
+        "x": -306
+      },
+      "expected": 93636
+    },
+    {
+      "inputs": {
+        "x": -305
+      },
+      "expected": 93025
+    },
+    {
+      "inputs": {
+        "x": -304
+      },
+      "expected": 92416
+    },
+    {
+      "inputs": {
+        "x": -303
+      },
+      "expected": 91809
+    },
+    {
+      "inputs": {
+        "x": -302
+      },
+      "expected": 91204
+    },
+    {
+      "inputs": {
+        "x": -301
+      },
+      "expected": 90601
+    },
+    {
+      "inputs": {
+        "x": -300
+      },
+      "expected": 90000
+    },
+    {
+      "inputs": {
+        "x": -299
+      },
+      "expected": 89401
+    },
+    {
+      "inputs": {
+        "x": -298
+      },
+      "expected": 88804
+    },
+    {
+      "inputs": {
+        "x": -297
+      },
+      "expected": 88209
+    },
+    {
+      "inputs": {
+        "x": -296
+      },
+      "expected": 87616
+    },
+    {
+      "inputs": {
+        "x": -295
+      },
+      "expected": 87025
+    },
+    {
+      "inputs": {
+        "x": -294
+      },
+      "expected": 86436
+    },
+    {
+      "inputs": {
+        "x": -293
+      },
+      "expected": 85849
+    },
+    {
+      "inputs": {
+        "x": -292
+      },
+      "expected": 85264
+    },
+    {
+      "inputs": {
+        "x": -291
+      },
+      "expected": 84681
+    },
+    {
+      "inputs": {
+        "x": -290
+      },
+      "expected": 84100
+    },
+    {
+      "inputs": {
+        "x": -289
+      },
+      "expected": 83521
+    },
+    {
+      "inputs": {
+        "x": -288
+      },
+      "expected": 82944
+    },
+    {
+      "inputs": {
+        "x": -287
+      },
+      "expected": 82369
+    },
+    {
+      "inputs": {
+        "x": -286
+      },
+      "expected": 81796
+    },
+    {
+      "inputs": {
+        "x": -285
+      },
+      "expected": 81225
+    },
+    {
+      "inputs": {
+        "x": -284
+      },
+      "expected": 80656
+    },
+    {
+      "inputs": {
+        "x": -283
+      },
+      "expected": 80089
+    },
+    {
+      "inputs": {
+        "x": -282
+      },
+      "expected": 79524
+    },
+    {
+      "inputs": {
+        "x": -281
+      },
+      "expected": 78961
+    },
+    {
+      "inputs": {
+        "x": -280
+      },
+      "expected": 78400
+    },
+    {
+      "inputs": {
+        "x": -279
+      },
+      "expected": 77841
+    },
+    {
+      "inputs": {
+        "x": -278
+      },
+      "expected": 77284
+    },
+    {
+      "inputs": {
+        "x": -277
+      },
+      "expected": 76729
+    },
+    {
+      "inputs": {
+        "x": -276
+      },
+      "expected": 76176
+    },
+    {
+      "inputs": {
+        "x": -275
+      },
+      "expected": 75625
+    },
+    {
+      "inputs": {
+        "x": -274
+      },
+      "expected": 75076
+    },
+    {
+      "inputs": {
+        "x": -273
+      },
+      "expected": 74529
+    },
+    {
+      "inputs": {
+        "x": -272
+      },
+      "expected": 73984
+    },
+    {
+      "inputs": {
+        "x": -271
+      },
+      "expected": 73441
+    },
+    {
+      "inputs": {
+        "x": -270
+      },
+      "expected": 72900
+    },
+    {
+      "inputs": {
+        "x": -269
+      },
+      "expected": 72361
+    },
+    {
+      "inputs": {
+        "x": -268
+      },
+      "expected": 71824
+    },
+    {
+      "inputs": {
+        "x": -267
+      },
+      "expected": 71289
+    },
+    {
+      "inputs": {
+        "x": -266
+      },
+      "expected": 70756
+    },
+    {
+      "inputs": {
+        "x": -265
+      },
+      "expected": 70225
+    },
+    {
+      "inputs": {
+        "x": -264
+      },
+      "expected": 69696
+    },
+    {
+      "inputs": {
+        "x": -263
+      },
+      "expected": 69169
+    },
+    {
+      "inputs": {
+        "x": -262
+      },
+      "expected": 68644
+    },
+    {
+      "inputs": {
+        "x": -261
+      },
+      "expected": 68121
+    },
+    {
+      "inputs": {
+        "x": -260
+      },
+      "expected": 67600
+    },
+    {
+      "inputs": {
+        "x": -259
+      },
+      "expected": 67081
+    },
+    {
+      "inputs": {
+        "x": -258
+      },
+      "expected": 66564
+    },
+    {
+      "inputs": {
+        "x": -257
+      },
+      "expected": 66049
+    },
+    {
+      "inputs": {
+        "x": -256
+      },
+      "expected": 65536
+    },
+    {
+      "inputs": {
+        "x": -255
+      },
+      "expected": 65025
+    },
+    {
+      "inputs": {
+        "x": -254
+      },
+      "expected": 64516
+    },
+    {
+      "inputs": {
+        "x": -253
+      },
+      "expected": 64009
+    },
+    {
+      "inputs": {
+        "x": -252
+      },
+      "expected": 63504
+    },
+    {
+      "inputs": {
+        "x": -251
+      },
+      "expected": 63001
+    },
+    {
+      "inputs": {
+        "x": -250
+      },
+      "expected": 62500
+    },
+    {
+      "inputs": {
+        "x": -249
+      },
+      "expected": 62001
+    },
+    {
+      "inputs": {
+        "x": -248
+      },
+      "expected": 61504
+    },
+    {
+      "inputs": {
+        "x": -247
+      },
+      "expected": 61009
+    },
+    {
+      "inputs": {
+        "x": -246
+      },
+      "expected": 60516
+    },
+    {
+      "inputs": {
+        "x": -245
+      },
+      "expected": 60025
+    },
+    {
+      "inputs": {
+        "x": -244
+      },
+      "expected": 59536
+    },
+    {
+      "inputs": {
+        "x": -243
+      },
+      "expected": 59049
+    },
+    {
+      "inputs": {
+        "x": -242
+      },
+      "expected": 58564
+    },
+    {
+      "inputs": {
+        "x": -241
+      },
+      "expected": 58081
+    },
+    {
+      "inputs": {
+        "x": -240
+      },
+      "expected": 57600
+    },
+    {
+      "inputs": {
+        "x": -239
+      },
+      "expected": 57121
+    },
+    {
+      "inputs": {
+        "x": -238
+      },
+      "expected": 56644
+    },
+    {
+      "inputs": {
+        "x": -237
+      },
+      "expected": 56169
+    },
+    {
+      "inputs": {
+        "x": -236
+      },
+      "expected": 55696
+    },
+    {
+      "inputs": {
+        "x": -235
+      },
+      "expected": 55225
+    },
+    {
+      "inputs": {
+        "x": -234
+      },
+      "expected": 54756
+    },
+    {
+      "inputs": {
+        "x": -233
+      },
+      "expected": 54289
+    },
+    {
+      "inputs": {
+        "x": -232
+      },
+      "expected": 53824
+    },
+    {
+      "inputs": {
+        "x": -231
+      },
+      "expected": 53361
+    },
+    {
+      "inputs": {
+        "x": -230
+      },
+      "expected": 52900
+    },
+    {
+      "inputs": {
+        "x": -229
+      },
+      "expected": 52441
+    },
+    {
+      "inputs": {
+        "x": -228
+      },
+      "expected": 51984
+    },
+    {
+      "inputs": {
+        "x": -227
+      },
+      "expected": 51529
+    },
+    {
+      "inputs": {
+        "x": -226
+      },
+      "expected": 51076
+    },
+    {
+      "inputs": {
+        "x": -225
+      },
+      "expected": 50625
+    },
+    {
+      "inputs": {
+        "x": -224
+      },
+      "expected": 50176
+    },
+    {
+      "inputs": {
+        "x": -223
+      },
+      "expected": 49729
+    },
+    {
+      "inputs": {
+        "x": -222
+      },
+      "expected": 49284
+    },
+    {
+      "inputs": {
+        "x": -221
+      },
+      "expected": 48841
+    },
+    {
+      "inputs": {
+        "x": -220
+      },
+      "expected": 48400
+    },
+    {
+      "inputs": {
+        "x": -219
+      },
+      "expected": 47961
+    },
+    {
+      "inputs": {
+        "x": -218
+      },
+      "expected": 47524
+    },
+    {
+      "inputs": {
+        "x": -217
+      },
+      "expected": 47089
+    },
+    {
+      "inputs": {
+        "x": -216
+      },
+      "expected": 46656
+    },
+    {
+      "inputs": {
+        "x": -215
+      },
+      "expected": 46225
+    },
+    {
+      "inputs": {
+        "x": -214
+      },
+      "expected": 45796
+    },
+    {
+      "inputs": {
+        "x": -213
+      },
+      "expected": 45369
+    },
+    {
+      "inputs": {
+        "x": -212
+      },
+      "expected": 44944
+    },
+    {
+      "inputs": {
+        "x": -211
+      },
+      "expected": 44521
+    },
+    {
+      "inputs": {
+        "x": -210
+      },
+      "expected": 44100
+    },
+    {
+      "inputs": {
+        "x": -209
+      },
+      "expected": 43681
+    },
+    {
+      "inputs": {
+        "x": -208
+      },
+      "expected": 43264
+    },
+    {
+      "inputs": {
+        "x": -207
+      },
+      "expected": 42849
+    },
+    {
+      "inputs": {
+        "x": -206
+      },
+      "expected": 42436
+    },
+    {
+      "inputs": {
+        "x": -205
+      },
+      "expected": 42025
+    },
+    {
+      "inputs": {
+        "x": -204
+      },
+      "expected": 41616
+    },
+    {
+      "inputs": {
+        "x": -203
+      },
+      "expected": 41209
+    },
+    {
+      "inputs": {
+        "x": -202
+      },
+      "expected": 40804
+    },
+    {
+      "inputs": {
+        "x": -201
+      },
+      "expected": 40401
+    },
+    {
+      "inputs": {
+        "x": -200
+      },
+      "expected": 40000
+    },
+    {
+      "inputs": {
+        "x": -199
+      },
+      "expected": 39601
+    },
+    {
+      "inputs": {
+        "x": -198
+      },
+      "expected": 39204
+    },
+    {
+      "inputs": {
+        "x": -197
+      },
+      "expected": 38809
+    },
+    {
+      "inputs": {
+        "x": -196
+      },
+      "expected": 38416
+    },
+    {
+      "inputs": {
+        "x": -195
+      },
+      "expected": 38025
+    },
+    {
+      "inputs": {
+        "x": -194
+      },
+      "expected": 37636
+    },
+    {
+      "inputs": {
+        "x": -193
+      },
+      "expected": 37249
+    },
+    {
+      "inputs": {
+        "x": -192
+      },
+      "expected": 36864
+    },
+    {
+      "inputs": {
+        "x": -191
+      },
+      "expected": 36481
+    },
+    {
+      "inputs": {
+        "x": -190
+      },
+      "expected": 36100
+    },
+    {
+      "inputs": {
+        "x": -189
+      },
+      "expected": 35721
+    },
+    {
+      "inputs": {
+        "x": -188
+      },
+      "expected": 35344
+    },
+    {
+      "inputs": {
+        "x": -187
+      },
+      "expected": 34969
+    },
+    {
+      "inputs": {
+        "x": -186
+      },
+      "expected": 34596
+    },
+    {
+      "inputs": {
+        "x": -185
+      },
+      "expected": 34225
+    },
+    {
+      "inputs": {
+        "x": -184
+      },
+      "expected": 33856
+    },
+    {
+      "inputs": {
+        "x": -183
+      },
+      "expected": 33489
+    },
+    {
+      "inputs": {
+        "x": -182
+      },
+      "expected": 33124
+    },
+    {
+      "inputs": {
+        "x": -181
+      },
+      "expected": 32761
+    },
+    {
+      "inputs": {
+        "x": -180
+      },
+      "expected": 32400
+    },
+    {
+      "inputs": {
+        "x": -179
+      },
+      "expected": 32041
+    },
+    {
+      "inputs": {
+        "x": -178
+      },
+      "expected": 31684
+    },
+    {
+      "inputs": {
+        "x": -177
+      },
+      "expected": 31329
+    },
+    {
+      "inputs": {
+        "x": -176
+      },
+      "expected": 30976
+    },
+    {
+      "inputs": {
+        "x": -175
+      },
+      "expected": 30625
+    },
+    {
+      "inputs": {
+        "x": -174
+      },
+      "expected": 30276
+    },
+    {
+      "inputs": {
+        "x": -173
+      },
+      "expected": 29929
+    },
+    {
+      "inputs": {
+        "x": -172
+      },
+      "expected": 29584
+    },
+    {
+      "inputs": {
+        "x": -171
+      },
+      "expected": 29241
+    },
+    {
+      "inputs": {
+        "x": -170
+      },
+      "expected": 28900
+    },
+    {
+      "inputs": {
+        "x": -169
+      },
+      "expected": 28561
+    },
+    {
+      "inputs": {
+        "x": -168
+      },
+      "expected": 28224
+    },
+    {
+      "inputs": {
+        "x": -167
+      },
+      "expected": 27889
+    },
+    {
+      "inputs": {
+        "x": -166
+      },
+      "expected": 27556
+    },
+    {
+      "inputs": {
+        "x": -165
+      },
+      "expected": 27225
+    },
+    {
+      "inputs": {
+        "x": -164
+      },
+      "expected": 26896
+    },
+    {
+      "inputs": {
+        "x": -163
+      },
+      "expected": 26569
+    },
+    {
+      "inputs": {
+        "x": -162
+      },
+      "expected": 26244
+    },
+    {
+      "inputs": {
+        "x": -161
+      },
+      "expected": 25921
+    },
+    {
+      "inputs": {
+        "x": -160
+      },
+      "expected": 25600
+    },
+    {
+      "inputs": {
+        "x": -159
+      },
+      "expected": 25281
+    },
+    {
+      "inputs": {
+        "x": -158
+      },
+      "expected": 24964
+    },
+    {
+      "inputs": {
+        "x": -157
+      },
+      "expected": 24649
+    },
+    {
+      "inputs": {
+        "x": -156
+      },
+      "expected": 24336
+    },
+    {
+      "inputs": {
+        "x": -155
+      },
+      "expected": 24025
+    },
+    {
+      "inputs": {
+        "x": -154
+      },
+      "expected": 23716
+    },
+    {
+      "inputs": {
+        "x": -153
+      },
+      "expected": 23409
+    },
+    {
+      "inputs": {
+        "x": -152
+      },
+      "expected": 23104
+    },
+    {
+      "inputs": {
+        "x": -151
+      },
+      "expected": 22801
+    },
+    {
+      "inputs": {
+        "x": -150
+      },
+      "expected": 22500
+    },
+    {
+      "inputs": {
+        "x": -149
+      },
+      "expected": 22201
+    },
+    {
+      "inputs": {
+        "x": -148
+      },
+      "expected": 21904
+    },
+    {
+      "inputs": {
+        "x": -147
+      },
+      "expected": 21609
+    },
+    {
+      "inputs": {
+        "x": -146
+      },
+      "expected": 21316
+    },
+    {
+      "inputs": {
+        "x": -145
+      },
+      "expected": 21025
+    },
+    {
+      "inputs": {
+        "x": -144
+      },
+      "expected": 20736
+    },
+    {
+      "inputs": {
+        "x": -143
+      },
+      "expected": 20449
+    },
+    {
+      "inputs": {
+        "x": -142
+      },
+      "expected": 20164
+    },
+    {
+      "inputs": {
+        "x": -141
+      },
+      "expected": 19881
+    },
+    {
+      "inputs": {
+        "x": -140
+      },
+      "expected": 19600
+    },
+    {
+      "inputs": {
+        "x": -139
+      },
+      "expected": 19321
+    },
+    {
+      "inputs": {
+        "x": -138
+      },
+      "expected": 19044
+    },
+    {
+      "inputs": {
+        "x": -137
+      },
+      "expected": 18769
+    },
+    {
+      "inputs": {
+        "x": -136
+      },
+      "expected": 18496
+    },
+    {
+      "inputs": {
+        "x": -135
+      },
+      "expected": 18225
+    },
+    {
+      "inputs": {
+        "x": -134
+      },
+      "expected": 17956
+    },
+    {
+      "inputs": {
+        "x": -133
+      },
+      "expected": 17689
+    },
+    {
+      "inputs": {
+        "x": -132
+      },
+      "expected": 17424
+    },
+    {
+      "inputs": {
+        "x": -131
+      },
+      "expected": 17161
+    },
+    {
+      "inputs": {
+        "x": -130
+      },
+      "expected": 16900
+    },
+    {
+      "inputs": {
+        "x": -129
+      },
+      "expected": 16641
+    },
+    {
+      "inputs": {
+        "x": -128
+      },
+      "expected": 16384
+    },
+    {
+      "inputs": {
+        "x": -127
+      },
+      "expected": 16129
+    },
+    {
+      "inputs": {
+        "x": -126
+      },
+      "expected": 15876
+    },
+    {
+      "inputs": {
+        "x": -125
+      },
+      "expected": 15625
+    },
+    {
+      "inputs": {
+        "x": -124
+      },
+      "expected": 15376
+    },
+    {
+      "inputs": {
+        "x": -123
+      },
+      "expected": 15129
+    },
+    {
+      "inputs": {
+        "x": -122
+      },
+      "expected": 14884
+    },
+    {
+      "inputs": {
+        "x": -121
+      },
+      "expected": 14641
+    },
+    {
+      "inputs": {
+        "x": -120
+      },
+      "expected": 14400
+    },
+    {
+      "inputs": {
+        "x": -119
+      },
+      "expected": 14161
+    },
+    {
+      "inputs": {
+        "x": -118
+      },
+      "expected": 13924
+    },
+    {
+      "inputs": {
+        "x": -117
+      },
+      "expected": 13689
+    },
+    {
+      "inputs": {
+        "x": -116
+      },
+      "expected": 13456
+    },
+    {
+      "inputs": {
+        "x": -115
+      },
+      "expected": 13225
+    },
+    {
+      "inputs": {
+        "x": -114
+      },
+      "expected": 12996
+    },
+    {
+      "inputs": {
+        "x": -113
+      },
+      "expected": 12769
+    },
+    {
+      "inputs": {
+        "x": -112
+      },
+      "expected": 12544
+    },
+    {
+      "inputs": {
+        "x": -111
+      },
+      "expected": 12321
+    },
+    {
+      "inputs": {
+        "x": -110
+      },
+      "expected": 12100
+    },
+    {
+      "inputs": {
+        "x": -109
+      },
+      "expected": 11881
+    },
+    {
+      "inputs": {
+        "x": -108
+      },
+      "expected": 11664
+    },
+    {
+      "inputs": {
+        "x": -107
+      },
+      "expected": 11449
+    },
+    {
+      "inputs": {
+        "x": -106
+      },
+      "expected": 11236
+    },
+    {
+      "inputs": {
+        "x": -105
+      },
+      "expected": 11025
+    },
+    {
+      "inputs": {
+        "x": -104
+      },
+      "expected": 10816
+    },
+    {
+      "inputs": {
+        "x": -103
+      },
+      "expected": 10609
+    },
+    {
+      "inputs": {
+        "x": -102
+      },
+      "expected": 10404
+    },
+    {
+      "inputs": {
+        "x": -101
+      },
+      "expected": 10201
+    },
+    {
+      "inputs": {
+        "x": -100
+      },
+      "expected": 10000
+    },
+    {
+      "inputs": {
+        "x": -99
+      },
+      "expected": 9801
+    },
+    {
+      "inputs": {
+        "x": -98
+      },
+      "expected": 9604
+    },
+    {
+      "inputs": {
+        "x": -97
+      },
+      "expected": 9409
+    },
+    {
+      "inputs": {
+        "x": -96
+      },
+      "expected": 9216
+    },
+    {
+      "inputs": {
+        "x": -95
+      },
+      "expected": 9025
+    },
+    {
+      "inputs": {
+        "x": -94
+      },
+      "expected": 8836
+    },
+    {
+      "inputs": {
+        "x": -93
+      },
+      "expected": 8649
+    },
+    {
+      "inputs": {
+        "x": -92
+      },
+      "expected": 8464
+    },
+    {
+      "inputs": {
+        "x": -91
+      },
+      "expected": 8281
+    },
+    {
+      "inputs": {
+        "x": -90
+      },
+      "expected": 8100
+    },
+    {
+      "inputs": {
+        "x": -89
+      },
+      "expected": 7921
+    },
+    {
+      "inputs": {
+        "x": -88
+      },
+      "expected": 7744
+    },
+    {
+      "inputs": {
+        "x": -87
+      },
+      "expected": 7569
+    },
+    {
+      "inputs": {
+        "x": -86
+      },
+      "expected": 7396
+    },
+    {
+      "inputs": {
+        "x": -85
+      },
+      "expected": 7225
+    },
+    {
+      "inputs": {
+        "x": -84
+      },
+      "expected": 7056
+    },
+    {
+      "inputs": {
+        "x": -83
+      },
+      "expected": 6889
+    },
+    {
+      "inputs": {
+        "x": -82
+      },
+      "expected": 6724
+    },
+    {
+      "inputs": {
+        "x": -81
+      },
+      "expected": 6561
+    },
+    {
+      "inputs": {
+        "x": -80
+      },
+      "expected": 6400
+    },
+    {
+      "inputs": {
+        "x": -79
+      },
+      "expected": 6241
+    },
+    {
+      "inputs": {
+        "x": -78
+      },
+      "expected": 6084
+    },
+    {
+      "inputs": {
+        "x": -77
+      },
+      "expected": 5929
+    },
+    {
+      "inputs": {
+        "x": -76
+      },
+      "expected": 5776
+    },
+    {
+      "inputs": {
+        "x": -75
+      },
+      "expected": 5625
+    },
+    {
+      "inputs": {
+        "x": -74
+      },
+      "expected": 5476
+    },
+    {
+      "inputs": {
+        "x": -73
+      },
+      "expected": 5329
+    },
+    {
+      "inputs": {
+        "x": -72
+      },
+      "expected": 5184
+    },
+    {
+      "inputs": {
+        "x": -71
+      },
+      "expected": 5041
+    },
+    {
+      "inputs": {
+        "x": -70
+      },
+      "expected": 4900
+    },
+    {
+      "inputs": {
+        "x": -69
+      },
+      "expected": 4761
+    },
+    {
+      "inputs": {
+        "x": -68
+      },
+      "expected": 4624
+    },
+    {
+      "inputs": {
+        "x": -67
+      },
+      "expected": 4489
+    },
+    {
+      "inputs": {
+        "x": -66
+      },
+      "expected": 4356
+    },
+    {
+      "inputs": {
+        "x": -65
+      },
+      "expected": 4225
+    },
+    {
+      "inputs": {
+        "x": -64
+      },
+      "expected": 4096
+    },
+    {
+      "inputs": {
+        "x": -63
+      },
+      "expected": 3969
+    },
+    {
+      "inputs": {
+        "x": -62
+      },
+      "expected": 3844
+    },
+    {
+      "inputs": {
+        "x": -61
+      },
+      "expected": 3721
+    },
+    {
+      "inputs": {
+        "x": -60
+      },
+      "expected": 3600
+    },
+    {
+      "inputs": {
+        "x": -59
+      },
+      "expected": 3481
+    },
+    {
+      "inputs": {
+        "x": -58
+      },
+      "expected": 3364
+    },
+    {
+      "inputs": {
+        "x": -57
+      },
+      "expected": 3249
+    },
+    {
+      "inputs": {
+        "x": -56
+      },
+      "expected": 3136
+    },
+    {
+      "inputs": {
+        "x": -55
+      },
+      "expected": 3025
+    },
+    {
+      "inputs": {
+        "x": -54
+      },
+      "expected": 2916
+    },
+    {
+      "inputs": {
+        "x": -53
+      },
+      "expected": 2809
+    },
+    {
+      "inputs": {
+        "x": -52
+      },
+      "expected": 2704
+    },
+    {
+      "inputs": {
+        "x": -51
+      },
+      "expected": 2601
+    },
+    {
+      "inputs": {
+        "x": -50
+      },
+      "expected": 2500
+    },
+    {
+      "inputs": {
+        "x": -49
+      },
+      "expected": 2401
+    },
+    {
+      "inputs": {
+        "x": -48
+      },
+      "expected": 2304
+    },
+    {
+      "inputs": {
+        "x": -47
+      },
+      "expected": 2209
+    },
+    {
+      "inputs": {
+        "x": -46
+      },
+      "expected": 2116
+    },
+    {
+      "inputs": {
+        "x": -45
+      },
+      "expected": 2025
+    },
+    {
+      "inputs": {
+        "x": -44
+      },
+      "expected": 1936
+    },
+    {
+      "inputs": {
+        "x": -43
+      },
+      "expected": 1849
+    },
+    {
+      "inputs": {
+        "x": -42
+      },
+      "expected": 1764
+    },
+    {
+      "inputs": {
+        "x": -41
+      },
+      "expected": 1681
+    },
+    {
+      "inputs": {
+        "x": -40
+      },
+      "expected": 1600
+    },
+    {
+      "inputs": {
+        "x": -39
+      },
+      "expected": 1521
+    },
+    {
+      "inputs": {
+        "x": -38
+      },
+      "expected": 1444
+    },
+    {
+      "inputs": {
+        "x": -37
+      },
+      "expected": 1369
+    },
+    {
+      "inputs": {
+        "x": -36
+      },
+      "expected": 1296
+    },
+    {
+      "inputs": {
+        "x": -35
+      },
+      "expected": 1225
+    },
+    {
+      "inputs": {
+        "x": -34
+      },
+      "expected": 1156
+    },
+    {
+      "inputs": {
+        "x": -33
+      },
+      "expected": 1089
+    },
+    {
+      "inputs": {
+        "x": -32
+      },
+      "expected": 1024
+    },
+    {
+      "inputs": {
+        "x": -31
+      },
+      "expected": 961
+    },
+    {
+      "inputs": {
+        "x": -30
+      },
+      "expected": 900
+    },
+    {
+      "inputs": {
+        "x": -29
+      },
+      "expected": 841
+    },
+    {
+      "inputs": {
+        "x": -28
+      },
+      "expected": 784
+    },
+    {
+      "inputs": {
+        "x": -27
+      },
+      "expected": 729
+    },
+    {
+      "inputs": {
+        "x": -26
+      },
+      "expected": 676
+    },
+    {
+      "inputs": {
+        "x": -25
+      },
+      "expected": 625
+    },
+    {
+      "inputs": {
+        "x": -24
+      },
+      "expected": 576
+    },
+    {
+      "inputs": {
+        "x": -23
+      },
+      "expected": 529
+    },
+    {
+      "inputs": {
+        "x": -22
+      },
+      "expected": 484
+    },
+    {
+      "inputs": {
+        "x": -21
+      },
+      "expected": 441
+    },
+    {
+      "inputs": {
+        "x": -20
+      },
+      "expected": 400
+    },
+    {
+      "inputs": {
+        "x": -19
+      },
+      "expected": 361
+    },
+    {
+      "inputs": {
+        "x": -18
+      },
+      "expected": 324
+    },
+    {
+      "inputs": {
+        "x": -17
+      },
+      "expected": 289
+    },
+    {
+      "inputs": {
+        "x": -16
+      },
+      "expected": 256
+    },
+    {
+      "inputs": {
+        "x": -15
+      },
+      "expected": 225
+    },
+    {
+      "inputs": {
+        "x": -14
+      },
+      "expected": 196
+    },
+    {
+      "inputs": {
+        "x": -13
+      },
+      "expected": 169
+    },
+    {
+      "inputs": {
+        "x": -12
+      },
+      "expected": 144
+    },
+    {
+      "inputs": {
+        "x": -11
+      },
+      "expected": 121
+    },
+    {
+      "inputs": {
+        "x": -10
+      },
+      "expected": 100
+    },
+    {
+      "inputs": {
+        "x": -9
+      },
+      "expected": 81
+    },
+    {
+      "inputs": {
+        "x": -8
+      },
+      "expected": 64
+    },
+    {
+      "inputs": {
+        "x": -7
+      },
+      "expected": 49
+    },
+    {
+      "inputs": {
+        "x": -6
+      },
+      "expected": 36
+    },
+    {
+      "inputs": {
+        "x": -5
+      },
+      "expected": 25
+    },
+    {
+      "inputs": {
+        "x": -4
+      },
+      "expected": 16
+    },
+    {
+      "inputs": {
+        "x": -3
+      },
+      "expected": 9
+    },
+    {
+      "inputs": {
+        "x": -2
+      },
+      "expected": 4
+    },
+    {
+      "inputs": {
+        "x": -1
+      },
+      "expected": 1
+    },
+    {
+      "inputs": {
+        "x": 0
+      },
+      "expected": 0
+    },
+    {
+      "inputs": {
+        "x": 1
+      },
+      "expected": 1
+    },
+    {
+      "inputs": {
+        "x": 2
+      },
+      "expected": 4
+    },
+    {
+      "inputs": {
+        "x": 3
+      },
+      "expected": 9
+    },
+    {
+      "inputs": {
+        "x": 4
+      },
+      "expected": 16
+    },
+    {
+      "inputs": {
+        "x": 5
+      },
+      "expected": 25
+    },
+    {
+      "inputs": {
+        "x": 6
+      },
+      "expected": 36
+    },
+    {
+      "inputs": {
+        "x": 7
+      },
+      "expected": 49
+    },
+    {
+      "inputs": {
+        "x": 8
+      },
+      "expected": 64
+    },
+    {
+      "inputs": {
+        "x": 9
+      },
+      "expected": 81
+    },
+    {
+      "inputs": {
+        "x": 10
+      },
+      "expected": 100
+    },
+    {
+      "inputs": {
+        "x": 11
+      },
+      "expected": 121
+    },
+    {
+      "inputs": {
+        "x": 12
+      },
+      "expected": 144
+    },
+    {
+      "inputs": {
+        "x": 13
+      },
+      "expected": 169
+    },
+    {
+      "inputs": {
+        "x": 14
+      },
+      "expected": 196
+    },
+    {
+      "inputs": {
+        "x": 15
+      },
+      "expected": 225
+    },
+    {
+      "inputs": {
+        "x": 16
+      },
+      "expected": 256
+    },
+    {
+      "inputs": {
+        "x": 17
+      },
+      "expected": 289
+    },
+    {
+      "inputs": {
+        "x": 18
+      },
+      "expected": 324
+    },
+    {
+      "inputs": {
+        "x": 19
+      },
+      "expected": 361
+    },
+    {
+      "inputs": {
+        "x": 20
+      },
+      "expected": 400
+    },
+    {
+      "inputs": {
+        "x": 21
+      },
+      "expected": 441
+    },
+    {
+      "inputs": {
+        "x": 22
+      },
+      "expected": 484
+    },
+    {
+      "inputs": {
+        "x": 23
+      },
+      "expected": 529
+    },
+    {
+      "inputs": {
+        "x": 24
+      },
+      "expected": 576
+    },
+    {
+      "inputs": {
+        "x": 25
+      },
+      "expected": 625
+    },
+    {
+      "inputs": {
+        "x": 26
+      },
+      "expected": 676
+    },
+    {
+      "inputs": {
+        "x": 27
+      },
+      "expected": 729
+    },
+    {
+      "inputs": {
+        "x": 28
+      },
+      "expected": 784
+    },
+    {
+      "inputs": {
+        "x": 29
+      },
+      "expected": 841
+    },
+    {
+      "inputs": {
+        "x": 30
+      },
+      "expected": 900
+    },
+    {
+      "inputs": {
+        "x": 31
+      },
+      "expected": 961
+    },
+    {
+      "inputs": {
+        "x": 32
+      },
+      "expected": 1024
+    },
+    {
+      "inputs": {
+        "x": 33
+      },
+      "expected": 1089
+    },
+    {
+      "inputs": {
+        "x": 34
+      },
+      "expected": 1156
+    },
+    {
+      "inputs": {
+        "x": 35
+      },
+      "expected": 1225
+    },
+    {
+      "inputs": {
+        "x": 36
+      },
+      "expected": 1296
+    },
+    {
+      "inputs": {
+        "x": 37
+      },
+      "expected": 1369
+    },
+    {
+      "inputs": {
+        "x": 38
+      },
+      "expected": 1444
+    },
+    {
+      "inputs": {
+        "x": 39
+      },
+      "expected": 1521
+    },
+    {
+      "inputs": {
+        "x": 40
+      },
+      "expected": 1600
+    },
+    {
+      "inputs": {
+        "x": 41
+      },
+      "expected": 1681
+    },
+    {
+      "inputs": {
+        "x": 42
+      },
+      "expected": 1764
+    },
+    {
+      "inputs": {
+        "x": 43
+      },
+      "expected": 1849
+    },
+    {
+      "inputs": {
+        "x": 44
+      },
+      "expected": 1936
+    },
+    {
+      "inputs": {
+        "x": 45
+      },
+      "expected": 2025
+    },
+    {
+      "inputs": {
+        "x": 46
+      },
+      "expected": 2116
+    },
+    {
+      "inputs": {
+        "x": 47
+      },
+      "expected": 2209
+    },
+    {
+      "inputs": {
+        "x": 48
+      },
+      "expected": 2304
+    },
+    {
+      "inputs": {
+        "x": 49
+      },
+      "expected": 2401
+    },
+    {
+      "inputs": {
+        "x": 50
+      },
+      "expected": 2500
+    },
+    {
+      "inputs": {
+        "x": 51
+      },
+      "expected": 2601
+    },
+    {
+      "inputs": {
+        "x": 52
+      },
+      "expected": 2704
+    },
+    {
+      "inputs": {
+        "x": 53
+      },
+      "expected": 2809
+    },
+    {
+      "inputs": {
+        "x": 54
+      },
+      "expected": 2916
+    },
+    {
+      "inputs": {
+        "x": 55
+      },
+      "expected": 3025
+    },
+    {
+      "inputs": {
+        "x": 56
+      },
+      "expected": 3136
+    },
+    {
+      "inputs": {
+        "x": 57
+      },
+      "expected": 3249
+    },
+    {
+      "inputs": {
+        "x": 58
+      },
+      "expected": 3364
+    },
+    {
+      "inputs": {
+        "x": 59
+      },
+      "expected": 3481
+    },
+    {
+      "inputs": {
+        "x": 60
+      },
+      "expected": 3600
+    },
+    {
+      "inputs": {
+        "x": 61
+      },
+      "expected": 3721
+    },
+    {
+      "inputs": {
+        "x": 62
+      },
+      "expected": 3844
+    },
+    {
+      "inputs": {
+        "x": 63
+      },
+      "expected": 3969
+    },
+    {
+      "inputs": {
+        "x": 64
+      },
+      "expected": 4096
+    },
+    {
+      "inputs": {
+        "x": 65
+      },
+      "expected": 4225
+    },
+    {
+      "inputs": {
+        "x": 66
+      },
+      "expected": 4356
+    },
+    {
+      "inputs": {
+        "x": 67
+      },
+      "expected": 4489
+    },
+    {
+      "inputs": {
+        "x": 68
+      },
+      "expected": 4624
+    },
+    {
+      "inputs": {
+        "x": 69
+      },
+      "expected": 4761
+    },
+    {
+      "inputs": {
+        "x": 70
+      },
+      "expected": 4900
+    },
+    {
+      "inputs": {
+        "x": 71
+      },
+      "expected": 5041
+    },
+    {
+      "inputs": {
+        "x": 72
+      },
+      "expected": 5184
+    },
+    {
+      "inputs": {
+        "x": 73
+      },
+      "expected": 5329
+    },
+    {
+      "inputs": {
+        "x": 74
+      },
+      "expected": 5476
+    },
+    {
+      "inputs": {
+        "x": 75
+      },
+      "expected": 5625
+    },
+    {
+      "inputs": {
+        "x": 76
+      },
+      "expected": 5776
+    },
+    {
+      "inputs": {
+        "x": 77
+      },
+      "expected": 5929
+    },
+    {
+      "inputs": {
+        "x": 78
+      },
+      "expected": 6084
+    },
+    {
+      "inputs": {
+        "x": 79
+      },
+      "expected": 6241
+    },
+    {
+      "inputs": {
+        "x": 80
+      },
+      "expected": 6400
+    },
+    {
+      "inputs": {
+        "x": 81
+      },
+      "expected": 6561
+    },
+    {
+      "inputs": {
+        "x": 82
+      },
+      "expected": 6724
+    },
+    {
+      "inputs": {
+        "x": 83
+      },
+      "expected": 6889
+    },
+    {
+      "inputs": {
+        "x": 84
+      },
+      "expected": 7056
+    },
+    {
+      "inputs": {
+        "x": 85
+      },
+      "expected": 7225
+    },
+    {
+      "inputs": {
+        "x": 86
+      },
+      "expected": 7396
+    },
+    {
+      "inputs": {
+        "x": 87
+      },
+      "expected": 7569
+    },
+    {
+      "inputs": {
+        "x": 88
+      },
+      "expected": 7744
+    },
+    {
+      "inputs": {
+        "x": 89
+      },
+      "expected": 7921
+    },
+    {
+      "inputs": {
+        "x": 90
+      },
+      "expected": 8100
+    },
+    {
+      "inputs": {
+        "x": 91
+      },
+      "expected": 8281
+    },
+    {
+      "inputs": {
+        "x": 92
+      },
+      "expected": 8464
+    },
+    {
+      "inputs": {
+        "x": 93
+      },
+      "expected": 8649
+    },
+    {
+      "inputs": {
+        "x": 94
+      },
+      "expected": 8836
+    },
+    {
+      "inputs": {
+        "x": 95
+      },
+      "expected": 9025
+    },
+    {
+      "inputs": {
+        "x": 96
+      },
+      "expected": 9216
+    },
+    {
+      "inputs": {
+        "x": 97
+      },
+      "expected": 9409
+    },
+    {
+      "inputs": {
+        "x": 98
+      },
+      "expected": 9604
+    },
+    {
+      "inputs": {
+        "x": 99
+      },
+      "expected": 9801
+    },
+    {
+      "inputs": {
+        "x": 100
+      },
+      "expected": 10000
+    },
+    {
+      "inputs": {
+        "x": 101
+      },
+      "expected": 10201
+    },
+    {
+      "inputs": {
+        "x": 102
+      },
+      "expected": 10404
+    },
+    {
+      "inputs": {
+        "x": 103
+      },
+      "expected": 10609
+    },
+    {
+      "inputs": {
+        "x": 104
+      },
+      "expected": 10816
+    },
+    {
+      "inputs": {
+        "x": 105
+      },
+      "expected": 11025
+    },
+    {
+      "inputs": {
+        "x": 106
+      },
+      "expected": 11236
+    },
+    {
+      "inputs": {
+        "x": 107
+      },
+      "expected": 11449
+    },
+    {
+      "inputs": {
+        "x": 108
+      },
+      "expected": 11664
+    },
+    {
+      "inputs": {
+        "x": 109
+      },
+      "expected": 11881
+    },
+    {
+      "inputs": {
+        "x": 110
+      },
+      "expected": 12100
+    },
+    {
+      "inputs": {
+        "x": 111
+      },
+      "expected": 12321
+    },
+    {
+      "inputs": {
+        "x": 112
+      },
+      "expected": 12544
+    },
+    {
+      "inputs": {
+        "x": 113
+      },
+      "expected": 12769
+    },
+    {
+      "inputs": {
+        "x": 114
+      },
+      "expected": 12996
+    },
+    {
+      "inputs": {
+        "x": 115
+      },
+      "expected": 13225
+    },
+    {
+      "inputs": {
+        "x": 116
+      },
+      "expected": 13456
+    },
+    {
+      "inputs": {
+        "x": 117
+      },
+      "expected": 13689
+    },
+    {
+      "inputs": {
+        "x": 118
+      },
+      "expected": 13924
+    },
+    {
+      "inputs": {
+        "x": 119
+      },
+      "expected": 14161
+    },
+    {
+      "inputs": {
+        "x": 120
+      },
+      "expected": 14400
+    },
+    {
+      "inputs": {
+        "x": 121
+      },
+      "expected": 14641
+    },
+    {
+      "inputs": {
+        "x": 122
+      },
+      "expected": 14884
+    },
+    {
+      "inputs": {
+        "x": 123
+      },
+      "expected": 15129
+    },
+    {
+      "inputs": {
+        "x": 124
+      },
+      "expected": 15376
+    },
+    {
+      "inputs": {
+        "x": 125
+      },
+      "expected": 15625
+    },
+    {
+      "inputs": {
+        "x": 126
+      },
+      "expected": 15876
+    },
+    {
+      "inputs": {
+        "x": 127
+      },
+      "expected": 16129
+    },
+    {
+      "inputs": {
+        "x": 128
+      },
+      "expected": 16384
+    },
+    {
+      "inputs": {
+        "x": 129
+      },
+      "expected": 16641
+    },
+    {
+      "inputs": {
+        "x": 130
+      },
+      "expected": 16900
+    },
+    {
+      "inputs": {
+        "x": 131
+      },
+      "expected": 17161
+    },
+    {
+      "inputs": {
+        "x": 132
+      },
+      "expected": 17424
+    },
+    {
+      "inputs": {
+        "x": 133
+      },
+      "expected": 17689
+    },
+    {
+      "inputs": {
+        "x": 134
+      },
+      "expected": 17956
+    },
+    {
+      "inputs": {
+        "x": 135
+      },
+      "expected": 18225
+    },
+    {
+      "inputs": {
+        "x": 136
+      },
+      "expected": 18496
+    },
+    {
+      "inputs": {
+        "x": 137
+      },
+      "expected": 18769
+    },
+    {
+      "inputs": {
+        "x": 138
+      },
+      "expected": 19044
+    },
+    {
+      "inputs": {
+        "x": 139
+      },
+      "expected": 19321
+    },
+    {
+      "inputs": {
+        "x": 140
+      },
+      "expected": 19600
+    },
+    {
+      "inputs": {
+        "x": 141
+      },
+      "expected": 19881
+    },
+    {
+      "inputs": {
+        "x": 142
+      },
+      "expected": 20164
+    },
+    {
+      "inputs": {
+        "x": 143
+      },
+      "expected": 20449
+    },
+    {
+      "inputs": {
+        "x": 144
+      },
+      "expected": 20736
+    },
+    {
+      "inputs": {
+        "x": 145
+      },
+      "expected": 21025
+    },
+    {
+      "inputs": {
+        "x": 146
+      },
+      "expected": 21316
+    },
+    {
+      "inputs": {
+        "x": 147
+      },
+      "expected": 21609
+    },
+    {
+      "inputs": {
+        "x": 148
+      },
+      "expected": 21904
+    },
+    {
+      "inputs": {
+        "x": 149
+      },
+      "expected": 22201
+    },
+    {
+      "inputs": {
+        "x": 150
+      },
+      "expected": 22500
+    },
+    {
+      "inputs": {
+        "x": 151
+      },
+      "expected": 22801
+    },
+    {
+      "inputs": {
+        "x": 152
+      },
+      "expected": 23104
+    },
+    {
+      "inputs": {
+        "x": 153
+      },
+      "expected": 23409
+    },
+    {
+      "inputs": {
+        "x": 154
+      },
+      "expected": 23716
+    },
+    {
+      "inputs": {
+        "x": 155
+      },
+      "expected": 24025
+    },
+    {
+      "inputs": {
+        "x": 156
+      },
+      "expected": 24336
+    },
+    {
+      "inputs": {
+        "x": 157
+      },
+      "expected": 24649
+    },
+    {
+      "inputs": {
+        "x": 158
+      },
+      "expected": 24964
+    },
+    {
+      "inputs": {
+        "x": 159
+      },
+      "expected": 25281
+    },
+    {
+      "inputs": {
+        "x": 160
+      },
+      "expected": 25600
+    },
+    {
+      "inputs": {
+        "x": 161
+      },
+      "expected": 25921
+    },
+    {
+      "inputs": {
+        "x": 162
+      },
+      "expected": 26244
+    },
+    {
+      "inputs": {
+        "x": 163
+      },
+      "expected": 26569
+    },
+    {
+      "inputs": {
+        "x": 164
+      },
+      "expected": 26896
+    },
+    {
+      "inputs": {
+        "x": 165
+      },
+      "expected": 27225
+    },
+    {
+      "inputs": {
+        "x": 166
+      },
+      "expected": 27556
+    },
+    {
+      "inputs": {
+        "x": 167
+      },
+      "expected": 27889
+    },
+    {
+      "inputs": {
+        "x": 168
+      },
+      "expected": 28224
+    },
+    {
+      "inputs": {
+        "x": 169
+      },
+      "expected": 28561
+    },
+    {
+      "inputs": {
+        "x": 170
+      },
+      "expected": 28900
+    },
+    {
+      "inputs": {
+        "x": 171
+      },
+      "expected": 29241
+    },
+    {
+      "inputs": {
+        "x": 172
+      },
+      "expected": 29584
+    },
+    {
+      "inputs": {
+        "x": 173
+      },
+      "expected": 29929
+    },
+    {
+      "inputs": {
+        "x": 174
+      },
+      "expected": 30276
+    },
+    {
+      "inputs": {
+        "x": 175
+      },
+      "expected": 30625
+    },
+    {
+      "inputs": {
+        "x": 176
+      },
+      "expected": 30976
+    },
+    {
+      "inputs": {
+        "x": 177
+      },
+      "expected": 31329
+    },
+    {
+      "inputs": {
+        "x": 178
+      },
+      "expected": 31684
+    },
+    {
+      "inputs": {
+        "x": 179
+      },
+      "expected": 32041
+    },
+    {
+      "inputs": {
+        "x": 180
+      },
+      "expected": 32400
+    },
+    {
+      "inputs": {
+        "x": 181
+      },
+      "expected": 32761
+    },
+    {
+      "inputs": {
+        "x": 182
+      },
+      "expected": 33124
+    },
+    {
+      "inputs": {
+        "x": 183
+      },
+      "expected": 33489
+    },
+    {
+      "inputs": {
+        "x": 184
+      },
+      "expected": 33856
+    },
+    {
+      "inputs": {
+        "x": 185
+      },
+      "expected": 34225
+    },
+    {
+      "inputs": {
+        "x": 186
+      },
+      "expected": 34596
+    },
+    {
+      "inputs": {
+        "x": 187
+      },
+      "expected": 34969
+    },
+    {
+      "inputs": {
+        "x": 188
+      },
+      "expected": 35344
+    },
+    {
+      "inputs": {
+        "x": 189
+      },
+      "expected": 35721
+    },
+    {
+      "inputs": {
+        "x": 190
+      },
+      "expected": 36100
+    },
+    {
+      "inputs": {
+        "x": 191
+      },
+      "expected": 36481
+    },
+    {
+      "inputs": {
+        "x": 192
+      },
+      "expected": 36864
+    },
+    {
+      "inputs": {
+        "x": 193
+      },
+      "expected": 37249
+    },
+    {
+      "inputs": {
+        "x": 194
+      },
+      "expected": 37636
+    },
+    {
+      "inputs": {
+        "x": 195
+      },
+      "expected": 38025
+    },
+    {
+      "inputs": {
+        "x": 196
+      },
+      "expected": 38416
+    },
+    {
+      "inputs": {
+        "x": 197
+      },
+      "expected": 38809
+    },
+    {
+      "inputs": {
+        "x": 198
+      },
+      "expected": 39204
+    },
+    {
+      "inputs": {
+        "x": 199
+      },
+      "expected": 39601
+    },
+    {
+      "inputs": {
+        "x": 200
+      },
+      "expected": 40000
+    },
+    {
+      "inputs": {
+        "x": 201
+      },
+      "expected": 40401
+    },
+    {
+      "inputs": {
+        "x": 202
+      },
+      "expected": 40804
+    },
+    {
+      "inputs": {
+        "x": 203
+      },
+      "expected": 41209
+    },
+    {
+      "inputs": {
+        "x": 204
+      },
+      "expected": 41616
+    },
+    {
+      "inputs": {
+        "x": 205
+      },
+      "expected": 42025
+    },
+    {
+      "inputs": {
+        "x": 206
+      },
+      "expected": 42436
+    },
+    {
+      "inputs": {
+        "x": 207
+      },
+      "expected": 42849
+    },
+    {
+      "inputs": {
+        "x": 208
+      },
+      "expected": 43264
+    },
+    {
+      "inputs": {
+        "x": 209
+      },
+      "expected": 43681
+    },
+    {
+      "inputs": {
+        "x": 210
+      },
+      "expected": 44100
+    },
+    {
+      "inputs": {
+        "x": 211
+      },
+      "expected": 44521
+    },
+    {
+      "inputs": {
+        "x": 212
+      },
+      "expected": 44944
+    },
+    {
+      "inputs": {
+        "x": 213
+      },
+      "expected": 45369
+    },
+    {
+      "inputs": {
+        "x": 214
+      },
+      "expected": 45796
+    },
+    {
+      "inputs": {
+        "x": 215
+      },
+      "expected": 46225
+    },
+    {
+      "inputs": {
+        "x": 216
+      },
+      "expected": 46656
+    },
+    {
+      "inputs": {
+        "x": 217
+      },
+      "expected": 47089
+    },
+    {
+      "inputs": {
+        "x": 218
+      },
+      "expected": 47524
+    },
+    {
+      "inputs": {
+        "x": 219
+      },
+      "expected": 47961
+    },
+    {
+      "inputs": {
+        "x": 220
+      },
+      "expected": 48400
+    },
+    {
+      "inputs": {
+        "x": 221
+      },
+      "expected": 48841
+    },
+    {
+      "inputs": {
+        "x": 222
+      },
+      "expected": 49284
+    },
+    {
+      "inputs": {
+        "x": 223
+      },
+      "expected": 49729
+    },
+    {
+      "inputs": {
+        "x": 224
+      },
+      "expected": 50176
+    },
+    {
+      "inputs": {
+        "x": 225
+      },
+      "expected": 50625
+    },
+    {
+      "inputs": {
+        "x": 226
+      },
+      "expected": 51076
+    },
+    {
+      "inputs": {
+        "x": 227
+      },
+      "expected": 51529
+    },
+    {
+      "inputs": {
+        "x": 228
+      },
+      "expected": 51984
+    },
+    {
+      "inputs": {
+        "x": 229
+      },
+      "expected": 52441
+    },
+    {
+      "inputs": {
+        "x": 230
+      },
+      "expected": 52900
+    },
+    {
+      "inputs": {
+        "x": 231
+      },
+      "expected": 53361
+    },
+    {
+      "inputs": {
+        "x": 232
+      },
+      "expected": 53824
+    },
+    {
+      "inputs": {
+        "x": 233
+      },
+      "expected": 54289
+    },
+    {
+      "inputs": {
+        "x": 234
+      },
+      "expected": 54756
+    },
+    {
+      "inputs": {
+        "x": 235
+      },
+      "expected": 55225
+    },
+    {
+      "inputs": {
+        "x": 236
+      },
+      "expected": 55696
+    },
+    {
+      "inputs": {
+        "x": 237
+      },
+      "expected": 56169
+    },
+    {
+      "inputs": {
+        "x": 238
+      },
+      "expected": 56644
+    },
+    {
+      "inputs": {
+        "x": 239
+      },
+      "expected": 57121
+    },
+    {
+      "inputs": {
+        "x": 240
+      },
+      "expected": 57600
+    },
+    {
+      "inputs": {
+        "x": 241
+      },
+      "expected": 58081
+    },
+    {
+      "inputs": {
+        "x": 242
+      },
+      "expected": 58564
+    },
+    {
+      "inputs": {
+        "x": 243
+      },
+      "expected": 59049
+    },
+    {
+      "inputs": {
+        "x": 244
+      },
+      "expected": 59536
+    },
+    {
+      "inputs": {
+        "x": 245
+      },
+      "expected": 60025
+    },
+    {
+      "inputs": {
+        "x": 246
+      },
+      "expected": 60516
+    },
+    {
+      "inputs": {
+        "x": 247
+      },
+      "expected": 61009
+    },
+    {
+      "inputs": {
+        "x": 248
+      },
+      "expected": 61504
+    },
+    {
+      "inputs": {
+        "x": 249
+      },
+      "expected": 62001
+    },
+    {
+      "inputs": {
+        "x": 250
+      },
+      "expected": 62500
+    },
+    {
+      "inputs": {
+        "x": 251
+      },
+      "expected": 63001
+    },
+    {
+      "inputs": {
+        "x": 252
+      },
+      "expected": 63504
+    },
+    {
+      "inputs": {
+        "x": 253
+      },
+      "expected": 64009
+    },
+    {
+      "inputs": {
+        "x": 254
+      },
+      "expected": 64516
+    },
+    {
+      "inputs": {
+        "x": 255
+      },
+      "expected": 65025
+    },
+    {
+      "inputs": {
+        "x": 256
+      },
+      "expected": 65536
+    },
+    {
+      "inputs": {
+        "x": 257
+      },
+      "expected": 66049
+    },
+    {
+      "inputs": {
+        "x": 258
+      },
+      "expected": 66564
+    },
+    {
+      "inputs": {
+        "x": 259
+      },
+      "expected": 67081
+    },
+    {
+      "inputs": {
+        "x": 260
+      },
+      "expected": 67600
+    },
+    {
+      "inputs": {
+        "x": 261
+      },
+      "expected": 68121
+    },
+    {
+      "inputs": {
+        "x": 262
+      },
+      "expected": 68644
+    },
+    {
+      "inputs": {
+        "x": 263
+      },
+      "expected": 69169
+    },
+    {
+      "inputs": {
+        "x": 264
+      },
+      "expected": 69696
+    },
+    {
+      "inputs": {
+        "x": 265
+      },
+      "expected": 70225
+    },
+    {
+      "inputs": {
+        "x": 266
+      },
+      "expected": 70756
+    },
+    {
+      "inputs": {
+        "x": 267
+      },
+      "expected": 71289
+    },
+    {
+      "inputs": {
+        "x": 268
+      },
+      "expected": 71824
+    },
+    {
+      "inputs": {
+        "x": 269
+      },
+      "expected": 72361
+    },
+    {
+      "inputs": {
+        "x": 270
+      },
+      "expected": 72900
+    },
+    {
+      "inputs": {
+        "x": 271
+      },
+      "expected": 73441
+    },
+    {
+      "inputs": {
+        "x": 272
+      },
+      "expected": 73984
+    },
+    {
+      "inputs": {
+        "x": 273
+      },
+      "expected": 74529
+    },
+    {
+      "inputs": {
+        "x": 274
+      },
+      "expected": 75076
+    },
+    {
+      "inputs": {
+        "x": 275
+      },
+      "expected": 75625
+    },
+    {
+      "inputs": {
+        "x": 276
+      },
+      "expected": 76176
+    },
+    {
+      "inputs": {
+        "x": 277
+      },
+      "expected": 76729
+    },
+    {
+      "inputs": {
+        "x": 278
+      },
+      "expected": 77284
+    },
+    {
+      "inputs": {
+        "x": 279
+      },
+      "expected": 77841
+    },
+    {
+      "inputs": {
+        "x": 280
+      },
+      "expected": 78400
+    },
+    {
+      "inputs": {
+        "x": 281
+      },
+      "expected": 78961
+    },
+    {
+      "inputs": {
+        "x": 282
+      },
+      "expected": 79524
+    },
+    {
+      "inputs": {
+        "x": 283
+      },
+      "expected": 80089
+    },
+    {
+      "inputs": {
+        "x": 284
+      },
+      "expected": 80656
+    },
+    {
+      "inputs": {
+        "x": 285
+      },
+      "expected": 81225
+    },
+    {
+      "inputs": {
+        "x": 286
+      },
+      "expected": 81796
+    },
+    {
+      "inputs": {
+        "x": 287
+      },
+      "expected": 82369
+    },
+    {
+      "inputs": {
+        "x": 288
+      },
+      "expected": 82944
+    },
+    {
+      "inputs": {
+        "x": 289
+      },
+      "expected": 83521
+    },
+    {
+      "inputs": {
+        "x": 290
+      },
+      "expected": 84100
+    },
+    {
+      "inputs": {
+        "x": 291
+      },
+      "expected": 84681
+    },
+    {
+      "inputs": {
+        "x": 292
+      },
+      "expected": 85264
+    },
+    {
+      "inputs": {
+        "x": 293
+      },
+      "expected": 85849
+    },
+    {
+      "inputs": {
+        "x": 294
+      },
+      "expected": 86436
+    },
+    {
+      "inputs": {
+        "x": 295
+      },
+      "expected": 87025
+    },
+    {
+      "inputs": {
+        "x": 296
+      },
+      "expected": 87616
+    },
+    {
+      "inputs": {
+        "x": 297
+      },
+      "expected": 88209
+    },
+    {
+      "inputs": {
+        "x": 298
+      },
+      "expected": 88804
+    },
+    {
+      "inputs": {
+        "x": 299
+      },
+      "expected": 89401
+    },
+    {
+      "inputs": {
+        "x": 300
+      },
+      "expected": 90000
+    },
+    {
+      "inputs": {
+        "x": 301
+      },
+      "expected": 90601
+    },
+    {
+      "inputs": {
+        "x": 302
+      },
+      "expected": 91204
+    },
+    {
+      "inputs": {
+        "x": 303
+      },
+      "expected": 91809
+    },
+    {
+      "inputs": {
+        "x": 304
+      },
+      "expected": 92416
+    },
+    {
+      "inputs": {
+        "x": 305
+      },
+      "expected": 93025
+    },
+    {
+      "inputs": {
+        "x": 306
+      },
+      "expected": 93636
+    },
+    {
+      "inputs": {
+        "x": 307
+      },
+      "expected": 94249
+    },
+    {
+      "inputs": {
+        "x": 308
+      },
+      "expected": 94864
+    },
+    {
+      "inputs": {
+        "x": 309
+      },
+      "expected": 95481
+    },
+    {
+      "inputs": {
+        "x": 310
+      },
+      "expected": 96100
+    },
+    {
+      "inputs": {
+        "x": 311
+      },
+      "expected": 96721
+    },
+    {
+      "inputs": {
+        "x": 312
+      },
+      "expected": 97344
+    },
+    {
+      "inputs": {
+        "x": 313
+      },
+      "expected": 97969
+    },
+    {
+      "inputs": {
+        "x": 314
+      },
+      "expected": 98596
+    },
+    {
+      "inputs": {
+        "x": 315
+      },
+      "expected": 99225
+    },
+    {
+      "inputs": {
+        "x": 316
+      },
+      "expected": 99856
+    },
+    {
+      "inputs": {
+        "x": 317
+      },
+      "expected": 100489
+    },
+    {
+      "inputs": {
+        "x": 318
+      },
+      "expected": 101124
+    },
+    {
+      "inputs": {
+        "x": 319
+      },
+      "expected": 101761
+    },
+    {
+      "inputs": {
+        "x": 320
+      },
+      "expected": 102400
+    },
+    {
+      "inputs": {
+        "x": 321
+      },
+      "expected": 103041
+    },
+    {
+      "inputs": {
+        "x": 322
+      },
+      "expected": 103684
+    },
+    {
+      "inputs": {
+        "x": 323
+      },
+      "expected": 104329
+    },
+    {
+      "inputs": {
+        "x": 324
+      },
+      "expected": 104976
+    },
+    {
+      "inputs": {
+        "x": 325
+      },
+      "expected": 105625
+    },
+    {
+      "inputs": {
+        "x": 326
+      },
+      "expected": 106276
+    },
+    {
+      "inputs": {
+        "x": 327
+      },
+      "expected": 106929
+    },
+    {
+      "inputs": {
+        "x": 328
+      },
+      "expected": 107584
+    },
+    {
+      "inputs": {
+        "x": 329
+      },
+      "expected": 108241
+    },
+    {
+      "inputs": {
+        "x": 330
+      },
+      "expected": 108900
+    },
+    {
+      "inputs": {
+        "x": 331
+      },
+      "expected": 109561
+    },
+    {
+      "inputs": {
+        "x": 332
+      },
+      "expected": 110224
+    },
+    {
+      "inputs": {
+        "x": 333
+      },
+      "expected": 110889
+    },
+    {
+      "inputs": {
+        "x": 334
+      },
+      "expected": 111556
+    },
+    {
+      "inputs": {
+        "x": 335
+      },
+      "expected": 112225
+    },
+    {
+      "inputs": {
+        "x": 336
+      },
+      "expected": 112896
+    },
+    {
+      "inputs": {
+        "x": 337
+      },
+      "expected": 113569
+    },
+    {
+      "inputs": {
+        "x": 338
+      },
+      "expected": 114244
+    },
+    {
+      "inputs": {
+        "x": 339
+      },
+      "expected": 114921
+    },
+    {
+      "inputs": {
+        "x": 340
+      },
+      "expected": 115600
+    },
+    {
+      "inputs": {
+        "x": 341
+      },
+      "expected": 116281
+    },
+    {
+      "inputs": {
+        "x": 342
+      },
+      "expected": 116964
+    },
+    {
+      "inputs": {
+        "x": 343
+      },
+      "expected": 117649
+    },
+    {
+      "inputs": {
+        "x": 344
+      },
+      "expected": 118336
+    },
+    {
+      "inputs": {
+        "x": 345
+      },
+      "expected": 119025
+    },
+    {
+      "inputs": {
+        "x": 346
+      },
+      "expected": 119716
+    },
+    {
+      "inputs": {
+        "x": 347
+      },
+      "expected": 120409
+    },
+    {
+      "inputs": {
+        "x": 348
+      },
+      "expected": 121104
+    },
+    {
+      "inputs": {
+        "x": 349
+      },
+      "expected": 121801
+    },
+    {
+      "inputs": {
+        "x": 350
+      },
+      "expected": 122500
+    },
+    {
+      "inputs": {
+        "x": 351
+      },
+      "expected": 123201
+    },
+    {
+      "inputs": {
+        "x": 352
+      },
+      "expected": 123904
+    },
+    {
+      "inputs": {
+        "x": 353
+      },
+      "expected": 124609
+    },
+    {
+      "inputs": {
+        "x": 354
+      },
+      "expected": 125316
+    },
+    {
+      "inputs": {
+        "x": 355
+      },
+      "expected": 126025
+    },
+    {
+      "inputs": {
+        "x": 356
+      },
+      "expected": 126736
+    },
+    {
+      "inputs": {
+        "x": 357
+      },
+      "expected": 127449
+    },
+    {
+      "inputs": {
+        "x": 358
+      },
+      "expected": 128164
+    },
+    {
+      "inputs": {
+        "x": 359
+      },
+      "expected": 128881
+    },
+    {
+      "inputs": {
+        "x": 360
+      },
+      "expected": 129600
+    },
+    {
+      "inputs": {
+        "x": 361
+      },
+      "expected": 130321
+    },
+    {
+      "inputs": {
+        "x": 362
+      },
+      "expected": 131044
+    },
+    {
+      "inputs": {
+        "x": 363
+      },
+      "expected": 131769
+    },
+    {
+      "inputs": {
+        "x": 364
+      },
+      "expected": 132496
+    },
+    {
+      "inputs": {
+        "x": 365
+      },
+      "expected": 133225
+    },
+    {
+      "inputs": {
+        "x": 366
+      },
+      "expected": 133956
+    },
+    {
+      "inputs": {
+        "x": 367
+      },
+      "expected": 134689
+    },
+    {
+      "inputs": {
+        "x": 368
+      },
+      "expected": 135424
+    },
+    {
+      "inputs": {
+        "x": 369
+      },
+      "expected": 136161
+    },
+    {
+      "inputs": {
+        "x": 370
+      },
+      "expected": 136900
+    },
+    {
+      "inputs": {
+        "x": 371
+      },
+      "expected": 137641
+    },
+    {
+      "inputs": {
+        "x": 372
+      },
+      "expected": 138384
+    },
+    {
+      "inputs": {
+        "x": 373
+      },
+      "expected": 139129
+    },
+    {
+      "inputs": {
+        "x": 374
+      },
+      "expected": 139876
+    },
+    {
+      "inputs": {
+        "x": 375
+      },
+      "expected": 140625
+    },
+    {
+      "inputs": {
+        "x": 376
+      },
+      "expected": 141376
+    },
+    {
+      "inputs": {
+        "x": 377
+      },
+      "expected": 142129
+    },
+    {
+      "inputs": {
+        "x": 378
+      },
+      "expected": 142884
+    },
+    {
+      "inputs": {
+        "x": 379
+      },
+      "expected": 143641
+    },
+    {
+      "inputs": {
+        "x": 380
+      },
+      "expected": 144400
+    },
+    {
+      "inputs": {
+        "x": 381
+      },
+      "expected": 145161
+    },
+    {
+      "inputs": {
+        "x": 382
+      },
+      "expected": 145924
+    },
+    {
+      "inputs": {
+        "x": 383
+      },
+      "expected": 146689
+    },
+    {
+      "inputs": {
+        "x": 384
+      },
+      "expected": 147456
+    },
+    {
+      "inputs": {
+        "x": 385
+      },
+      "expected": 148225
+    },
+    {
+      "inputs": {
+        "x": 386
+      },
+      "expected": 148996
+    },
+    {
+      "inputs": {
+        "x": 387
+      },
+      "expected": 149769
+    },
+    {
+      "inputs": {
+        "x": 388
+      },
+      "expected": 150544
+    },
+    {
+      "inputs": {
+        "x": 389
+      },
+      "expected": 151321
+    },
+    {
+      "inputs": {
+        "x": 390
+      },
+      "expected": 152100
+    },
+    {
+      "inputs": {
+        "x": 391
+      },
+      "expected": 152881
+    },
+    {
+      "inputs": {
+        "x": 392
+      },
+      "expected": 153664
+    },
+    {
+      "inputs": {
+        "x": 393
+      },
+      "expected": 154449
+    },
+    {
+      "inputs": {
+        "x": 394
+      },
+      "expected": 155236
+    },
+    {
+      "inputs": {
+        "x": 395
+      },
+      "expected": 156025
+    },
+    {
+      "inputs": {
+        "x": 396
+      },
+      "expected": 156816
+    },
+    {
+      "inputs": {
+        "x": 397
+      },
+      "expected": 157609
+    },
+    {
+      "inputs": {
+        "x": 398
+      },
+      "expected": 158404
+    },
+    {
+      "inputs": {
+        "x": 399
+      },
+      "expected": 159201
+    },
+    {
+      "inputs": {
+        "x": 400
+      },
+      "expected": 160000
+    },
+    {
+      "inputs": {
+        "x": 401
+      },
+      "expected": 160801
+    },
+    {
+      "inputs": {
+        "x": 402
+      },
+      "expected": 161604
+    },
+    {
+      "inputs": {
+        "x": 403
+      },
+      "expected": 162409
+    },
+    {
+      "inputs": {
+        "x": 404
+      },
+      "expected": 163216
+    },
+    {
+      "inputs": {
+        "x": 405
+      },
+      "expected": 164025
+    },
+    {
+      "inputs": {
+        "x": 406
+      },
+      "expected": 164836
+    },
+    {
+      "inputs": {
+        "x": 407
+      },
+      "expected": 165649
+    },
+    {
+      "inputs": {
+        "x": 408
+      },
+      "expected": 166464
+    },
+    {
+      "inputs": {
+        "x": 409
+      },
+      "expected": 167281
+    },
+    {
+      "inputs": {
+        "x": 410
+      },
+      "expected": 168100
+    },
+    {
+      "inputs": {
+        "x": 411
+      },
+      "expected": 168921
+    },
+    {
+      "inputs": {
+        "x": 412
+      },
+      "expected": 169744
+    },
+    {
+      "inputs": {
+        "x": 413
+      },
+      "expected": 170569
+    },
+    {
+      "inputs": {
+        "x": 414
+      },
+      "expected": 171396
+    },
+    {
+      "inputs": {
+        "x": 415
+      },
+      "expected": 172225
+    },
+    {
+      "inputs": {
+        "x": 416
+      },
+      "expected": 173056
+    },
+    {
+      "inputs": {
+        "x": 417
+      },
+      "expected": 173889
+    },
+    {
+      "inputs": {
+        "x": 418
+      },
+      "expected": 174724
+    },
+    {
+      "inputs": {
+        "x": 419
+      },
+      "expected": 175561
+    },
+    {
+      "inputs": {
+        "x": 420
+      },
+      "expected": 176400
+    },
+    {
+      "inputs": {
+        "x": 421
+      },
+      "expected": 177241
+    },
+    {
+      "inputs": {
+        "x": 422
+      },
+      "expected": 178084
+    },
+    {
+      "inputs": {
+        "x": 423
+      },
+      "expected": 178929
+    },
+    {
+      "inputs": {
+        "x": 424
+      },
+      "expected": 179776
+    },
+    {
+      "inputs": {
+        "x": 425
+      },
+      "expected": 180625
+    },
+    {
+      "inputs": {
+        "x": 426
+      },
+      "expected": 181476
+    },
+    {
+      "inputs": {
+        "x": 427
+      },
+      "expected": 182329
+    },
+    {
+      "inputs": {
+        "x": 428
+      },
+      "expected": 183184
+    },
+    {
+      "inputs": {
+        "x": 429
+      },
+      "expected": 184041
+    },
+    {
+      "inputs": {
+        "x": 430
+      },
+      "expected": 184900
+    },
+    {
+      "inputs": {
+        "x": 431
+      },
+      "expected": 185761
+    },
+    {
+      "inputs": {
+        "x": 432
+      },
+      "expected": 186624
+    },
+    {
+      "inputs": {
+        "x": 433
+      },
+      "expected": 187489
+    },
+    {
+      "inputs": {
+        "x": 434
+      },
+      "expected": 188356
+    },
+    {
+      "inputs": {
+        "x": 435
+      },
+      "expected": 189225
+    },
+    {
+      "inputs": {
+        "x": 436
+      },
+      "expected": 190096
+    },
+    {
+      "inputs": {
+        "x": 437
+      },
+      "expected": 190969
+    },
+    {
+      "inputs": {
+        "x": 438
+      },
+      "expected": 191844
+    },
+    {
+      "inputs": {
+        "x": 439
+      },
+      "expected": 192721
+    },
+    {
+      "inputs": {
+        "x": 440
+      },
+      "expected": 193600
+    },
+    {
+      "inputs": {
+        "x": 441
+      },
+      "expected": 194481
+    },
+    {
+      "inputs": {
+        "x": 442
+      },
+      "expected": 195364
+    },
+    {
+      "inputs": {
+        "x": 443
+      },
+      "expected": 196249
+    },
+    {
+      "inputs": {
+        "x": 444
+      },
+      "expected": 197136
+    },
+    {
+      "inputs": {
+        "x": 445
+      },
+      "expected": 198025
+    },
+    {
+      "inputs": {
+        "x": 446
+      },
+      "expected": 198916
+    },
+    {
+      "inputs": {
+        "x": 447
+      },
+      "expected": 199809
+    },
+    {
+      "inputs": {
+        "x": 448
+      },
+      "expected": 200704
+    },
+    {
+      "inputs": {
+        "x": 449
+      },
+      "expected": 201601
+    },
+    {
+      "inputs": {
+        "x": 450
+      },
+      "expected": 202500
+    },
+    {
+      "inputs": {
+        "x": 451
+      },
+      "expected": 203401
+    },
+    {
+      "inputs": {
+        "x": 452
+      },
+      "expected": 204304
+    },
+    {
+      "inputs": {
+        "x": 453
+      },
+      "expected": 205209
+    },
+    {
+      "inputs": {
+        "x": 454
+      },
+      "expected": 206116
+    },
+    {
+      "inputs": {
+        "x": 455
+      },
+      "expected": 207025
+    },
+    {
+      "inputs": {
+        "x": 456
+      },
+      "expected": 207936
+    },
+    {
+      "inputs": {
+        "x": 457
+      },
+      "expected": 208849
+    },
+    {
+      "inputs": {
+        "x": 458
+      },
+      "expected": 209764
+    },
+    {
+      "inputs": {
+        "x": 459
+      },
+      "expected": 210681
+    },
+    {
+      "inputs": {
+        "x": 460
+      },
+      "expected": 211600
+    },
+    {
+      "inputs": {
+        "x": 461
+      },
+      "expected": 212521
+    },
+    {
+      "inputs": {
+        "x": 462
+      },
+      "expected": 213444
+    },
+    {
+      "inputs": {
+        "x": 463
+      },
+      "expected": 214369
+    },
+    {
+      "inputs": {
+        "x": 464
+      },
+      "expected": 215296
+    },
+    {
+      "inputs": {
+        "x": 465
+      },
+      "expected": 216225
+    },
+    {
+      "inputs": {
+        "x": 466
+      },
+      "expected": 217156
+    },
+    {
+      "inputs": {
+        "x": 467
+      },
+      "expected": 218089
+    },
+    {
+      "inputs": {
+        "x": 468
+      },
+      "expected": 219024
+    },
+    {
+      "inputs": {
+        "x": 469
+      },
+      "expected": 219961
+    },
+    {
+      "inputs": {
+        "x": 470
+      },
+      "expected": 220900
+    },
+    {
+      "inputs": {
+        "x": 471
+      },
+      "expected": 221841
+    },
+    {
+      "inputs": {
+        "x": 472
+      },
+      "expected": 222784
+    },
+    {
+      "inputs": {
+        "x": 473
+      },
+      "expected": 223729
+    },
+    {
+      "inputs": {
+        "x": 474
+      },
+      "expected": 224676
+    },
+    {
+      "inputs": {
+        "x": 475
+      },
+      "expected": 225625
+    },
+    {
+      "inputs": {
+        "x": 476
+      },
+      "expected": 226576
+    },
+    {
+      "inputs": {
+        "x": 477
+      },
+      "expected": 227529
+    },
+    {
+      "inputs": {
+        "x": 478
+      },
+      "expected": 228484
+    },
+    {
+      "inputs": {
+        "x": 479
+      },
+      "expected": 229441
+    },
+    {
+      "inputs": {
+        "x": 480
+      },
+      "expected": 230400
+    },
+    {
+      "inputs": {
+        "x": 481
+      },
+      "expected": 231361
+    },
+    {
+      "inputs": {
+        "x": 482
+      },
+      "expected": 232324
+    },
+    {
+      "inputs": {
+        "x": 483
+      },
+      "expected": 233289
+    },
+    {
+      "inputs": {
+        "x": 484
+      },
+      "expected": 234256
+    },
+    {
+      "inputs": {
+        "x": 485
+      },
+      "expected": 235225
+    },
+    {
+      "inputs": {
+        "x": 486
+      },
+      "expected": 236196
+    },
+    {
+      "inputs": {
+        "x": 487
+      },
+      "expected": 237169
+    },
+    {
+      "inputs": {
+        "x": 488
+      },
+      "expected": 238144
+    },
+    {
+      "inputs": {
+        "x": 489
+      },
+      "expected": 239121
+    },
+    {
+      "inputs": {
+        "x": 490
+      },
+      "expected": 240100
+    },
+    {
+      "inputs": {
+        "x": 491
+      },
+      "expected": 241081
+    },
+    {
+      "inputs": {
+        "x": 492
+      },
+      "expected": 242064
+    },
+    {
+      "inputs": {
+        "x": 493
+      },
+      "expected": 243049
+    },
+    {
+      "inputs": {
+        "x": 494
+      },
+      "expected": 244036
+    },
+    {
+      "inputs": {
+        "x": 495
+      },
+      "expected": 245025
+    },
+    {
+      "inputs": {
+        "x": 496
+      },
+      "expected": 246016
+    },
+    {
+      "inputs": {
+        "x": 497
+      },
+      "expected": 247009
+    },
+    {
+      "inputs": {
+        "x": 498
+      },
+      "expected": 248004
+    },
+    {
+      "inputs": {
+        "x": 499
+      },
+      "expected": 249001
+    },
+    {
+      "inputs": {
+        "x": 500
+      },
+      "expected": 250000
+    },
+    {
+      "inputs": {
+        "x": 501
+      },
+      "expected": 251001
+    },
+    {
+      "inputs": {
+        "x": 502
+      },
+      "expected": 252004
+    },
+    {
+      "inputs": {
+        "x": 503
+      },
+      "expected": 253009
+    },
+    {
+      "inputs": {
+        "x": 504
+      },
+      "expected": 254016
+    },
+    {
+      "inputs": {
+        "x": 505
+      },
+      "expected": 255025
+    },
+    {
+      "inputs": {
+        "x": 506
+      },
+      "expected": 256036
+    },
+    {
+      "inputs": {
+        "x": 507
+      },
+      "expected": 257049
+    },
+    {
+      "inputs": {
+        "x": 508
+      },
+      "expected": 258064
+    },
+    {
+      "inputs": {
+        "x": 509
+      },
+      "expected": 259081
+    },
+    {
+      "inputs": {
+        "x": 510
+      },
+      "expected": 260100
+    },
+    {
+      "inputs": {
+        "x": 511
+      },
+      "expected": 261121
+    },
+    {
+      "inputs": {
+        "x": 512
+      },
+      "expected": 262144
+    }
+  ]
+}

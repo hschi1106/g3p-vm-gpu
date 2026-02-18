@@ -293,7 +293,11 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
   }
 
   std::vector<int> fitness(programs.size(), 0);
+  const double case_count = static_cast<double>(shared_cases.size());
   for (std::size_t p = 0; p < programs.size(); ++p) {
+    int exact_match_count = 0;
+    int runtime_error_count = 0;
+    double abs_error_sum = 0.0;
     for (std::size_t c = 0; c < shared_cases.size(); ++c) {
       std::vector<std::pair<int, Value>> inputs;
       inputs.reserve(shared_cases[c].size());
@@ -302,11 +306,25 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
       }
       const VMResult out = run_bytecode(programs[p], inputs, fuel);
       if (out.is_error) {
-        fitness[p] -= 10;
-      } else if (vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
-        fitness[p] += 1;
+        runtime_error_count += 1;
+        continue;
+      }
+
+      if (vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
+        exact_match_count += 1;
+      }
+
+      double pred_num = 0.0;
+      double expected_num = 0.0;
+      bool any_float = false;
+      if (vm_semantics::to_numeric_pair(out.value, shared_answer[c], pred_num, expected_num, any_float)) {
+        (void)any_float;
+        abs_error_sum += std::fabs(pred_num - expected_num);
       }
     }
+    const double mean_abs_error = abs_error_sum / case_count;
+    const int rounded_mean_abs_error = static_cast<int>(std::llround(mean_abs_error));
+    fitness[p] = exact_match_count - rounded_mean_abs_error - runtime_error_count * 10;
   }
 
   return fitness;
