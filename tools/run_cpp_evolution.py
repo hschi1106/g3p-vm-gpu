@@ -23,12 +23,8 @@ _GEN_RE = re.compile(
 _FINAL_RE = re.compile(
     r"^FINAL\s+best=(?P<best>[-+]?\d+(?:\.\d+)?)\s+hash=(?P<hash>[0-9a-fA-F]+)\s+selection=(?P<selection>[a-z_]+)\s+crossover=(?P<crossover>[a-z_]+)$"
 )
-_TIMING_PHASE_RE = re.compile(
-    r"^TIMING\s+phase=(?P<phase>[a-z_]+)\s+ms=(?P<ms>[-+]?\d+(?:\.\d+)?)$"
-)
-_TIMING_GEN_RE = re.compile(
-    r"^TIMING\s+gen=(?P<gen>\d+)\s+eval_ms=(?P<eval>[-+]?\d+(?:\.\d+)?)\s+repro_ms=(?P<repro>[-+]?\d+(?:\.\d+)?)\s+total_ms=(?P<total>[-+]?\d+(?:\.\d+)?)$"
-)
+_TIMING_PHASE_RE = re.compile(r"^TIMING\s+phase=(?P<phase>[a-z_]+)\s+ms=(?P<ms>[-+]?\d+(?:\.\d+)?)$")
+_TIMING_GEN_LINE_RE = re.compile(r"^TIMING\s+gen=(?P<gen>\d+)\s+(?P<rest>.+)$")
 _TIMING_GPU_GEN_RE = re.compile(
     r"^TIMING\s+gpu_gen=(?P<gen>\d+)\s+compile_ms=(?P<compile>[-+]?\d+(?:\.\d+)?)\s+pack_upload_ms=(?P<upload>[-+]?\d+(?:\.\d+)?)\s+kernel_ms=(?P<kernel>[-+]?\d+(?:\.\d+)?)\s+copyback_ms=(?P<copyback>[-+]?\d+(?:\.\d+)?)$"
 )
@@ -67,41 +63,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         description=(
             "Run end-to-end C++ evolution CLI with configurable parameters and detailed timing logs."
         ),
-        epilog=(
-            "Examples:\n"
-            "  1) Simple cases JSON\n"
-            "     python3 tools/run_cpp_evolution.py \\\n"
-            "       --cases data/fixtures/evolution_cases.json \\\n"
-            "       --cpp-cli cpp/build/g3pvm_evolve_cli \\\n"
-            "       --selection tournament \\\n"
-            "       --crossover-method hybrid \\\n"
-            "       --population-size 64 --generations 40\n"
-            "\n"
-            "  2) PSB2 fixture (shared_cases/shared_answer)\n"
-            "     python3 tools/run_cpp_evolution.py \\\n"
-            "       --cases data/fixtures/fitness_multi_bench_inputs_psb2.json \\\n"
-            "       --cases-format psb2_fixture \\\n"
-            "       --input-indices 1 --input-names x \\\n"
-            "       --cpp-cli cpp/build/g3pvm_evolve_cli\n"
-            "\n"
-            "Artifacts:\n"
-            "  <log-dir>/cpp_evo_<tag>_pid<PID>.stdout.log\n"
-            "  <log-dir>/cpp_evo_<tag>_pid<PID>.stderr.log\n"
-            "  <log-dir>/cpp_evo_<tag>_pid<PID>.timings.log\n"
-            "  <log-dir>/cpp_evo_<tag>_pid<PID>.summary.json\n"
-            "  <log-dir>/cpp_evo_<tag>_pid<PID>.evolution.json"
-        ),
     )
-    p.add_argument("--cases", required=True, help="Path to input JSON (simple cases or psb2 fixture).")
+    p.add_argument("--cases", required=True, help="Path to fitness-cases-v1 JSON.")
     p.add_argument("--cpp-cli", default="cpp/build/g3pvm_evolve_cli", help="Path to C++ evolve CLI executable.")
-    p.add_argument(
-        "--cases-format",
-        choices=["auto", "simple", "psb2_fixture"],
-        default="auto",
-        help="Input schema mode. auto tries simple first, then psb2_fixture.",
-    )
-    p.add_argument("--input-indices", default="auto", help="For psb2_fixture: comma-separated shared_cases idx list.")
-    p.add_argument("--input-names", default="x", help="For psb2_fixture: variable names mapped to input indices.")
     p.add_argument("--engine", choices=["cpu", "gpu"], default="cpu", help="Evaluation engine for evolve_cli.")
     p.add_argument("--blocksize", type=int, default=256, help="GPU blocksize when --engine gpu.")
     p.add_argument("--population-size", type=int, default=64)
@@ -121,26 +85,25 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-for-k", type=int, default=16)
     p.add_argument("--max-call-args", type=int, default=3)
     p.add_argument("--show-program", choices=["none", "ast", "bytecode", "both"], default="none")
-    p.add_argument(
-        "--cpp-timing",
-        choices=["none", "summary", "per_gen", "all"],
-        default="all",
-        help="Timing verbosity emitted by g3pvm_evolve_cli.",
-    )
-
+    p.add_argument("--cpp-timing", choices=["none", "summary", "per_gen", "all"], default="all")
     p.add_argument("--timeout-sec", type=int, default=0, help="Subprocess timeout in seconds, 0 means no timeout.")
     p.add_argument("--log-dir", default="logs/cpp_evolution", help="Directory for run logs and JSON artifacts.")
-    p.add_argument(
-        "--run-tag",
-        default="",
-        help="Optional run tag for artifact naming. Default uses UTC timestamp.",
-    )
-    p.add_argument(
-        "--print-command",
-        action="store_true",
-        help="Print exact CLI command before execution.",
-    )
+    p.add_argument("--run-tag", default="", help="Optional run tag for artifact naming. Default uses UTC timestamp.")
+    p.add_argument("--print-command", action="store_true", help="Print exact CLI command before execution.")
     return p
+
+
+def _parse_kv_floats(rest: str) -> Dict[str, float]:
+    out: Dict[str, float] = {}
+    for token in rest.split():
+        if "=" not in token:
+            continue
+        k, v = token.split("=", 1)
+        try:
+            out[k] = float(v)
+        except ValueError:
+            continue
+    return out
 
 
 def _parse_cli_output(stdout: str) -> Dict[str, Any]:
@@ -163,6 +126,7 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
                 }
             )
             continue
+
         m = _FINAL_RE.match(line)
         if m is not None:
             final = {
@@ -172,21 +136,19 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
                 "crossover": m.group("crossover"),
             }
             continue
+
         m = _TIMING_PHASE_RE.match(line)
         if m is not None:
             timing_summary[m.group("phase")] = float(m.group("ms"))
             continue
-        m = _TIMING_GEN_RE.match(line)
+
+        m = _TIMING_GEN_LINE_RE.match(line)
         if m is not None:
-            timing_per_gen.append(
-                {
-                    "generation": int(m.group("gen")),
-                    "eval_ms": float(m.group("eval")),
-                    "repro_ms": float(m.group("repro")),
-                    "total_ms": float(m.group("total")),
-                }
-            )
+            row = {"generation": int(m.group("gen"))}
+            row.update(_parse_kv_floats(m.group("rest")))
+            timing_per_gen.append(row)
             continue
+
         m = _TIMING_GPU_GEN_RE.match(line)
         if m is not None:
             timing_gpu_per_gen.append(
@@ -214,11 +176,7 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
 
 
 def _dump_stage_table(records: List[StageRecord]) -> str:
-    rows = [
-        f"{r.stage:24s} {r.elapsed_ms:12.3f} ms"
-        for r in records
-    ]
-    return "\n".join(rows)
+    return "\n".join(f"{r.stage:24s} {r.elapsed_ms:12.3f} ms" for r in records)
 
 
 def main() -> None:
@@ -241,19 +199,9 @@ def main() -> None:
 
     paths = tracker.run("resolve_paths", _resolve_paths)
 
-    def _load_cases_payload() -> Dict[str, Any]:
-        text = paths["cases_path"].read_text(encoding="utf-8")
-        payload = json.loads(text)
-        if not isinstance(payload, dict):
-            raise SystemExit("cases payload must be a JSON object")
-        return payload
+    _ = tracker.run("load_cases_payload", lambda: json.loads(paths["cases_path"].read_text(encoding="utf-8")))
 
-    _ = tracker.run("load_cases_payload", _load_cases_payload)
-
-    run_tag = args.run_tag.strip()
-    if not run_tag:
-        run_tag = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-
+    run_tag = args.run_tag.strip() or datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_base = f"cpp_evo_{run_tag}_pid{os.getpid()}"
     stdout_path = paths["log_dir"] / f"{run_base}.stdout.log"
     stderr_path = paths["log_dir"] / f"{run_base}.stderr.log"
@@ -262,16 +210,10 @@ def main() -> None:
     out_json_path = paths["log_dir"] / f"{run_base}.evolution.json"
 
     def _build_command() -> List[str]:
-        cmd = [
+        return [
             str(paths["cpp_cli"]),
             "--cases",
             str(paths["cases_path"]),
-            "--cases-format",
-            args.cases_format,
-            "--input-indices",
-            args.input_indices,
-            "--input-names",
-            args.input_names,
             "--engine",
             args.engine,
             "--blocksize",
@@ -315,30 +257,27 @@ def main() -> None:
             "--out-json",
             str(out_json_path),
         ]
-        return cmd
 
     cmd = tracker.run("build_command", _build_command)
 
     if args.print_command:
         print("COMMAND", shlex.join(cmd))
 
-    def _run_cpp_cli() -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
+    proc = tracker.run(
+        "run_cpp_cli",
+        lambda: subprocess.run(
             cmd,
             cwd=ROOT,
             text=True,
             capture_output=True,
             check=False,
             timeout=(None if args.timeout_sec <= 0 else args.timeout_sec),
-        )
-
-    proc = tracker.run("run_cpp_cli", _run_cpp_cli)
+        ),
+    )
 
     def _parse_output() -> Dict[str, Any]:
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"cpp evolve cli failed with returncode={proc.returncode}; see stderr log"
-            )
+            raise RuntimeError(f"cpp evolve cli failed with returncode={proc.returncode}; see stderr log")
         return _parse_cli_output(proc.stdout)
 
     parsed = tracker.run("parse_cli_output", _parse_output)
@@ -350,52 +289,39 @@ def main() -> None:
 
         records = tracker.records()
         write_elapsed_ms = (time.perf_counter() - write_t0) * 1000.0
-        all_rows = [
-            {
-                "stage": r.stage,
-                "elapsed_ms": r.elapsed_ms,
-            }
-            for r in records
-        ] + [
-            {
-                "stage": "write_artifacts",
-                "elapsed_ms": write_elapsed_ms,
-            }
+        all_rows = [{"stage": r.stage, "elapsed_ms": r.elapsed_ms} for r in records] + [
+            {"stage": "write_artifacts", "elapsed_ms": write_elapsed_ms}
         ]
-        timing_table = _dump_stage_table(records)
+
+        timing_table = "[outer_python]\n" + _dump_stage_table(records)
         timing_table += f"\n{'write_artifacts':24s} {write_elapsed_ms:12.3f} ms"
         timing_table += f"\n{'total':24s} {sum(r.elapsed_ms for r in records) + write_elapsed_ms:12.3f} ms"
-        timing_table = "[outer_python]\n" + timing_table
+
         if parsed["timing_summary"]:
             timing_table += "\n\n[inner_cpp_summary]"
             for k in sorted(parsed["timing_summary"].keys()):
                 timing_table += f"\n{k:24s} {parsed['timing_summary'][k]:12.3f} ms"
+
         if parsed["timing_per_gen"]:
             timing_table += "\n\n[inner_cpp_per_gen]"
-            timing_table += "\n" + f"{'gen':>5s} {'eval_ms':>12s} {'repro_ms':>12s} {'total_ms':>12s}"
             for row in parsed["timing_per_gen"]:
-                timing_table += (
-                    "\n"
-                    + f"{row['generation']:05d} "
-                    + f"{row['eval_ms']:12.3f} "
-                    + f"{row['repro_ms']:12.3f} "
-                    + f"{row['total_ms']:12.3f}"
-                )
+                cols = [f"gen={row['generation']:03d}"]
+                for k, v in sorted(row.items()):
+                    if k == "generation":
+                        continue
+                    cols.append(f"{k}={v:.3f}")
+                timing_table += "\n" + " ".join(cols)
+
         if parsed["timing_gpu_per_gen"]:
             timing_table += "\n\n[inner_cpp_gpu_per_gen]"
-            timing_table += (
-                "\n"
-                + f"{'gen':>5s} {'compile_ms':>12s} {'upload_ms':>12s} {'kernel_ms':>12s} {'copyback_ms':>12s}"
-            )
             for row in parsed["timing_gpu_per_gen"]:
                 timing_table += (
                     "\n"
-                    + f"{row['generation']:05d} "
-                    + f"{row['compile_ms']:12.3f} "
-                    + f"{row['pack_upload_ms']:12.3f} "
-                    + f"{row['kernel_ms']:12.3f} "
-                    + f"{row['copyback_ms']:12.3f}"
+                    + f"gen={row['generation']:03d} compile_ms={row['compile_ms']:.3f} "
+                    + f"pack_upload_ms={row['pack_upload_ms']:.3f} kernel_ms={row['kernel_ms']:.3f} "
+                    + f"copyback_ms={row['copyback_ms']:.3f}"
                 )
+
         stage_path.write_text(timing_table + "\n", encoding="utf-8")
 
         total_ms = (time.perf_counter() - overall_t0) * 1000.0

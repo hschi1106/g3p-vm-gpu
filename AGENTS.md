@@ -49,8 +49,8 @@
 - Recommended examples:
   ```bash
   scripts/run_gpu_command.sh -- ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
-  scripts/run_gpu_command.sh -- PYTHONPATH=python python3 tools/check_multi_fixture_cpu_gpu.py --fixture data/fixtures/fitness_multi_bench_inputs_psb2.json --cli cpp/build/g3pvm_vm_cpu_cli
-  scripts/run_gpu_command.sh -- PYTHONPATH=python python3 tools/check_fitness_fixture_cpu_gpu.py --fixture data/fixtures/fitness_multi_bench_inputs_psb2.json --cli cpp/build/g3pvm_vm_cpu_cli
+  scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py --cases data/fixtures/speedup_cases_bouncing_balls_1024.json --cpp-cli cpp/build/g3pvm_evolve_cli --engine gpu --blocksize 256 --population-size 64 --generations 2
+  scripts/run_gpu_command.sh -- bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
   ```
 - In sandboxed agent sessions, GPU device access may still be unavailable even when host GPUs exist. In that case, rerun the same command with escalated permissions.
 

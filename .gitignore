@@ -213,6 +213,7 @@ data/fixtures/*
 !data/fixtures/simple_evo_x_plus_1_1024.json
 !data/fixtures/simple_evo_affine_2x_plus_3_1024.json
 !data/fixtures/simple_evo_square_x2_1024.json
+!data/fixtures/speedup_cases_bouncing_balls_1024.json
 
 # Local benchmark logs
 logs/

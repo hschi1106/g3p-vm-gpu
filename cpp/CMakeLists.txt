@@ -71,6 +71,12 @@ if(G3PVM_HAS_CUDA)
   target_link_libraries(g3pvm_test_vm_gpu_multi_batch PRIVATE g3pvm_gpu)
   add_test(NAME g3pvm_test_vm_gpu_multi_batch COMMAND g3pvm_test_vm_gpu_multi_batch)
 
+  add_executable(g3pvm_test_fitness_cpu_gpu_parity
+    tests/test_fitness_cpu_gpu_parity.cpp
+  )
+  target_link_libraries(g3pvm_test_fitness_cpu_gpu_parity PRIVATE g3pvm_cpu g3pvm_gpu)
+  add_test(NAME g3pvm_test_fitness_cpu_gpu_parity COMMAND g3pvm_test_fitness_cpu_gpu_parity)
+
 endif()
 
 add_executable(g3pvm_test_vm_smoke

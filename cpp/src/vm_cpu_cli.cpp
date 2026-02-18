@@ -38,12 +38,6 @@ int main(int argc, char** argv) {
     g3pvm::cli_detail::JsonValue root = parser.parse();
 
     const g3pvm::cli_detail::JsonValue* req = &root;
-    if (root.kind == g3pvm::cli_detail::JsonValue::Kind::Object) {
-      auto it = root.object_v.find("bytecode_program_inputs");
-      if (it != root.object_v.end()) {
-        req = &it->second;
-      }
-    }
 
     if (req->kind != g3pvm::cli_detail::JsonValue::Kind::Object) {
       throw std::runtime_error("top-level JSON must be object");

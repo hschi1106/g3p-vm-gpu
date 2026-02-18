@@ -70,18 +70,28 @@ struct EvolutionTiming {
   double init_population_ms = 0.0;
   double gpu_session_init_ms = 0.0;
   double final_eval_ms = 0.0;
+  double cpu_generations_program_compile_ms_total = 0.0;
   double gpu_generations_program_compile_ms_total = 0.0;
   double gpu_generations_pack_upload_ms_total = 0.0;
   double gpu_generations_kernel_ms_total = 0.0;
   double gpu_generations_copyback_ms_total = 0.0;
+  double generations_selection_ms_total = 0.0;
+  double generations_crossover_ms_total = 0.0;
+  double generations_mutation_ms_total = 0.0;
+  double generations_elite_copy_ms_total = 0.0;
   double total_ms = 0.0;
   std::vector<double> generation_eval_ms;
   std::vector<double> generation_repro_ms;
   std::vector<double> generation_total_ms;
+  std::vector<double> generation_cpu_program_compile_ms;
   std::vector<double> generation_gpu_program_compile_ms;
   std::vector<double> generation_gpu_pack_upload_ms;
   std::vector<double> generation_gpu_kernel_ms;
   std::vector<double> generation_gpu_copyback_ms;
+  std::vector<double> generation_selection_ms;
+  std::vector<double> generation_crossover_ms;
+  std::vector<double> generation_mutation_ms;
+  std::vector<double> generation_elite_copy_ms;
 };
 
 struct EvolutionRun {

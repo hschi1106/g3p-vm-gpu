@@ -5,7 +5,7 @@
 - Python 3.10+
 - CMake 3.16+
 - C++17 compiler
-- CUDA toolkit + NVIDIA driver (GPU paths)
+- CUDA toolkit + NVIDIA driver (for GPU paths)
 
 ## 2. Build
 
@@ -44,14 +44,13 @@ scripts/run_gpu_command.sh -- <gpu_command> [args...]
 
 This retries device 0 then 1 when GPU is unavailable/contended.
 
-## 5. Evolution Benchmarking
-
-### CPU/GPU comparison
+## 5. CPU/GPU Speedup Benchmark
 
 ```bash
 bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
-bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 4096 --generations 40
 ```
+
+Inputs must use `fitness-cases-v1` schema (example: `data/fixtures/speedup_cases_bouncing_balls_1024.json`).
 
 Outputs:
 
@@ -59,19 +58,9 @@ Outputs:
 - `logs/cpu_gpu_compare_pop*/cpu_gpu_compare.report.json`
 - per-run CPU/GPU summary JSON logs
 
-## 6. Prefix-Only Contribution Rules
+## 6. Contribution Rules
 
-When changing AST/evolution logic:
-
-1. Keep APIs prefix-native (`AstProgram` as source of truth).
-2. Do not add tree compatibility layers.
-3. Preserve `ast-prefix-v1` validation invariants.
-4. Run interpreter-vm equivalence tests and C++ parity tests.
-
-## 7. Pull Request Checklist
-
-- [ ] Python tests pass
-- [ ] C++ tests pass
-- [ ] For performance-sensitive changes: attach CPU/GPU compare report
-- [ ] Updated docs if behavior or workflows changed
-- [ ] No new tree legacy symbols/APIs introduced
+1. Keep APIs prefix-native (`AstProgram`).
+2. Preserve CPU/GPU fitness parity and timing report compatibility.
+3. Run Python and C++ tests after behavior changes.
+4. For speedup changes, attach generated comparison report.

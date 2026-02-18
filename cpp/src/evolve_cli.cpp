@@ -3,12 +3,9 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <map>
-#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -29,9 +26,6 @@ using g3pvm::cli_detail::JsonValue;
 
 struct CliOptions {
   std::string cases_path;
-  std::string cases_format = "auto";
-  std::string input_indices = "auto";
-  std::string input_names = "x";
   std::string engine = "cpu";
   int blocksize = 256;
   int population_size = 64;
@@ -92,7 +86,6 @@ void write_value_json(std::ostream& out, const Value& v) {
     out << std::setprecision(17) << v.f;
     return;
   }
-  // Keep JSON valid if non-finite float appears.
   out << "null";
 }
 
@@ -121,7 +114,6 @@ Value decode_typed_or_raw_value(const JsonValue& v) {
     }
     return Value::from_float(v.number_v);
   }
-
   throw std::runtime_error("unsupported raw value type");
 }
 
@@ -129,7 +121,6 @@ g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("case.inputs must be an object");
   }
-
   g3pvm::evo::NamedInputs out;
   for (const auto& kv : raw.object_v) {
     out[kv.first] = decode_typed_or_raw_value(kv.second);
@@ -137,204 +128,39 @@ g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
-std::vector<g3pvm::evo::FitnessCase> parse_simple_cases(const JsonValue& payload) {
+std::vector<g3pvm::evo::FitnessCase> parse_cases_v1(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
   }
+
+  auto fv_it = payload.object_v.find("format_version");
+  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
+      fv_it->second.string_v != "fitness-cases-v1") {
+    throw std::runtime_error("input JSON must include format_version=fitness-cases-v1");
+  }
+
   auto cases_it = payload.object_v.find("cases");
   if (cases_it == payload.object_v.end() || cases_it->second.kind != JsonValue::Kind::Array) {
     throw std::runtime_error("input JSON must include list field: cases");
   }
 
   std::vector<g3pvm::evo::FitnessCase> out;
+  out.reserve(cases_it->second.array_v.size());
   for (const JsonValue& row : cases_it->second.array_v) {
     if (row.kind != JsonValue::Kind::Object) {
       throw std::runtime_error("cases[i] must be object");
     }
-
     auto inputs_it = row.object_v.find("inputs");
-    if (inputs_it == row.object_v.end()) {
-      inputs_it = row.object_v.find("input");
-    }
-    if (inputs_it == row.object_v.end()) {
-      throw std::runtime_error("cases[i] missing inputs/input");
-    }
-
     auto expected_it = row.object_v.find("expected");
-    if (expected_it == row.object_v.end()) {
-      expected_it = row.object_v.find("output");
+    if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
+      throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    if (expected_it == row.object_v.end()) {
-      throw std::runtime_error("cases[i] missing expected/output");
-    }
-
-    out.push_back(g3pvm::evo::FitnessCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
-  }
-
-  return out;
-}
-
-std::map<int, Value> parse_idx_case_entries(const JsonValue& row) {
-  if (row.kind != JsonValue::Kind::Array) {
-    throw std::runtime_error("shared_cases[i] must be a list");
-  }
-  std::map<int, Value> out;
-  for (const JsonValue& item : row.array_v) {
-    if (item.kind != JsonValue::Kind::Object) {
-      throw std::runtime_error("shared_cases[i][j] must be object");
-    }
-    const JsonValue& idx_node = g3pvm::cli_detail::require_object_field(item, "idx");
-    const JsonValue& value_node = g3pvm::cli_detail::require_object_field(item, "value");
-    const int idx = g3pvm::cli_detail::require_int(idx_node, "idx");
-    out[idx] = decode_typed_or_raw_value(value_node);
-  }
-  return out;
-}
-
-std::vector<int> parse_indices(const std::string& raw) {
-  std::vector<int> out;
-  std::stringstream ss(raw);
-  std::string token;
-  while (std::getline(ss, token, ',')) {
-    if (token.empty()) {
-      continue;
-    }
-    out.push_back(std::stoi(token));
+    out.push_back(g3pvm::evo::FitnessCase{decode_inputs(inputs_it->second),
+                                          decode_typed_or_raw_value(expected_it->second)});
   }
   if (out.empty()) {
-    throw std::runtime_error("input indices must not be empty");
+    throw std::runtime_error("cases must not be empty");
   }
-  return out;
-}
-
-std::vector<std::string> parse_input_names(const std::string& raw, int n) {
-  if (raw.empty()) {
-    if (n == 1) return {"x"};
-    std::vector<std::string> out;
-    out.reserve(static_cast<std::size_t>(n));
-    for (int i = 0; i < n; ++i) {
-      out.push_back("x" + std::to_string(i));
-    }
-    return out;
-  }
-
-  std::vector<std::string> out;
-  std::stringstream ss(raw);
-  std::string token;
-  while (std::getline(ss, token, ',')) {
-    if (!token.empty()) {
-      out.push_back(token);
-    }
-  }
-  if (static_cast<int>(out.size()) != n) {
-    throw std::runtime_error("--input-names count mismatch");
-  }
-  return out;
-}
-
-bool value_equal_exact(const Value& a, const Value& b) {
-  if (a.tag != b.tag) return false;
-  if (a.tag == ValueTag::None) return true;
-  if (a.tag == ValueTag::Bool) return a.b == b.b;
-  if (a.tag == ValueTag::Int) return a.i == b.i;
-  return a.f == b.f;
-}
-
-std::vector<int> auto_pick_indices(const std::vector<std::map<int, Value>>& case_maps,
-                                   const std::vector<Value>& expected_vals) {
-  std::set<int> idx_set;
-  for (const auto& one : case_maps) {
-    for (const auto& kv : one) {
-      idx_set.insert(kv.first);
-    }
-  }
-  if (idx_set.empty()) {
-    throw std::runtime_error("shared_cases does not contain any idx values");
-  }
-
-  std::vector<int> idxs(idx_set.begin(), idx_set.end());
-  if (std::find(idxs.begin(), idxs.end(), 0) != idxs.end() && idxs.size() > 1) {
-    bool equal_all = true;
-    for (std::size_t i = 0; i < case_maps.size(); ++i) {
-      auto it = case_maps[i].find(0);
-      if (it == case_maps[i].end() || !value_equal_exact(it->second, expected_vals[i])) {
-        equal_all = false;
-        break;
-      }
-    }
-    if (equal_all) {
-      std::vector<int> out;
-      for (int idx : idxs) {
-        if (idx != 0) {
-          out.push_back(idx);
-        }
-      }
-      return out;
-    }
-  }
-  return idxs;
-}
-
-std::vector<g3pvm::evo::FitnessCase> parse_psb2_fixture_cases(const JsonValue& payload,
-                                                               const std::string& input_indices_raw,
-                                                               const std::string& input_names_raw) {
-  const JsonValue* root = &payload;
-  if (payload.kind != JsonValue::Kind::Object) {
-    throw std::runtime_error("fixture root must be object");
-  }
-  auto bpi_it = payload.object_v.find("bytecode_program_inputs");
-  if (bpi_it != payload.object_v.end()) {
-    root = &bpi_it->second;
-  }
-  if (root->kind != JsonValue::Kind::Object) {
-    throw std::runtime_error("fixture root must be object");
-  }
-
-  const JsonValue& shared_cases_node = g3pvm::cli_detail::require_object_field(*root, "shared_cases");
-  const JsonValue& shared_answer_node = g3pvm::cli_detail::require_object_field(*root, "shared_answer");
-  if (shared_cases_node.kind != JsonValue::Kind::Array || shared_answer_node.kind != JsonValue::Kind::Array) {
-    throw std::runtime_error("fixture must include shared_cases(list) and shared_answer(list)");
-  }
-  if (shared_cases_node.array_v.size() != shared_answer_node.array_v.size()) {
-    throw std::runtime_error("shared_cases and shared_answer length mismatch");
-  }
-
-  std::vector<Value> expected_vals;
-  expected_vals.reserve(shared_answer_node.array_v.size());
-  for (const JsonValue& v : shared_answer_node.array_v) {
-    expected_vals.push_back(decode_typed_or_raw_value(v));
-  }
-
-  std::vector<std::map<int, Value>> case_maps;
-  case_maps.reserve(shared_cases_node.array_v.size());
-  for (const JsonValue& row : shared_cases_node.array_v) {
-    case_maps.push_back(parse_idx_case_entries(row));
-  }
-
-  std::vector<int> input_indices;
-  if (input_indices_raw == "auto") {
-    input_indices = auto_pick_indices(case_maps, expected_vals);
-  } else {
-    input_indices = parse_indices(input_indices_raw);
-  }
-  const std::vector<std::string> input_names = parse_input_names(input_names_raw, static_cast<int>(input_indices.size()));
-
-  std::vector<g3pvm::evo::FitnessCase> out;
-  out.reserve(case_maps.size());
-  for (std::size_t i = 0; i < case_maps.size(); ++i) {
-    g3pvm::evo::NamedInputs inputs;
-    for (std::size_t j = 0; j < input_indices.size(); ++j) {
-      const int idx = input_indices[j];
-      const std::string& name = input_names[j];
-      auto it = case_maps[i].find(idx);
-      if (it == case_maps[i].end()) {
-        throw std::runtime_error("shared_cases[i] missing requested idx");
-      }
-      inputs[name] = it->second;
-    }
-    out.push_back(g3pvm::evo::FitnessCase{inputs, expected_vals[i]});
-  }
-
   return out;
 }
 
@@ -352,12 +178,6 @@ CliOptions parse_cli(int argc, char** argv) {
 
     if (arg == "--cases") {
       opts.cases_path = need_value("--cases");
-    } else if (arg == "--cases-format") {
-      opts.cases_format = need_value("--cases-format");
-    } else if (arg == "--input-indices") {
-      opts.input_indices = need_value("--input-indices");
-    } else if (arg == "--input-names") {
-      opts.input_names = need_value("--input-names");
     } else if (arg == "--engine") {
       opts.engine = need_value("--engine");
     } else if (arg == "--blocksize") {
@@ -456,21 +276,7 @@ int main(int argc, char** argv) {
 
     g3pvm::cli_detail::JsonParser parser(text);
     const JsonValue payload = parser.parse();
-
-    std::vector<g3pvm::evo::FitnessCase> cases;
-    if (args.cases_format == "simple") {
-      cases = parse_simple_cases(payload);
-    } else if (args.cases_format == "psb2_fixture") {
-      cases = parse_psb2_fixture_cases(payload, args.input_indices, args.input_names);
-    } else if (args.cases_format == "auto") {
-      if (payload.kind == JsonValue::Kind::Object && payload.object_v.find("cases") != payload.object_v.end()) {
-        cases = parse_simple_cases(payload);
-      } else {
-        cases = parse_psb2_fixture_cases(payload, args.input_indices, args.input_names);
-      }
-    } else {
-      throw std::runtime_error("invalid --cases-format");
-    }
+    const std::vector<g3pvm::evo::FitnessCase> cases = parse_cases_v1(payload);
 
     g3pvm::evo::EvolutionConfig cfg;
     cfg.population_size = args.population_size;
@@ -549,6 +355,16 @@ int main(int argc, char** argv) {
                 << gen_eval_sum << "\n";
       std::cout << "TIMING phase=generations_repro_total ms=" << std::fixed << std::setprecision(3)
                 << gen_repro_sum << "\n";
+      std::cout << "TIMING phase=generations_selection_total ms=" << std::fixed << std::setprecision(3)
+                << run.timing.generations_selection_ms_total << "\n";
+      std::cout << "TIMING phase=generations_crossover_total ms=" << std::fixed << std::setprecision(3)
+                << run.timing.generations_crossover_ms_total << "\n";
+      std::cout << "TIMING phase=generations_mutation_total ms=" << std::fixed << std::setprecision(3)
+                << run.timing.generations_mutation_ms_total << "\n";
+      std::cout << "TIMING phase=generations_elite_copy_total ms=" << std::fixed << std::setprecision(3)
+                << run.timing.generations_elite_copy_ms_total << "\n";
+      std::cout << "TIMING phase=cpu_generations_program_compile_total ms=" << std::fixed << std::setprecision(3)
+                << run.timing.cpu_generations_program_compile_ms_total << "\n";
       std::cout << "TIMING phase=final_eval ms=" << std::fixed << std::setprecision(3)
                 << run.timing.final_eval_ms << "\n";
       if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
@@ -556,22 +372,28 @@ int main(int argc, char** argv) {
                   << run.timing.gpu_session_init_ms << "\n";
         std::cout << "TIMING phase=gpu_generations_program_compile_total ms=" << std::fixed
                   << std::setprecision(3) << run.timing.gpu_generations_program_compile_ms_total << "\n";
-        std::cout << "TIMING phase=gpu_generations_pack_upload_total ms=" << std::fixed
-                  << std::setprecision(3) << run.timing.gpu_generations_pack_upload_ms_total << "\n";
+        std::cout << "TIMING phase=gpu_generations_pack_upload_total ms=" << std::fixed << std::setprecision(3)
+                  << run.timing.gpu_generations_pack_upload_ms_total << "\n";
         std::cout << "TIMING phase=gpu_generations_kernel_total ms=" << std::fixed << std::setprecision(3)
                   << run.timing.gpu_generations_kernel_ms_total << "\n";
-        std::cout << "TIMING phase=gpu_generations_copyback_total ms=" << std::fixed
-                  << std::setprecision(3) << run.timing.gpu_generations_copyback_ms_total << "\n";
+        std::cout << "TIMING phase=gpu_generations_copyback_total ms=" << std::fixed << std::setprecision(3)
+                  << run.timing.gpu_generations_copyback_ms_total << "\n";
       }
       std::cout << "TIMING phase=total ms=" << std::fixed << std::setprecision(3)
                 << run.timing.total_ms << "\n";
     }
+
     if (args.timing == "per_gen" || args.timing == "all") {
       for (std::size_t i = 0; i < run.timing.generation_total_ms.size(); ++i) {
         std::cout << "TIMING gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
                   << " eval_ms=" << std::fixed << std::setprecision(3) << run.timing.generation_eval_ms[i]
                   << " repro_ms=" << run.timing.generation_repro_ms[i]
-                  << " total_ms=" << run.timing.generation_total_ms[i] << "\n";
+                  << " total_ms=" << run.timing.generation_total_ms[i]
+                  << " selection_ms=" << run.timing.generation_selection_ms[i]
+                  << " crossover_ms=" << run.timing.generation_crossover_ms[i]
+                  << " mutation_ms=" << run.timing.generation_mutation_ms[i]
+                  << " elite_ms=" << run.timing.generation_elite_copy_ms[i]
+                  << " cpu_compile_ms=" << run.timing.generation_cpu_program_compile_ms[i] << "\n";
         if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
           std::cout << "TIMING gpu_gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
                     << " compile_ms=" << std::fixed << std::setprecision(3)
@@ -604,6 +426,8 @@ int main(int argc, char** argv) {
       out << "      \"init_population_ms\": " << std::setprecision(17) << run.timing.init_population_ms << ",\n";
       out << "      \"gpu_session_init_ms\": " << run.timing.gpu_session_init_ms << ",\n";
       out << "      \"final_eval_ms\": " << run.timing.final_eval_ms << ",\n";
+      out << "      \"cpu_generations_program_compile_ms_total\": "
+          << run.timing.cpu_generations_program_compile_ms_total << ",\n";
       out << "      \"gpu_generations_program_compile_ms_total\": "
           << run.timing.gpu_generations_program_compile_ms_total << ",\n";
       out << "      \"gpu_generations_pack_upload_ms_total\": " << run.timing.gpu_generations_pack_upload_ms_total
@@ -611,6 +435,10 @@ int main(int argc, char** argv) {
       out << "      \"gpu_generations_kernel_ms_total\": " << run.timing.gpu_generations_kernel_ms_total << ",\n";
       out << "      \"gpu_generations_copyback_ms_total\": " << run.timing.gpu_generations_copyback_ms_total
           << ",\n";
+      out << "      \"generations_selection_ms_total\": " << run.timing.generations_selection_ms_total << ",\n";
+      out << "      \"generations_crossover_ms_total\": " << run.timing.generations_crossover_ms_total << ",\n";
+      out << "      \"generations_mutation_ms_total\": " << run.timing.generations_mutation_ms_total << ",\n";
+      out << "      \"generations_elite_copy_ms_total\": " << run.timing.generations_elite_copy_ms_total << ",\n";
       out << "      \"total_ms\": " << run.timing.total_ms << "\n";
       out << "    }\n";
       out << "  },\n";
@@ -628,49 +456,30 @@ int main(int argc, char** argv) {
       }
       out << "  ],\n";
 
+      auto dump_vec = [&](const char* name, const std::vector<double>& values, bool last) {
+        out << "    \"" << name << "\": [";
+        for (std::size_t i = 0; i < values.size(); ++i) {
+          if (i > 0) out << ", ";
+          out << std::setprecision(17) << values[i];
+        }
+        out << "]";
+        if (!last) out << ",";
+        out << "\n";
+      };
+
       out << "  \"timing\": {\n";
-      out << "    \"generation_eval_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_eval_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_eval_ms[i];
-      }
-      out << "],\n";
-      out << "    \"generation_repro_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_repro_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_repro_ms[i];
-      }
-      out << "],\n";
-      out << "    \"generation_gpu_program_compile_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_gpu_program_compile_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_gpu_program_compile_ms[i];
-      }
-      out << "],\n";
-      out << "    \"generation_gpu_pack_upload_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_gpu_pack_upload_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_gpu_pack_upload_ms[i];
-      }
-      out << "],\n";
-      out << "    \"generation_gpu_kernel_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_gpu_kernel_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_gpu_kernel_ms[i];
-      }
-      out << "],\n";
-      out << "    \"generation_gpu_copyback_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_gpu_copyback_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_gpu_copyback_ms[i];
-      }
-      out << "],\n";
-      out << "    \"generation_total_ms\": [";
-      for (std::size_t i = 0; i < run.timing.generation_total_ms.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << std::setprecision(17) << run.timing.generation_total_ms[i];
-      }
-      out << "]\n";
+      dump_vec("generation_eval_ms", run.timing.generation_eval_ms, false);
+      dump_vec("generation_repro_ms", run.timing.generation_repro_ms, false);
+      dump_vec("generation_cpu_program_compile_ms", run.timing.generation_cpu_program_compile_ms, false);
+      dump_vec("generation_gpu_program_compile_ms", run.timing.generation_gpu_program_compile_ms, false);
+      dump_vec("generation_gpu_pack_upload_ms", run.timing.generation_gpu_pack_upload_ms, false);
+      dump_vec("generation_gpu_kernel_ms", run.timing.generation_gpu_kernel_ms, false);
+      dump_vec("generation_gpu_copyback_ms", run.timing.generation_gpu_copyback_ms, false);
+      dump_vec("generation_selection_ms", run.timing.generation_selection_ms, false);
+      dump_vec("generation_crossover_ms", run.timing.generation_crossover_ms, false);
+      dump_vec("generation_mutation_ms", run.timing.generation_mutation_ms, false);
+      dump_vec("generation_elite_copy_ms", run.timing.generation_elite_copy_ms, false);
+      dump_vec("generation_total_ms", run.timing.generation_total_ms, true);
       out << "  },\n";
 
       out << "  \"final\": {\n";

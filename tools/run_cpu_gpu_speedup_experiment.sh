@@ -4,10 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-CASES="data/fixtures/fitness_multi_bench_inputs_psb2.json"
-CASES_FORMAT="psb2_fixture"
-INPUT_INDICES="1"
-INPUT_NAMES="x"
+CASES="data/fixtures/speedup_cases_bouncing_balls_1024.json"
 CPP_CLI="cpp/build/g3pvm_evolve_cli"
 SELECTION="tournament"
 CROSSOVER_METHOD="hybrid"
@@ -27,9 +24,7 @@ Options:
   --popsize N            Population size (default: 4096)
   --generations N        Generations (default: 40)
   --blocksize N          GPU blocksize (default: 256)
-  --cases PATH           Cases JSON path (default: data/fixtures/fitness_multi_bench_inputs_psb2.json)
-  --input-indices STR    Input indices for psb2 fixture (default: 1)
-  --input-names STR      Input names for psb2 fixture (default: x)
+  --cases PATH           Cases JSON path (default: data/fixtures/speedup_cases_bouncing_balls_1024.json)
   --selection STR        Selection method (default: tournament)
   --crossover-method STR Crossover method (default: hybrid)
   --cpp-cli PATH         Evolve CLI path (default: cpp/build/g3pvm_evolve_cli)
@@ -48,10 +43,6 @@ while [[ $# -gt 0 ]]; do
       BLOCKSIZE="$2"; shift 2 ;;
     --cases)
       CASES="$2"; shift 2 ;;
-    --input-indices)
-      INPUT_INDICES="$2"; shift 2 ;;
-    --input-names)
-      INPUT_NAMES="$2"; shift 2 ;;
     --selection)
       SELECTION="$2"; shift 2 ;;
     --crossover-method)
@@ -90,9 +81,6 @@ echo "[exp] popsize=$POPSIZE generations=$GENERATIONS blocksize=$BLOCKSIZE"
 echo "[exp] running CPU baseline..."
 python3 tools/run_cpp_evolution.py \
   --cases "$CASES" \
-  --cases-format "$CASES_FORMAT" \
-  --input-indices "$INPUT_INDICES" \
-  --input-names "$INPUT_NAMES" \
   --cpp-cli "$CPP_CLI" \
   --engine cpu \
   --selection "$SELECTION" \
@@ -107,9 +95,6 @@ echo "[exp] running GPU run..."
 set +e
 scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py \
   --cases "$CASES" \
-  --cases-format "$CASES_FORMAT" \
-  --input-indices "$INPUT_INDICES" \
-  --input-names "$INPUT_NAMES" \
   --cpp-cli "$CPP_CLI" \
   --engine gpu \
   --blocksize "$BLOCKSIZE" \
@@ -151,8 +136,10 @@ with open(cpu_sum, 'r', encoding='utf-8') as f:
 with open(gpu_sum, 'r', encoding='utf-8') as f:
     gpu = json.load(f)
 
+
 def phase(d, name):
     return d['parsed']['timing_summary'].get(name)
+
 
 def find_outer(d):
     for x in d['timings']:
@@ -160,17 +147,17 @@ def find_outer(d):
             return x['elapsed_ms']
     return None
 
-def speedup(a, b):
-    if a is None or b is None or b == 0:
+
+def speedup(cpu_ms, gpu_ms):
+    if cpu_ms is None or gpu_ms is None or gpu_ms == 0:
         return None
-    return a / b
+    return cpu_ms / gpu_ms
+
 
 cpu_total = phase(cpu, 'total')
 gpu_total = phase(gpu, 'total')
 cpu_eval = phase(cpu, 'generations_eval_total')
 gpu_eval = phase(gpu, 'generations_eval_total')
-cpu_repro = phase(cpu, 'generations_repro_total')
-gpu_repro = phase(gpu, 'generations_repro_total')
 
 report = {
     'cpu_summary': cpu_sum,
@@ -178,13 +165,23 @@ report = {
     'cpu': {
         'inner_total_ms': cpu_total,
         'inner_eval_ms': cpu_eval,
-        'inner_repro_ms': cpu_repro,
+        'inner_repro_ms': phase(cpu, 'generations_repro_total'),
+        'inner_selection_ms': phase(cpu, 'generations_selection_total'),
+        'inner_crossover_ms': phase(cpu, 'generations_crossover_total'),
+        'inner_mutation_ms': phase(cpu, 'generations_mutation_total'),
+        'inner_elite_copy_ms': phase(cpu, 'generations_elite_copy_total'),
+        'cpu_program_compile_total_ms': phase(cpu, 'cpu_generations_program_compile_total'),
         'outer_run_cpp_cli_ms': find_outer(cpu),
     },
     'gpu': {
         'inner_total_ms': gpu_total,
         'inner_eval_ms': gpu_eval,
-        'inner_repro_ms': gpu_repro,
+        'inner_repro_ms': phase(gpu, 'generations_repro_total'),
+        'inner_selection_ms': phase(gpu, 'generations_selection_total'),
+        'inner_crossover_ms': phase(gpu, 'generations_crossover_total'),
+        'inner_mutation_ms': phase(gpu, 'generations_mutation_total'),
+        'inner_elite_copy_ms': phase(gpu, 'generations_elite_copy_total'),
+        'cpu_program_compile_total_ms': phase(gpu, 'cpu_generations_program_compile_total'),
         'gpu_session_init_ms': phase(gpu, 'gpu_session_init'),
         'gpu_program_compile_total_ms': phase(gpu, 'gpu_generations_program_compile_total'),
         'gpu_pack_upload_total_ms': phase(gpu, 'gpu_generations_pack_upload_total'),
@@ -193,9 +190,9 @@ report = {
         'outer_run_cpp_cli_ms': find_outer(gpu),
     },
     'speedup': {
+        'end_to_end_outer_run_cpp_cli_cpu_over_gpu': speedup(find_outer(cpu), find_outer(gpu)),
         'inner_total_cpu_over_gpu': speedup(cpu_total, gpu_total),
-        'inner_eval_cpu_over_gpu': speedup(cpu_eval, gpu_eval),
-        'outer_run_cpp_cli_cpu_over_gpu': speedup(find_outer(cpu), find_outer(gpu)),
+        'eval_only_cpu_over_gpu': speedup(cpu_eval, gpu_eval),
     },
 }
 
@@ -204,42 +201,39 @@ md_path = os.path.join(outdir, 'cpu_gpu_compare.report.md')
 with open(json_path, 'w', encoding='utf-8') as f:
     json.dump(report, f, ensure_ascii=True, indent=2)
 
+
+def fmt(v):
+    if v is None:
+        return 'n/a'
+    return f'{v:.3f}'
+
 lines = []
 lines.append('# CPU vs GPU Evolution Timing Comparison')
 lines.append('')
 lines.append(f'- CPU summary: `{cpu_sum}`')
 lines.append(f'- GPU summary: `{gpu_sum}`')
 lines.append('')
-lines.append('## Key Metrics (ms)')
-lines.append('')
-lines.append(f'- CPU inner total: {cpu_total:.3f}')
-lines.append(f'- GPU inner total: {gpu_total:.3f}')
-lines.append(f'- CPU generations eval total: {cpu_eval:.3f}')
-lines.append(f'- GPU generations eval total: {gpu_eval:.3f}')
-lines.append(f'- CPU generations repro total: {cpu_repro:.3f}')
-lines.append(f'- GPU generations repro total: {gpu_repro:.3f}')
-lines.append('')
-lines.append('## Speedup')
+lines.append('## Speedup KPIs')
 lines.append('')
 for k, v in report['speedup'].items():
-    if v is None:
-      lines.append(f'- {k}: n/a')
-    else:
-      lines.append(f'- {k}: {v:.3f}x')
+    lines.append(f'- {k}: {"n/a" if v is None else f"{v:.3f}x"}')
+lines.append('')
+lines.append('## CPU Breakdown (ms)')
+lines.append('')
+for k, v in report['cpu'].items():
+    lines.append(f'- {k}: {fmt(v)}')
 lines.append('')
 lines.append('## GPU Breakdown (ms)')
 lines.append('')
-for k in ['gpu_session_init_ms', 'gpu_program_compile_total_ms', 'gpu_pack_upload_total_ms', 'gpu_kernel_total_ms', 'gpu_copyback_total_ms']:
-    val = report['gpu'][k]
-    if val is None:
-      lines.append(f'- {k}: n/a')
-    else:
-      lines.append(f'- {k}: {val:.3f}')
+for k, v in report['gpu'].items():
+    lines.append(f'- {k}: {fmt(v)}')
 
 with open(md_path, 'w', encoding='utf-8') as f:
     f.write('\n'.join(lines) + '\n')
 
-print(md_path)
+print(f"[exp] report json: {json_path}")
+print(f"[exp] report md: {md_path}")
 PY
 
-echo "[exp] done. compare report: $OUTDIR/cpu_gpu_compare.report.md"
+echo "[exp] done"
+echo "[exp] report: $OUTDIR/cpu_gpu_compare.report.md"

@@ -2,16 +2,14 @@
 
 ## 1. High-Level Design
 
-The project has one core program representation: **linear prefix AST**.
+The project uses one core representation: **linear prefix AST**.
 
 Primary flow:
 
 1. Build/obtain prefix `AstProgram`
-2. Compile to bytecode (optional for interpreter-only checks)
+2. Compile to bytecode
 3. Execute in Python VM, C++ CPU VM, or C++ GPU VM
-4. In evolution loops, mutate/crossover genomes at prefix level
-
-No tree AST compatibility layer is part of the supported architecture.
+4. Run evolution loops with CPU/GPU fitness parity and profiling
 
 ## 2. Core Data Models
 
@@ -19,62 +17,41 @@ No tree AST compatibility layer is part of the supported architecture.
 
 Defined in `python/src/g3p_vm_gpu/ast.py` and mirrored in C++ evo AST structures.
 
-- `nodes`: linear prefix token stream (`NodeKind` + payload slots)
-- `names`: symbol table for vars/assign targets
+- `nodes`: linear prefix token stream
+- `names`: symbol table
 - `consts`: constant pool
 - `version`: `ast-prefix-v1`
 
-Structural invariants:
+### Unified Fixture Schema (`fitness-cases-v1`)
 
-- root node is `PROGRAM`
-- arity-consistent prefix structure
-- no trailing tokens
-- const/name indices in range
+All evolution/benchmark inputs use one JSON schema:
 
-### Bytecode Program
+- `format_version`: `fitness-cases-v1`
+- `meta`: metadata map
+- `cases`: list of `{inputs, expected}`
+- value encoding supports typed values (`int|float|bool|none`)
 
-- instruction list + const pool + local variable map
-- consumed by Python VM and C++ VM CLI tools
+## 3. C++ Evolution Pipeline
 
-### Genome
+- `evolve.cpp` evaluates CPU/GPU fitness with aligned scoring logic.
+- CPU and GPU both use shared-cases/shared-answer style evaluation internally.
+- GPU path uses session reuse and reports compile/upload/kernel/copyback timings.
+- Reproduction phase reports selection/crossover/mutation/elite timings.
 
-- wraps an `AstProgram` + computed metadata (`node_count`, `max_depth`, hash, etc.)
-- mutation/crossover operate on prefix-native forms
+## 4. CPU/GPU Performance Pipeline
 
-## 3. Python Layer Responsibilities
+Entry: `tools/run_cpu_gpu_speedup_experiment.sh`
 
-- `ast.py`: representation, validation, utility traversals, builder
-- `compiler.py`: deterministic prefix -> bytecode lowering
-- `interp.py`: direct prefix interpreter with fuel/error semantics
-- `vm.py`: bytecode execution engine
-- `evo_encoding.py`: random generation, mutate, crossover, constraints validation
-- `evolve.py`: population evaluation, selection, and generation loop
+It runs CPU and GPU evolution on the same `fitness-cases-v1` fixture, then reports:
 
-## 4. C++ Layer Responsibilities
+- end-to-end speedup (`run_cpp_cli` wall)
+- inner total speedup
+- eval-only speedup
+- reproduction breakdown
+- GPU execution breakdown
 
-- `evo_ast.*`: prefix-native evolutionary operators and compilation integration
-- `vm_cpu.*`: CPU bytecode runtime
-- `vm_gpu.*`: GPU runtime and fitness/multi-batch execution
-- `evolve_cli.*`: end-to-end evolution executable with timing outputs
+## 5. Design Constraints
 
-## 5. CPU/GPU Performance Pipeline
-
-Benchmark command:
-
-`tools/run_cpu_gpu_speedup_experiment.sh`
-
-It runs:
-
-1. CPU evolution run (`engine=cpu`)
-2. GPU evolution run (`engine=gpu` via wrapper)
-3. report synthesis:
-   - inner totals (`total`, `generations_eval_total`, `generations_repro_total`)
-   - outer wall (`run_cpp_cli`)
-   - CPU/GPU speedups
-
-## 6. Design Constraints
-
-- Prefix-only architecture: new feature work must not introduce tree AST paths.
-- Interpreter/VM semantic parity is mandatory.
-- Evolution operators must preserve AST structural validity and limits.
-- GPU runtime selection should go through `scripts/run_gpu_command.sh` in shared environments.
+- Prefix-only architecture.
+- CPU/GPU fitness parity is mandatory.
+- GPU runtime selection should go through `scripts/run_gpu_command.sh`.
