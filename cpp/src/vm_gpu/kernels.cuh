@@ -289,10 +289,12 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   extern __shared__ DInstr shared_code[];
   __shared__ int block_exact_match_count;
   __shared__ int block_runtime_error_count;
+  __shared__ int block_non_numeric_mismatch_count;
   __shared__ double block_abs_error_sum;
   if (tid == 0) {
     block_exact_match_count = 0;
     block_runtime_error_count = 0;
+    block_non_numeric_mismatch_count = 0;
     block_abs_error_sum = 0.0;
   }
   __syncthreads();
@@ -306,6 +308,7 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
 
   int local_exact_match_count = 0;
   int local_runtime_error_count = 0;
+  int local_non_numeric_mismatch_count = 0;
   double local_abs_error_sum = 0.0;
   for (int local_case = tid; local_case < meta.case_count; local_case += static_cast<int>(blockDim.x)) {
     const DResult result = d_exec_one_case(
@@ -325,6 +328,8 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     if (vm_semantics::to_numeric_pair(result.value, shared_answer[local_case], pred_num, expected_num, any_float)) {
       (void)any_float;
       local_abs_error_sum += fabs(pred_num - expected_num);
+    } else if (!d_value_equal_for_fitness(result.value, shared_answer[local_case])) {
+      local_non_numeric_mismatch_count += 1;
     }
   }
 
@@ -334,6 +339,9 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   if (local_runtime_error_count != 0) {
     atomicAdd(&block_runtime_error_count, local_runtime_error_count);
   }
+  if (local_non_numeric_mismatch_count != 0) {
+    atomicAdd(&block_non_numeric_mismatch_count, local_non_numeric_mismatch_count);
+  }
   if (local_abs_error_sum != 0.0) {
     atomicAdd(&block_abs_error_sum, local_abs_error_sum);
   }
@@ -342,8 +350,8 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     const double case_count = static_cast<double>(meta.case_count);
     const double mean_abs_error = (case_count > 0.0) ? (block_abs_error_sum / case_count) : 0.0;
     const int rounded_mean_abs_error = static_cast<int>(mean_abs_error + 0.5);
-    fitness_out[prog_idx] =
-        block_exact_match_count - rounded_mean_abs_error - block_runtime_error_count * 10;
+    fitness_out[prog_idx] = block_exact_match_count - rounded_mean_abs_error - block_runtime_error_count * 10 -
+                            block_non_numeric_mismatch_count;
   }
 }
 

@@ -297,6 +297,7 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
   for (std::size_t p = 0; p < programs.size(); ++p) {
     int exact_match_count = 0;
     int runtime_error_count = 0;
+    int non_numeric_mismatch_count = 0;
     double abs_error_sum = 0.0;
     for (std::size_t c = 0; c < shared_cases.size(); ++c) {
       std::vector<std::pair<int, Value>> inputs;
@@ -320,11 +321,14 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
       if (vm_semantics::to_numeric_pair(out.value, shared_answer[c], pred_num, expected_num, any_float)) {
         (void)any_float;
         abs_error_sum += std::fabs(pred_num - expected_num);
+      } else if (!vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
+        non_numeric_mismatch_count += 1;
       }
     }
     const double mean_abs_error = abs_error_sum / case_count;
     const int rounded_mean_abs_error = static_cast<int>(std::llround(mean_abs_error));
-    fitness[p] = exact_match_count - rounded_mean_abs_error - runtime_error_count * 10;
+    fitness[p] =
+        exact_match_count - rounded_mean_abs_error - runtime_error_count * 10 - non_numeric_mismatch_count;
   }
 
   return fitness;
