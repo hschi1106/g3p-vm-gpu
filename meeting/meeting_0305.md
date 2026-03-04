@@ -45,6 +45,88 @@ Selection, crossover, and mutation stay on the host. Only the evaluation phase r
 - Program execution semantics on bytecode VM
 - CPU/GPU difference on batch evaluation
 
+### 2.4 Current grammar / language subset
+
+The current language is a restricted Python-like subset. At the AST level, it can be summarized as:
+
+```text
+Expr ::=
+    Const(v)
+  | Var(x)
+  | Unary(op, e)                  op ∈ {NEG, NOT}
+  | Binary(op, e1, e2)            op ∈
+      {ADD, SUB, MUL, DIV, MOD,
+       LT, LE, GT, GE, EQ, NE,
+       AND, OR}
+  | IfExpr(cond, then_e, else_e)
+  | Call(name, args)              name ∈ {abs, min, max, clip}
+
+Stmt ::=
+    Assign(x, e)
+  | IfStmt(cond, then_blk, else_blk)
+  | ForRange(x, K, body_blk)
+  | Return(e)
+
+Block ::= [s1; s2; ...; sn]
+Program ::= Block
+```
+
+Important restrictions in the current grammar and semantics:
+
+- Value domain is only `Int | Float | Bool | None`
+- `Bool` is not numeric
+- Conditions for `if`, `and`, `or`, and ternary must be `Bool`
+- `ForRange(x, K, ...)` requires `K` to be a non-negative integer constant
+- Only whitelisted builtins are allowed: `abs`, `min`, `max`, `clip`
+- No containers, user-defined functions, recursion, exceptions, strings, or I/O
+
+### 2.5 Validation before compile / evaluate
+
+Candidate programs are not sent directly into compilation or VM execution. They first pass `validate_genome(...)`.
+
+The current validation checks include:
+
+- AST version must be `ast-prefix-v1`
+- The prefix root must be `PROGRAM`
+- Prefix structure must be well-formed, with no broken subtree boundaries
+- There must be no trailing tokens after the program block
+- Total node count must not exceed `max_total_nodes`
+- Expression depth must not exceed `max_expr_depth`
+- A block must end with `BLOCK_NIL`
+- A block must not exceed `max_stmts_per_block`
+- The top-level block must contain at least one `Return`
+- `ForRange.k` must be non-negative
+- `ForRange.k` must not exceed `max_for_k`
+- `IfStmt` and `IfExpr` conditions must be `Bool`
+- `AND/OR` expect `Bool`
+- Arithmetic ops expect numeric operands
+- Ordering comparisons expect numeric operands
+- `EQ/NE` require compatible types
+- Builtin arguments must be numeric
+- Constant indices must be in range
+
+Why this matters:
+
+- Validation removes structurally broken genomes before they reach bytecode compilation
+- It constrains the search space to programs that match the current subset
+- It keeps CPU / GPU evaluation focused on semantic / runtime behavior rather than malformed ASTs
+
+### 2.6 When validation happens, and what happens if it fails
+
+Validation mostly happens during genome creation or modification, not as a full check over the whole population before every evaluation.
+
+- `make_random_genome(...)`: validate immediately
+- `crossover_* (...)`: validate the child after crossover
+- `mutate(...)`: C++ only checks some structural limits, not full validation
+
+If a program fails validation in C++:
+
+- random generation: retry, then fall back to a simple safe program
+- crossover: keep `parent_a`
+- mutation: keep the original genome
+
+So invalid programs are usually filtered out early, rather than being kept and given a low fitness later.
+
 ---
 
 ## 3. End-to-End Flow
