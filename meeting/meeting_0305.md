@@ -2,12 +2,12 @@
 
 ## 1. Overview
 
-- Same semantic
+- Same semantics
 - Same representation
 - Same fitness rule
 - CPU / GPU difference: evaluation backend
 
-high-level flow: 
+High-level flow:
 
 `Genome / AST -> Bytecode -> CPU VM or GPU VM -> Fitness -> Selection/Crossover/Mutation -> Next Generation`
 
@@ -15,19 +15,19 @@ high-level flow:
 
 ## 2. Overall structure
 
-### 2.1 Intermidiate representation: Prefix AST
+### 2.1 Intermediate representation: Prefix AST
 
- `AstProgram` as the core representation of candidate programs.Not Python source code, but prefix AST token stream.
+`AstProgram` is the core representation of candidate programs. It is not Python source code, but a prefix AST token stream.
 
 Benefits:
 
 1. Easy mutation / crossover.
 2. Easy to validate programs.
-3. Easy to compile to bytecode
+3. Easy to compile to bytecode.
 
-### 2.2 Single execute rules: Bytecode ISA
+### 2.2 Single execution contract: Bytecode ISA
 
-VM states contains:
+VM state contains:
 
 - `ip`: instruction pointer
 - `stack`: operand stack
@@ -35,11 +35,11 @@ VM states contains:
 - `consts`: constant pool
 - `fuel`: instruction budget
 
-Same stack machine for CPU / GPU.
+It is the same stack machine for CPU and GPU.
 
 ### 2.3 Same evolution pipeline with different CPU/GPU evaluator
 
-Selection、crossover、mutation stay's on host. Only evaluation phase on different devices.
+Selection, crossover, and mutation stay on the host. Only the evaluation phase runs on different devices.
 
 - Evolution orchestration on C++ host
 - Program execution semantics on bytecode VM
@@ -47,108 +47,59 @@ Selection、crossover、mutation stay's on host. Only evaluation phase on differ
 
 ---
 
-## 3. Experiment setup and summary
+## 3. End-to-End Flow
 
-Three different tasks in `logs`: 
+### 3.1 Step 1: Prepare fitness cases
 
-- `x + 1`
-- `2x + 3`
-- `x^2`
+Prepare `fitness-cases-v1` inputs and expected outputs, then convert them into a shared case layout for batch evaluation.
 
-Common setting:
+### 3.2 Step 2: Initialize population
 
-- population = `1024`
-- generations = `40`
-- seed = `0`
-- selection = `tournament`
-- crossover = `hybrid`
-- 每題 case_count = `1024`
+Randomly generate `1024` `ProgramGenome` instances.
 
-### 3.1 Experiment result
-
-- Average end-to-end: `78.790x`
-- Average inner_total:`80.868x`
-- Average eval-only: `188.902x`
-- CPU/GPU best fitness are both: `1024.0`
-
-1. GPU accelerates the most heavy evaluation phase.
-2. Same outcome between CPU / GPU.
-
-### 3.2 Experiment data
-
-| Case | CPU outer(ms) | GPU outer(ms) | End-to-end speedup | CPU inner(ms) | GPU inner(ms) | Inner speedup | CPU eval(ms) | GPU eval(ms) | Eval speedup |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| x_plus_1 | 154976.870 | 2817.931 | 54.997x | 154923.397 | 2742.164 | 56.497x | 151470.613 | 1143.327 | 132.482x |
-| affine_2x_plus_3 | 149018.483 | 2729.410 | 54.597x | 148966.757 | 2661.038 | 55.981x | 145307.086 | 1088.608 | 133.480x |
-| square_x2 | 353008.721 | 2784.526 | 126.775x | 352947.196 | 2712.365 | 130.125x | 341206.209 | 1134.544 | 300.743x |
-
-### 3.3 Why `x^2` is so fast
-
-`x^2` is not fater on GPU, but much more slower on CPU.
-
-- `x+1` CPU eval: `151470 ms`
-- `2x+3` CPU eval: `145307 ms`
-- `x^2` CPU eval: `341206 ms`
-
-GPU eval around three problems: `1088 ms ~ 1143 ms`
-
-Why: CPU cost more on heavy arithmetic tasks like `x^2`.
-
-> GPU strength: not only fast, but the time growth with heavy arithmetic tasks is less than CPU.
-
----
-
-## 4. End-to-End Flow
-
-### 4.1 Step 1: Prepare fitness cases
-
-### 4.2 Step 2: Initialize population
-
-Randomly produce `1024` `ProgramGenome`。
-
-Every genome contains
+Each genome contains:
 
 - AST structure
-- metadata: hash、node_count、depth
+- metadata: hash, `node_count`, `depth`
 
-### 4.4 Step 3: compile population
+### 3.3 Step 3: Compile population
 
-Before every evaluation, genome will be compile to `BytecodeProgram`。
+Before each evaluation, each genome is compiled into a `BytecodeProgram`.
 
-Utilize compile cache：
+The pipeline uses a compile cache:
 
 - If genome hash doesn't change, reuse the compiled bytecode
-- Avoid re-compile on same genome in different generaions.
+- Avoid recompiling the same genome across generations
 
-### 4.5 Step 5: evaluate population
+### 3.4 Step 4: Evaluate population
 
-CPU version: 
+CPU version:
 
 - One program
 - Execute bytecode case by case
-- Accumulates exact match、abs error、runtime error
+- Accumulate exact match, absolute error, and runtime error
 - Calculate fitness
 
-GPU version: 
+GPU version:
 
 - One block for one program
-- Threads in same block share different cases
+- Threads in the same block process different cases
 - In-block reduction / atomicAdd
 - Get fitness
 
-### 4.6 Step 6: sorting + selection
+### 3.5 Step 5: Sorting + selection
 
-Use `tournament selection` in this experiment
+This experiment uses `tournament selection`.
 
-### 4.7 Step 7: crossover + mutation + elitism
+### 3.6 Step 6: Crossover + mutation + elitism
 
-### 4.8 Step 8: Repeat generations
+### 3.7 Step 7: Repeat generations
 
 ---
 
-## 5. CPU's evaluation mechanism
+## 4. CPU evaluation mechanism
 
-### 5.1 CPU evaluator's pipeline
+### 4.1 CPU evaluator pipeline
 
 ```text
 for each program:
@@ -161,54 +112,55 @@ for each program:
         accumulate fitness statistics
 ```
 
-`1024 x 1024 = 1,048,576` times of program-case evaluation in one generation.
+That means `1024 x 1024 = 1,048,576` program-case evaluations in one generation.
 
-### 5.2 Execution model of CPU VM
+### 4.2 Execution model of CPU VM
 
-Classic stack machine：
+Classic stack machine:
 
 - `PUSH_CONST` push constant to stack
 - `LOAD` load from locals
-- `ADD/SUB/MUL/...` pop two values from stack pop, calcuate it and push back.
+- `ADD/SUB/MUL/...` pop two values, calculate the result, and push it back
 - `RETURN` take stack top as result
 
-### 5.3 CPU timing structure
+### 4.3 CPU timing structure
 
 - outer total: `657004.074 ms`
 - inner_total: `656837.350 ms`
 - outer overhead: `166.724 ms`
 - eval share in inner_total: `97.13%`
 
-> CPU spends most off its time on evaluation, not I/O nor orchestration, but VM.
+> CPU spends most of its time on evaluation, not on I/O or orchestration, but on repeatedly running the VM.
 
 ---
 
-## 6. GPU's evaluation mechanism
+## 5. GPU evaluation mechanism
 
-### 6.1 Core idea: one block for one program
+### 5.1 Core idea: one block for one program
 
 - `blockIdx.x = program index`
 - `threadIdx.x = case worker`
 
-### 6.2 Move bytecode to shared memory
+### 5.2 Move bytecode to shared memory
 
-kernel move program's bytecode from global memory to `shared_code[]`.
+The kernel moves the program's bytecode from global memory to `shared_code[]`.
 
 - In a single block, all threads repeatedly read same bytecode
-- Lower access cost from shared memory than global memory
+- In a single block, all threads repeatedly read the same bytecode
+- Accessing shared memory is cheaper than accessing global memory
 
-> block-shared code with case-specific threads
+> Block-shared code with case-specific threads.
 
-### 6.3 Every thread execute different cases
+### 5.3 Every thread executes different cases
 
-Threads execute different cases in stride approach.
+Threads execute different cases in a strided pattern.
 
 ```text
 for local_case = tid; local_case < case_count; local_case += blockDim.x:
     execute this program on that case
 ```
 
-### 6.4 thread accumulate local statistics
+### 5.4 Each thread accumulates local statistics
 
 Every thread accumulates:
 
@@ -217,34 +169,34 @@ Every thread accumulates:
 - `local_non_numeric_mismatch_count`
 - `local_abs_error_sum`
 
-`atomicAdd` to block-level shared variables：
+`atomicAdd` to block-level shared variables:
 
 - `block_exact_match_count`
 - `block_runtime_error_count`
 - `block_non_numeric_mismatch_count`
 - `block_abs_error_sum`
 
-Thread with `tid == 0` pack all statistics to a single fitness value.
+The thread with `tid == 0` combines all statistics into a single fitness value.
 
-- Every thread calculate local case statistics
+- Every thread calculates local case statistics
 - Whole block combines the fitness of the program
 
-### 6.5 GPU session reuse: avoid re-upload shared cases
+### 5.5 GPU session reuse: avoid re-uploading shared cases
 
-`GPUFitnessSession` will be launch only at initialize session
+`GPUFitnessSession` is initialized only once per session:
 
 - pick GPU device
 - upload shared cases
 - upload expected answers
 
-For the upcoming generations, only upload:
+For later generations, only upload:
 
 - programs of this generation
 - corresponding consts / code / metas
 
 ---
 
-## 7. Fitness
+## 6. Fitness
 
 ```text
 score =
@@ -254,16 +206,67 @@ score =
     - non_numeric_mismatch_count
 ```
 
-### 7.1 Meanings
+### 6.1 Meaning of each term
 
 - `exact_match_count`
-  - Number of right answers
+  - Number of exact matches
 - `mean_abs_error`
-  - MAE of wrong answwer
+  - Mean absolute error for numeric predictions
 - `runtime_error_count`
-  - runtime error. eg: div by zero, type error, timeout
+  - Runtime errors, for example division by zero, type error, or timeout
 - `non_numeric_mismatch_count`
-  - wrong non-numeric answer
+  - Wrong non-numeric answers
+
+---
+
+## 7. Experiment setup and summary
+
+Three different tasks in `logs`:
+
+- `x + 1`
+- `2x + 3`
+- `x^2`
+
+Common settings:
+
+- population = `1024`
+- generations = `40`
+- seed = `0`
+- selection = `tournament`
+- crossover = `hybrid`
+- case_count per task = `1024`
+
+### 7.1 Experiment result
+
+- Average end-to-end speedup: `78.790x`
+- Average `inner_total` speedup: `80.868x`
+- Average eval-only speedup: `188.902x`
+- CPU/GPU best fitness are both `1024.0`
+
+1. GPU accelerates the heaviest evaluation phase.
+2. CPU and GPU reach the same final outcome on these tasks.
+
+### 7.2 Experiment data
+
+| Case | CPU outer(ms) | GPU outer(ms) | End-to-end speedup | CPU inner(ms) | GPU inner(ms) | Inner speedup | CPU eval(ms) | GPU eval(ms) | Eval speedup |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| x_plus_1 | 154976.870 | 2817.931 | 54.997x | 154923.397 | 2742.164 | 56.497x | 151470.613 | 1143.327 | 132.482x |
+| affine_2x_plus_3 | 149018.483 | 2729.410 | 54.597x | 148966.757 | 2661.038 | 55.981x | 145307.086 | 1088.608 | 133.480x |
+| square_x2 | 353008.721 | 2784.526 | 126.775x | 352947.196 | 2712.365 | 130.125x | 341206.209 | 1134.544 | 300.743x |
+
+### 7.3 Why `x^2` shows the largest speedup
+
+`x^2` is not dramatically faster on GPU; instead, it is much slower on CPU.
+
+- `x+1` CPU eval: `151470 ms`
+- `2x+3` CPU eval: `145307 ms`
+- `x^2` CPU eval: `341206 ms`
+
+GPU eval across all three tasks stays around `1088 ms ~ 1143 ms`.
+
+The reason is that CPU cost grows much more on heavier arithmetic tasks such as `x^2`.
+
+> GPU strength is not only raw speed, but also slower time growth as arithmetic complexity increases.
 
 ---
 
@@ -271,9 +274,9 @@ score =
 
 - eval-only speedup: `132x ~ 300x`
 
-> end-toend: `55x ~ 127x`?
+> Why is end-to-end speedup only `55x ~ 127x`?
 
-### 8.1 Fix cost in GPU pipeline
+### 8.1 Fixed costs in the GPU pipeline
 
 - `gpu_session_init_total`: `220.600 ms`
 - `gpu_program_compile_total`: `1711.377 ms`
@@ -287,20 +290,20 @@ Observation:
 
 > kernel is fast enough, but GPU pipeline pays for setup and data movement costs.
 
-### 9.2 reproduction is still in CPU
+### 8.2 Reproduction is still on CPU
 
-Looking at `x+1`：
+Looking at `x+1`:
 
 - GPU `inner_eval_ms = 1143.327`
 - GPU `inner_repro_ms = 1391.997`
 
-Reproduction takes longer time than evaluation.
+Reproduction takes longer than evaluation.
 
 Valuable conclusion:
 
-> After GPU's acceleration on evaluation, bottleneck transfers to host side selection / crossover / mutation.
+> After GPU accelerates evaluation, the bottleneck shifts to host-side selection, crossover, and mutation.
 
-For further improvement, kernel cost is not the major part, but:
+For further improvement, the kernel is not the main target. The higher-priority targets are:
 
 1. Lower program compile cost
 2. Lower pack/upload cost
