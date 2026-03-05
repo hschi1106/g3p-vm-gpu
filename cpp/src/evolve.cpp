@@ -108,7 +108,7 @@ std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
     EvolutionTiming* timing,
     bool record_per_gen) {
   const CompiledPopulation compiled = compile_population(population, input_names, compile_cache);
-  const std::vector<int> fitness =
+  const std::vector<double> fitness =
       run_bytecode_cpu_multi_fitness_shared_cases(compiled.programs, shared_cases, shared_answer, fuel);
   if (fitness.size() != population.size()) {
     throw std::runtime_error("cpu fitness size mismatch");
@@ -122,7 +122,7 @@ std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
   std::vector<ScoredGenome> scored;
   scored.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    scored.push_back(ScoredGenome{population[i], static_cast<double>(fitness[i])});
+    scored.push_back(ScoredGenome{population[i], fitness[i]});
   }
   std::sort(scored.begin(), scored.end(), [](const ScoredGenome& a, const ScoredGenome& b) {
     return a.fitness > b.fitness;
@@ -161,7 +161,7 @@ std::vector<ScoredGenome> evaluate_population_gpu(
   std::vector<ScoredGenome> scored;
   scored.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    scored.push_back(ScoredGenome{population[i], static_cast<double>(fit.fitness[i])});
+    scored.push_back(ScoredGenome{population[i], fit.fitness[i]});
   }
   std::sort(scored.begin(), scored.end(), [](const ScoredGenome& a, const ScoredGenome& b) {
     return a.fitness > b.fitness;

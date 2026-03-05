@@ -22,13 +22,13 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
 
 // Returns one fitness score per program.
 // Scoring:
-//   score = exact_match_count - round(mean_abs_error) + runtime_error_count * (-10)
+//   score = exact_match_count - mean_abs_error + runtime_error_count * (-10)
 //           - non_numeric_mismatch_count
 // where mean_abs_error is over numeric predictions/targets across all cases.
 // Non-numeric non-error mismatches are penalized by -1 each.
 // All programs share one case set.
 // Returns empty vector when input shapes are invalid or device is unavailable.
-std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
+std::vector<double> run_bytecode_gpu_multi_fitness_shared_cases(
     const std::vector<BytecodeProgram>& programs,
     const std::vector<InputCase>& shared_cases,
     const std::vector<Value>& shared_answer,
@@ -38,7 +38,7 @@ std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
 // Debug variant for fitness evaluation with observable CUDA failure reason.
 struct GPUFitnessEvalResult {
   bool ok = false;
-  std::vector<int> fitness;
+  std::vector<double> fitness;
   double pack_programs_ms = 0.0;
   double upload_programs_ms = 0.0;
   double kernel_exec_ms = 0.0;

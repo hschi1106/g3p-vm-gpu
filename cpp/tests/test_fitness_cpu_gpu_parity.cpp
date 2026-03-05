@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -53,7 +54,7 @@ int main() {
     shared_answer.push_back(Value::from_int(i + 1));
   }
 
-  const std::vector<int> cpu_fit =
+  const std::vector<double> cpu_fit =
       g3pvm::run_bytecode_cpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, 64);
   const g3pvm::GPUFitnessEvalResult gpu_fit = g3pvm::run_bytecode_gpu_multi_fitness_shared_cases_debug(
       programs, shared_cases, shared_answer, 64, 128);
@@ -67,9 +68,15 @@ int main() {
     return 1;
   }
 
-  if (cpu_fit != gpu_fit.fitness) {
-    std::cerr << "FAIL: cpu/gpu fitness mismatch\n";
+  if (cpu_fit.size() != gpu_fit.fitness.size()) {
+    std::cerr << "FAIL: cpu/gpu fitness size mismatch\n";
     return 1;
+  }
+  for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
+    if (std::fabs(cpu_fit[i] - gpu_fit.fitness[i]) > 1e-9) {
+      std::cerr << "FAIL: cpu/gpu fitness mismatch at " << i << "\n";
+      return 1;
+    }
   }
 
   std::cout << "g3pvm_test_fitness_cpu_gpu_parity: OK\n";

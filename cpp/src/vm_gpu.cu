@@ -241,11 +241,11 @@ GPUFitnessEvalResult run_bytecode_gpu_multi_fitness_shared_cases_debug(
     return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
-  if (cudaMalloc(reinterpret_cast<void**>(&dev.d_fitness), sizeof(int) * programs.size()) != cudaSuccess) {
+  if (cudaMalloc(reinterpret_cast<void**>(&dev.d_fitness), sizeof(double) * programs.size()) != cudaSuccess) {
     return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
-  if (cudaMemset(dev.d_fitness, 0, sizeof(int) * programs.size()) != cudaSuccess) {
+  if (cudaMemset(dev.d_fitness, 0, sizeof(double) * programs.size()) != cudaSuccess) {
     return fitness_single_error(ErrCode::Value, "cuda memset failure");
   }
   const auto upload_t1 = std::chrono::steady_clock::now();
@@ -272,9 +272,9 @@ GPUFitnessEvalResult run_bytecode_gpu_multi_fitness_shared_cases_debug(
   }
   const auto kernel_t1 = std::chrono::steady_clock::now();
 
-  std::vector<int> host_fitness(programs.size(), 0);
+  std::vector<double> host_fitness(programs.size(), 0.0);
   const auto copy_t0 = std::chrono::steady_clock::now();
-  if (cudaMemcpy(host_fitness.data(), dev.d_fitness, sizeof(int) * programs.size(), cudaMemcpyDeviceToHost) !=
+  if (cudaMemcpy(host_fitness.data(), dev.d_fitness, sizeof(double) * programs.size(), cudaMemcpyDeviceToHost) !=
       cudaSuccess) {
     return fitness_single_error(ErrCode::Value, "cuda copy-back failure");
   }
@@ -292,7 +292,7 @@ GPUFitnessEvalResult run_bytecode_gpu_multi_fitness_shared_cases_debug(
   return out;
 }
 
-std::vector<int> run_bytecode_gpu_multi_fitness_shared_cases(
+std::vector<double> run_bytecode_gpu_multi_fitness_shared_cases(
     const std::vector<BytecodeProgram>& programs,
     const std::vector<InputCase>& shared_cases,
     const std::vector<Value>& shared_answer,
@@ -412,10 +412,10 @@ GPUFitnessEvalResult GPUFitnessSession::eval_programs(const std::vector<Bytecode
       !gpu_detail::cuda_alloc_and_copy_in(packed.metas, &dev.d_metas)) {
     return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
-  if (cudaMalloc(reinterpret_cast<void**>(&dev.d_fitness), sizeof(int) * programs.size()) != cudaSuccess) {
+  if (cudaMalloc(reinterpret_cast<void**>(&dev.d_fitness), sizeof(double) * programs.size()) != cudaSuccess) {
     return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
-  if (cudaMemset(dev.d_fitness, 0, sizeof(int) * programs.size()) != cudaSuccess) {
+  if (cudaMemset(dev.d_fitness, 0, sizeof(double) * programs.size()) != cudaSuccess) {
     return fitness_single_error(ErrCode::Value, "cuda memset failure");
   }
   const auto upload_t1 = std::chrono::steady_clock::now();
@@ -442,9 +442,9 @@ GPUFitnessEvalResult GPUFitnessSession::eval_programs(const std::vector<Bytecode
   }
   const auto kernel_t1 = std::chrono::steady_clock::now();
 
-  std::vector<int> host_fitness(programs.size(), 0);
+  std::vector<double> host_fitness(programs.size(), 0.0);
   const auto copy_t0 = std::chrono::steady_clock::now();
-  if (cudaMemcpy(host_fitness.data(), dev.d_fitness, sizeof(int) * programs.size(), cudaMemcpyDeviceToHost) !=
+  if (cudaMemcpy(host_fitness.data(), dev.d_fitness, sizeof(double) * programs.size(), cudaMemcpyDeviceToHost) !=
       cudaSuccess) {
     return fitness_single_error(ErrCode::Value, "cuda copy-back failure");
   }

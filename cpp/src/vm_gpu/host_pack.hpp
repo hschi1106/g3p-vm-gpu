@@ -37,7 +37,7 @@ struct DeviceArena {
   unsigned char* d_shared_case_local_set = nullptr;
   DResult* d_out = nullptr;
   Value* d_expected = nullptr;
-  int* d_fitness = nullptr;
+  double* d_fitness = nullptr;
 
   DeviceArena() = default;
   DeviceArena(const DeviceArena&) = delete;

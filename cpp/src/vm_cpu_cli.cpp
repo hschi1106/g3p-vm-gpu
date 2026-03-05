@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -73,7 +74,7 @@ int main(int argc, char** argv) {
     if (shared_answer_it != req->object_v.end()) {
       std::vector<g3pvm::Value> shared_answer = g3pvm::cli_detail::decode_shared_answer(shared_answer_it->second);
 
-      std::vector<int> fitness;
+      std::vector<double> fitness;
       if (engine == "cpu") {
         fitness = g3pvm::run_bytecode_cpu_multi_fitness_shared_cases(programs, shared_cases, shared_answer, fuel);
       } else if (engine == "gpu") {
@@ -104,7 +105,7 @@ int main(int argc, char** argv) {
       }
       std::cout << "OK fitness_count " << fitness.size() << "\n";
       for (std::size_t i = 0; i < fitness.size(); ++i) {
-        std::cout << "FIT " << i << " " << fitness[i] << "\n";
+        std::cout << "FIT " << i << " " << std::fixed << std::setprecision(6) << fitness[i] << "\n";
       }
       return 0;
     }

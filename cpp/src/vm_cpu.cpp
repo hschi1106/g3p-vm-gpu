@@ -1,6 +1,5 @@
 #include "g3pvm/vm_cpu.hpp"
 
-#include <climits>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -281,7 +280,7 @@ VMResult run_bytecode(const BytecodeProgram& program, const std::vector<std::pai
   return fail(ErrCode::Value, "program finished without return");
 }
 
-std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
+std::vector<double> run_bytecode_cpu_multi_fitness_shared_cases(
     const std::vector<BytecodeProgram>& programs,
     const std::vector<InputCase>& shared_cases,
     const std::vector<Value>& shared_answer,
@@ -293,7 +292,7 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
     return {};
   }
 
-  std::vector<int> fitness(programs.size(), 0);
+  std::vector<double> fitness(programs.size(), 0.0);
   const double case_count = static_cast<double>(shared_cases.size());
   for (std::size_t p = 0; p < programs.size(); ++p) {
     int exact_match_count = 0;
@@ -333,17 +332,15 @@ std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
       }
     }
     const double mean_abs_error = abs_error_sum / case_count;
-    int rounded_mean_abs_error = static_cast<int>(shared_cases.size());
+    double mean_abs_error_penalty = static_cast<double>(shared_cases.size());
     if (std::isfinite(mean_abs_error) && mean_abs_error >= 0.0) {
-      rounded_mean_abs_error = static_cast<int>(std::llround(mean_abs_error));
+      mean_abs_error_penalty = mean_abs_error;
     }
 
-    long long score =
-        static_cast<long long>(exact_match_count) - static_cast<long long>(rounded_mean_abs_error) -
-        static_cast<long long>(runtime_error_count) * 10LL - static_cast<long long>(non_numeric_mismatch_count);
-    if (score > static_cast<long long>(INT_MAX)) score = static_cast<long long>(INT_MAX);
-    if (score < static_cast<long long>(INT_MIN)) score = static_cast<long long>(INT_MIN);
-    fitness[p] = static_cast<int>(score);
+    const double score = static_cast<double>(exact_match_count) - mean_abs_error_penalty -
+                         static_cast<double>(runtime_error_count) * 10.0 -
+                         static_cast<double>(non_numeric_mismatch_count);
+    fitness[p] = score;
   }
 
   return fitness;

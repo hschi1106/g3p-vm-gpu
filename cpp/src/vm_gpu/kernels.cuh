@@ -1,6 +1,5 @@
 #pragma once
 
-#include <climits>
 #include <cmath>
 #include <cstdint>
 
@@ -280,7 +279,7 @@ __global__ void vm_multi_kernel_shared_cases(const Value* all_consts, const DIns
 __global__ void vm_multi_fitness_kernel_shared_cases(
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
     const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
-    const Value* shared_answer, int n_programs, int fuel, int* fitness_out) {
+    const Value* shared_answer, int n_programs, int fuel, double* fitness_out) {
   const int prog_idx = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
   if (prog_idx < 0 || prog_idx >= n_programs) return;
@@ -355,17 +354,14 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   if (tid == 0) {
     const double case_count = static_cast<double>(meta.case_count);
     const double mean_abs_error = (case_count > 0.0) ? (block_abs_error_sum / case_count) : 0.0;
-    int rounded_mean_abs_error = meta.case_count;
+    double mean_abs_error_penalty = static_cast<double>(meta.case_count);
     if (isfinite(mean_abs_error) && mean_abs_error >= 0.0) {
-      rounded_mean_abs_error = static_cast<int>(mean_abs_error + 0.5);
+      mean_abs_error_penalty = mean_abs_error;
     }
-    long long score = static_cast<long long>(block_exact_match_count) -
-                      static_cast<long long>(rounded_mean_abs_error) -
-                      static_cast<long long>(block_runtime_error_count) * 10LL -
-                      static_cast<long long>(block_non_numeric_mismatch_count);
-    if (score > static_cast<long long>(INT_MAX)) score = static_cast<long long>(INT_MAX);
-    if (score < static_cast<long long>(INT_MIN)) score = static_cast<long long>(INT_MIN);
-    fitness_out[prog_idx] = static_cast<int>(score);
+    const double score = static_cast<double>(block_exact_match_count) - mean_abs_error_penalty -
+                         static_cast<double>(block_runtime_error_count) * 10.0 -
+                         static_cast<double>(block_non_numeric_mismatch_count);
+    fitness_out[prog_idx] = score;
   }
 }
 
