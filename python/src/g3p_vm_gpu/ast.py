@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Dict, List, Sequence, Union
 
 
-Val = Union[int, float, bool, None]
+Val = Union[int, float, bool, None, str, List["Val"]]
 
 
 class UOp(str, Enum):
@@ -59,6 +59,10 @@ class NodeKind(str, Enum):
     CALL_MIN = "CALL_MIN"
     CALL_MAX = "CALL_MAX"
     CALL_CLIP = "CALL_CLIP"
+    CALL_LEN = "CALL_LEN"
+    CALL_CONCAT = "CALL_CONCAT"
+    CALL_SLICE = "CALL_SLICE"
+    CALL_INDEX = "CALL_INDEX"
 
 
 NODE_ARITY: Dict[NodeKind, int] = {
@@ -91,6 +95,10 @@ NODE_ARITY: Dict[NodeKind, int] = {
     NodeKind.CALL_MIN: 2,
     NodeKind.CALL_MAX: 2,
     NodeKind.CALL_CLIP: 3,
+    NodeKind.CALL_LEN: 1,
+    NodeKind.CALL_CONCAT: 2,
+    NodeKind.CALL_SLICE: 3,
+    NodeKind.CALL_INDEX: 2,
 }
 
 
@@ -117,6 +125,10 @@ EXPR_KINDS = {
     NodeKind.CALL_MIN,
     NodeKind.CALL_MAX,
     NodeKind.CALL_CLIP,
+    NodeKind.CALL_LEN,
+    NodeKind.CALL_CONCAT,
+    NodeKind.CALL_SLICE,
+    NodeKind.CALL_INDEX,
 }
 
 
@@ -350,6 +362,10 @@ def build_program(stmt_specs: Sequence[tuple]) -> AstProgram:
                 "min": NodeKind.CALL_MIN,
                 "max": NodeKind.CALL_MAX,
                 "clip": NodeKind.CALL_CLIP,
+                "len": NodeKind.CALL_LEN,
+                "concat": NodeKind.CALL_CONCAT,
+                "slice": NodeKind.CALL_SLICE,
+                "index": NodeKind.CALL_INDEX,
             }.get(name)
             if nk is None:
                 raise ValueError(f"unknown builtin: {name}")

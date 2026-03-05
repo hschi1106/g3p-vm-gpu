@@ -55,4 +55,46 @@ def builtin_call(name: str, args: List[Val]) -> Val | Err:
             return hi
         return x
 
+    if name == "len":
+        if len(args) != 1:
+            return Err(ErrCode.TYPE, "len expects 1 argument")
+        x = args[0]
+        if not isinstance(x, (str, list)):
+            return Err(ErrCode.TYPE, "len expects string/list argument")
+        return len(x)
+
+    if name == "concat":
+        if len(args) != 2:
+            return Err(ErrCode.TYPE, "concat expects 2 arguments")
+        a, b = args
+        if isinstance(a, str) and isinstance(b, str):
+            return a + b
+        if isinstance(a, list) and isinstance(b, list):
+            return a + b
+        return Err(ErrCode.TYPE, "concat expects (string,string) or (list,list)")
+
+    if name == "slice":
+        if len(args) != 3:
+            return Err(ErrCode.TYPE, "slice expects 3 arguments: slice(x, lo, hi)")
+        x, lo, hi = args
+        if not isinstance(x, (str, list)):
+            return Err(ErrCode.TYPE, "slice expects string/list as first argument")
+        if not (isinstance(lo, int) and not isinstance(lo, bool) and isinstance(hi, int) and not isinstance(hi, bool)):
+            return Err(ErrCode.TYPE, "slice expects integer lo/hi")
+        return x[lo:hi]
+
+    if name == "index":
+        if len(args) != 2:
+            return Err(ErrCode.TYPE, "index expects 2 arguments: index(x, i)")
+        x, i = args
+        if not isinstance(x, (str, list)):
+            return Err(ErrCode.TYPE, "index expects string/list as first argument")
+        if not (isinstance(i, int) and not isinstance(i, bool)):
+            return Err(ErrCode.TYPE, "index expects integer index")
+        n = len(x)
+        j = i + n if i < 0 else i
+        if j < 0 or j >= n:
+            return Err(ErrCode.VALUE, "index out of range")
+        return x[j]
+
     return Err(ErrCode.NAME, f"unknown builtin: {name}")

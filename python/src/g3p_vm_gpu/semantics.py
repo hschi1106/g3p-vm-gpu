@@ -50,4 +50,11 @@ def compare_values(op: str, a: Val, b: Val) -> bool | Err:
             return a is not b
         return Err(ErrCode.TYPE, "ordering comparison on None not supported")
 
+    if (isinstance(a, str) and isinstance(b, str)) or (isinstance(a, list) and isinstance(b, list)):
+        if op == "EQ":
+            return a == b
+        if op == "NE":
+            return a != b
+        return Err(ErrCode.TYPE, "ordering comparison on string/list not supported")
+
     return Err(ErrCode.TYPE, "unsupported comparison operand types")

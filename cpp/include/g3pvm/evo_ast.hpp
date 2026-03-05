@@ -13,6 +13,7 @@ enum class RType {
   Num,
   Bool,
   NoneType,
+  Container,
   Any,
   Invalid,
 };
@@ -47,6 +48,10 @@ enum class NodeKind {
   CALL_MIN,
   CALL_MAX,
   CALL_CLIP,
+  CALL_LEN,
+  CALL_CONCAT,
+  CALL_SLICE,
+  CALL_INDEX,
 };
 
 struct AstNode {

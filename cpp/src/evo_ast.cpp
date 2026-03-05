@@ -99,6 +99,14 @@ int node_arity(NodeKind kind) {
       return 2;
     case NodeKind::CALL_CLIP:
       return 3;
+    case NodeKind::CALL_LEN:
+      return 1;
+    case NodeKind::CALL_CONCAT:
+      return 2;
+    case NodeKind::CALL_SLICE:
+      return 3;
+    case NodeKind::CALL_INDEX:
+      return 2;
   }
   return 0;
 }
@@ -160,7 +168,8 @@ GenomeMeta build_meta_fast(const AstProgram& ast) {
   meta.uses_builtins = false;
   for (const AstNode& n : ast.nodes) {
     if (n.kind == NodeKind::CALL_ABS || n.kind == NodeKind::CALL_MIN || n.kind == NodeKind::CALL_MAX ||
-        n.kind == NodeKind::CALL_CLIP) {
+        n.kind == NodeKind::CALL_CLIP || n.kind == NodeKind::CALL_LEN || n.kind == NodeKind::CALL_CONCAT ||
+        n.kind == NodeKind::CALL_SLICE || n.kind == NodeKind::CALL_INDEX) {
       meta.uses_builtins = true;
       break;
     }
@@ -341,7 +350,11 @@ class Compiler {
       case NodeKind::CALL_ABS:
       case NodeKind::CALL_MIN:
       case NodeKind::CALL_MAX:
-      case NodeKind::CALL_CLIP: {
+      case NodeKind::CALL_CLIP:
+      case NodeKind::CALL_LEN:
+      case NodeKind::CALL_CONCAT:
+      case NodeKind::CALL_SLICE:
+      case NodeKind::CALL_INDEX: {
         std::size_t j = idx + 1;
         const int argc = node_arity(n.kind);
         for (int i = 0; i < argc; ++i) {
@@ -351,7 +364,11 @@ class Compiler {
         if (n.kind == NodeKind::CALL_ABS) bid = 0;
         else if (n.kind == NodeKind::CALL_MIN) bid = 1;
         else if (n.kind == NodeKind::CALL_MAX) bid = 2;
-        else bid = 3;
+        else if (n.kind == NodeKind::CALL_CLIP) bid = 3;
+        else if (n.kind == NodeKind::CALL_LEN) bid = 4;
+        else if (n.kind == NodeKind::CALL_CONCAT) bid = 5;
+        else if (n.kind == NodeKind::CALL_SLICE) bid = 6;
+        else bid = 7;
         emit("CALL_BUILTIN", bid, true, argc, true);
         return j;
       }
@@ -477,7 +494,8 @@ bool is_expr_kind(NodeKind kind) {
          kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
          kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
          kind == NodeKind::OR || kind == NodeKind::IF_EXPR || kind == NodeKind::CALL_ABS || kind == NodeKind::CALL_MIN ||
-         kind == NodeKind::CALL_MAX || kind == NodeKind::CALL_CLIP;
+         kind == NodeKind::CALL_MAX || kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN ||
+         kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX;
 }
 
 bool value_equal(const Value& a, const Value& b) {
@@ -485,7 +503,9 @@ bool value_equal(const Value& a, const Value& b) {
   if (a.tag == ValueTag::None) return true;
   if (a.tag == ValueTag::Bool) return a.b == b.b;
   if (a.tag == ValueTag::Int) return a.i == b.i;
-  return a.f == b.f;
+  if (a.tag == ValueTag::Float) return a.f == b.f;
+  if (a.tag == ValueTag::String || a.tag == ValueTag::List) return a.i == b.i;
+  return false;
 }
 
 std::size_t fill_subtree_end_at(const AstProgram& p, std::size_t idx, std::vector<std::size_t>& out) {
@@ -616,6 +636,11 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng, AstPr
   Value v = Value::from_int(0);
   if (t == RType::Bool) v = Value::from_bool(rand_prob(rng, 0.5));
   else if (t == RType::NoneType) v = Value::none();
+  else if (t == RType::Container) {
+    const std::uint32_t n = static_cast<std::uint32_t>(rand_int(rng, 0, 8));
+    const std::uint64_t h = static_cast<std::uint64_t>(rng());
+    v = rand_prob(rng, 0.5) ? Value::from_string_hash_len(h, n) : Value::from_list_hash_len(h, n);
+  }
   else if (rand_prob(rng, 0.5)) v = Value::from_int(rand_int(rng, -8, 8));
   else v = Value::from_float(std::round(rand_real(rng, -8.0, 8.0) * 1000.0) / 1000.0);
   donor.consts.push_back(v);
@@ -701,6 +726,9 @@ int choose_name_for_type(std::mt19937_64& rng, const PrefixGenCtx& ctx, RType t)
   if (t == RType::Num) v.assign(ctx.num_names.begin(), ctx.num_names.end());
   else if (t == RType::Bool) v.assign(ctx.bool_names.begin(), ctx.bool_names.end());
   else if (t == RType::NoneType) v.assign(ctx.none_names.begin(), ctx.none_names.end());
+  else if (t == RType::Container) {
+    // container vars are not generated in current v1.0 phase.
+  }
   else {
     v.assign(ctx.num_names.begin(), ctx.num_names.end());
     v.insert(v.end(), ctx.bool_names.begin(), ctx.bool_names.end());
@@ -731,6 +759,13 @@ void emit_random_leaf(std::mt19937_64& rng, AstProgram& p, PrefixGenCtx& ctx, RT
     p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::none()), 0});
     return;
   }
+  if (target == RType::Container) {
+    const std::uint32_t n = static_cast<std::uint32_t>(rand_int(rng, 0, 8));
+    const std::uint64_t h = static_cast<std::uint64_t>(rng());
+    if (rand_prob(rng, 0.5)) p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::from_string_hash_len(h, n)), 0});
+    else p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::from_list_hash_len(h, n)), 0});
+    return;
+  }
   const int mode = rand_int(rng, 0, 2);
   if (mode == 0) p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::none()), 0});
   else if (mode == 1) p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::from_bool(rand_prob(rng, 0.5))), 0});
@@ -739,7 +774,7 @@ void emit_random_leaf(std::mt19937_64& rng, AstProgram& p, PrefixGenCtx& ctx, RT
 
 void emit_random_expr(std::mt19937_64& rng, AstProgram& p, PrefixGenCtx& ctx, int depth, RType target) {
   if (target == RType::Any) {
-    std::vector<RType> ts = {RType::Num, RType::Bool, RType::NoneType};
+    std::vector<RType> ts = {RType::Num, RType::Bool, RType::NoneType, RType::Container};
     target = choose_one(rng, ts);
   }
   if (depth <= 0) {
@@ -761,10 +796,17 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& p, PrefixGenCtx& ctx, in
       return;
     }
     if (c == 3) {
-      std::vector<NodeKind> fs = {NodeKind::CALL_ABS, NodeKind::CALL_MIN, NodeKind::CALL_MAX, NodeKind::CALL_CLIP};
+      std::vector<NodeKind> fs = {NodeKind::CALL_ABS, NodeKind::CALL_MIN, NodeKind::CALL_MAX, NodeKind::CALL_CLIP, NodeKind::CALL_LEN, NodeKind::CALL_INDEX};
       const NodeKind f = choose_one(rng, fs);
       p.nodes.push_back(AstNode{f, 0, 0});
-      for (int i = 0; i < node_arity(f); ++i) emit_random_expr(rng, p, ctx, depth - 1, RType::Num);
+      if (f == NodeKind::CALL_LEN) {
+        emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
+      } else if (f == NodeKind::CALL_INDEX) {
+        emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
+        p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::from_int(rand_int(rng, -6, 6))), 0});
+      } else {
+        for (int i = 0; i < node_arity(f); ++i) emit_random_expr(rng, p, ctx, depth - 1, RType::Num);
+      }
       return;
     }
     p.nodes.push_back(AstNode{NodeKind::IF_EXPR, 0, 0});
@@ -798,6 +840,28 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& p, PrefixGenCtx& ctx, in
     emit_random_expr(rng, p, ctx, depth - 1, RType::Bool);
     emit_random_expr(rng, p, ctx, depth - 1, RType::Bool);
     emit_random_expr(rng, p, ctx, depth - 1, RType::Bool);
+    return;
+  }
+  if (target == RType::Container) {
+    const int c = rand_int(rng, 0, 3);
+    if (c == 0) return emit_random_leaf(rng, p, ctx, RType::Container);
+    if (c == 1) {
+      p.nodes.push_back(AstNode{NodeKind::CALL_CONCAT, 0, 0});
+      emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
+      emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
+      return;
+    }
+    if (c == 2) {
+      p.nodes.push_back(AstNode{NodeKind::CALL_SLICE, 0, 0});
+      emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
+      p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::from_int(rand_int(rng, -6, 6))), 0});
+      p.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(p, Value::from_int(rand_int(rng, -6, 6))), 0});
+      return;
+    }
+    p.nodes.push_back(AstNode{NodeKind::IF_EXPR, 0, 0});
+    emit_random_expr(rng, p, ctx, depth - 1, RType::Bool);
+    emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
+    emit_random_expr(rng, p, ctx, depth - 1, RType::Container);
     return;
   }
   emit_random_leaf(rng, p, ctx, RType::NoneType);
@@ -931,6 +995,7 @@ ExprCheck validate_expr_prefix(const AstProgram& p,
     const Value& v = p.consts[static_cast<std::size_t>(n.i0)];
     if (v.tag == ValueTag::None) return {RType::NoneType, end[idx]};
     if (v.tag == ValueTag::Bool) return {RType::Bool, end[idx]};
+    if (v.tag == ValueTag::String || v.tag == ValueTag::List) return {RType::Container, end[idx]};
     return {RType::Num, end[idx]};
   }
   if (n.kind == NodeKind::VAR) {
@@ -947,12 +1012,45 @@ ExprCheck validate_expr_prefix(const AstProgram& p,
     ExprCheck t = validate_expr_prefix(p, end, c.next, env, depth + 1, max_depth, errors);
     ExprCheck f = validate_expr_prefix(p, end, t.next, env, depth + 1, max_depth, errors);
     if (c.t != RType::Bool) errors.push_back("IfExpr condition must be Bool");
-    if (t.t == f.t && (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType)) return {t.t, f.next};
+    if (t.t == f.t && (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType || t.t == RType::Container)) return {t.t, f.next};
     errors.push_back("IfExpr branch type mismatch");
     return {RType::Invalid, f.next};
   }
-  if (n.kind == NodeKind::CALL_ABS || n.kind == NodeKind::CALL_MIN || n.kind == NodeKind::CALL_MAX || n.kind == NodeKind::CALL_CLIP) {
+  if (n.kind == NodeKind::CALL_ABS || n.kind == NodeKind::CALL_MIN || n.kind == NodeKind::CALL_MAX ||
+      n.kind == NodeKind::CALL_CLIP || n.kind == NodeKind::CALL_LEN || n.kind == NodeKind::CALL_CONCAT ||
+      n.kind == NodeKind::CALL_SLICE || n.kind == NodeKind::CALL_INDEX) {
     std::size_t cur = idx + 1;
+    if (n.kind == NodeKind::CALL_LEN) {
+      ExprCheck a = validate_expr_prefix(p, end, cur, env, depth + 1, max_depth, errors);
+      if (a.t != RType::Container) errors.push_back("len builtin expects container argument");
+      cur = a.next;
+      return {RType::Num, cur};
+    }
+    if (n.kind == NodeKind::CALL_CONCAT) {
+      ExprCheck a = validate_expr_prefix(p, end, cur, env, depth + 1, max_depth, errors);
+      ExprCheck b = validate_expr_prefix(p, end, a.next, env, depth + 1, max_depth, errors);
+      if (a.t != RType::Container || b.t != RType::Container) {
+        errors.push_back("concat builtin expects container arguments");
+      }
+      return {RType::Container, b.next};
+    }
+    if (n.kind == NodeKind::CALL_SLICE) {
+      ExprCheck x = validate_expr_prefix(p, end, cur, env, depth + 1, max_depth, errors);
+      ExprCheck lo = validate_expr_prefix(p, end, x.next, env, depth + 1, max_depth, errors);
+      ExprCheck hi = validate_expr_prefix(p, end, lo.next, env, depth + 1, max_depth, errors);
+      if (x.t != RType::Container || lo.t != RType::Num || hi.t != RType::Num) {
+        errors.push_back("slice builtin expects (container, num, num)");
+      }
+      return {RType::Container, hi.next};
+    }
+    if (n.kind == NodeKind::CALL_INDEX) {
+      ExprCheck x = validate_expr_prefix(p, end, cur, env, depth + 1, max_depth, errors);
+      ExprCheck i = validate_expr_prefix(p, end, x.next, env, depth + 1, max_depth, errors);
+      if (x.t != RType::Container || i.t != RType::Num) {
+        errors.push_back("index builtin expects (container, num)");
+      }
+      return {RType::Num, i.next};
+    }
     for (int i = 0; i < node_arity(n.kind); ++i) {
       ExprCheck a = validate_expr_prefix(p, end, cur, env, depth + 1, max_depth, errors);
       if (a.t != RType::Num) errors.push_back("builtin args must be Num");
@@ -974,7 +1072,7 @@ ExprCheck validate_expr_prefix(const AstProgram& p,
       return {RType::Bool, b.next};
     }
     if (n.kind == NodeKind::EQ || n.kind == NodeKind::NE) {
-      if (!(a.t == b.t && (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType))) {
+      if (!(a.t == b.t && (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType || a.t == RType::Container))) {
         errors.push_back("EQ/NE type mismatch");
       }
       return {RType::Bool, b.next};
@@ -1012,7 +1110,7 @@ std::size_t validate_stmt_prefix(const AstProgram& p,
   is_return = false;
   if (n.kind == NodeKind::ASSIGN) {
     ExprCheck e = validate_expr_prefix(p, end, idx + 1, env, 1, max_depth, errors);
-    if (e.t == RType::Num || e.t == RType::Bool || e.t == RType::NoneType) env[n.i0] = e.t;
+    if (e.t == RType::Num || e.t == RType::Bool || e.t == RType::NoneType || e.t == RType::Container) env[n.i0] = e.t;
     return e.next;
   }
   if (n.kind == NodeKind::RETURN) {
@@ -1082,9 +1180,10 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       const Value& v = p.consts[static_cast<std::size_t>(n.i0)];
       if (v.tag == ValueTag::None) t = RType::NoneType;
       else if (v.tag == ValueTag::Bool) t = RType::Bool;
+      else if (v.tag == ValueTag::String || v.tag == ValueTag::List) t = RType::Container;
       else t = RType::Num;
     }
-    if (out != nullptr && (t == RType::Num || t == RType::Bool || t == RType::NoneType)) {
+    if (out != nullptr && (t == RType::Num || t == RType::Bool || t == RType::NoneType || t == RType::Container)) {
       out->push_back(TypedExprRoot{idx, end[idx], t});
     }
     return {t, end[idx]};
@@ -1092,7 +1191,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
   if (n.kind == NodeKind::VAR) {
     auto it = env.find(n.i0);
     const RType t = (it == env.end()) ? RType::Num : it->second;
-    if (out != nullptr && (t == RType::Num || t == RType::Bool || t == RType::NoneType)) {
+    if (out != nullptr && (t == RType::Num || t == RType::Bool || t == RType::NoneType || t == RType::Container)) {
       out->push_back(TypedExprRoot{idx, end[idx], t});
     }
     return {t, end[idx]};
@@ -1101,7 +1200,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     ExprCheck e = infer_expr_prefix(p, end, idx + 1, env, out);
     const RType t = (n.kind == NodeKind::NEG) ? (e.t == RType::Num ? RType::Num : RType::Invalid)
                                                : (e.t == RType::Bool ? RType::Bool : RType::Invalid);
-    if (out != nullptr && (t == RType::Num || t == RType::Bool || t == RType::NoneType)) {
+    if (out != nullptr && (t == RType::Num || t == RType::Bool || t == RType::NoneType || t == RType::Container)) {
       out->push_back(TypedExprRoot{idx, e.next, t});
     }
     return {t, e.next};
@@ -1111,21 +1210,62 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     ExprCheck t = infer_expr_prefix(p, end, c.next, env, out);
     ExprCheck f = infer_expr_prefix(p, end, t.next, env, out);
     RType r = RType::Invalid;
-    if (c.t == RType::Bool && t.t == f.t && (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType)) {
+    if (c.t == RType::Bool && t.t == f.t && (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType || t.t == RType::Container)) {
       r = t.t;
     }
-    if (out != nullptr && (r == RType::Num || r == RType::Bool || r == RType::NoneType)) {
+    if (out != nullptr && (r == RType::Num || r == RType::Bool || r == RType::NoneType || r == RType::Container)) {
       out->push_back(TypedExprRoot{idx, f.next, r});
     }
     return {r, f.next};
   }
-  if (n.kind == NodeKind::CALL_ABS || n.kind == NodeKind::CALL_MIN || n.kind == NodeKind::CALL_MAX || n.kind == NodeKind::CALL_CLIP) {
+  if (n.kind == NodeKind::CALL_ABS || n.kind == NodeKind::CALL_MIN || n.kind == NodeKind::CALL_MAX ||
+      n.kind == NodeKind::CALL_CLIP || n.kind == NodeKind::CALL_LEN || n.kind == NodeKind::CALL_CONCAT ||
+      n.kind == NodeKind::CALL_SLICE || n.kind == NodeKind::CALL_INDEX) {
     std::size_t cur = idx + 1;
     bool ok = true;
-    for (int i = 0; i < node_arity(n.kind); ++i) {
+    if (n.kind == NodeKind::CALL_LEN) {
       ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
-      if (a.t != RType::Num) ok = false;
+      if (a.t != RType::Container) ok = false;
       cur = a.next;
+      const RType r = ok ? RType::Num : RType::Invalid;
+      if (out != nullptr && r == RType::Num) {
+        out->push_back(TypedExprRoot{idx, cur, r});
+      }
+      return {r, cur};
+    }
+    if (n.kind == NodeKind::CALL_CONCAT) {
+      ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
+      ExprCheck b = infer_expr_prefix(p, end, a.next, env, out);
+      const RType r = (a.t == RType::Container && b.t == RType::Container) ? RType::Container : RType::Invalid;
+      if (out != nullptr && r == RType::Container) {
+        out->push_back(TypedExprRoot{idx, b.next, r});
+      }
+      return {r, b.next};
+    }
+    if (n.kind == NodeKind::CALL_SLICE) {
+      ExprCheck x = infer_expr_prefix(p, end, cur, env, out);
+      ExprCheck lo = infer_expr_prefix(p, end, x.next, env, out);
+      ExprCheck hi = infer_expr_prefix(p, end, lo.next, env, out);
+      const RType r = (x.t == RType::Container && lo.t == RType::Num && hi.t == RType::Num) ? RType::Container : RType::Invalid;
+      if (out != nullptr && r == RType::Container) {
+        out->push_back(TypedExprRoot{idx, hi.next, r});
+      }
+      return {r, hi.next};
+    } else {
+      if (n.kind == NodeKind::CALL_INDEX) {
+        ExprCheck x = infer_expr_prefix(p, end, cur, env, out);
+        ExprCheck i = infer_expr_prefix(p, end, x.next, env, out);
+        const RType r = (x.t == RType::Container && i.t == RType::Num) ? RType::Num : RType::Invalid;
+        if (out != nullptr && r == RType::Num) {
+          out->push_back(TypedExprRoot{idx, i.next, r});
+        }
+        return {r, i.next};
+      }
+      for (int i = 0; i < node_arity(n.kind); ++i) {
+        ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
+        if (a.t != RType::Num) ok = false;
+        cur = a.next;
+      }
     }
     const RType r = ok ? RType::Num : RType::Invalid;
     if (out != nullptr && r == RType::Num) {
@@ -1143,10 +1283,10 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     else if (n.kind == NodeKind::LT || n.kind == NodeKind::LE || n.kind == NodeKind::GT || n.kind == NodeKind::GE)
       r = (a.t == RType::Num && b.t == RType::Num) ? RType::Bool : RType::Invalid;
     else if (n.kind == NodeKind::EQ || n.kind == NodeKind::NE)
-      r = (a.t == b.t && (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType)) ? RType::Bool : RType::Invalid;
+      r = (a.t == b.t && (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType || a.t == RType::Container)) ? RType::Bool : RType::Invalid;
     else
       r = (a.t == RType::Num && b.t == RType::Num) ? RType::Num : RType::Invalid;
-    if (out != nullptr && (r == RType::Num || r == RType::Bool || r == RType::NoneType)) {
+    if (out != nullptr && (r == RType::Num || r == RType::Bool || r == RType::NoneType || r == RType::Container)) {
       out->push_back(TypedExprRoot{idx, b.next, r});
     }
     return {r, b.next};
@@ -1163,7 +1303,7 @@ void collect_typed_exprs_in_stmt(const AstProgram& p,
   const AstNode& n = p.nodes[idx];
   if (n.kind == NodeKind::ASSIGN) {
     ExprCheck e = infer_expr_prefix(p, end, idx + 1, env, &out);
-    if (e.t == RType::Num || e.t == RType::Bool || e.t == RType::NoneType) env[n.i0] = e.t;
+    if (e.t == RType::Num || e.t == RType::Bool || e.t == RType::NoneType || e.t == RType::Container) env[n.i0] = e.t;
     return;
   }
   if (n.kind == NodeKind::RETURN) {

@@ -33,6 +33,18 @@ struct DProgramMeta {
   int err_code = DERR_VALUE;
 };
 
+struct DStringPayloadEntry {
+  std::int64_t packed = 0;
+  int offset = 0;
+  int len = 0;
+};
+
+struct DListPayloadEntry {
+  std::int64_t packed = 0;
+  int offset = 0;
+  int len = 0;
+};
+
 __host__ __device__ inline bool d_has_a(const DInstr& ins) { return (ins.flags & DINSTR_HAS_A) != 0; }
 __host__ __device__ inline bool d_has_b(const DInstr& ins) { return (ins.flags & DINSTR_HAS_B) != 0; }
 

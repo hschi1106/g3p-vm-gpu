@@ -143,12 +143,39 @@ class _Compiler:
             self._label(end_l)
             return t
 
-        if k in {NodeKind.CALL_ABS, NodeKind.CALL_MIN, NodeKind.CALL_MAX, NodeKind.CALL_CLIP}:
-            argc = {NodeKind.CALL_ABS: 1, NodeKind.CALL_MIN: 2, NodeKind.CALL_MAX: 2, NodeKind.CALL_CLIP: 3}[k]
+        if k in {
+            NodeKind.CALL_ABS,
+            NodeKind.CALL_MIN,
+            NodeKind.CALL_MAX,
+            NodeKind.CALL_CLIP,
+            NodeKind.CALL_LEN,
+            NodeKind.CALL_CONCAT,
+            NodeKind.CALL_SLICE,
+            NodeKind.CALL_INDEX,
+        }:
+            argc = {
+                NodeKind.CALL_ABS: 1,
+                NodeKind.CALL_MIN: 2,
+                NodeKind.CALL_MAX: 2,
+                NodeKind.CALL_CLIP: 3,
+                NodeKind.CALL_LEN: 1,
+                NodeKind.CALL_CONCAT: 2,
+                NodeKind.CALL_SLICE: 3,
+                NodeKind.CALL_INDEX: 2,
+            }[k]
             cur = idx + 1
             for _ in range(argc):
                 cur = self._compile_expr(cur)
-            bid = {NodeKind.CALL_ABS: 0, NodeKind.CALL_MIN: 1, NodeKind.CALL_MAX: 2, NodeKind.CALL_CLIP: 3}[k]
+            bid = {
+                NodeKind.CALL_ABS: 0,
+                NodeKind.CALL_MIN: 1,
+                NodeKind.CALL_MAX: 2,
+                NodeKind.CALL_CLIP: 3,
+                NodeKind.CALL_LEN: 4,
+                NodeKind.CALL_CONCAT: 5,
+                NodeKind.CALL_SLICE: 6,
+                NodeKind.CALL_INDEX: 7,
+            }[k]
             self._emit("CALL_BUILTIN", bid, argc)
             return cur
 

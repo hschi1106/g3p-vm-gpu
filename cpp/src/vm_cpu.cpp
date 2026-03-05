@@ -255,6 +255,10 @@ VMResult run_bytecode(const BytecodeProgram& program, const std::vector<std::pai
       else if (bid == 1) name = "min";
       else if (bid == 2) name = "max";
       else if (bid == 3) name = "clip";
+      else if (bid == 4) name = "len";
+      else if (bid == 5) name = "concat";
+      else if (bid == 6) name = "slice";
+      else if (bid == 7) name = "index";
       else return fail(ErrCode::Name, "unknown builtin id");
 
       BuiltinResult out = builtin_call(name, args);
@@ -293,12 +297,8 @@ std::vector<double> run_bytecode_cpu_multi_fitness_shared_cases(
   }
 
   std::vector<double> fitness(programs.size(), 0.0);
-  const double case_count = static_cast<double>(shared_cases.size());
   for (std::size_t p = 0; p < programs.size(); ++p) {
     int exact_match_count = 0;
-    int runtime_error_count = 0;
-    int non_numeric_mismatch_count = 0;
-    double abs_error_sum = 0.0;
     for (std::size_t c = 0; c < shared_cases.size(); ++c) {
       std::vector<std::pair<int, Value>> inputs;
       inputs.reserve(shared_cases[c].size());
@@ -307,40 +307,14 @@ std::vector<double> run_bytecode_cpu_multi_fitness_shared_cases(
       }
       const VMResult out = run_bytecode(programs[p], inputs, fuel);
       if (out.is_error) {
-        runtime_error_count += 1;
         continue;
       }
 
       if (vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
         exact_match_count += 1;
       }
-
-      double pred_num = 0.0;
-      double expected_num = 0.0;
-      bool any_float = false;
-      if (vm_semantics::to_numeric_pair(out.value, shared_answer[c], pred_num, expected_num, any_float)) {
-        (void)any_float;
-        const double diff = std::fabs(pred_num - expected_num);
-        if (std::isfinite(diff)) {
-          abs_error_sum += diff;
-        } else {
-          // Guard against NaN/Inf paths producing unstable fitness values.
-          non_numeric_mismatch_count += 1;
-        }
-      } else if (!vm_semantics::values_equal_for_fitness(out.value, shared_answer[c])) {
-        non_numeric_mismatch_count += 1;
-      }
     }
-    const double mean_abs_error = abs_error_sum / case_count;
-    double mean_abs_error_penalty = static_cast<double>(shared_cases.size());
-    if (std::isfinite(mean_abs_error) && mean_abs_error >= 0.0) {
-      mean_abs_error_penalty = mean_abs_error;
-    }
-
-    const double score = static_cast<double>(exact_match_count) - mean_abs_error_penalty -
-                         static_cast<double>(runtime_error_count) * 10.0 -
-                         static_cast<double>(non_numeric_mismatch_count);
-    fitness[p] = score;
+    fitness[p] = static_cast<double>(exact_match_count);
   }
 
   return fitness;

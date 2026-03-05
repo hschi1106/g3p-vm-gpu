@@ -21,6 +21,7 @@ else()
 endif()
 
 add_library(g3pvm_cpu
+  src/payload.cpp
   src/builtins.cpp
   src/vm_cpu.cpp
   src/evo_ast.cpp
@@ -47,6 +48,7 @@ if(G3PVM_HAS_CUDA)
     src/vm_gpu.cu
     src/vm_gpu/opcode_map.cpp
     src/vm_gpu/host_pack.cu
+    src/payload.cpp
   )
   target_include_directories(g3pvm_gpu PUBLIC include)
   target_compile_definitions(g3pvm_cpu PUBLIC G3PVM_HAS_CUDA=1)

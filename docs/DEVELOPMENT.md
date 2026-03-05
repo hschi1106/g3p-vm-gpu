@@ -79,3 +79,68 @@ Outputs:
 2. Preserve CPU/GPU fitness parity and timing report compatibility.
 3. Run Python and C++ tests after behavior changes.
 4. For speedup changes, attach generated comparison report.
+
+## 7. v1.0 Release Gate
+
+```bash
+python3 tools/run_v1_release_gate.py
+```
+
+What it runs:
+- Python tests (`unittest discover`)
+- C++ tests (`ctest`)
+- CPU/GPU speed benchmark (`bouncing-balls-1024`)
+- evolution progress benchmark (`exp-1024`)
+- PSB2 all-task batch run
+
+Output:
+- `logs/v1_release_report/<timestamp>/release_gate.summary.json`
+- `logs/v1_release_report/<timestamp>/release_gate.summary.md`
+
+Smoke record (2026-03-05):
+- `logs/v1_release_report/20260305T154704Z/release_gate.summary.json`
+
+## 8. PSB2 Pipeline
+
+### 8.1 Convert PSB2 JSONL -> fitness-cases-v1
+
+```bash
+python3 tools/convert_psb2_to_fitness_cases.py \
+  --edge-file data/psb2_datasets/bouncing-balls/bouncing-balls-edge.json \
+  --random-file data/psb2_datasets/bouncing-balls/bouncing-balls-random.json \
+  --n-train 1024 \
+  --n-test 1024 \
+  --seed 0 \
+  --out logs/psb2/converted/bouncing-balls.train.json \
+  --out-test logs/psb2/converted/bouncing-balls.test.json \
+  --summary-json logs/psb2/converted/bouncing-balls.summary.json
+```
+
+Notes:
+- Converter supports single-output and multi-output (`output1..M`) tasks.
+- For multi-output rows, converter packs outputs as list typed value in `expected`.
+- String/List typed values are currently represented as deterministic hashes in runtime value transport.
+- Runtime extension adds builtin `len(x)` for `String/List` (`CALL_BUILTIN` id `4`).
+- Runtime extension adds builtin `concat(a,b)` for `String/String` and `List/List` (`CALL_BUILTIN` id `5`).
+- Runtime extension adds builtin `slice(x,lo,hi)` for `String/List` (`CALL_BUILTIN` id `6`).
+- Runtime extension adds builtin `index(x,i)` for `String/List` (`CALL_BUILTIN` id `7`).
+- CPU runtime has payload registry support for typed `String/List` values. If payload is present, `concat/slice/index` execute exact payload semantics.
+- GPU runtime uploads payload snapshots and enables exact payload execution for `concat/slice/index` via thread-local scratch; overflow falls back to hash/token path.
+- Evolution AST generation now includes `CALL_LEN` / `CALL_CONCAT` / `CALL_SLICE` / `CALL_INDEX` (Python/C++ paths).
+- Fitness scoring is binary per case: exact match `+1`, mismatch/error `+0` (CPU/GPU parity).
+
+### 8.2 Run all PSB2 tasks in batch
+
+```bash
+python3 tools/run_psb2_all_tasks.py \
+  --datasets-root data/psb2_datasets \
+  --tasks all \
+  --engine gpu \
+  --population-size 1024 \
+  --generations 20
+```
+
+Outputs:
+- `summary.json`: machine-readable per-task status (`ok/skipped/unsupported/failed`)
+- `summary.md`: human-readable report
+- Current smoke baseline (2026-03-05): `logs/psb2_all_tasks/current_all_v5/summary.json` (`total=25, ok=25`)

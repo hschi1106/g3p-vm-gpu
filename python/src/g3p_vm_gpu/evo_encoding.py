@@ -23,6 +23,7 @@ class RType(str, Enum):
     NUM = "NUM"
     BOOL = "BOOL"
     NONE = "NONE"
+    CONTAINER = "CONTAINER"
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,7 @@ class ValidationResult:
     errors: Tuple[str, ...]
 
 
-_BUILTINS = ("abs", "min", "max", "clip")
+_NUM_BUILTINS = ("abs", "min", "max", "clip", "len")
 _BIN_NUM = ("add", "sub", "mul", "div", "mod")
 _BIN_CMP = ("lt", "le", "gt", "ge", "eq", "ne")
 _BIN_BOOL = ("and", "or")
@@ -63,7 +64,20 @@ _BIN_BOOL = ("and", "or")
 
 def _build_meta(ast: AstProgram) -> GenomeMeta:
     digest = hashlib.sha1(prefix_repr(ast).encode("utf-8")).hexdigest()[:16]
-    uses_builtins = any(n.kind in {NodeKind.CALL_ABS, NodeKind.CALL_MIN, NodeKind.CALL_MAX, NodeKind.CALL_CLIP} for n in ast.nodes)
+    uses_builtins = any(
+        n.kind
+        in {
+            NodeKind.CALL_ABS,
+            NodeKind.CALL_MIN,
+            NodeKind.CALL_MAX,
+            NodeKind.CALL_CLIP,
+            NodeKind.CALL_LEN,
+            NodeKind.CALL_CONCAT,
+            NodeKind.CALL_SLICE,
+            NodeKind.CALL_INDEX,
+        }
+        for n in ast.nodes
+    )
     return GenomeMeta(
         node_count=node_count(ast),
         max_depth=max_expr_depth(ast),
@@ -82,6 +96,10 @@ def _rand_const(rng: random.Random, t: RType):
         return ("const", rng.randint(-8, 8) if rng.random() < 0.5 else round(rng.uniform(-8.0, 8.0), 3))
     if t == RType.BOOL:
         return ("const", rng.choice([True, False]))
+    if t == RType.CONTAINER:
+        if rng.random() < 0.5:
+            return ("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 6))))
+        return ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))])
     return ("const", None)
 
 
@@ -99,11 +117,13 @@ def _rand_expr(rng: random.Random, depth: int, t: RType) -> tuple:
             op = rng.choice(_BIN_NUM)
             return (op, _rand_expr(rng, depth - 1, RType.NUM), _rand_expr(rng, depth - 1, RType.NUM))
         if mode == 3:
-            b = rng.choice(_BUILTINS)
+            b = rng.choice(_NUM_BUILTINS)
             if b == "abs":
                 return ("call", b, [_rand_expr(rng, depth - 1, RType.NUM)])
             if b in ("min", "max"):
                 return ("call", b, [_rand_expr(rng, depth - 1, RType.NUM), _rand_expr(rng, depth - 1, RType.NUM)])
+            if b == "len":
+                return ("call", b, [_rand_expr(rng, depth - 1, RType.CONTAINER)])
             return (
                 "call",
                 b,
@@ -116,6 +136,8 @@ def _rand_expr(rng: random.Random, depth: int, t: RType) -> tuple:
                 _rand_expr(rng, depth - 1, RType.NUM),
                 _rand_expr(rng, depth - 1, RType.NUM),
             )
+        if mode == 5:
+            return ("call", "index", [_rand_expr(rng, depth - 1, RType.CONTAINER), ("const", rng.randint(-6, 6))])
         return (rng.choice(_BIN_NUM), _rand_expr(rng, depth - 1, RType.NUM), _rand_expr(rng, depth - 1, RType.NUM))
 
     if t == RType.BOOL:
@@ -139,6 +161,22 @@ def _rand_expr(rng: random.Random, depth: int, t: RType) -> tuple:
             _rand_expr(rng, depth - 1, RType.BOOL),
         )
 
+    if t == RType.CONTAINER:
+        mode = rng.randint(0, 3)
+        if mode == 0:
+            return _rand_const(rng, RType.CONTAINER)
+        if mode == 1:
+            return ("call", "concat", [_rand_expr(rng, depth - 1, RType.CONTAINER), _rand_expr(rng, depth - 1, RType.CONTAINER)])
+        if mode == 2:
+            lo = rng.randint(-6, 6)
+            hi = rng.randint(-6, 6)
+            return ("call", "slice", [_rand_expr(rng, depth - 1, RType.CONTAINER), ("const", lo), ("const", hi)])
+        return (
+            "if_expr",
+            _rand_expr(rng, depth - 1, RType.BOOL),
+            _rand_expr(rng, depth - 1, RType.CONTAINER),
+            _rand_expr(rng, depth - 1, RType.CONTAINER),
+        )
     return _rand_const(rng, RType.NONE)
 
 
@@ -217,14 +255,36 @@ def _expr_from_prefix(p: AstProgram, idx: int) -> tuple[tuple, int]:
         t, h = _expr_from_prefix(p, j)
         f, z = _expr_from_prefix(p, h)
         return ("if_expr", c, t, f), z
-    if k in {NodeKind.CALL_ABS, NodeKind.CALL_MIN, NodeKind.CALL_MAX, NodeKind.CALL_CLIP}:
+    if k in {
+        NodeKind.CALL_ABS,
+        NodeKind.CALL_MIN,
+        NodeKind.CALL_MAX,
+        NodeKind.CALL_CLIP,
+        NodeKind.CALL_LEN,
+        NodeKind.CALL_CONCAT,
+        NodeKind.CALL_SLICE,
+        NodeKind.CALL_INDEX,
+    }:
         name = {
             NodeKind.CALL_ABS: "abs",
             NodeKind.CALL_MIN: "min",
             NodeKind.CALL_MAX: "max",
             NodeKind.CALL_CLIP: "clip",
+            NodeKind.CALL_LEN: "len",
+            NodeKind.CALL_CONCAT: "concat",
+            NodeKind.CALL_SLICE: "slice",
+            NodeKind.CALL_INDEX: "index",
         }[k]
-        argc = {NodeKind.CALL_ABS: 1, NodeKind.CALL_MIN: 2, NodeKind.CALL_MAX: 2, NodeKind.CALL_CLIP: 3}[k]
+        argc = {
+            NodeKind.CALL_ABS: 1,
+            NodeKind.CALL_MIN: 2,
+            NodeKind.CALL_MAX: 2,
+            NodeKind.CALL_CLIP: 3,
+            NodeKind.CALL_LEN: 1,
+            NodeKind.CALL_CONCAT: 2,
+            NodeKind.CALL_SLICE: 3,
+            NodeKind.CALL_INDEX: 2,
+        }[k]
         args: List[tuple] = []
         cur = idx + 1
         for _ in range(argc):

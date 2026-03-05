@@ -46,6 +46,10 @@ def _skip_expr_end(p: AstProgram, idx: int) -> int:
             NodeKind.CALL_MIN: 2,
             NodeKind.CALL_MAX: 2,
             NodeKind.CALL_CLIP: 3,
+            NodeKind.CALL_LEN: 1,
+            NodeKind.CALL_CONCAT: 2,
+            NodeKind.CALL_SLICE: 3,
+            NodeKind.CALL_INDEX: 2,
         }.get(n.kind)
         if arity is None:
             raise ValueError(f"expected Expr at index {cur - 1}, got {n.kind}")
@@ -198,14 +202,36 @@ def _eval_expr(p: AstProgram, idx: int, env: Env, fuel: int) -> tuple[Val | Err,
         rf, t, fuel = _eval_expr(p, h, env, fuel)
         return rf, t, fuel
 
-    if k in (NodeKind.CALL_ABS, NodeKind.CALL_MIN, NodeKind.CALL_MAX, NodeKind.CALL_CLIP):
+    if k in (
+        NodeKind.CALL_ABS,
+        NodeKind.CALL_MIN,
+        NodeKind.CALL_MAX,
+        NodeKind.CALL_CLIP,
+        NodeKind.CALL_LEN,
+        NodeKind.CALL_CONCAT,
+        NodeKind.CALL_SLICE,
+        NodeKind.CALL_INDEX,
+    ):
         name = {
             NodeKind.CALL_ABS: "abs",
             NodeKind.CALL_MIN: "min",
             NodeKind.CALL_MAX: "max",
             NodeKind.CALL_CLIP: "clip",
+            NodeKind.CALL_LEN: "len",
+            NodeKind.CALL_CONCAT: "concat",
+            NodeKind.CALL_SLICE: "slice",
+            NodeKind.CALL_INDEX: "index",
         }[k]
-        argc = {NodeKind.CALL_ABS: 1, NodeKind.CALL_MIN: 2, NodeKind.CALL_MAX: 2, NodeKind.CALL_CLIP: 3}[k]
+        argc = {
+            NodeKind.CALL_ABS: 1,
+            NodeKind.CALL_MIN: 2,
+            NodeKind.CALL_MAX: 2,
+            NodeKind.CALL_CLIP: 3,
+            NodeKind.CALL_LEN: 1,
+            NodeKind.CALL_CONCAT: 2,
+            NodeKind.CALL_SLICE: 3,
+            NodeKind.CALL_INDEX: 2,
+        }[k]
         vals: List[Val] = []
         cur = idx + 1
         for _ in range(argc):

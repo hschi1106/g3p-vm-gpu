@@ -24,6 +24,10 @@ def _encode_value(v):
         return {"type": "int", "value": v}
     if isinstance(v, float):
         return {"type": "float", "value": v}
+    if isinstance(v, str):
+        return {"type": "string", "value": v}
+    if isinstance(v, list):
+        return {"type": "list", "value": [_encode_value(x) for x in v]}
     raise TypeError(f"unsupported value type: {type(v)}")
 
 
@@ -62,6 +66,12 @@ def _parse_cli_output(text: str):
         return ("OK", float(raw), None)
     if t == "bool":
         return ("OK", raw == "1", None)
+    if t == "string_hash48":
+        toks = raw.split()
+        return ("OK", ("string_hash48", int(toks[0]), int(toks[2])), None)
+    if t == "list_hash48":
+        toks = raw.split()
+        return ("OK", ("list_hash48", int(toks[0]), int(toks[2])), None)
     raise AssertionError(f"unknown cpp value tag: {t}")
 
 
@@ -80,6 +90,7 @@ class TestCppVMEquiv(unittest.TestCase):
             "-O2",
             "-I",
             str(ROOT / "cpp" / "include"),
+            str(ROOT / "cpp" / "src" / "payload.cpp"),
             str(ROOT / "cpp" / "src" / "builtins.cpp"),
             str(ROOT / "cpp" / "src" / "vm_cpu.cpp"),
             str(ROOT / "cpp" / "src" / "vm_cpu_cli.cpp"),
@@ -142,7 +153,19 @@ class TestCppVMEquiv(unittest.TestCase):
     def test_fuzz_equivalence(self):
         for i in range(120):
             prog = make_random_program(seed=i, depth=3)
+            if any(isinstance(c, (str, list)) for c in prog.consts):
+                continue
             self._assert_equiv(prog)
+
+    def test_len_equivalence_with_string_const(self):
+        prog = build_program([("return", ("call", "len", [("const", "abcd")]))])
+        self._assert_equiv(prog)
+
+    def test_slice_equivalence_with_string_const(self):
+        prog = build_program(
+            [("return", ("call", "len", [("call", "slice", [("const", "abcdef"), ("const", 1), ("const", 4)])]))]
+        )
+        self._assert_equiv(prog)
 
 
 if __name__ == "__main__":

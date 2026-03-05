@@ -100,6 +100,19 @@ G3PVM_VM_HD inline CompareStatus compare_values(CmpOp op, const Value& a, const 
     return CompareStatus::NoneOrderingNotSupported;
   }
 
+  if ((a.tag == ValueTag::String && b.tag == ValueTag::String) ||
+      (a.tag == ValueTag::List && b.tag == ValueTag::List)) {
+    if (op == CmpOp::EQ) {
+      out_bool = (a.i == b.i);
+      return CompareStatus::Ok;
+    }
+    if (op == CmpOp::NE) {
+      out_bool = (a.i != b.i);
+      return CompareStatus::Ok;
+    }
+    return CompareStatus::UnsupportedTypes;
+  }
+
   return CompareStatus::UnsupportedTypes;
 }
 
@@ -118,6 +131,9 @@ G3PVM_VM_HD inline bool values_equal_for_fitness(const Value& a, const Value& b)
   }
   if (a.tag == ValueTag::Float) {
     return fabs(a.f - b.f) <= 1e-12;
+  }
+  if (a.tag == ValueTag::String || a.tag == ValueTag::List) {
+    return a.i == b.i;
   }
   return false;
 }

@@ -21,11 +21,9 @@ std::vector<std::vector<VMResult>> run_bytecode_gpu_multi_batch(
     int blocksize = 256);
 
 // Returns one fitness score per program.
-// Scoring:
-//   score = exact_match_count - mean_abs_error + runtime_error_count * (-10)
-//           - non_numeric_mismatch_count
-// where mean_abs_error is over numeric predictions/targets across all cases.
-// Non-numeric non-error mismatches are penalized by -1 each.
+// Binary scoring per case:
+//   +1 when program output is exactly equal to expected,
+//   +0 otherwise (including runtime errors).
 // All programs share one case set.
 // Returns empty vector when input shapes are invalid or device is unavailable.
 std::vector<double> run_bytecode_gpu_multi_fitness_shared_cases(

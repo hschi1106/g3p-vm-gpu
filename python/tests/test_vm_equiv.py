@@ -62,6 +62,10 @@ class TestVMEquiv(unittest.TestCase):
     def test_none_eq_ne_with_non_none(self):
         self._assert_equiv(build_program([("return", ("eq", ("const", None), ("const", 1)))]))
         self._assert_equiv(build_program([("return", ("ne", ("const", None), ("const", 1)))]))
+        self._assert_equiv(build_program([("return", ("call", "len", [("const", "abc")]))]))
+        self._assert_equiv(build_program([("return", ("call", "concat", [("const", "ab"), ("const", "cd")]))]))
+        self._assert_equiv(build_program([("return", ("call", "slice", [("const", "abcdef"), ("const", 1), ("const", 4)]))]))
+        self._assert_equiv(build_program([("return", ("call", "index", [("const", "abcdef"), ("const", 2)]))]))
 
     def test_fuzz_equivalence(self):
         for i in range(250):
