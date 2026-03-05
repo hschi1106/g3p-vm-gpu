@@ -1222,7 +1222,10 @@ ProgramGenome make_random_genome(std::uint64_t seed, const Limits& limits) {
     ctx.num_names.insert(ensure_name(p, "x"));
     emit_random_block(rng, p, ctx, limits.max_expr_depth, limits, true);
     ProgramGenome g = as_genome_prefix(p);
-    if (validate_genome(g, limits).is_valid) {
+    if (g.meta.node_count > limits.max_total_nodes) {
+      continue;
+    }
+    if (!limits.debug_validate || validate_genome(g, limits).is_valid) {
       return g;
     }
   }
@@ -1305,7 +1308,7 @@ ProgramGenome crossover_top_level(const ProgramGenome& parent_a,
       return parent_a;
     }
   }
-  if (!validate_genome(out, limits).is_valid) return parent_a;
+  if (limits.debug_validate && !validate_genome(out, limits).is_valid) return parent_a;
   return out;
 }
 
@@ -1336,29 +1339,7 @@ ProgramGenome crossover_typed_subtree(const ProgramGenome& parent_a,
       child_ready = true;
     }
   }
-  if (!child_ready) {
-    std::vector<std::size_t> stmt_a;
-    std::vector<std::size_t> expr_a_raw;
-    std::vector<std::size_t> stmt_b;
-    std::vector<std::size_t> expr_b_raw;
-    collect_roots_walk(ast_a, end_a, 0, stmt_a, expr_a_raw);
-    collect_roots_walk(ast_b, end_b, 0, stmt_b, expr_b_raw);
-    if (!stmt_a.empty() && !stmt_b.empty()) {
-    const std::size_t t = stmt_a[static_cast<std::size_t>(rand_int(rng, 0, static_cast<int>(stmt_a.size()) - 1))];
-    const NodeKind k = ast_a.nodes[t].kind;
-    std::vector<std::size_t> pool;
-    for (std::size_t r : stmt_b) {
-      if (ast_b.nodes[r].kind == k) pool.push_back(r);
-    }
-    if (pool.empty()) pool = stmt_b;
-    const std::size_t s = pool[static_cast<std::size_t>(rand_int(rng, 0, static_cast<int>(pool.size()) - 1))];
-    child = replace_subtree(ast_a, t, end_a[t], ast_b, s, end_b[s]);
-    child_ready = true;
-    }
-  }
-  if (!child_ready) {
-    child = top_level_splice_prefix(ast_a, ast_b, rng);
-  }
+  if (!child_ready) return parent_a;
   ProgramGenome out;
   out.ast = std::move(child);
   out.meta = build_meta_fast(out.ast);
@@ -1368,7 +1349,7 @@ ProgramGenome crossover_typed_subtree(const ProgramGenome& parent_a,
       return parent_a;
     }
   }
-  if (!validate_genome(out, limits).is_valid) return parent_a;
+  if (limits.debug_validate && !validate_genome(out, limits).is_valid) return parent_a;
   return out;
 }
 
@@ -1377,6 +1358,11 @@ ProgramGenome crossover(const ProgramGenome& parent_a,
                         std::uint64_t seed,
                         CrossoverMethod method,
                         const Limits& limits) {
+  // In fast default mode (without debug validation), force typed-subtree-only
+  // crossover so we avoid structure-unsafe top-level splice paths.
+  if (!limits.debug_validate) {
+    return crossover_typed_subtree(parent_a, parent_b, seed, limits);
+  }
   if (method == CrossoverMethod::TopLevelSplice) {
     return crossover_top_level(parent_a, parent_b, seed, limits);
   }

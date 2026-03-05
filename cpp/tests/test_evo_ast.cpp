@@ -14,7 +14,8 @@ bool check(bool cond, const std::string& msg) {
 }
 
 bool test_random_genome_compile_rate() {
-  const g3pvm::evo::Limits limits;
+  g3pvm::evo::Limits limits;
+  limits.debug_validate = true;
   const int n = 200;
   int compiled = 0;
   for (int i = 0; i < n; ++i) {
@@ -28,7 +29,8 @@ bool test_random_genome_compile_rate() {
 }
 
 bool test_mutation_and_crossover_invariants() {
-  const g3pvm::evo::Limits limits;
+  g3pvm::evo::Limits limits;
+  limits.debug_validate = true;
   const g3pvm::evo::ProgramGenome a = g3pvm::evo::make_random_genome(1, limits);
   const g3pvm::evo::ProgramGenome b = g3pvm::evo::make_random_genome(2, limits);
 
@@ -54,7 +56,8 @@ bool test_mutation_and_crossover_invariants() {
 }
 
 bool test_for_k_constraints() {
-  const g3pvm::evo::Limits limits{5, 6, 80, 8, 3};
+  g3pvm::evo::Limits limits{5, 6, 80, 8, 3};
+  limits.debug_validate = true;
   const g3pvm::evo::ProgramGenome base = g3pvm::evo::make_random_genome(88, limits);
   for (int i = 0; i < 60; ++i) {
     const g3pvm::evo::ProgramGenome child =

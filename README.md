@@ -43,6 +43,13 @@ python3 tools/run_cpp_evolution.py \
   --engine gpu \
   --blocksize 256 \
   --cpp-timing all
+
+# optional: enable heavy per-genome validation (slower)
+python3 tools/run_cpp_evolution.py \
+  --cases data/fixtures/speedup_cases_bouncing_balls_1024.json \
+  --cpp-cli cpp/build/g3pvm_evolve_cli \
+  --engine cpu \
+  --debug-validate
 ```
 
 ### CPU vs GPU speedup experiment
@@ -50,9 +57,17 @@ python3 tools/run_cpp_evolution.py \
 ```bash
 bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 4096 --generations 40
+
+# optional: turn validation back on for debugging
+bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --safe-validate
 ```
 
 Output reports are written to `logs/cpu_gpu_compare_pop*_*/cpu_gpu_compare.report.md` and `.json`.
+
+Validation mode notes:
+
+- Default path is optimized for throughput and does not run heavy `validate_genome` in evolution operators.
+- Use `--debug-validate` (or `--safe-validate` in the experiment wrapper) when debugging operator correctness.
 
 ## GPU Runbook
 

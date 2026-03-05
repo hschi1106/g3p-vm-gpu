@@ -18,7 +18,7 @@ from src.g3p_vm_gpu.vm import VMError, VMReturn, run_bytecode
 
 class TestEvoEncoding(unittest.TestCase):
     def test_random_genome_compile_rate(self):
-        limits = Limits()
+        limits = Limits(debug_validate=True)
         n = 400
         compiled = 0
         for i in range(n):
@@ -30,7 +30,7 @@ class TestEvoEncoding(unittest.TestCase):
         self.assertGreaterEqual(compiled / n, 0.99)
 
     def test_mutation_invariants(self):
-        limits = Limits()
+        limits = Limits(debug_validate=True)
         base = make_random_genome(seed=123, limits=limits)
         for i in range(120):
             child = mutate(base, seed=i, limits=limits)
@@ -39,7 +39,7 @@ class TestEvoEncoding(unittest.TestCase):
             compile_for_eval(child)
 
     def test_crossover_invariants(self):
-        limits = Limits()
+        limits = Limits(debug_validate=True)
         a = make_random_genome(seed=1, limits=limits)
         b = make_random_genome(seed=2, limits=limits)
         for i in range(120):
@@ -49,7 +49,7 @@ class TestEvoEncoding(unittest.TestCase):
             compile_for_eval(child)
 
     def test_crossover_methods_all_valid(self):
-        limits = Limits()
+        limits = Limits(debug_validate=True)
         a = make_random_genome(seed=10, limits=limits)
         b = make_random_genome(seed=20, limits=limits)
         for i in range(80):
@@ -62,14 +62,14 @@ class TestEvoEncoding(unittest.TestCase):
                 compile_for_eval(c)
 
     def test_crossover_unknown_method_raises(self):
-        limits = Limits()
+        limits = Limits(debug_validate=True)
         a = make_random_genome(seed=11, limits=limits)
         b = make_random_genome(seed=22, limits=limits)
         with self.assertRaises(ValueError):
             crossover(a, b, seed=0, limits=limits, method="not_a_method")
 
     def test_for_range_k_constraints_after_mutation(self):
-        limits = Limits(max_for_k=8)
+        limits = Limits(max_for_k=8, debug_validate=True)
         base = make_random_genome(seed=88, limits=limits)
         for i in range(100):
             child = mutate(base, seed=10_000 + i, limits=limits)

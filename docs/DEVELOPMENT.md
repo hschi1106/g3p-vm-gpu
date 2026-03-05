@@ -50,6 +50,21 @@ This retries device 0 then 1 when GPU is unavailable/contended.
 bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 ```
 
+Validation behavior:
+
+- Default benchmark mode uses fast evolution operators (no heavy `validate_genome` checks on every offspring).
+- To debug validity issues, run:
+
+```bash
+bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40 --safe-validate
+```
+
+For direct runner usage:
+
+```bash
+python3 tools/run_cpp_evolution.py --cases <fixture.json> --cpp-cli cpp/build/g3pvm_evolve_cli --debug-validate
+```
+
 Inputs must use `fitness-cases-v1` schema (example: `data/fixtures/speedup_cases_bouncing_balls_1024.json`).
 
 Outputs:

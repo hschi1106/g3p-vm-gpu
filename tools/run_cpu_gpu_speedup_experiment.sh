@@ -13,6 +13,7 @@ GENERATIONS=40
 BLOCKSIZE=256
 CPP_TIMING="all"
 OUTDIR=""
+DEBUG_VALIDATE=0
 
 usage() {
   cat <<USAGE
@@ -29,6 +30,7 @@ Options:
   --crossover-method STR Crossover method (default: hybrid)
   --cpp-cli PATH         Evolve CLI path (default: cpp/build/g3pvm_evolve_cli)
   --outdir PATH          Output directory (default: logs/cpu_gpu_compare_pop<pop>_<timestamp>)
+  --safe-validate        Enable debug validation checks (slower)
   --help                 Show this message
 USAGE
 }
@@ -51,6 +53,8 @@ while [[ $# -gt 0 ]]; do
       CPP_CLI="$2"; shift 2 ;;
     --outdir)
       OUTDIR="$2"; shift 2 ;;
+    --safe-validate)
+      DEBUG_VALIDATE=1; shift 1 ;;
     --help)
       usage; exit 0 ;;
     *)
@@ -77,6 +81,16 @@ fi
 
 echo "[exp] outdir: $OUTDIR"
 echo "[exp] popsize=$POPSIZE generations=$GENERATIONS blocksize=$BLOCKSIZE"
+if [[ "$DEBUG_VALIDATE" -eq 0 ]]; then
+  echo "[exp] mode=fast_default (no heavy validate)"
+else
+  echo "[exp] mode=debug_validate"
+fi
+
+VALIDATE_ARGS=()
+if [[ "$DEBUG_VALIDATE" -eq 1 ]]; then
+  VALIDATE_ARGS+=(--debug-validate)
+fi
 
 echo "[exp] running CPU baseline..."
 python3 tools/run_cpp_evolution.py \
@@ -87,6 +101,7 @@ python3 tools/run_cpp_evolution.py \
   --crossover-method "$CROSSOVER_METHOD" \
   --population-size "$POPSIZE" \
   --generations "$GENERATIONS" \
+  "${VALIDATE_ARGS[@]}" \
   --cpp-timing "$CPP_TIMING" \
   --log-dir "$OUTDIR" \
   --run-tag cpu | tee "$OUTDIR/cpu_run.console.log"
@@ -102,6 +117,7 @@ scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py \
   --crossover-method "$CROSSOVER_METHOD" \
   --population-size "$POPSIZE" \
   --generations "$GENERATIONS" \
+  "${VALIDATE_ARGS[@]}" \
   --cpp-timing "$CPP_TIMING" \
   --log-dir "$OUTDIR" \
   --run-tag gpu | tee "$OUTDIR/gpu_run.console.log"

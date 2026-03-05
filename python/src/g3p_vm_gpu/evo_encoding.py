@@ -32,6 +32,7 @@ class Limits:
     max_total_nodes: int = 80
     max_for_k: int = 16
     max_call_args: int = 3
+    debug_validate: bool = False
 
 
 @dataclass(frozen=True)
@@ -298,7 +299,9 @@ def make_random_genome(seed: int = 0, limits: Limits | None = None, type_policy:
     for _ in range(256):
         stmts = _rand_block(rng, limits.max_expr_depth, limits, force_return=True)
         g = _as_genome(stmts)
-        if validate_genome(g, limits).is_valid:
+        if g.meta.node_count > limits.max_total_nodes:
+            continue
+        if not limits.debug_validate or validate_genome(g, limits).is_valid:
             return g
     return _as_genome([("return", ("const", 0))])
 
@@ -364,7 +367,9 @@ def mutate(genome: ProgramGenome, seed: int = 0, limits: Limits | None = None) -
 
     stmts = stmts[: limits.max_stmts_per_block]
     out = _as_genome(stmts)
-    if validate_genome(out, limits).is_valid:
+    if out.meta.node_count > limits.max_total_nodes:
+        return make_random_genome(seed=seed + 1, limits=limits)
+    if not limits.debug_validate or validate_genome(out, limits).is_valid:
         return out
     return make_random_genome(seed=seed + 1, limits=limits)
 
@@ -389,7 +394,9 @@ def crossover_top_level(parent_a: ProgramGenome, parent_b: ProgramGenome, seed: 
         child = child[: limits.max_stmts_per_block]
 
     out = _as_genome(child)
-    if validate_genome(out, limits).is_valid:
+    if out.meta.node_count > limits.max_total_nodes:
+        return make_random_genome(seed=seed + 7, limits=limits)
+    if not limits.debug_validate or validate_genome(out, limits).is_valid:
         return out
     return make_random_genome(seed=seed + 7, limits=limits)
 

@@ -68,6 +68,7 @@ struct Limits {
   int max_total_nodes = 80;
   int max_for_k = 16;
   int max_call_args = 3;
+  bool debug_validate = false;
 };
 
 struct GenomeMeta {

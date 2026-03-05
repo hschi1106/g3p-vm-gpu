@@ -84,6 +84,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-total-nodes", type=int, default=80)
     p.add_argument("--max-for-k", type=int, default=16)
     p.add_argument("--max-call-args", type=int, default=3)
+    p.add_argument("--debug-validate", action="store_true", help="Enable heavy genome validation in evo operators (slower).")
     p.add_argument("--show-program", choices=["none", "ast", "bytecode", "both"], default="none")
     p.add_argument("--cpp-timing", choices=["none", "summary", "per_gen", "all"], default="all")
     p.add_argument("--timeout-sec", type=int, default=0, help="Subprocess timeout in seconds, 0 means no timeout.")
@@ -250,6 +251,7 @@ def main() -> None:
             str(args.max_for_k),
             "--max-call-args",
             str(args.max_call_args),
+            *([] if not args.debug_validate else ["--debug-validate"]),
             "--show-program",
             args.show_program,
             "--timing",
