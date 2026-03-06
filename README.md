@@ -59,7 +59,7 @@ python3 tools/run_cpp_evolution.py \
 ### CPU vs GPU speedup benchmark
 
 ```bash
-scripts/run_gpu_command.sh -- bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
+scripts/run_gpu_command.sh -- bash scripts/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 ```
 
 Latest confirmed `bouncing-balls-1024` report (`2026-03-06`, `pop=1024`, `gen=40`):

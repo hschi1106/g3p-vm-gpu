@@ -138,7 +138,7 @@ def main() -> int:
             "speed_benchmark",
             [
                 "bash",
-                "tools/run_cpu_gpu_speedup_experiment.sh",
+                "scripts/run_cpu_gpu_speedup_experiment.sh",
                 "--popsize",
                 str(args.speed_population_size),
                 "--generations",

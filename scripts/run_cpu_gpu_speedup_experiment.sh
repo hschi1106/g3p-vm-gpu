@@ -15,7 +15,7 @@ OUTDIR=""
 
 usage() {
   cat <<USAGE
-Usage: tools/run_cpu_gpu_speedup_experiment.sh [options]
+Usage: scripts/run_cpu_gpu_speedup_experiment.sh [options]
 
 Run CPU/GPU speedup experiment for C++ evolution and write logs + compare report.
 

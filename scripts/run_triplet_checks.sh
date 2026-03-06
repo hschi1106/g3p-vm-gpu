@@ -24,7 +24,7 @@ print("fixture schema: OK")
 PY
 
 echo "[4/5] Run CPU/GPU speedup experiment smoke"
-bash tools/run_cpu_gpu_speedup_experiment.sh \
+bash scripts/run_cpu_gpu_speedup_experiment.sh \
   --cases data/fixtures/speedup_cases_bouncing_balls_1024.json \
   --popsize 64 \
   --generations 2 \

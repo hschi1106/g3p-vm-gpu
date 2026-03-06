@@ -49,7 +49,7 @@ This retries device `0` then `1` when GPU is unavailable or contended.
 Canonical speed benchmark:
 
 ```bash
-scripts/run_gpu_command.sh -- bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
+scripts/run_gpu_command.sh -- bash scripts/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 ```
 
 Canonical evolution-progress run:
