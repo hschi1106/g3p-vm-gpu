@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
-from .ast import AstProgram, NodeKind, Val, prefix_subtree_end, validate_prefix_program
+from ..core.ast import AstProgram, NodeKind, Val, prefix_subtree_end, validate_prefix_program
 
 
 @dataclass(frozen=True)

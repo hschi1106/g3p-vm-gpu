@@ -6,10 +6,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.g3p_vm_gpu.ast import build_program
-from src.g3p_vm_gpu.compiler import BytecodeProgram, compile_program
-from src.g3p_vm_gpu.fuzz import make_random_program
-from src.g3p_vm_gpu.vm import VMError, VMReturn, run_bytecode
+from src.g3p_vm_gpu.core.ast import build_program
+from src.g3p_vm_gpu.evolution.random_program import make_random_program
+from src.g3p_vm_gpu.runtime.compiler import BytecodeProgram, compile_program
+from src.g3p_vm_gpu.runtime.vm import ExecError, ExecReturn, exec_bytecode
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -119,17 +119,17 @@ class TestCppVMEquiv(unittest.TestCase):
 
     def _assert_equiv(self, prog):
         bc = compile_program(prog)
-        py_out = run_bytecode(bc, {}, fuel=20000)
+        py_out = exec_bytecode(bc, {}, fuel=20000)
         cpp_status, cpp_value, _ = self._run_cpp_vm(prog)
 
-        if isinstance(py_out, VMReturn):
+        if isinstance(py_out, ExecReturn):
             self.assertEqual(cpp_status, "OK")
             if isinstance(py_out.value, float):
                 self.assertTrue(math.isclose(py_out.value, cpp_value, rel_tol=1e-12, abs_tol=1e-12))
             else:
                 self.assertEqual(py_out.value, cpp_value)
         else:
-            self.assertIsInstance(py_out, VMError)
+            self.assertIsInstance(py_out, ExecError)
             self.assertEqual(cpp_status, "ERR")
             self.assertEqual(py_out.err.code.value, cpp_value)
 

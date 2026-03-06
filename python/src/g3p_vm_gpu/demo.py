@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from g3p_vm_gpu.ast import build_program
-from g3p_vm_gpu.errors import Failed, Returned
-from g3p_vm_gpu.interp import run_program
+from g3p_vm_gpu.core.ast import build_program
+from g3p_vm_gpu.core.errors import Failed, Returned
+from g3p_vm_gpu.runtime.interp import run_program
 
 
 def main():

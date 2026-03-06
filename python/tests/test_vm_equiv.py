@@ -1,24 +1,24 @@
 import unittest
 
-from src.g3p_vm_gpu.ast import build_program
-from src.g3p_vm_gpu.compiler import compile_program
-from src.g3p_vm_gpu.errors import Failed, Returned
-from src.g3p_vm_gpu.fuzz import make_random_program
-from src.g3p_vm_gpu.interp import run_program
-from src.g3p_vm_gpu.vm import VMError, VMReturn, run_bytecode
+from src.g3p_vm_gpu.core.ast import build_program
+from src.g3p_vm_gpu.core.errors import Failed, Returned
+from src.g3p_vm_gpu.evolution.random_program import make_random_program
+from src.g3p_vm_gpu.runtime.compiler import compile_program
+from src.g3p_vm_gpu.runtime.interp import run_program
+from src.g3p_vm_gpu.runtime.vm import ExecError, ExecReturn, exec_bytecode
 
 
 class TestVMEquiv(unittest.TestCase):
     def _assert_equiv(self, prog):
         interp_env, interp_out = run_program(prog, {}, fuel=20_000)
         bc = compile_program(prog)
-        vm_out = run_bytecode(bc, {}, fuel=20_000)
+        vm_out = exec_bytecode(bc, {}, fuel=20_000)
 
         if isinstance(interp_out, Returned):
-            self.assertIsInstance(vm_out, VMReturn)
+            self.assertIsInstance(vm_out, ExecReturn)
             self.assertEqual(interp_out.value, vm_out.value)
         elif isinstance(interp_out, Failed):
-            self.assertIsInstance(vm_out, VMError)
+            self.assertIsInstance(vm_out, ExecError)
             self.assertEqual(interp_out.err.code, vm_out.err.code)
         else:
             self.fail("run_program should not return Normal for top-level programs")

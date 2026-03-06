@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from typing import List
 
-from .ast import AstProgram, build_program
+from ..core.ast import AstProgram, build_program
 
 
 _BUILTINS = ("abs", "min", "max", "clip", "len", "concat", "slice", "index")

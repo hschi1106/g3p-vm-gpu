@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from .ast import AstProgram, NodeKind, Val, validate_prefix_program
+from ..core.ast import AstProgram, NodeKind, Val, validate_prefix_program
 from .builtins import builtin_call
-from .errors import Err, ErrCode, Failed, Normal, Out, Returned
-from .semantics import compare_values, is_num, promote_numeric
+from ..core.errors import Err, ErrCode, Failed, Normal, Out, Returned
+from ..core.value_semantics import compare_values, is_num, promote_numeric
 
 
 Env = Dict[str, Val]

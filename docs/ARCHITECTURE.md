@@ -1,81 +1,88 @@
 # Architecture
 
-## 1. High-Level Design
+## High-Level Design
 
-The project uses one core representation: **linear prefix AST**.
+The project uses one canonical program representation: linear prefix `AstProgram`.
 
 Primary flow:
-
-1. Build/obtain prefix `AstProgram`
+1. Build or mutate prefix `AstProgram`
 2. Compile to bytecode
-3. Execute in Python VM, C++ CPU VM, or C++ GPU VM
-4. Run evolution loops with CPU/GPU fitness parity and profiling
+3. Execute in Python runtime, C++ CPU runtime, or C++ GPU fitness runtime
+4. Evaluate fitness over `fitness-cases-v1`
+5. Reproduce and iterate generations
 
-Current invariants:
+## Current Invariants
 
-- Prefix AST is the only program representation exposed publicly.
-- `typed_subtree` is the only public crossover method.
-- Public evolution runners use mixed fitness: numeric cases use negative MAE; `Bool/None/String/List` use binary exact match.
-- Public runners do not expose heavyweight validation flags.
+- Public AST representation: prefix `AstProgram`
+- Public crossover method: `typed_subtree`
+- Public selection method: tournament only, with `selection_pressure`
+- Public fitness rule:
+  - numeric expected/actual => `-abs(actual - expected)`
+  - `Bool/None/String/List` exact match => `1`
+  - `Bool/None/String/List` mismatch => `0`
+  - runtime error => `0`
+- Public fixture schema: `fitness-cases-v1`
+- Public runners do not expose heavyweight validate flags
 
-## 2. Core Data Models
+## Python Layout
 
-### Prefix AST (`AstProgram`)
+- `python/src/g3p_vm_gpu/core/ast.py`: prefix AST definitions and helpers
+- `python/src/g3p_vm_gpu/core/errors.py`: error/outcome types
+- `python/src/g3p_vm_gpu/core/value_semantics.py`: numeric promotion and comparisons
+- `python/src/g3p_vm_gpu/runtime/builtins.py`: builtin semantics
+- `python/src/g3p_vm_gpu/runtime/compiler.py`: AST -> bytecode compiler
+- `python/src/g3p_vm_gpu/runtime/interp.py`: reference interpreter
+- `python/src/g3p_vm_gpu/runtime/vm.py`: Python bytecode VM
+- `python/src/g3p_vm_gpu/evolution/genome.py`: `Limits`, `GenomeMeta`, `ProgramGenome`
+- `python/src/g3p_vm_gpu/evolution/stmt_codec.py`: AST <-> statement codec helpers
+- `python/src/g3p_vm_gpu/evolution/random_tree.py`: typed random expression/statement generation
+- `python/src/g3p_vm_gpu/evolution/random_genome.py`: random genome generation
+- `python/src/g3p_vm_gpu/evolution/random_program.py`: generic random program fuzzing
+- `python/src/g3p_vm_gpu/evolution/mutation.py`: mutation operator
+- `python/src/g3p_vm_gpu/evolution/crossover.py`: crossover operator
+- `python/src/g3p_vm_gpu/evolution/evolve.py`: Python evolution loop
 
-Defined in `python/src/g3p_vm_gpu/ast.py` and mirrored in C++ evo AST structures.
+## C++ Layout
 
-- `nodes`: linear prefix token stream
-- `names`: symbol table
-- `consts`: constant pool
-- `version`: `ast-prefix-v1`
+- `cpp/src/evolution/`: genome metadata, subtree helpers, typed expr analysis, compiler, random generation, mutation, crossover, evolution loop
+- `cpp/src/runtime/cpu/`: CPU runtime and CPU fitness helpers
+- `cpp/src/runtime/gpu/`: GPU fitness orchestration and device code
+- `cpp/src/runtime/payload/`: payload registry and snapshot support
+- `cpp/src/cli/`: `runtime_cli`, `evolve_cli`, JSON/codec/options helpers
+- `cpp/src/bench/`: benchmark binaries
 
-### Unified Fixture Schema (`fitness-cases-v1`)
+## Runtime Model
 
-All evolution/benchmark inputs use one JSON schema:
+Base scalar values:
+- `Int`
+- `Float`
+- `Bool`
+- `None`
 
-- `format_version`: `fitness-cases-v1`
-- `meta`: metadata map
-- `cases`: list of `{inputs, expected}`
-- value encoding supports typed values:
-  - scalar: `int | float | bool | none`
-  - container: `string | list`
+Extended values:
+- `String`
+- `List`
 
-## 3. C++ Evolution Pipeline
-
-- `cpp/src/evolution/` contains genome generation, mutation, crossover, selection, and evolution loop code.
-- `cpp/src/runtime/cpu/`, `cpp/src/runtime/gpu/`, and `cpp/src/runtime/payload/` split the runtime by execution responsibility.
-- `cpp/src/cli/` contains user-facing C++ entrypoints and fixture/bytecode decode helpers.
-- `cpp/src/bench/` contains benchmark binaries only.
-- `evolve.cpp` evaluates CPU/GPU fitness with aligned scoring logic.
-- Fitness is mixed per case:
-- numeric expected/actual => `-abs(actual - expected)`
-- `Bool/None/String/List` => exact match `1`, otherwise `0`
-- runtime errors => `0`
-- CPU and GPU both use shared-cases/shared-answer style evaluation internally.
-- GPU path uses session reuse and reports compile/upload/kernel/copyback timings.
-- Reproduction phase reports selection/crossover/mutation/elite timings.
+Builtins:
+- `abs`, `min`, `max`, `clip`
+- `len`, `concat`, `slice`, `index`
 
 Container execution:
+- CPU keeps decoded payloads for typed `String/List`
+- GPU uploads payload snapshots to device global memory
+- GPU exact path uses bounded per-thread scratch
+- GPU falls back to deterministic compact transport when exact payload materialization cannot fit
 
-- CPU path maintains a payload registry for typed `String/List` values decoded from fixtures and CLI inputs.
-- GPU path uploads payload snapshots into device global memory and runs exact payload-backed `concat` / `slice` / `index` when scratch capacity allows.
-- Compact container transport remains in the `Value` path for throughput and bounded fallback behavior.
+## Evolution Design
 
-## 4. CPU/GPU Performance Pipeline
+The project intentionally constrains the search space:
+- typed generation reduces invalid AST production
+- typed subtree crossover is the only public crossover path
+- tournament selection is the only public selection path
+- mutation keeps a single public entry with `mutation_subtree_prob` controlling internal mix
+- mixed fitness keeps numeric tasks dense without adding soft container scoring yet
 
-Entry: `tools/run_cpu_gpu_speedup_experiment.sh`
-
-It runs CPU and GPU evolution on the same `fitness-cases-v1` fixture, then reports:
-
-- end-to-end speedup (`run_cpp_cli` wall)
-- inner total speedup
-- eval-only speedup
-- reproduction breakdown
-- GPU execution breakdown
-
-## 5. Design Constraints
-
-- Prefix-only architecture.
-- CPU/GPU fitness parity is mandatory.
-- GPU runtime selection should go through `scripts/run_gpu_command.sh`.
-- Documentation and public CLI should reflect the current single-path API surface rather than historical alternatives.
+The core engineering tension remains:
+- semantic correctness
+- CPU/GPU parity
+- speedup preservation

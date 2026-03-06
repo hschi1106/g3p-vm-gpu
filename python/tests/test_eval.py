@@ -1,10 +1,10 @@
 import unittest
 
-from src.g3p_vm_gpu.ast import build_program
-from src.g3p_vm_gpu.builtins import builtin_call
-from src.g3p_vm_gpu.errors import ErrCode, Failed, Returned
-from src.g3p_vm_gpu.fuzz import make_random_program
-from src.g3p_vm_gpu.interp import run_program
+from src.g3p_vm_gpu.core.ast import build_program
+from src.g3p_vm_gpu.core.errors import ErrCode, Failed, Returned
+from src.g3p_vm_gpu.evolution.random_program import make_random_program
+from src.g3p_vm_gpu.runtime.builtins import builtin_call
+from src.g3p_vm_gpu.runtime.interp import run_program
 
 
 class TestEval(unittest.TestCase):

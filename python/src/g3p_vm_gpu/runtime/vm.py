@@ -3,27 +3,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
-from .ast import Val
+from ..core.ast import Val
 from .builtins import builtin_call
 from .compiler import BytecodeProgram
-from .errors import Err, ErrCode
-from .semantics import compare_values, is_num, promote_numeric
+from ..core.errors import Err, ErrCode
+from ..core.value_semantics import compare_values, is_num, promote_numeric
 
 
 @dataclass(frozen=True)
-class VMReturn:
+class ExecReturn:
     value: Val
 
 
 @dataclass(frozen=True)
-class VMError:
+class ExecError:
     err: Err
 
 
-VMResult = VMReturn | VMError
+ExecResult = ExecReturn | ExecError
 
 
-def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None, fuel: int = 10_000) -> VMResult:
+def exec_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None, fuel: int = 10_000) -> ExecResult:
     stack: List[Val] = []
     UNSET = object()
     locals_: List[Val | object] = [UNSET for _ in range(program.n_locals)]
@@ -37,8 +37,8 @@ def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None,
     ip = 0
     code = program.code
 
-    def fail(code_: ErrCode, msg: str) -> VMError:
-        return VMError(Err(code_, msg))
+    def fail(code_: ErrCode, msg: str) -> ExecError:
+        return ExecError(Err(code_, msg))
 
     while ip < len(code):
         if fuel <= 0:
@@ -117,7 +117,7 @@ def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None,
             a = stack.pop()
             r = compare_values(ins.op, a, b)
             if isinstance(r, Err):
-                return VMError(r)
+                return ExecError(r)
             stack.append(r)
             continue
 
@@ -155,14 +155,14 @@ def run_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None,
                 return fail(ErrCode.NAME, "unknown builtin id")
             out = builtin_call(name, args)
             if isinstance(out, Err):
-                return VMError(out)
+                return ExecError(out)
             stack.append(out)
             continue
 
         if ins.op == "RETURN":
             if not stack:
                 return fail(ErrCode.VALUE, "return requires value on stack")
-            return VMReturn(stack.pop())
+            return ExecReturn(stack.pop())
 
         return fail(ErrCode.TYPE, f"unknown opcode: {ins.op}")
 

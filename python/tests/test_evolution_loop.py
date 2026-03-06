@@ -1,14 +1,9 @@
 import unittest
 
-from src.g3p_vm_gpu.evolve import (
-    EvolutionConfig,
-    FitnessCase,
-    SelectionMethod,
-    evolve_population,
-)
+from src.g3p_vm_gpu.evolution.evolve import EvolutionConfig, FitnessCase, evolve_population, score_output
 
 
-class TestEvolve(unittest.TestCase):
+class TestEvolutionLoop(unittest.TestCase):
     def _simple_cases(self):
         return [
             FitnessCase(inputs={"x": 0, "y": 0}, expected=0),
@@ -17,15 +12,22 @@ class TestEvolve(unittest.TestCase):
             FitnessCase(inputs={"x": 3, "y": -2}, expected=1),
         ]
 
-    def _run_one(self, method: SelectionMethod):
+    def test_score_output_uses_mixed_semantics(self):
+        self.assertEqual(score_output(3, 3), 0.0)
+        self.assertEqual(score_output(1, 3), -2.0)
+        self.assertEqual(score_output(True, True), 1.0)
+        self.assertEqual(score_output("ab", "ab"), 1.0)
+        self.assertEqual(score_output("ab", "ac"), 0.0)
+
+    def test_evolve_population_runs_with_tournament_only_api(self):
         cfg = EvolutionConfig(
             population_size=24,
             generations=8,
             elitism=2,
             mutation_rate=0.7,
+            mutation_subtree_prob=0.75,
             crossover_rate=0.9,
-            crossover_method="typed_subtree",
-            selection_method=method,
+            selection_pressure=4,
             seed=42,
         )
         result = evolve_population(self._simple_cases(), cfg)
@@ -34,25 +36,15 @@ class TestEvolve(unittest.TestCase):
         self.assertEqual(len(result.final_population), cfg.population_size)
         self.assertGreaterEqual(result.best.fitness, min(result.history_best_fitness))
 
-    def test_evolve_tournament(self):
-        self._run_one(SelectionMethod.TOURNAMENT)
-
-    def test_evolve_roulette(self):
-        self._run_one(SelectionMethod.ROULETTE)
-
-    def test_evolve_rank(self):
-        self._run_one(SelectionMethod.RANK)
-
-    def test_evolve_truncation(self):
-        self._run_one(SelectionMethod.TRUNCATION)
-
-    def test_evolve_random(self):
-        self._run_one(SelectionMethod.RANDOM)
-
     def test_invalid_cases_raises(self):
         cfg = EvolutionConfig(population_size=8, generations=2)
         with self.assertRaises(ValueError):
             evolve_population([], cfg)
+
+    def test_invalid_selection_pressure_raises(self):
+        cfg = EvolutionConfig(population_size=8, generations=2, selection_pressure=0)
+        with self.assertRaises(ValueError):
+            evolve_population(self._simple_cases(), cfg)
 
 
 if __name__ == "__main__":

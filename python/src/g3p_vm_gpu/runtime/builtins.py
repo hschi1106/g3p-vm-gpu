@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import List, Union
 
-from .errors import Err, ErrCode
-from .ast import Val
+from ..core.errors import Err, ErrCode
+from ..core.ast import Val
 
 
 def _is_num(v: Val) -> bool:

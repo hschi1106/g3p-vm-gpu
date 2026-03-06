@@ -1,22 +1,25 @@
 # g3p-vm-gpu
 
-Prefix-AST genetic programming VM with Python reference implementation and C++ CPU/GPU evolution backends.
+Prefix-AST genetic programming VM with a Python reference path and C++ CPU/GPU evolution backends.
 
 ## Current Version
 
-- One AST representation only: linear prefix `AstProgram`.
-- One public crossover path only: `typed_subtree`.
-- One public fitness rule only: numeric cases use negative MAE, `Bool/None/String/List` stay binary exact-match.
-- One fixture schema only: `fitness-cases-v1`.
-- CPU and GPU both support typed `String/List` runtime values with payload-backed exact execution for `concat` / `slice` / `index`.
+- One public program representation: linear prefix `AstProgram`.
+- One public crossover path: `typed_subtree`.
+- One public selection path: tournament selection with `selection_pressure`.
+- One public fitness rule: numeric cases use negative MAE; `Bool/None/String/List` use binary exact match.
+- One fixture schema: `fitness-cases-v1`.
+- CPU and GPU both support typed `String/List` runtime values; CPU is exact, GPU is exact when payload scratch fits and falls back to deterministic compact transport otherwise.
 
 ## Repository Layout
 
-- `python/src/g3p_vm_gpu/`: Python AST/compiler/interpreter/VM/evolution reference.
-- `cpp/`: CPU VM, GPU VM, evolution core, CLIs, and tests.
-- `tools/`: speedup-focused runners.
-- `scripts/`: operational wrappers (`run_gpu_command.sh`).
-- `data/fixtures/`: unified input fixtures (`fitness-cases-v1`).
+- `python/src/g3p_vm_gpu/core/`: AST, errors, value semantics.
+- `python/src/g3p_vm_gpu/runtime/`: builtins, compiler, interpreter, Python bytecode VM.
+- `python/src/g3p_vm_gpu/evolution/`: genome metadata, random generation, mutation, crossover, evolution loop.
+- `cpp/`: CPU runtime, GPU fitness runtime, evolution core, CLIs, benches, tests.
+- `tools/`: runners and experiment scripts.
+- `scripts/`: operational wrappers, including GPU device retry.
+- `data/fixtures/`: `fitness-cases-v1` fixtures.
 
 ## Quick Start
 
@@ -34,9 +37,15 @@ PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 ctest --test-dir cpp/build --output-on-failure
 ```
 
-## Evolution / Benchmark Entrypoints
+### Run Python demo
 
-### C++ evolution runner (CPU/GPU)
+```bash
+PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
+```
+
+## Entrypoints
+
+### C++ evolution runner
 
 ```bash
 python3 tools/run_cpp_evolution.py \
@@ -47,16 +56,25 @@ python3 tools/run_cpp_evolution.py \
   --cpp-timing all
 ```
 
-### CPU vs GPU speedup experiment
+### CPU vs GPU speedup benchmark
 
 ```bash
-bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
-bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 4096 --generations 40
+scripts/run_gpu_command.sh -- bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 ```
+
+Latest confirmed `bouncing-balls-1024` report (`2026-03-06`, `pop=1024`, `gen=40`):
+- inner total speedup: `169.09x`
+- eval-only speedup: `335.90x`
+- outer end-to-end speedup: `164.44x`
+
+Important note:
+- This is not directly comparable to older binary-fitness-era reports.
+- The current numeric fitness path uses negative MAE, which changed CPU and GPU evaluation cost.
+- For performance analysis, track absolute `cpu inner total`, `gpu inner total`, and `gpu kernel total`, not only the speedup ratio.
 
 Output reports are written to `logs/cpu_gpu_compare_pop*_*/cpu_gpu_compare.report.md` and `.json`.
 
-### v1.0 release gate (tests + speed + evolution + PSB2 all-task)
+### v1.0 release gate
 
 ```bash
 python3 tools/run_v1_release_gate.py
@@ -66,31 +84,30 @@ Artifacts:
 - `logs/v1_release_report/<timestamp>/release_gate.summary.json`
 - `logs/v1_release_report/<timestamp>/release_gate.summary.md`
 
-Validation mode notes:
+## Runtime Summary
 
-- Public runners always use the throughput path.
-- The C++ evolution path no longer exposes or depends on a standalone `validate_genome` pass.
+- Builtins:
+  - `abs`, `min`, `max`, `clip`
+  - `len`, `concat`, `slice`, `index`
+- Builtin ids:
+  - `abs=0`, `min=1`, `max=2`, `clip=3`, `len=4`, `concat=5`, `slice=6`, `index=7`
+- CPU runtime:
+  - payload registry for typed `String/List`
+  - exact payload semantics for `concat` / `slice` / `index`
+- GPU runtime:
+  - payload snapshots in device memory
+  - exact payload-backed `concat` / `slice` / `index` when scratch fits
+  - deterministic compact fallback when exact payload materialization cannot fit
+- Fitness:
+  - numeric => `-abs(actual - expected)`
+  - `Bool/None/String/List` => exact match `1`, mismatch `0`
+  - runtime errors => `0`
 
-Runtime summary:
-- Builtin `len(x)` is available for `String/List` via `CALL_BUILTIN` id `4`.
-- Builtin `concat(a,b)` is available for `String/String` and `List/List` via `CALL_BUILTIN` id `5`.
-- Builtin `slice(x,lo,hi)` is available for `String/List` via `CALL_BUILTIN` id `6`.
-- Builtin `index(x,i)` is available for `String/List` via `CALL_BUILTIN` id `7`.
-- CPU runtime uses payload registry for typed `String/List` decoded from fixtures/CLI and executes exact payload semantics.
-- GPU runtime uploads payload snapshots to device memory and executes payload-backed `concat` / `slice` / `index` on the exact path; bounded scratch overflow falls back to deterministic compact transport.
-- Container comparison supports `EQ/NE` for same-tag `String`/`List`.
-- `CALL_LEN` / `CALL_CONCAT` / `CALL_SLICE` / `CALL_INDEX` are wired into AST/compiler/interpreter/VM/evolution on Python and C++ paths.
+## PSB2 Pipeline
 
-Fitness note:
-- Evolution fitness is mixed per case:
-- numeric => `-abs(actual - expected)`
-- `Bool/None/String/List` => exact match `1`, otherwise `0`
-- runtime errors => `0`
-
-### PSB2 conversion and batch run
+### Convert one PSB2 task
 
 ```bash
-# convert one PSB2 task (JSONL) to fitness-cases-v1
 python3 tools/convert_psb2_to_fitness_cases.py \
   --edge-file data/psb2_datasets/bouncing-balls/bouncing-balls-edge.json \
   --random-file data/psb2_datasets/bouncing-balls/bouncing-balls-random.json \
@@ -100,8 +117,11 @@ python3 tools/convert_psb2_to_fitness_cases.py \
   --out logs/psb2/converted/bouncing-balls.train.json \
   --out-test logs/psb2/converted/bouncing-balls.test.json \
   --summary-json logs/psb2/converted/bouncing-balls.summary.json
+```
 
-# run all discovered PSB2 tasks
+### Run all PSB2 tasks
+
+```bash
 python3 tools/run_psb2_all_tasks.py \
   --datasets-root data/psb2_datasets \
   --tasks all \
@@ -110,21 +130,17 @@ python3 tools/run_psb2_all_tasks.py \
   --generations 20
 ```
 
-PSB2 batch outputs:
-- `logs/psb2_all_tasks/<timestamp>/summary.json`
-- `logs/psb2_all_tasks/<timestamp>/summary.md`
-- Current smoke baseline (2026-03-05): `logs/psb2_all_tasks/current_all_v5/summary.json` (`total=25, ok=25`)
+## Specs
 
-## Language / Runtime Scope
-
-- Base subset spec remains in [spec/subset_v1_0.md](spec/subset_v1_0.md).
-- Base builtin whitelist remains in [spec/builtins_base_v1_0.md](spec/builtins_base_v1_0.md).
-- v1.0 runtime extensions for `String/List`, new builtins, payload execution, and mixed fitness are defined in [spec/builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md).
-- Bytecode behavior is defined in [spec/bytecode_isa_v1_0.md](spec/bytecode_isa_v1_0.md).
+- Base language: [spec/subset_v1_0.md](spec/subset_v1_0.md)
+- Base builtins: [spec/builtins_base_v1_0.md](spec/builtins_base_v1_0.md)
+- Runtime extensions: [spec/builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md)
+- Bytecode ISA: [spec/bytecode_isa_v1_0.md](spec/bytecode_isa_v1_0.md)
+- Bytecode JSON format: [spec/bytecode_format_v1_0.md](spec/bytecode_format_v1_0.md)
 
 ## GPU Runbook
 
-Always run GPU commands via:
+Always run GPU commands through:
 
 ```bash
 scripts/run_gpu_command.sh -- <gpu_command> [args...]
