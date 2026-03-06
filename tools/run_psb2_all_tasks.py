@@ -118,9 +118,6 @@ def _run_one_task(
         "--run-tag",
         f"psb2_{task}",
     ]
-    if args.debug_validate:
-        run_cmd.append("--debug-validate")
-
     if args.engine == "gpu":
         cmd = [str(ROOT / "scripts" / "run_gpu_command.sh"), "--"] + run_cmd
     else:
@@ -186,11 +183,10 @@ def main() -> int:
     parser.add_argument("--population-size", type=int, default=1024)
     parser.add_argument("--generations", type=int, default=20)
     parser.add_argument("--selection", default="tournament")
-    parser.add_argument("--crossover-method", default="hybrid")
+    parser.add_argument("--crossover-method", default="typed_subtree")
     parser.add_argument("--cpp-cli", default="cpp/build/g3pvm_evolve_cli")
     parser.add_argument("--run-cpp-tool", default="tools/run_cpp_evolution.py")
     parser.add_argument("--log-dir", default="")
-    parser.add_argument("--debug-validate", action="store_true")
     args = parser.parse_args()
 
     datasets_root = (ROOT / args.datasets_root).resolve()

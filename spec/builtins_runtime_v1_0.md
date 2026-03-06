@@ -1,6 +1,6 @@
 # Built-ins v1.0 Extension
 
-This file extends `spec/builtins.md` for v1.0 runtime work.
+This file extends `spec/builtins_base_v1_0.md` and documents the current v1.0 runtime behavior.
 
 Base rules from v0.1 remain unchanged for:
 - `abs(x)`
@@ -23,8 +23,7 @@ Base rules from v0.1 remain unchanged for:
 
 ### Semantics
 - Returns container length.
-- For current v1.0 transport, `String/List` are packed as hash+length in `Value`.
-- `len` reads the encoded length field.
+- `len` reads container length from compact metadata and matches exact payload length.
 
 ### Type rules
 - Non `String/List` argument => `TypeError`.
@@ -49,7 +48,8 @@ On top of v0.1 mapping:
 - `String + String` returns `String`.
 - `List + List` returns `List`.
 - Mixed tags are not allowed.
-- For current v1.0 transport, result uses deterministic hash-combine and length add (saturating to 65535).
+- Exact path: concatenate payloads and return a same-tag container value.
+- Compact path: use deterministic compact transport metadata for throughput and fallback.
 
 ### Type rules
 - Non `(String,String)` / `(List,List)` inputs => `TypeError`.
@@ -65,7 +65,8 @@ On top of v0.1 mapping:
 ### Semantics
 - Uses Python-like slicing behavior for index normalization and bounds clamp.
 - Return tag is the same as `x`.
-- For current v1.0 transport, result uses deterministic hash-combine with `(src_hash, src_len, lo, hi)`.
+- Exact path: slice payload using normalized bounds.
+- Compact path: use deterministic compact transport metadata.
 - Result length follows normalized slice length.
 
 ### Type rules
@@ -84,8 +85,8 @@ On top of v0.1 mapping:
 - Uses Python indexing behavior with negative index normalization.
 - Out-of-range index returns `ValueError`.
 - Python interpreter/VM returns element payload (same as `x[i]`).
-- C++ CPU path returns exact payload value when payload registry is available; otherwise fallback is deterministic `Int` token.
-- C++ GPU path currently uses deterministic `Int` token for indexed element identity.
+- C++ CPU path returns exact payload value when payload registry is available; otherwise fallback is deterministic compact token.
+- C++ GPU path executes exact payload indexing when uploaded payload/scratch capacity is sufficient; otherwise fallback is deterministic compact token.
 
 ### Type rules
 - First arg must be `String` or `List`.
@@ -96,3 +97,18 @@ On top of v0.1 mapping:
 For VM comparison ops:
 - `EQ`/`NE` are defined for `String` vs `String`, and `List` vs `List`.
 - Ordering (`LT/LE/GT/GE`) for container types remains unsupported (`TypeError` path).
+
+## Payload execution model
+
+- CPU runtime stores decoded `String/List` payloads in a payload registry.
+- GPU runtime uploads payload snapshots into device global memory before kernel evaluation.
+- Device builtins materialize exact payload results through bounded per-thread scratch.
+- If exact GPU payload materialization cannot fit in bounded scratch, the runtime falls back to deterministic compact transport rather than failing the whole evaluation.
+
+## Fitness rule
+
+Evolution fitness is binary and exact per case:
+
+- exact output match => `+1`
+- mismatch => `+0`
+- runtime error => `+0`

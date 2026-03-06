@@ -181,9 +181,8 @@ std::string selection_method_name(SelectionMethod method) {
 }
 
 std::string crossover_method_name(CrossoverMethod method) {
-  if (method == CrossoverMethod::TopLevelSplice) return "top_level_splice";
-  if (method == CrossoverMethod::TypedSubtree) return "typed_subtree";
-  return "hybrid";
+  (void)method;
+  return "typed_subtree";
 }
 
 std::string eval_engine_name(EvalEngine engine) {

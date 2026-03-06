@@ -313,7 +313,6 @@ def _exec_block(p: AstProgram, idx: int, env: Env, fuel: int) -> tuple[Env, Out,
 
 
 def eval_expr(p: AstProgram, inputs: Env | None = None, fuel: int = 10_000) -> tuple[Val | Err, int]:
-    validate_prefix_program(p)
     env = dict(inputs) if inputs else {}
     v, end, fuel_left = _eval_expr(p, 1, env, fuel)
     if end != len(p.nodes):
@@ -322,7 +321,6 @@ def eval_expr(p: AstProgram, inputs: Env | None = None, fuel: int = 10_000) -> t
 
 
 def run_program(p: AstProgram, inputs: Env | None = None, fuel: int = 10_000) -> tuple[Env, Out]:
-    validate_prefix_program(p)
     env0 = dict(inputs) if inputs else {}
     env1, out, end, _fuel_left = _exec_block(p, 1, env0, fuel)
     if end != len(p.nodes):

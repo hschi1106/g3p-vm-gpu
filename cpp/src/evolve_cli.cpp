@@ -33,7 +33,7 @@ struct CliOptions {
   int elitism = 2;
   double mutation_rate = 0.5;
   double crossover_rate = 0.9;
-  std::string crossover_method = "hybrid";
+  std::string crossover_method = "typed_subtree";
   std::string selection = "tournament";
   int tournament_k = 3;
   double truncation_ratio = 0.5;
@@ -44,7 +44,6 @@ struct CliOptions {
   int max_total_nodes = 80;
   int max_for_k = 16;
   int max_call_args = 3;
-  bool debug_validate = false;
   std::string show_program = "none";
   std::string timing = "summary";
   std::string out_json;
@@ -215,11 +214,6 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.max_for_k = std::stoi(need_value("--max-for-k"));
     } else if (arg == "--max-call-args") {
       opts.max_call_args = std::stoi(need_value("--max-call-args"));
-    } else if (arg == "--debug-validate") {
-      opts.debug_validate = true;
-    } else if (arg == "--unsafe-no-validate") {
-      // Backward-compatible alias: keeps fast path (default) and does nothing.
-      opts.debug_validate = false;
     } else if (arg == "--show-program") {
       opts.show_program = need_value("--show-program");
     } else if (arg == "--timing") {
@@ -257,9 +251,7 @@ g3pvm::evo::SelectionMethod parse_selection(const std::string& s) {
 }
 
 g3pvm::evo::CrossoverMethod parse_crossover_method(const std::string& s) {
-  if (s == "top_level_splice") return g3pvm::evo::CrossoverMethod::TopLevelSplice;
   if (s == "typed_subtree") return g3pvm::evo::CrossoverMethod::TypedSubtree;
-  if (s == "hybrid") return g3pvm::evo::CrossoverMethod::Hybrid;
   throw std::runtime_error("unknown crossover method");
 }
 
@@ -303,7 +295,7 @@ int main(int argc, char** argv) {
                                     args.max_total_nodes,
                                     args.max_for_k,
                                     args.max_call_args,
-                                    args.debug_validate};
+                                    false};
 
     const g3pvm::evo::EvolutionRun run = g3pvm::evo::evolve_population_profiled(cases, cfg);
     const g3pvm::evo::EvolutionResult& result = run.result;

@@ -7,7 +7,7 @@ It is the cross-language contract between:
 - the **CPU VM** (reference execution of bytecode),
 - the **GPU VM** (accelerated execution of the same bytecode).
 
-Semantics must conform to `spec/subset_v0_1.md`.
+Semantics must conform to `spec/subset_v1_0.md`.
 
 ---
 
@@ -28,7 +28,13 @@ A bytecode program is:
 - `code: Instruction[]`
 
 ### 1.3 Value Domain
+Base scalar domain:
 `Value ::= Int | Float | Bool | None`
+
+v1.0 runtime extension also supports compact container values:
+
+- `String`
+- `List`
 
 Normative type policy:
 - **Bool is not numeric** (even if host language represents it as an int subtype).
@@ -144,7 +150,7 @@ Promotion rule:
 ### 3.4 Comparison Operators
 All comparison operators push a `Bool`.
 
-Rules match `subset_v0_1.md`:
+Rules match `subset_v1_0.md`:
 - `None` only supports `EQ/NE`. Ordering comparisons with `None` are `TypeError`.
 - `Bool` only supports `EQ/NE` with `Bool`. Ordering comparisons on `Bool` are `TypeError`.
 - Numeric comparisons operate on promoted numeric domain.
@@ -195,12 +201,17 @@ Rules match `subset_v0_1.md`:
 
 Built-ins are pure and restricted to the whitelist:
 - `abs`, `min`, `max`, `clip`
+- plus v1.0 container built-ins `len`, `concat`, `slice`, `index`
 
-#### Builtin ID table (v0.1)
+#### Builtin ID table
 - `0: abs`
 - `1: min`
 - `2: max`
 - `3: clip`
+- `4: len`
+- `5: concat`
+- `6: slice`
+- `7: index`
 
 #### `CALL_BUILTIN bid argc`
 - Operands: `bid` (builtin ID), `argc` (argument count)
@@ -221,6 +232,19 @@ Builtin semantics (normative):
   - all numeric; promote mixed types
   - require `lo <= hi`
   - return `min(max(x, lo), hi)`
+- `len(x)`:
+  - `x` must be `String` or `List`
+- `concat(a, b)`:
+  - `(String, String)` or `(List, List)` only
+- `slice(x, lo, hi)`:
+  - `x` must be `String` or `List`; `lo`/`hi` must be `Int`
+- `index(x, i)`:
+  - `x` must be `String` or `List`; `i` must be `Int`
+  - out-of-range index => `ValueError`
+
+Container equality:
+- `EQ/NE` are defined for same-tag `String/String` and `List/List`
+- ordering comparisons on containers remain `TypeError`
 
 ---
 

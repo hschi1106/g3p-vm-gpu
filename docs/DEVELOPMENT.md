@@ -52,18 +52,15 @@ bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 
 Validation behavior:
 
-- Default benchmark mode uses fast evolution operators (no heavy `validate_genome` checks on every offspring).
-- To debug validity issues, run:
+- Public runners use fast evolution operators only.
+- `validate_genome` remains available as internal test/debug scaffolding, not as a benchmark/runtime flag.
 
-```bash
-bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40 --safe-validate
-```
+Current benchmark contract:
 
-For direct runner usage:
-
-```bash
-python3 tools/run_cpp_evolution.py --cases <fixture.json> --cpp-cli cpp/build/g3pvm_evolve_cli --debug-validate
-```
+- Benchmark fixture: `data/fixtures/speedup_cases_bouncing_balls_1024.json`
+- Evolution-progress fixture: `data/fixtures/simple_evo_exp_1024.json`
+- Public crossover method: `typed_subtree`
+- Public fitness rule: binary exact match per case
 
 Inputs must use `fitness-cases-v1` schema (example: `data/fixtures/speedup_cases_bouncing_balls_1024.json`).
 
@@ -119,13 +116,12 @@ python3 tools/convert_psb2_to_fitness_cases.py \
 Notes:
 - Converter supports single-output and multi-output (`output1..M`) tasks.
 - For multi-output rows, converter packs outputs as list typed value in `expected`.
-- String/List typed values are currently represented as deterministic hashes in runtime value transport.
 - Runtime extension adds builtin `len(x)` for `String/List` (`CALL_BUILTIN` id `4`).
 - Runtime extension adds builtin `concat(a,b)` for `String/String` and `List/List` (`CALL_BUILTIN` id `5`).
 - Runtime extension adds builtin `slice(x,lo,hi)` for `String/List` (`CALL_BUILTIN` id `6`).
 - Runtime extension adds builtin `index(x,i)` for `String/List` (`CALL_BUILTIN` id `7`).
 - CPU runtime has payload registry support for typed `String/List` values. If payload is present, `concat/slice/index` execute exact payload semantics.
-- GPU runtime uploads payload snapshots and enables exact payload execution for `concat/slice/index` via thread-local scratch; overflow falls back to hash/token path.
+- GPU runtime uploads payload snapshots and enables exact payload execution for `concat/slice/index` via thread-local scratch backed by device global memory; overflow falls back to compact deterministic transport.
 - Evolution AST generation now includes `CALL_LEN` / `CALL_CONCAT` / `CALL_SLICE` / `CALL_INDEX` (Python/C++ paths).
 - Fitness scoring is binary per case: exact match `+1`, mismatch/error `+0` (CPU/GPU parity).
 

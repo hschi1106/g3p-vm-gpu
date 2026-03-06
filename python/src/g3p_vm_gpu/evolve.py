@@ -31,18 +31,13 @@ class EvolutionConfig:
     elitism: int = 2
     mutation_rate: float = 0.5
     crossover_rate: float = 0.9
-    crossover_method: str = "hybrid"
+    crossover_method: str = "typed_subtree"
     selection_method: SelectionMethod = SelectionMethod.TOURNAMENT
     tournament_k: int = 3
     truncation_ratio: float = 0.5
     seed: int = 0
     fuel: int = 20_000
     limits: Limits = Limits()
-    float_abs_tol: float = 1e-12
-    float_rel_tol: float = 1e-12
-    reward_match: float = 1.0
-    penalty_mismatch: float = 0.0
-    penalty_error: float = -1.0
 
 
 @dataclass(frozen=True)
@@ -60,31 +55,16 @@ class EvolutionResult:
     final_population: List[ScoredGenome]
 
 
-def _is_close(a: Val, b: Val, abs_tol: float, rel_tol: float) -> bool:
-    if isinstance(a, bool) or isinstance(b, bool):
-        return a == b
-    if isinstance(a, float) or isinstance(b, float):
-        af = float(a) if isinstance(a, (int, float)) else None
-        bf = float(b) if isinstance(b, (int, float)) else None
-        if af is None or bf is None:
-            return False
-        diff = abs(af - bf)
-        return diff <= max(abs_tol, rel_tol * max(abs(af), abs(bf)))
-    return a == b
-
-
 def evaluate_genome(genome: ProgramGenome, cases: Sequence[FitnessCase], cfg: EvolutionConfig) -> float:
     program = compile_for_eval(genome)
     score = 0.0
     for case in cases:
         out = run_bytecode(program, inputs=case.inputs, fuel=cfg.fuel)
         if isinstance(out, VMReturn):
-            if _is_close(out.value, case.expected, cfg.float_abs_tol, cfg.float_rel_tol):
-                score += cfg.reward_match
-            else:
-                score += cfg.penalty_mismatch
+            if out.value == case.expected:
+                score += 1.0
         elif isinstance(out, VMError):
-            score += cfg.penalty_error
+            score += 0.0
     return score
 
 

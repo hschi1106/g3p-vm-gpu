@@ -94,17 +94,11 @@ struct ValidationResult {
 };
 
 enum class CrossoverMethod {
-  TopLevelSplice,
   TypedSubtree,
-  Hybrid,
 };
 
 ProgramGenome make_random_genome(std::uint64_t seed, const Limits& limits = Limits{});
 ProgramGenome mutate(const ProgramGenome& genome, std::uint64_t seed, const Limits& limits = Limits{});
-ProgramGenome crossover_top_level(const ProgramGenome& parent_a,
-                                  const ProgramGenome& parent_b,
-                                  std::uint64_t seed,
-                                  const Limits& limits = Limits{});
 ProgramGenome crossover_typed_subtree(const ProgramGenome& parent_a,
                                       const ProgramGenome& parent_b,
                                       std::uint64_t seed,
@@ -112,7 +106,7 @@ ProgramGenome crossover_typed_subtree(const ProgramGenome& parent_a,
 ProgramGenome crossover(const ProgramGenome& parent_a,
                         const ProgramGenome& parent_b,
                         std::uint64_t seed,
-                        CrossoverMethod method = CrossoverMethod::TopLevelSplice,
+                        CrossoverMethod method = CrossoverMethod::TypedSubtree,
                         const Limits& limits = Limits{});
 ValidationResult validate_genome(const ProgramGenome& genome, const Limits& limits = Limits{});
 BytecodeProgram compile_for_eval(const ProgramGenome& genome);

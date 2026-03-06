@@ -434,7 +434,7 @@ def mutate(genome: ProgramGenome, seed: int = 0, limits: Limits | None = None) -
     return make_random_genome(seed=seed + 1, limits=limits)
 
 
-def crossover_top_level(parent_a: ProgramGenome, parent_b: ProgramGenome, seed: int = 0, limits: Limits | None = None) -> ProgramGenome:
+def crossover_typed_subtree(parent_a: ProgramGenome, parent_b: ProgramGenome, seed: int = 0, limits: Limits | None = None) -> ProgramGenome:
     limits = limits or Limits()
     rng = random.Random(seed)
     try:
@@ -461,24 +461,13 @@ def crossover_top_level(parent_a: ProgramGenome, parent_b: ProgramGenome, seed: 
     return make_random_genome(seed=seed + 7, limits=limits)
 
 
-def crossover_typed_subtree(parent_a: ProgramGenome, parent_b: ProgramGenome, seed: int = 0, limits: Limits | None = None) -> ProgramGenome:
-    return crossover_top_level(parent_a, parent_b, seed=seed, limits=limits)
-
-
 def crossover(
     parent_a: ProgramGenome,
     parent_b: ProgramGenome,
     seed: int = 0,
     limits: Limits | None = None,
-    method: str = "top_level_splice",
+    method: str = "typed_subtree",
 ) -> ProgramGenome:
-    if method == "top_level_splice":
-        return crossover_top_level(parent_a, parent_b, seed=seed, limits=limits)
     if method == "typed_subtree":
         return crossover_typed_subtree(parent_a, parent_b, seed=seed, limits=limits)
-    if method == "hybrid":
-        rng = random.Random(seed)
-        if rng.random() < 0.7:
-            return crossover_typed_subtree(parent_a, parent_b, seed=seed, limits=limits)
-        return crossover_top_level(parent_a, parent_b, seed=seed, limits=limits)
     raise ValueError(f"unknown crossover method: {method}")

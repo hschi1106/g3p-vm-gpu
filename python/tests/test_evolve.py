@@ -24,7 +24,7 @@ class TestEvolve(unittest.TestCase):
             elitism=2,
             mutation_rate=0.7,
             crossover_rate=0.9,
-            crossover_method="hybrid",
+            crossover_method="typed_subtree",
             selection_method=method,
             seed=42,
         )

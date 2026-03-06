@@ -40,12 +40,11 @@ bool test_mutation_and_crossover_invariants() {
     if (!check(mvr.is_valid, "mutated genome invalid")) return false;
     (void)g3pvm::evo::compile_for_eval(m);
 
-    const g3pvm::evo::ProgramGenome c0 = g3pvm::evo::crossover_top_level(a, b, static_cast<std::uint64_t>(2000 + i), limits);
     const g3pvm::evo::ProgramGenome c1 = g3pvm::evo::crossover_typed_subtree(a, b, static_cast<std::uint64_t>(3000 + i), limits);
     const g3pvm::evo::ProgramGenome c2 =
-        g3pvm::evo::crossover(a, b, static_cast<std::uint64_t>(4000 + i), g3pvm::evo::CrossoverMethod::Hybrid, limits);
+        g3pvm::evo::crossover(a, b, static_cast<std::uint64_t>(4000 + i), g3pvm::evo::CrossoverMethod::TypedSubtree, limits);
 
-    for (const g3pvm::evo::ProgramGenome* c : {&c0, &c1, &c2}) {
+    for (const g3pvm::evo::ProgramGenome* c : {&c1, &c2}) {
       const auto cvr = g3pvm::evo::validate_genome(*c, limits);
       if (!check(cvr.is_valid, "crossover genome invalid")) return false;
       (void)g3pvm::evo::compile_for_eval(*c);

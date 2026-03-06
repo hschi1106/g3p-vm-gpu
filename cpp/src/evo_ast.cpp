@@ -666,41 +666,6 @@ AstProgram replace_subtree(const AstProgram& base,
   return out;
 }
 
-AstProgram top_level_splice_prefix(const AstProgram& a, const AstProgram& b, std::mt19937_64& rng) {
-  const std::vector<std::size_t> end_a = build_subtree_end(a);
-  const std::vector<std::size_t> end_b = build_subtree_end(b);
-  const std::vector<std::size_t> roots_a = collect_top_level_stmt_roots(a, end_a);
-  const std::vector<std::size_t> roots_b = collect_top_level_stmt_roots(b, end_b);
-  const int cut_a = roots_a.empty() ? 0 : rand_int(rng, 0, static_cast<int>(roots_a.size()));
-  const int cut_b = roots_b.empty() ? 0 : rand_int(rng, 0, static_cast<int>(roots_b.size()));
-
-  AstProgram out;
-  out.version = "ast-prefix-v1";
-  out.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
-
-  std::vector<std::vector<AstNode>> segs;
-  for (int i = 0; i < cut_a; ++i) {
-    segs.push_back(map_subtree_nodes_into(out, a, roots_a[static_cast<std::size_t>(i)], end_a[roots_a[static_cast<std::size_t>(i)]]));
-  }
-  for (std::size_t i = static_cast<std::size_t>(cut_b); i < roots_b.size(); ++i) {
-    segs.push_back(map_subtree_nodes_into(out, b, roots_b[i], end_b[roots_b[i]]));
-  }
-  if (segs.empty()) {
-    segs.push_back(map_subtree_nodes_into(out, a, 1, a.nodes.size() > 1 ? 2 : 1));
-    segs.back().clear();
-    segs.back().push_back(AstNode{NodeKind::RETURN, 0, 0});
-    const int cidx = find_or_add_const(out, Value::from_int(0));
-    segs.back().push_back(AstNode{NodeKind::CONST, cidx, 0});
-  }
-
-  for (const auto& seg : segs) {
-    out.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
-    out.nodes.insert(out.nodes.end(), seg.begin(), seg.end());
-  }
-  out.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
-  return out;
-}
-
 struct PrefixGenCtx {
   std::set<int> num_names;
   std::set<int> bool_names;
@@ -1433,25 +1398,6 @@ ProgramGenome mutate(const ProgramGenome& genome, std::uint64_t seed, const Limi
   return out;
 }
 
-ProgramGenome crossover_top_level(const ProgramGenome& parent_a,
-                                  const ProgramGenome& parent_b,
-                                  std::uint64_t seed,
-                                  const Limits& limits) {
-  std::mt19937_64 rng(seed);
-  AstProgram child = top_level_splice_prefix(parent_a.ast, parent_b.ast, rng);
-  ProgramGenome out;
-  out.ast = std::move(child);
-  out.meta = build_meta_fast(out.ast);
-  if (out.meta.node_count > limits.max_total_nodes) return parent_a;
-  for (const AstNode& n : out.ast.nodes) {
-    if (n.kind == NodeKind::FOR_RANGE && (n.i1 < 0 || n.i1 > limits.max_for_k)) {
-      return parent_a;
-    }
-  }
-  if (limits.debug_validate && !validate_genome(out, limits).is_valid) return parent_a;
-  return out;
-}
-
 ProgramGenome crossover_typed_subtree(const ProgramGenome& parent_a,
                                       const ProgramGenome& parent_b,
                                       std::uint64_t seed,
@@ -1498,25 +1444,8 @@ ProgramGenome crossover(const ProgramGenome& parent_a,
                         std::uint64_t seed,
                         CrossoverMethod method,
                         const Limits& limits) {
-  // In fast default mode (without debug validation), force typed-subtree-only
-  // crossover so we avoid structure-unsafe top-level splice paths.
-  if (!limits.debug_validate) {
-    return crossover_typed_subtree(parent_a, parent_b, seed, limits);
-  }
-  if (method == CrossoverMethod::TopLevelSplice) {
-    return crossover_top_level(parent_a, parent_b, seed, limits);
-  }
-  if (method == CrossoverMethod::TypedSubtree) {
-    return crossover_typed_subtree(parent_a, parent_b, seed, limits);
-  }
-  if (method == CrossoverMethod::Hybrid) {
-    std::mt19937_64 rng(seed);
-    if (rand_prob(rng, 0.7)) {
-      return crossover_typed_subtree(parent_a, parent_b, seed, limits);
-    }
-    return crossover_top_level(parent_a, parent_b, seed, limits);
-  }
-  throw std::invalid_argument("unknown crossover method");
+  (void)method;
+  return crossover_typed_subtree(parent_a, parent_b, seed, limits);
 }
 
 ValidationResult validate_genome(const ProgramGenome& genome, const Limits& limits) {

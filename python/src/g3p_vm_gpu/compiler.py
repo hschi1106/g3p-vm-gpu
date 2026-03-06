@@ -272,7 +272,6 @@ class _Compiler:
 
 
 def compile_program(p: AstProgram) -> BytecodeProgram:
-    validate_prefix_program(p)
     c = _Compiler(p)
     end = c._compile_block(1)
     if end != len(p.nodes):

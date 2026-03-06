@@ -6,7 +6,6 @@ from src.g3p_vm_gpu.evo_encoding import (
     Limits,
     compile_for_eval,
     crossover,
-    crossover_top_level,
     crossover_typed_subtree,
     make_random_genome,
     mutate,
@@ -48,15 +47,14 @@ class TestEvoEncoding(unittest.TestCase):
             self.assertTrue(vr.is_valid, f"invalid crossover at seed={i}: {vr.errors}")
             compile_for_eval(child)
 
-    def test_crossover_methods_all_valid(self):
+    def test_typed_subtree_crossover_valid(self):
         limits = Limits(debug_validate=True)
         a = make_random_genome(seed=10, limits=limits)
         b = make_random_genome(seed=20, limits=limits)
         for i in range(80):
-            c_top = crossover_top_level(a, b, seed=i, limits=limits)
             c_sub = crossover_typed_subtree(a, b, seed=i, limits=limits)
-            c_hyb = crossover(a, b, seed=i, limits=limits, method="hybrid")
-            for c in (c_top, c_sub, c_hyb):
+            c_api = crossover(a, b, seed=i, limits=limits, method="typed_subtree")
+            for c in (c_sub, c_api):
                 vr = validate_genome(c, limits)
                 self.assertTrue(vr.is_valid, f"invalid crossover method output at seed={i}: {vr.errors}")
                 compile_for_eval(c)

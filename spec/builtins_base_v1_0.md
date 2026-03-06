@@ -1,6 +1,6 @@
-# Built-ins v0.1 Specification
+# Built-ins Base Specification
 
-This document defines the **built-in function whitelist** for the `g3p-vm-gpu` v0.1 language subset.
+This document defines the **base built-in whitelist** for the `g3p-vm-gpu` language subset.
 
 It is a normative contract shared by:
 - the reference interpreter,
@@ -8,15 +8,15 @@ It is a normative contract shared by:
 - the GPU backend.
 
 Semantics must be consistent with:
-- `spec/subset_v0_1.md`
-- `spec/bytecode_isa.md`
+- `spec/subset_v1_0.md`
+- `spec/bytecode_isa_v1_0.md`
 
 ---
 
 ## 1. Scope and Principles
 
 ### 1.1 Whitelist only
-Only the following built-ins exist in v0.1:
+Only the following built-ins exist in the base numeric subset:
 
 - `abs(x)`
 - `min(x, y)`
@@ -42,7 +42,7 @@ Built-ins can raise the following error kinds (via `EvalError`):
 - `TypeError`: wrong arity or wrong argument type(s)
 - `ValueError`: invalid value constraints (e.g., `clip(lo > hi)`)
 
-> Note: The VM ISA also allows `NameError` for unknown builtin IDs/names. That behavior is specified in `bytecode_isa.md`.
+> Note: The VM ISA also allows `NameError` for unknown builtin IDs/names. That behavior is specified in `bytecode_isa_v1_0.md`.
 
 ---
 
@@ -161,7 +161,7 @@ Built-ins are invoked via:
 The compiler pushes arguments left-to-right; the VM pops `argc` items from the stack.
 The last argument is at the top of stack.
 
-### 4.2 Built-in ID table (v0.1)
+### 4.2 Built-in ID table (base)
 The following mapping is normative for backends that use numeric builtin IDs:
 
 - `0: abs`
@@ -190,10 +190,13 @@ These built-ins should be implemented branch-minimally for performance, but corr
 
 ---
 
-## 6. Versioning
-This is **Built-ins v0.1**. Any change to:
-- whitelist contents,
-- arities,
-- type/value rules,
-- numeric promotion rules,
-requires a new versioned spec file (e.g., `builtins_v0_2.md`) to avoid silent drift.
+## 6. Relationship to v1.0 runtime
+
+This file remains normative for the numeric built-ins:
+
+- `0: abs`
+- `1: min`
+- `2: max`
+- `3: clip`
+
+Additional v1.0 container built-ins and payload execution rules are defined in `spec/builtins_runtime_v1_0.md`.

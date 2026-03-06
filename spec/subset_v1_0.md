@@ -19,14 +19,13 @@ The goal is a language that is:
 - **Single source of truth**: a reference interpreter defines semantics; VMs must conform.
 
 ### 1.2 Non-goals (Out of scope)
-Not supported in v0.1:
-- Containers: list/dict/set/tuple
+Not supported in the base numeric subset:
+- General Python containers: dict/set/tuple
 - User-defined functions / lambdas / closures / recursion
 - Classes / objects / attribute access
 - Exceptions: try/except/raise
 - while / break / continue
 - import / I/O / randomness
-- strings
 
 ---
 
@@ -77,6 +76,16 @@ Program p ::= Block
 ### 3.3 Syntactic restrictions (normative)
 - In `ForRange(x, K, ...)`, `K` must be a **non-negative integer constant** and **must not be Bool**.
 - `Call` is restricted to the built-in whitelist only.
+
+### 3.4 v1.0 extension note
+
+The current runtime extends this base subset with:
+
+- typed fixture values `String` and `List`
+- built-ins `len`, `concat`, `slice`, `index`
+- container equality via `EQ/NE`
+
+Those additions are specified in `spec/builtins_runtime_v1_0.md`. This file remains the base contract for scalar semantics, control flow, and evaluation order.
 
 ---
 

@@ -33,7 +33,7 @@ bool run_one(g3pvm::evo::SelectionMethod method) {
   cfg.elitism = 2;
   cfg.mutation_rate = 0.7;
   cfg.crossover_rate = 0.9;
-  cfg.crossover_method = g3pvm::evo::CrossoverMethod::Hybrid;
+  cfg.crossover_method = g3pvm::evo::CrossoverMethod::TypedSubtree;
   cfg.selection_method = method;
   cfg.seed = 42;
 

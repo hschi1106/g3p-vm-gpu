@@ -4,7 +4,7 @@
 - Core Python package: `python/src/g3p_vm_gpu/`.
   Example modules: `ast.py` (AST nodes), `interp.py` (reference interpreter), `compiler.py` (AST -> bytecode), `vm.py` (bytecode VM), `fuzz.py` (random program generator), `demo.py` (manual smoke demo).
 - Tests live in `python/tests/` and currently include interpreter and VM equivalence coverage.
-- Language and VM contracts are documented in `spec/` (`subset_v0_1.md`, `bytecode_isa.md`, `builtins.md`). Treat these files as the behavioral source of truth.
+- Language and VM contracts are documented in `spec/` (`subset_v1_0.md`, `bytecode_isa_v1_0.md`, `builtins_base_v1_0.md`, `builtins_runtime_v1_0.md`). Treat these files as the behavioral source of truth.
 
 ## Build, Test, and Development Commands
 - Run all tests:

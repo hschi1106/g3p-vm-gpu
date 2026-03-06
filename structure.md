@@ -117,10 +117,11 @@ g3p-vm-gpu/
 │   └── build_release/             # Release build artifacts
 │
 ├── spec/                          # Specifications (behavioral source of truth)
-│   ├── subset_v0_1.md             # Python-like subset language spec
-│   ├── bytecode_isa.md            # Bytecode instruction set architecture
-│   ├── bytecode_format_v0_1.md    # Bytecode JSON transport format
-│   └── builtins.md                # Built-in function contracts
+│   ├── subset_v1_0.md             # Python-like subset language spec
+│   ├── bytecode_isa_v1_0.md       # Bytecode instruction set architecture
+│   ├── bytecode_format_v1_0.md    # Bytecode JSON transport format
+│   ├── builtins_base_v1_0.md      # Base numeric built-in contracts
+│   └── builtins_runtime_v1_0.md   # Runtime extension built-in contracts
 │
 ├── data/fixtures/                 # Unified input fixtures (fitness-cases-v1)
 │   ├── simple_evo_x_plus_1_1024.json
@@ -349,7 +350,7 @@ BytecodeProgram compile_for_eval_with_preset_locals(
     const std::vector<std::pair<std::string, int>>& preset_locals);
 ```
 
-Compilation conventions follow `spec/bytecode_isa.md §4`:
+Compilation conventions follow `spec/bytecode_isa_v1_0.md §4`:
 - Binary ops: `compile(lhs); compile(rhs); OP`
 - Ternary `if_expr`: `compile(cond); JMP_IF_FALSE else; compile(then); JMP end; else: compile(else); end:`
 - Short-circuit `AND`/`OR` via conditional jumps
@@ -591,7 +592,7 @@ All evolution/benchmark inputs use a single JSON schema:
 
 ### 8.3 Bytecode JSON Transport Format
 
-Used by the CPU/GPU VM CLIs, defined in `spec/bytecode_format_v0_1.md`:
+Used by the CPU/GPU VM CLIs, defined in `spec/bytecode_format_v1_0.md`:
 
 ```json
 {
@@ -611,7 +612,7 @@ Used by the CPU/GPU VM CLIs, defined in `spec/bytecode_format_v0_1.md`:
 
 ## 9. Bytecode ISA Specification
 
-Full specification in `spec/bytecode_isa.md` (v0.1).
+Full specification in `spec/bytecode_isa_v1_0.md`.
 
 ### 9.1 VM State
 
@@ -637,7 +638,7 @@ Full specification in `spec/bytecode_isa.md` (v0.1).
 
 ### 9.3 Built-in Functions
 
-Whitelist-only, defined in `spec/builtins.md`:
+Whitelist-only, defined in `spec/builtins_base_v1_0.md` and `spec/builtins_runtime_v1_0.md`:
 
 | bid | Name   | Signature                                    | Notes                  |
 |-----|--------|----------------------------------------------|------------------------|
@@ -903,7 +904,7 @@ The comparison report includes multi-level speedup:
 
 ### 15.3 Language Subset Boundaries
 
-Supported (per `spec/subset_v0_1.md`):
+Supported (per `spec/subset_v1_0.md`):
 - Expressions: constants, variables, unary/binary ops, ternary conditional, built-in calls
 - Statements: assignment, if-else, bounded for-range, return
 

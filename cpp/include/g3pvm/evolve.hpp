@@ -37,7 +37,7 @@ struct EvolutionConfig {
   int elitism = 2;
   double mutation_rate = 0.5;
   double crossover_rate = 0.9;
-  CrossoverMethod crossover_method = CrossoverMethod::Hybrid;
+  CrossoverMethod crossover_method = CrossoverMethod::TypedSubtree;
   SelectionMethod selection_method = SelectionMethod::Tournament;
   EvalEngine eval_engine = EvalEngine::CPU;
   int gpu_blocksize = 256;
@@ -46,11 +46,6 @@ struct EvolutionConfig {
   std::uint64_t seed = 0;
   int fuel = 20000;
   Limits limits;
-  double float_abs_tol = 1e-12;
-  double float_rel_tol = 1e-12;
-  double reward_match = 1.0;
-  double penalty_mismatch = 0.0;
-  double penalty_error = -10.0;
 };
 
 struct ScoredGenome {

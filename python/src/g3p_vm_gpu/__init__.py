@@ -12,7 +12,6 @@ from .evo_encoding import (
     make_random_genome,
     mutate,
     crossover,
-    crossover_top_level,
     crossover_typed_subtree,
     validate_genome,
     compile_for_eval,

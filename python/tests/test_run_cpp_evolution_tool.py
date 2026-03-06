@@ -46,7 +46,7 @@ class TestRunCppEvolutionTool(unittest.TestCase):
                 "done\n"
                 "echo 'GEN 000 best=1.000000 mean=0.250000 hash=abc123abc123abcd'\n"
                 "echo 'GEN 001 best=2.000000 mean=0.750000 hash=def456def456def4'\n"
-                "echo 'FINAL best=2.000000 hash=def456def456def4 selection=tournament crossover=hybrid'\n"
+                "echo 'FINAL best=2.000000 hash=def456def456def4 selection=tournament crossover=typed_subtree'\n"
                 "echo 'TIMING phase=init_population ms=1.234'\n"
                 "echo 'TIMING phase=total ms=9.876'\n"
                 "echo 'TIMING gen=000 eval_ms=3.210 repro_ms=1.230 total_ms=4.440'\n"
