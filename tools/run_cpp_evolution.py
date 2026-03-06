@@ -74,6 +74,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--mutation-rate", type=float, default=0.5)
     p.add_argument("--mutation-subtree-prob", type=float, default=0.8)
     p.add_argument("--crossover-rate", type=float, default=0.9)
+    p.add_argument("--numeric-type-penalty", type=float, default=1.0)
     p.add_argument("--selection-pressure", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--fuel", type=int, default=20_000)
@@ -228,6 +229,8 @@ def main() -> None:
             str(args.mutation_subtree_prob),
             "--crossover-rate",
             str(args.crossover_rate),
+            "--numeric-type-penalty",
+            str(args.numeric_type_penalty),
             "--selection-pressure",
             str(args.selection_pressure),
             "--seed",

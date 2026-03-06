@@ -1,115 +1,99 @@
-# Built-ins v1.0 Extension
+# Builtins Runtime v1.0
 
-This file extends `spec/builtins_base_v1_0.md` and documents the current v1.0 runtime behavior.
+This document defines runtime-only builtin behavior that extends the scalar builtin set with container operations and payload-backed execution rules.
 
-Base rules from v0.1 remain unchanged for:
-- `abs(x)`
-- `min(x, y)`
-- `max(x, y)`
-- `clip(x, lo, hi)`
+See also:
+- [builtins_base_v1_0.md](./builtins_base_v1_0.md)
+- [bytecode_isa_v1_0.md](./bytecode_isa_v1_0.md)
+- [fitness_v1_0.md](./fitness_v1_0.md)
 
-## Added built-in
+## Added Builtins
 
 - `len(x)`
 - `concat(a, b)`
 - `slice(x, lo, hi)`
 - `index(x, i)`
 
-### Signature
-- `len(x: String|List) -> Int`
+Builtin ids:
+- `4`: `len`
+- `5`: `concat`
+- `6`: `slice`
+- `7`: `index`
 
-### Arity
-- Exactly 1 argument.
+## `len(x)`
 
-### Semantics
-- Returns container length.
-- `len` reads container length from compact metadata and matches exact payload length.
+- arity: `1`
+- input: `String` or `List`
+- result: `Int`
+- non-container input => `TypeError`
 
-### Type rules
-- Non `String/List` argument => `TypeError`.
+The returned length must match the exact payload length.
 
-## Built-in ID mapping extension
+## `concat(a, b)`
 
-On top of v0.1 mapping:
-- `4: len`
-- `5: concat`
-- `6: slice`
-- `7: index`
+- arity: `2`
+- valid inputs:
+  - `String`, `String`
+  - `List`, `List`
+- result: same tag as inputs
+- mixed tags => `TypeError`
 
-## `concat(a, b)` semantics
+Execution behavior:
+- CPU exact path concatenates exact payloads
+- GPU exact path concatenates payloads when scratch capacity is sufficient
+- GPU fallback path returns deterministic compact transport when exact materialization does not fit
 
-### Signature
-- `concat(a: String|List, b: String|List) -> String|List`
+## `slice(x, lo, hi)`
 
-### Arity
-- Exactly 2 arguments.
+- arity: `3`
+- valid inputs:
+  - `x`: `String` or `List`
+  - `lo`: `Int`
+  - `hi`: `Int`
+- invalid types => `TypeError`
+- result tag matches `x`
 
-### Semantics
-- `String + String` returns `String`.
-- `List + List` returns `List`.
-- Mixed tags are not allowed.
-- Exact path: concatenate payloads and return a same-tag container value.
-- Compact path: use deterministic compact transport metadata for throughput and fallback.
+Semantics:
+- Python-like negative-index normalization
+- bounds clamp behavior consistent with Python slicing
+- exact path returns payload-backed slice
+- GPU fallback uses deterministic compact transport when exact materialization does not fit
 
-### Type rules
-- Non `(String,String)` / `(List,List)` inputs => `TypeError`.
+## `index(x, i)`
 
-## `slice(x, lo, hi)` semantics
+- arity: `2`
+- valid inputs:
+  - `x`: `String` or `List`
+  - `i`: `Int`
+- invalid types => `TypeError`
+- out-of-range index => `ValueError`
 
-### Signature
-- `slice(x: String|List, lo: Int, hi: Int) -> String|List`
+Semantics:
+- Python-like negative-index normalization
+- Python runtime returns the exact indexed element
+- C++ CPU returns exact payload value when payload registry is available
+- C++ GPU returns exact payload value when uploaded payload and scratch capacity are sufficient
+- GPU fallback returns deterministic compact transport when exact materialization does not fit
 
-### Arity
-- Exactly 3 arguments.
+## Container Comparison
 
-### Semantics
-- Uses Python-like slicing behavior for index normalization and bounds clamp.
-- Return tag is the same as `x`.
-- Exact path: slice payload using normalized bounds.
-- Compact path: use deterministic compact transport metadata.
-- Result length follows normalized slice length.
+The runtime extends comparison semantics as follows:
+- `EQ` and `NE` are defined for `String` with `String`
+- `EQ` and `NE` are defined for `List` with `List`
+- ordering comparisons on containers remain invalid and yield `TypeError`
 
-### Type rules
-- First arg must be `String` or `List`.
-- `lo` and `hi` must be `Int`.
+## Payload Contract
 
-## `index(x, i)` semantics
+### CPU
+- decoded `String` and `List` payloads are stored in a registry
+- exact builtin results may allocate new payload entries
 
-### Signature
-- `index(x: String|List, i: Int) -> Any`
+### GPU
+- payload snapshots are uploaded into global memory before evaluation
+- exact container builtins use bounded per-thread scratch
+- if exact materialization does not fit, the runtime must fall back to deterministic compact transport rather than failing the whole job
 
-### Arity
-- Exactly 2 arguments.
+## Fitness Link
 
-### Semantics
-- Uses Python indexing behavior with negative index normalization.
-- Out-of-range index returns `ValueError`.
-- Python interpreter/VM returns element payload (same as `x[i]`).
-- C++ CPU path returns exact payload value when payload registry is available; otherwise fallback is deterministic compact token.
-- C++ GPU path executes exact payload indexing when uploaded payload/scratch capacity is sufficient; otherwise fallback is deterministic compact token.
-
-### Type rules
-- First arg must be `String` or `List`.
-- `i` must be `Int`.
-
-## Comparison extension
-
-For VM comparison ops:
-- `EQ`/`NE` are defined for `String` vs `String`, and `List` vs `List`.
-- Ordering (`LT/LE/GT/GE`) for container types remains unsupported (`TypeError` path).
-
-## Payload execution model
-
-- CPU runtime stores decoded `String/List` payloads in a payload registry.
-- GPU runtime uploads payload snapshots into device global memory before kernel evaluation.
-- Device builtins materialize exact payload results through bounded per-thread scratch.
-- If exact GPU payload materialization cannot fit in bounded scratch, the runtime falls back to deterministic compact transport rather than failing the whole evaluation.
-
-## Fitness rule
-
-Evolution fitness is mixed per case:
-
-- numeric expected/actual => `-abs(actual - expected)`
-- `Bool/None/String/List` exact match => `+1`
-- `Bool/None/String/List` mismatch => `+0`
-- runtime error => `+0`
+Scoring rules are defined in [fitness_v1_0.md](./fitness_v1_0.md).
+This file only defines execution semantics, not scoring formulas.

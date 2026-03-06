@@ -107,6 +107,8 @@ def _run_one_task(
         str(args.population_size),
         "--generations",
         str(args.generations),
+        "--numeric-type-penalty",
+        str(args.numeric_type_penalty),
         "--selection-pressure",
         str(args.selection_pressure),
         "--seed",
@@ -180,6 +182,7 @@ def main() -> int:
     parser.add_argument("--blocksize", type=int, default=256)
     parser.add_argument("--population-size", type=int, default=1024)
     parser.add_argument("--generations", type=int, default=20)
+    parser.add_argument("--numeric-type-penalty", type=float, default=1.0)
     parser.add_argument("--selection-pressure", type=int, default=3)
     parser.add_argument("--cpp-cli", default="cpp/build/g3pvm_evolve_cli")
     parser.add_argument("--run-cpp-tool", default="tools/run_cpp_evolution.py")

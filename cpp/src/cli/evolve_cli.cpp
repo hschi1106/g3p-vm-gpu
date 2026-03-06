@@ -34,6 +34,7 @@ struct CliOptions {
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
   double crossover_rate = 0.9;
+  double numeric_type_penalty = 1.0;
   int selection_pressure = 3;
   std::uint64_t seed = 0;
   int fuel = 20000;
@@ -192,6 +193,8 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.mutation_subtree_prob = std::stod(need_value("--mutation-subtree-prob"));
     } else if (arg == "--crossover-rate") {
       opts.crossover_rate = std::stod(need_value("--crossover-rate"));
+    } else if (arg == "--numeric-type-penalty") {
+      opts.numeric_type_penalty = std::stod(need_value("--numeric-type-penalty"));
     } else if (arg == "--selection-pressure") {
       opts.selection_pressure = std::stoi(need_value("--selection-pressure"));
     } else if (arg == "--seed") {
@@ -234,6 +237,9 @@ CliOptions parse_cli(int argc, char** argv) {
   if (opts.mutation_subtree_prob < 0.0 || opts.mutation_subtree_prob > 1.0) {
     throw std::runtime_error("--mutation-subtree-prob must be in [0, 1]");
   }
+  if (opts.numeric_type_penalty < 0.0) {
+    throw std::runtime_error("--numeric-type-penalty must be >= 0");
+  }
   if (opts.timing != "none" && opts.timing != "summary" && opts.timing != "per_gen" && opts.timing != "all") {
     throw std::runtime_error("--timing must be one of: none|summary|per_gen|all");
   }
@@ -269,6 +275,7 @@ int main(int argc, char** argv) {
     cfg.mutation_rate = args.mutation_rate;
     cfg.mutation_subtree_prob = args.mutation_subtree_prob;
     cfg.crossover_rate = args.crossover_rate;
+    cfg.numeric_type_penalty = args.numeric_type_penalty;
     cfg.eval_engine = (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
     cfg.gpu_blocksize = args.blocksize;
     cfg.selection_pressure = args.selection_pressure;

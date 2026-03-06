@@ -1,6 +1,12 @@
 import unittest
 
-from src.g3p_vm_gpu.evolution.evolve import EvolutionConfig, FitnessCase, evolve_population, score_output
+from src.g3p_vm_gpu.evolution.evolve import (
+    EvolutionConfig,
+    FitnessCase,
+    evolve_population,
+    score_output,
+    score_output_with_penalty,
+)
 
 
 class TestEvolutionLoop(unittest.TestCase):
@@ -15,6 +21,10 @@ class TestEvolutionLoop(unittest.TestCase):
     def test_score_output_uses_mixed_semantics(self):
         self.assertEqual(score_output(3, 3), 0.0)
         self.assertEqual(score_output(1, 3), -2.0)
+        self.assertEqual(score_output("abc", 3), -1.0)
+        self.assertEqual(score_output(True, 1), -1.0)
+        self.assertEqual(score_output(None, 2.5), -1.0)
+        self.assertEqual(score_output_with_penalty("abc", 3, numeric_type_penalty=7.5), -7.5)
         self.assertEqual(score_output(True, True), 1.0)
         self.assertEqual(score_output("ab", "ab"), 1.0)
         self.assertEqual(score_output("ab", "ac"), 0.0)
@@ -43,6 +53,11 @@ class TestEvolutionLoop(unittest.TestCase):
 
     def test_invalid_selection_pressure_raises(self):
         cfg = EvolutionConfig(population_size=8, generations=2, selection_pressure=0)
+        with self.assertRaises(ValueError):
+            evolve_population(self._simple_cases(), cfg)
+
+    def test_invalid_numeric_type_penalty_raises(self):
+        cfg = EvolutionConfig(population_size=8, generations=2, numeric_type_penalty=-1.0)
         with self.assertRaises(ValueError):
             evolve_population(self._simple_cases(), cfg)
 

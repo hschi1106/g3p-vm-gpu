@@ -106,12 +106,13 @@ std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
     const std::vector<CaseInputs>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel,
+    double numeric_type_penalty,
     CompileCache* compile_cache,
     EvolutionTiming* timing,
     bool record_per_gen) {
   const CompiledPopulation compiled = compile_population(population, input_names, compile_cache);
   const std::vector<double> fitness =
-      eval_fitness_cpu(compiled.programs, shared_cases, shared_answer, fuel);
+      eval_fitness_cpu(compiled.programs, shared_cases, shared_answer, fuel, numeric_type_penalty);
   if (fitness.size() != population.size()) {
     throw std::runtime_error("cpu fitness size mismatch");
   }
@@ -189,8 +190,8 @@ double evaluate_genome(const ProgramGenome& genome,
   CompileCache cache;
   EvolutionTiming timing;
   const std::vector<ScoredGenome> scored =
-      evaluate_population_cpu_shared_cases(one, input_names, shared_cases, shared_answer, cfg.fuel, &cache, &timing,
-                                           false);
+      evaluate_population_cpu_shared_cases(one, input_names, shared_cases, shared_answer, cfg.fuel,
+                                           cfg.numeric_type_penalty, &cache, &timing, false);
   return scored.front().fitness;
 }
 
@@ -202,8 +203,8 @@ std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& 
   const std::vector<Value> shared_answer = to_shared_answer(cases);
   CompileCache cache;
   EvolutionTiming timing;
-  return evaluate_population_cpu_shared_cases(population, input_names, shared_cases, shared_answer, cfg.fuel, &cache,
-                                              &timing, false);
+  return evaluate_population_cpu_shared_cases(population, input_names, shared_cases, shared_answer, cfg.fuel,
+                                              cfg.numeric_type_penalty, &cache, &timing, false);
 }
 
 ProgramGenome select_parent_tournament(const std::vector<ScoredGenome>& scored,
@@ -289,7 +290,7 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
 #ifdef G3PVM_HAS_CUDA
     const auto gpu_init_t0 = std::chrono::steady_clock::now();
     const FitnessEvalResult init_result =
-        gpu_session.init(shared_cases, shared_answer, cfg.fuel, cfg.gpu_blocksize);
+        gpu_session.init(shared_cases, shared_answer, cfg.fuel, cfg.gpu_blocksize, cfg.numeric_type_penalty);
     if (!init_result.ok) {
       throw std::runtime_error("gpu fitness session init failed: " + init_result.err.message);
     }
@@ -313,7 +314,8 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
 #endif
     } else {
       scored = evaluate_population_cpu_shared_cases(
-          population, case_input_names, shared_cases, shared_answer, cfg.fuel, &compile_cache, &run.timing, true);
+          population, case_input_names, shared_cases, shared_answer, cfg.fuel, cfg.numeric_type_penalty,
+          &compile_cache, &run.timing, true);
     }
     const auto eval_t1 = std::chrono::steady_clock::now();
     const ScoredGenome& best = scored.front();
@@ -407,7 +409,8 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
 #endif
   } else {
     result.final_population = evaluate_population_cpu_shared_cases(
-        population, case_input_names, shared_cases, shared_answer, cfg.fuel, &compile_cache, &run.timing, false);
+        population, case_input_names, shared_cases, shared_answer, cfg.fuel, cfg.numeric_type_penalty,
+        &compile_cache, &run.timing, false);
   }
   const auto final_eval_t1 = std::chrono::steady_clock::now();
 

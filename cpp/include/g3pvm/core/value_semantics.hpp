@@ -138,12 +138,20 @@ G3PVM_VM_HD inline bool values_equal_for_fitness(const Value& a, const Value& b)
   return false;
 }
 
-G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual, const Value& expected, double& out_score) {
+G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
+                                                 const Value& expected,
+                                                 double numeric_type_penalty,
+                                                 double& out_score) {
   double a_num = 0.0;
   double b_num = 0.0;
   bool any_float = false;
   if (to_numeric_pair(actual, expected, a_num, b_num, any_float)) {
     out_score = -fabs(a_num - b_num);
+    return true;
+  }
+
+  if (is_numeric(expected) && !is_numeric(actual)) {
+    out_score = -fabs(numeric_type_penalty);
     return true;
   }
 

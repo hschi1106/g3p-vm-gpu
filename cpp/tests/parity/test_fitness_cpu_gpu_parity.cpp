@@ -46,12 +46,20 @@ BytecodeProgram make_return_const_program(int v) {
   return p;
 }
 
+BytecodeProgram make_return_string_program() {
+  BytecodeProgram p;
+  p.consts = {Value::from_string_hash_len(0x1234ULL, 3)};
+  p.code = {ins_a("PUSH_CONST", 0), ins("RETURN")};
+  return p;
+}
+
 }  // namespace
 
 int main() {
   std::vector<BytecodeProgram> programs;
   programs.push_back(make_add_one_program());
   programs.push_back(make_return_const_program(7));
+  programs.push_back(make_return_string_program());
   programs.push_back(make_type_error_program());
   programs.push_back(make_timeout_program());
 
@@ -94,7 +102,11 @@ int main() {
     std::cerr << "FAIL: constant numeric program should accumulate negative MAE\n";
     return 1;
   }
-  if (std::fabs(cpu_fit[2] - 0.0) > 1e-9 || std::fabs(cpu_fit[3] - 0.0) > 1e-9) {
+  if (std::fabs(cpu_fit[2] + 64.0) > 1e-9) {
+    std::cerr << "FAIL: non-numeric actual against numeric expected should accumulate fixed penalty\n";
+    return 1;
+  }
+  if (std::fabs(cpu_fit[3] - 0.0) > 1e-9 || std::fabs(cpu_fit[4] - 0.0) > 1e-9) {
     std::cerr << "FAIL: erroring programs should score 0\n";
     return 1;
   }

@@ -288,7 +288,8 @@ std::vector<double> eval_fitness_cpu(
     const std::vector<BytecodeProgram>& programs,
     const std::vector<CaseInputs>& shared_cases,
     const std::vector<Value>& shared_answer,
-    int fuel) {
+    int fuel,
+    double numeric_type_penalty) {
   if (programs.empty() || shared_cases.empty()) {
     return {};
   }
@@ -311,7 +312,7 @@ std::vector<double> eval_fitness_cpu(
       }
 
       double case_score = 0.0;
-      if (vm_semantics::fitness_score_for_values(out.value, shared_answer[c], case_score)) {
+      if (vm_semantics::fitness_score_for_values(out.value, shared_answer[c], numeric_type_penalty, case_score)) {
         score += case_score;
       }
     }

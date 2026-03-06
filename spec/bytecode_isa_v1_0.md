@@ -1,308 +1,172 @@
-# Bytecode ISA v0.1 (Stack VM)
+# Bytecode ISA v1.0
 
-This document specifies the **bytecode instruction set architecture (ISA)** for the `g3p-vm-gpu` project, version v0.1.
+This document defines the bytecode execution contract shared by the compiler, CPU runtime, and GPU runtime.
 
-It is the cross-language contract between:
-- the **compiler** (AST → bytecode),
-- the **CPU VM** (reference execution of bytecode),
-- the **GPU VM** (accelerated execution of the same bytecode).
+Semantics must conform to [grammar_v1_0.md](./grammar_v1_0.md).
 
-Semantics must conform to `spec/subset_v1_0.md`.
+## Execution Model
 
----
-
-## 1. Execution Model
-
-### 1.1 VM State
 A VM instance maintains:
-- `ip: int` — instruction pointer (index into `code[]`)
-- `stack: Value[]` — operand stack
-- `locals: Value[]` — local variables indexed by integer IDs
-- `consts: Value[]` — constant pool
-- `fuel: int` — remaining instruction budget (see §2.4)
+- `ip`: instruction pointer
+- `stack`: operand stack
+- `locals`: local variable array
+- `consts`: constant pool
+- `fuel`: remaining instruction budget
 
-### 1.2 Program Container
-A bytecode program is:
-- `consts: Value[]`
-- `n_locals: int` (or `var2idx` mapping owned by compiler/front-end)
-- `code: Instruction[]`
+A bytecode program contains:
+- `consts`
+- `n_locals`
+- `code`
 
-### 1.3 Value Domain
-Base scalar domain:
-`Value ::= Int | Float | Bool | None`
+## Value Domain
 
-v1.0 runtime extension also supports compact container values:
-
+Runtime values are:
+- `Int`
+- `Float`
+- `Bool`
+- `None`
 - `String`
 - `List`
 
-Normative type policy:
-- **Bool is not numeric** (even if host language represents it as an int subtype).
-- Conditions for jumps must be **Bool** only (no truthiness).
+Type rules:
+- `Bool` is not numeric.
+- Conditional jumps require `Bool`.
+- Container ordering comparisons are invalid.
 
-### 1.4 Termination and Errors
-Execution returns:
-- `Return(v)` if `RETURN` executed successfully.
-- `Error(kind, msg)` on the first error.
-- `Error(ValueError, "program finished without return")` if `ip` reaches end of `code` without hitting `RETURN`.
-- `Error(Timeout, "out of fuel")` if fuel is exhausted (see §2.4).
+## Termination And Errors
 
-All backends must implement the same error kinds:
-- `NameError`, `TypeError`, `ZeroDiv`, `ValueError`, `Timeout`
+Execution ends with one of:
+- `Return(v)` when `RETURN` succeeds
+- `Error(kind, msg)` on the first error
+- `Error(ValueError, "program finished without return")` when `ip` reaches the end without `RETURN`
+- `Error(Timeout, "out of fuel")` when fuel is exhausted
 
----
+Supported error kinds:
+- `NameError`
+- `TypeError`
+- `ZeroDiv`
+- `ValueError`
+- `Timeout`
 
-## 2. Instruction Format
+## Fuel Rule
 
-### 2.1 Abstract Instruction
-An instruction is conceptually:
-- `op: Opcode`
-- `a: int` (optional operand)
-- `b: int` (optional operand)
+Before each instruction:
+- if `fuel <= 0`, return `Timeout`
+- otherwise execute one instruction and decrement fuel by one
 
-Physical encoding (packing, bit-width, alignment) is implementation-defined, but **the abstract semantics are fixed**.
+## Instruction Format
 
-### 2.2 Stack Effects
-Each instruction defines a **stack effect** in terms of:
-- values popped from stack (top-first)
-- values pushed to stack
+Each instruction has:
+- `op`: opcode
+- `a`: optional integer operand
+- `b`: optional integer operand
 
-If an instruction requires a value of a certain type and the stack top does not satisfy it, it yields `TypeError`.
+The physical packing is implementation-defined. The abstract semantics are fixed.
 
-### 2.3 Local Variable Indexing
-- `LOAD i` / `STORE i` access `locals[i]`.
-- `i` must be in range `[0, n_locals)`. Out-of-range access yields `NameError` (recommended).
+## Opcodes
 
-### 2.4 Fuel / Timeout (normative)
-- Before executing each instruction, the VM must check `fuel`.
-- If `fuel <= 0`, execution stops with `Timeout`.
-- Otherwise execute the instruction and decrement `fuel := fuel - 1`.
-
----
-
-## 3. Opcode Set (v0.1)
-
-### 3.1 Constants and Locals
+### Constants and locals
 
 #### `PUSH_CONST k`
-- Operands: `k` (const index)
-- Stack: `[] -> [consts[k]]`
-- Errors:
-  - if `k` out of range: `ValueError`
+Push `consts[k]`.
+- invalid `k` => `ValueError`
 
 #### `LOAD i`
-- Operands: `i` (local index)
-- Stack: `[] -> [locals[i]]`
-- Errors:
-  - if `i` out of range: `NameError`
-  - if `locals[i]` is uninitialized: `NameError`
+Push `locals[i]`.
+- invalid or uninitialized `i` => `NameError`
 
 #### `STORE i`
-- Operands: `i` (local index)
-- Stack: `[v] -> []`
-- Effect: `locals[i] := v`
-- Errors:
-  - if `i` out of range: `NameError`
+Pop one value and assign it to `locals[i]`.
+- invalid `i` => `NameError`
 
----
-
-### 3.2 Unary Operators
+### Unary ops
 
 #### `NEG`
-- Stack: `[x] -> [(-x)]`
-- Requires: `x` is numeric (`Int` or `Float`)
-- Errors:
-  - otherwise: `TypeError`
+Pop one numeric value and push its negation.
+- non-numeric => `TypeError`
 
 #### `NOT`
-- Stack: `[b] -> [!b]`
-- Requires: `b` is `Bool`
-- Errors:
-  - otherwise: `TypeError`
+Pop one `Bool` and push logical negation.
+- non-`Bool` => `TypeError`
 
----
+### Arithmetic ops
 
-### 3.3 Arithmetic Operators
-All arithmetic operators require numeric operands: `Int` or `Float`.
-Promotion rule:
-- if either operand is `Float`, promote both to `Float`;
-- else operate as `Int`.
+Arithmetic ops require numeric operands and use `Int`/`Float` promotion.
 
 #### `ADD`, `SUB`, `MUL`
-- Stack: `[a, b] -> [a ⊕ b]`
-- Errors:
-  - if any operand not numeric: `TypeError`
+Pop two numeric operands and push the result.
+- any non-numeric operand => `TypeError`
 
 #### `DIV`
-- Stack: `[a, b] -> [a / b]`
-- Errors:
-  - if any operand not numeric: `TypeError`
-  - if `b == 0`: `ZeroDiv`
+Pop two numeric operands and push division result.
+- any non-numeric operand => `TypeError`
+- zero divisor => `ZeroDiv`
 
 #### `MOD`
-- Stack: `[a, b] -> [a % b]`
-- Errors:
-  - if any operand not numeric: `TypeError`
-  - if `b == 0`: `ZeroDiv`
+Pop two numeric operands and push modulo result.
+- any non-numeric operand => `TypeError`
+- zero divisor => `ZeroDiv`
 
----
+### Comparisons
 
-### 3.4 Comparison Operators
-All comparison operators push a `Bool`.
-
-Rules match `subset_v1_0.md`:
-- `None` only supports `EQ/NE`. Ordering comparisons with `None` are `TypeError`.
-- `Bool` only supports `EQ/NE` with `Bool`. Ordering comparisons on `Bool` are `TypeError`.
-- Numeric comparisons operate on promoted numeric domain.
+All comparison ops push `Bool`.
 
 #### `LT`, `LE`, `GT`, `GE`, `EQ`, `NE`
-- Stack: `[a, b] -> [a ⋚ b]`
-- Errors:
-  - if type rules violated: `TypeError`
+Rules:
+- numeric comparisons require numeric operands and use promotion
+- `None` only supports `EQ` and `NE`
+- `Bool` only supports `EQ` and `NE` with `Bool`
+- `String` and `List` only support `EQ` and `NE` with the same tag
+- invalid comparison combinations => `TypeError`
 
----
-
-### 3.5 Control Flow
+### Control flow
 
 #### `JMP addr`
-- Operands: `addr` (absolute instruction index)
-- Stack: no change
-- Effect: `ip := addr`
-- Errors:
-  - if `addr` out of range: `ValueError`
+Set `ip = addr`.
+- invalid `addr` => `ValueError`
 
 #### `JMP_IF_FALSE addr`
-- Operands: `addr` (absolute instruction index)
-- Stack: `[cond] -> []`
-- Requires: `cond` is `Bool`
-- Effect:
-  - if `cond == False`: `ip := addr`
-  - else: continue
-- Errors:
-  - if `cond` not Bool: `TypeError`
-  - if `addr` out of range: `ValueError`
+Pop one `Bool`.
+- if value is `False`, jump to `addr`
+- if value is `True`, continue
+- non-`Bool` => `TypeError`
+- invalid `addr` => `ValueError`
 
 #### `JMP_IF_TRUE addr`
-- Operands: `addr` (absolute instruction index)
-- Stack: `[cond] -> []`
-- Requires: `cond` is `Bool`
-- Effect:
-  - if `cond == True`: `ip := addr`
-  - else: continue
-- Errors:
-  - if `cond` not Bool: `TypeError`
-  - if `addr` out of range: `ValueError`
+Pop one `Bool`.
+- if value is `True`, jump to `addr`
+- if value is `False`, continue
+- non-`Bool` => `TypeError`
+- invalid `addr` => `ValueError`
 
-> Normative note: conditional jumps **pop** the condition.
+### Builtins
 
----
+Builtins are invoked by:
+- `CALL_BUILTIN bid argc`
 
-### 3.6 Built-ins
+The VM pops `argc` arguments and pushes one return value.
 
-Built-ins are pure and restricted to the whitelist:
-- `abs`, `min`, `max`, `clip`
-- plus v1.0 container built-ins `len`, `concat`, `slice`, `index`
+Builtin ID mapping:
+- `0`: `abs`
+- `1`: `min`
+- `2`: `max`
+- `3`: `clip`
+- `4`: `len`
+- `5`: `concat`
+- `6`: `slice`
+- `7`: `index`
 
-#### Builtin ID table
-- `0: abs`
-- `1: min`
-- `2: max`
-- `3: clip`
-- `4: len`
-- `5: concat`
-- `6: slice`
-- `7: index`
+Errors:
+- unknown builtin id => `NameError`
+- wrong arity => `TypeError`
+- type or value rule violation => builtin-specific error, usually `TypeError` or `ValueError`
 
-#### `CALL_BUILTIN bid argc`
-- Operands: `bid` (builtin ID), `argc` (argument count)
-- Stack: `[arg1, ..., argN] -> [ret]` where `N = argc`
-  - Arguments are popped from the stack (top is the last argument).
-- Errors:
-  - if `bid` unknown: `NameError`
-  - if `argc` mismatches builtin arity: `TypeError`
-  - if type constraints violated: `TypeError`
-  - `clip` with `lo > hi`: `ValueError`
+Builtin semantics are defined in:
+- [builtins_base_v1_0.md](./builtins_base_v1_0.md)
+- [builtins_runtime_v1_0.md](./builtins_runtime_v1_0.md)
 
-Builtin semantics (normative):
-- `abs(x)`:
-  - `x` must be numeric
-- `min(x,y)`, `max(x,y)`:
-  - both numeric; promote mixed types
-- `clip(x, lo, hi)`:
-  - all numeric; promote mixed types
-  - require `lo <= hi`
-  - return `min(max(x, lo), hi)`
-- `len(x)`:
-  - `x` must be `String` or `List`
-- `concat(a, b)`:
-  - `(String, String)` or `(List, List)` only
-- `slice(x, lo, hi)`:
-  - `x` must be `String` or `List`; `lo`/`hi` must be `Int`
-- `index(x, i)`:
-  - `x` must be `String` or `List`; `i` must be `Int`
-  - out-of-range index => `ValueError`
-
-Container equality:
-- `EQ/NE` are defined for same-tag `String/String` and `List/List`
-- ordering comparisons on containers remain `TypeError`
-
----
-
-### 3.7 Return
+### Return
 
 #### `RETURN`
-- Stack: `[v] -> []`
-- Effect: terminate with `Return(v)`
-- Errors:
-  - if stack empty: `ValueError`
-
----
-
-## 4. Compiler Conventions (Normative)
-
-### 4.1 Expression Compilation (stack-based)
-Typical patterns:
-- Binary operator `e1 ⊕ e2`:
-  - `compile(e1); compile(e2); OP_⊕`
-- Ternary `t if c else f`:
-  - `compile(c); JMP_IF_FALSE L_else; compile(t); JMP L_end; L_else: compile(f); L_end:`
-- Short-circuit `AND`:
-  - `compile(a); JMP_IF_FALSE L_false; compile(b); JMP L_end; L_false: PUSH_CONST false; L_end:`
-- Short-circuit `OR`:
-  - `compile(a); JMP_IF_TRUE L_true; compile(b); JMP L_end; L_true: PUSH_CONST true; L_end:`
-
-### 4.2 `for x in range(K)` (K constant)
-Recommended canonical lowering:
-1. initialize loop var local to 0
-2. loop condition `i < K`
-3. increment `i := i + 1`
-
-Exact lowering is implementation-defined, but must preserve v0.1 semantics.
-
----
-
-## 5. Limits and GPU-Friendly Constraints (Recommended)
-These are recommended constraints for GPU backends; they may be enforced by the compiler:
-- `MAX_STACK_DEPTH` (e.g., 64)
-- `MAX_LOCALS` (e.g., 16)
-- `MAX_CODE_LEN` (e.g., 512)
-
-If enforced, exceeding a limit should yield `ValueError` at compile time (preferred) or runtime.
-
----
-
-## 6. Conformance Testing (Required)
-Backends must satisfy:
-- `interp_py(ast) == vm_py(compile_py(ast))`
-- `vm_py(bytecode) == vm_gpu(bytecode)`
-
-Comparison rules:
-- Exact match for `Int/Bool/None`
-- Float match policy is defined in `spec/test_contract.md`
-- Error kind must match; message may differ unless frozen explicitly.
-
----
-
-## 7. Versioning
-This is **Bytecode ISA v0.1**. Any opcode/semantics change requires a new version file
-(e.g., `bytecode_isa_v0_2.md`) to prevent silent drift.
+Pop one value and terminate successfully.
+- empty stack => `ValueError`

@@ -30,6 +30,7 @@ struct EvolutionConfig {
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
   double crossover_rate = 0.9;
+  double numeric_type_penalty = 1.0;
   EvalEngine eval_engine = EvalEngine::CPU;
   int gpu_blocksize = 256;
   int selection_pressure = 3;

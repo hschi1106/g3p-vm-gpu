@@ -26,6 +26,7 @@ class EvolutionConfig:
     mutation_rate: float = 0.5
     mutation_subtree_prob: float = 0.8
     crossover_rate: float = 0.9
+    numeric_type_penalty: float = 1.0
     selection_pressure: int = 3
     seed: int = 0
     fuel: int = 20_000
@@ -48,10 +49,18 @@ class EvolutionResult:
 
 
 def score_output(actual: Val, expected: Val) -> float:
-    if isinstance(actual, bool) or isinstance(expected, bool):
-        return 1.0 if actual == expected else 0.0
-    if isinstance(actual, (int, float)) and not isinstance(actual, bool) and isinstance(expected, (int, float)) and not isinstance(expected, bool):
-        return -abs(float(actual) - float(expected))
+    return score_output_with_penalty(actual, expected, numeric_type_penalty=1.0)
+
+
+def score_output_with_penalty(actual: Val, expected: Val, numeric_type_penalty: float) -> float:
+    actual_is_numeric = isinstance(actual, (int, float)) and not isinstance(actual, bool)
+    expected_is_numeric = isinstance(expected, (int, float)) and not isinstance(expected, bool)
+
+    if expected_is_numeric:
+        if actual_is_numeric:
+            return -abs(float(actual) - float(expected))
+        return -abs(float(numeric_type_penalty))
+
     return 1.0 if actual == expected else 0.0
 
 
@@ -61,7 +70,7 @@ def evaluate_genome(genome: ProgramGenome, cases: Sequence[FitnessCase], cfg: Ev
     for case in cases:
         out = exec_bytecode(program, inputs=case.inputs, fuel=cfg.fuel)
         if isinstance(out, ExecReturn):
-            score += score_output(out.value, case.expected)
+            score += score_output_with_penalty(out.value, case.expected, cfg.numeric_type_penalty)
         elif isinstance(out, ExecError):
             score += 0.0
     return score
@@ -100,6 +109,8 @@ def evolve_population(
         raise ValueError("elitism must be in [0, population_size]")
     if cfg.selection_pressure <= 0:
         raise ValueError("selection_pressure must be > 0")
+    if cfg.numeric_type_penalty < 0:
+        raise ValueError("numeric_type_penalty must be >= 0")
 
     rng = random.Random(cfg.seed)
     population = list(initial_population) if initial_population is not None else _init_population(cfg)

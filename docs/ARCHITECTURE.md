@@ -1,88 +1,166 @@
 # Architecture
 
-## High-Level Design
+## System Model
 
-The project uses one canonical program representation: linear prefix `AstProgram`.
+The system evolves prefix `AstProgram` programs, compiles them to bytecode, executes them on CPU or GPU-backed runtimes, scores them against `fitness-cases-v1`, and repeats reproduction over generations.
 
-Primary flow:
-1. Build or mutate prefix `AstProgram`
-2. Compile to bytecode
-3. Execute in Python runtime, C++ CPU runtime, or C++ GPU fitness runtime
-4. Evaluate fitness over `fitness-cases-v1`
-5. Reproduce and iterate generations
+The execution stack has three layers:
+- Python reference path: semantics reference for AST, interpreter, compiler, and VM behavior
+- C++ CPU path: native execution and native evolution
+- C++ GPU path: CUDA fitness evaluation over batched cases
 
-## Current Invariants
+## Core Invariants
 
-- Public AST representation: prefix `AstProgram`
-- Public crossover method: `typed_subtree`
-- Public selection method: tournament only, with `selection_pressure`
-- Public fitness rule:
-  - numeric expected/actual => `-abs(actual - expected)`
-  - `Bool/None/String/List` exact match => `1`
-  - `Bool/None/String/List` mismatch => `0`
-  - runtime error => `0`
-- Public fixture schema: `fitness-cases-v1`
-- Public runners do not expose heavyweight validate flags
-
-## Python Layout
-
-- `python/src/g3p_vm_gpu/core/ast.py`: prefix AST definitions and helpers
-- `python/src/g3p_vm_gpu/core/errors.py`: error/outcome types
-- `python/src/g3p_vm_gpu/core/value_semantics.py`: numeric promotion and comparisons
-- `python/src/g3p_vm_gpu/runtime/builtins.py`: builtin semantics
-- `python/src/g3p_vm_gpu/runtime/compiler.py`: AST -> bytecode compiler
-- `python/src/g3p_vm_gpu/runtime/interp.py`: reference interpreter
-- `python/src/g3p_vm_gpu/runtime/vm.py`: Python bytecode VM
-- `python/src/g3p_vm_gpu/evolution/genome.py`: `Limits`, `GenomeMeta`, `ProgramGenome`
-- `python/src/g3p_vm_gpu/evolution/stmt_codec.py`: AST <-> statement codec helpers
-- `python/src/g3p_vm_gpu/evolution/random_tree.py`: typed random expression/statement generation
-- `python/src/g3p_vm_gpu/evolution/random_genome.py`: random genome generation
-- `python/src/g3p_vm_gpu/evolution/random_program.py`: generic random program fuzzing
-- `python/src/g3p_vm_gpu/evolution/mutation.py`: mutation operator
-- `python/src/g3p_vm_gpu/evolution/crossover.py`: crossover operator
-- `python/src/g3p_vm_gpu/evolution/evolve.py`: Python evolution loop
-
-## C++ Layout
-
-- `cpp/src/evolution/`: genome metadata, subtree helpers, typed expr analysis, compiler, random generation, mutation, crossover, evolution loop
-- `cpp/src/runtime/cpu/`: CPU runtime and CPU fitness helpers
-- `cpp/src/runtime/gpu/`: GPU fitness orchestration and device code
-- `cpp/src/runtime/payload/`: payload registry and snapshot support
-- `cpp/src/cli/`: `runtime_cli`, `evolve_cli`, JSON/codec/options helpers
-- `cpp/src/bench/`: benchmark binaries
+These are the current 1.0 invariants.
+- Public program representation is prefix `AstProgram`
+- Public crossover is `typed_subtree`
+- Public selection is tournament only, controlled by `selection_pressure`
+- Public mutation API is single-path, with internal operator mix controlled by `mutation_subtree_prob`
+- Public fixture schema is `fitness-cases-v1`
+- Public runners do not expose heavyweight validate modes
+- CPU and GPU must preserve fitness parity for the same inputs and configuration
 
 ## Runtime Model
 
-Base scalar values:
+### Value domain
 - `Int`
 - `Float`
 - `Bool`
 - `None`
-
-Extended values:
 - `String`
 - `List`
 
-Builtins:
-- `abs`, `min`, `max`, `clip`
-- `len`, `concat`, `slice`, `index`
+`Bool` is not numeric.
 
-Container execution:
-- CPU keeps decoded payloads for typed `String/List`
-- GPU uploads payload snapshots to device global memory
-- GPU exact path uses bounded per-thread scratch
-- GPU falls back to deterministic compact transport when exact payload materialization cannot fit
+### Builtins
+Scalar builtins:
+- `abs`
+- `min`
+- `max`
+- `clip`
 
-## Evolution Design
+Container builtins:
+- `len`
+- `concat`
+- `slice`
+- `index`
 
-The project intentionally constrains the search space:
-- typed generation reduces invalid AST production
-- typed subtree crossover is the only public crossover path
-- tournament selection is the only public selection path
-- mutation keeps a single public entry with `mutation_subtree_prob` controlling internal mix
-- mixed fitness keeps numeric tasks dense without adding soft container scoring yet
+### Payload execution
+Container values use payload-backed execution.
+- CPU runtime keeps decoded `String` and `List` payloads in a registry.
+- GPU runtime uploads payload snapshots into global memory before kernel evaluation.
+- GPU exact payload operations use bounded per-thread scratch.
+- When exact payload materialization does not fit, GPU falls back to deterministic compact transport instead of aborting the full evaluation.
 
-The core engineering tension remains:
-- semantic correctness
-- CPU/GPU parity
-- speedup preservation
+## Fitness Model
+
+The scoring model is defined in [fitness_v1_0.md](../spec/fitness_v1_0.md).
+
+Operational summary:
+- numeric expected + numeric actual => negative absolute error
+- numeric expected + non-numeric actual => `-numeric_type_penalty`
+- `Bool` / `None` / `String` / `List` => binary exact match
+- runtime error => `0`
+
+This keeps numeric tasks dense while keeping container semantics exact and simple.
+
+## Python Module Map
+
+### `python/src/g3p_vm_gpu/core/`
+- `ast.py`: prefix AST definitions and traversal helpers
+- `errors.py`: runtime outcome and error types
+- `value_semantics.py`: shared scalar comparison and numeric promotion rules
+
+### `python/src/g3p_vm_gpu/runtime/`
+- `builtins.py`: reference builtin semantics
+- `compiler.py`: AST to bytecode compiler
+- `interp.py`: direct AST interpreter
+- `vm.py`: Python bytecode VM
+
+### `python/src/g3p_vm_gpu/evolution/`
+- `genome.py`: genome container and compile-for-eval helpers
+- `stmt_codec.py`: AST and statement codec helpers
+- `random_tree.py`: typed random expression and statement generation
+- `random_genome.py`: random genome generation
+- `random_program.py`: generic fuzz/reference random programs
+- `mutation.py`: Python mutation operator
+- `crossover.py`: Python crossover operator
+- `evolve.py`: Python evolution loop and reference fitness logic
+
+## C++ Module Map
+
+### `cpp/include/g3pvm/core/`
+Public value, error, bytecode, and shared fitness/value semantics headers.
+
+### `cpp/include/g3pvm/runtime/`
+Public CPU execution, GPU fitness, builtin, and payload interfaces.
+
+### `cpp/include/g3pvm/evolution/`
+Public genome, mutation, crossover, and evolution interfaces.
+
+### `cpp/src/runtime/cpu/`
+- builtin implementation
+- bytecode execution
+- CPU fitness accumulation
+
+### `cpp/src/runtime/gpu/`
+- GPU fitness orchestration
+- host-side packing and kernel launch
+- device execution and builtin helpers
+
+### `cpp/src/runtime/payload/`
+- payload registry
+- payload snapshot generation for GPU
+
+### `cpp/src/evolution/`
+- genome metadata and serialization
+- subtree traversal and rewrite
+- typed expression analysis
+- AST to bytecode compiler
+- random genome generation
+- mutation
+- crossover
+- evolution loop
+
+### `cpp/src/cli/`
+- `runtime_cli.cpp`: runtime execution CLI
+- `evolve_cli.cpp`: evolution CLI
+- codec / json / options helpers
+
+### `cpp/src/bench/`
+Benchmark binaries for runtime-focused measurement.
+
+## Data and Tooling Layout
+
+- `data/fixtures/`: canonical benchmark fixtures
+- `data/psb2_datasets/`: PSB2 dataset mirror used by converters and batch runs
+- `tools/`: dataset conversion, orchestration, reporting, release gates
+- `scripts/`: operational wrappers that should be used directly by humans and agents
+- `logs/`: generated run artifacts, benchmark reports, gate outputs
+
+## What To Update When Code Changes
+
+### AST, grammar, or bytecode changes
+Update:
+- `spec/grammar_v1_0.md`
+- `spec/bytecode_isa_v1_0.md`
+- `spec/bytecode_format_v1_0.md` if the wire format changed
+- this file
+
+### Builtin, type, or payload changes
+Update:
+- `spec/builtins_base_v1_0.md` or `spec/builtins_runtime_v1_0.md`
+- `spec/bytecode_isa_v1_0.md` if opcode behavior changed
+- this file
+
+### Fitness or evolution-arg changes
+Update:
+- `spec/fitness_v1_0.md`
+- `docs/DEVELOPMENT.md`
+- `README.md` if the main workflow or key defaults changed
+
+### Repo structure or entrypoint changes
+Update:
+- this file
+- `structure.md`
+- repo skill references under `/home/hschi1106/.codex/skills/g3p-vm-gpu-repo/references/`
