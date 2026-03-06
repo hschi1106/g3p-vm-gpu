@@ -300,7 +300,7 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     const char* string_payload_bytes,
     const DListPayloadEntry* list_payload_entries, int list_payload_entry_count,
     const Value* list_payload_values,
-    int n_programs, int fuel, double numeric_type_penalty, double* fitness_out) {
+    int n_programs, int fuel, double penalty, double* fitness_out) {
   const int prog_idx = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
   if (prog_idx < 0 || prog_idx >= n_programs) return;
@@ -328,11 +328,12 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     const DResult result = d_exec_one_case(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
     if (result.is_error) {
+      local_score -= fabs(penalty);
       continue;
     }
 
     double case_score = 0.0;
-    if (d_fitness_score_for_values(result.value, shared_answer[local_case], numeric_type_penalty, case_score)) {
+    if (d_fitness_score_for_values(result.value, shared_answer[local_case], penalty, case_score)) {
       local_score += case_score;
     }
   }

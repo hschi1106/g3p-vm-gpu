@@ -30,15 +30,16 @@ ExecResult exec_cpu(const BytecodeProgram& program,
 // Per-case scoring:
 //   if expected is numeric:
 //     actual numeric => -abs(actual - expected)
-//     actual non-numeric => -numeric_type_penalty
+//     actual non-numeric => -penalty
 //   Bool/None/String/List => exact match ? 1 : 0
-//   runtime error => 0
+//     type mismatch => -penalty
+//   runtime error => -penalty
 // All programs share one case set.
 std::vector<double> eval_fitness_cpu(
     const std::vector<BytecodeProgram>& programs,
     const std::vector<CaseInputs>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel = 10000,
-    double numeric_type_penalty = 1.0);
+    double penalty = 1.0);
 
 }  // namespace g3pvm

@@ -26,7 +26,7 @@ class EvolutionConfig:
     mutation_rate: float = 0.5
     mutation_subtree_prob: float = 0.8
     crossover_rate: float = 0.9
-    numeric_type_penalty: float = 1.0
+    penalty: float = 1.0
     selection_pressure: int = 3
     seed: int = 0
     fuel: int = 20_000
@@ -48,18 +48,25 @@ class EvolutionResult:
     final_population: List[ScoredGenome]
 
 
+def _is_numeric(value: Val) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def score_output(actual: Val, expected: Val) -> float:
-    return score_output_with_penalty(actual, expected, numeric_type_penalty=1.0)
+    return score_output_with_penalty(actual, expected, penalty=1.0)
 
 
-def score_output_with_penalty(actual: Val, expected: Val, numeric_type_penalty: float) -> float:
-    actual_is_numeric = isinstance(actual, (int, float)) and not isinstance(actual, bool)
-    expected_is_numeric = isinstance(expected, (int, float)) and not isinstance(expected, bool)
+def score_output_with_penalty(actual: Val, expected: Val, penalty: float) -> float:
+    actual_is_numeric = _is_numeric(actual)
+    expected_is_numeric = _is_numeric(expected)
 
     if expected_is_numeric:
         if actual_is_numeric:
             return -abs(float(actual) - float(expected))
-        return -abs(float(numeric_type_penalty))
+        return -abs(float(penalty))
+
+    if type(actual) is not type(expected):
+        return -abs(float(penalty))
 
     return 1.0 if actual == expected else 0.0
 
@@ -70,9 +77,9 @@ def evaluate_genome(genome: ProgramGenome, cases: Sequence[FitnessCase], cfg: Ev
     for case in cases:
         out = exec_bytecode(program, inputs=case.inputs, fuel=cfg.fuel)
         if isinstance(out, ExecReturn):
-            score += score_output_with_penalty(out.value, case.expected, cfg.numeric_type_penalty)
+            score += score_output_with_penalty(out.value, case.expected, cfg.penalty)
         elif isinstance(out, ExecError):
-            score += 0.0
+            score -= abs(float(cfg.penalty))
     return score
 
 
@@ -109,8 +116,8 @@ def evolve_population(
         raise ValueError("elitism must be in [0, population_size]")
     if cfg.selection_pressure <= 0:
         raise ValueError("selection_pressure must be > 0")
-    if cfg.numeric_type_penalty < 0:
-        raise ValueError("numeric_type_penalty must be >= 0")
+    if cfg.penalty < 0:
+        raise ValueError("penalty must be >= 0")
 
     rng = random.Random(cfg.seed)
     population = list(initial_population) if initial_population is not None else _init_population(cfg)

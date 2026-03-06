@@ -15,9 +15,9 @@ The current public contract is:
 - mutation: one public mutation path, internal mix controlled by `mutation_subtree_prob`
 - fitness:
   - numeric expected + numeric actual => `-abs(actual - expected)`
-  - numeric expected + non-numeric actual => `-numeric_type_penalty`
-  - `Bool` / `None` / `String` / `List` => exact match `1`, mismatch `0`
-  - runtime error => `0`
+  - numeric expected + non-numeric actual => `-penalty`
+  - `Bool` / `None` / `String` / `List` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
+  - runtime error => `-penalty`
 
 ## Document Map
 

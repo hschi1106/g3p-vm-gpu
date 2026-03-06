@@ -138,7 +138,7 @@ FitnessEvalResult eval_fitness_gpu_profiled(
     const std::vector<Value>& shared_answer,
     int fuel,
     int blocksize,
-    double numeric_type_penalty) {
+    double penalty) {
   if (programs.empty() || shared_cases.empty()) {
     return fitness_single_error(ErrCode::Value, "programs/shared_cases must not be empty");
   }
@@ -203,7 +203,7 @@ FitnessEvalResult eval_fitness_gpu_profiled(
       dev.d_expected,
       dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
       dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
-      static_cast<int>(programs.size()), fuel, numeric_type_penalty, dev.d_fitness);
+      static_cast<int>(programs.size()), fuel, penalty, dev.d_fitness);
 
   const cudaError_t launch_err = cudaGetLastError();
   const cudaError_t sync_err = cudaDeviceSynchronize();
@@ -247,9 +247,9 @@ std::vector<double> eval_fitness_gpu(
     const std::vector<Value>& shared_answer,
     int fuel,
     int blocksize,
-    double numeric_type_penalty) {
+    double penalty) {
   const FitnessEvalResult out = eval_fitness_gpu_profiled(
-      programs, shared_cases, shared_answer, fuel, blocksize, numeric_type_penalty);
+      programs, shared_cases, shared_answer, fuel, blocksize, penalty);
   if (!out.ok) {
     return {};
   }
@@ -261,7 +261,7 @@ struct FitnessSessionGpu::Impl {
   int device_id = -1;
   int fuel = 10000;
   int blocksize = 256;
-  double numeric_type_penalty = 1.0;
+  double penalty = 1.0;
   int shared_case_count = 0;
   std::size_t shared_bytes = 0;
   Value* d_shared_case_local_vals = nullptr;
@@ -298,7 +298,7 @@ FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseInputs>& shared_
                                              const std::vector<Value>& shared_answer,
                                              int fuel,
                                              int blocksize,
-                                             double numeric_type_penalty) {
+                                             double penalty) {
   if (shared_cases.empty()) {
     return fitness_single_error(ErrCode::Value, "shared_cases must not be empty");
   }
@@ -341,7 +341,7 @@ FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseInputs>& shared_
   impl_->device_id = device_id;
   impl_->fuel = fuel;
   impl_->blocksize = blocksize;
-  impl_->numeric_type_penalty = numeric_type_penalty;
+  impl_->penalty = penalty;
   impl_->shared_case_count = static_cast<int>(shared_cases.size());
   impl_->string_payload_entry_count = static_cast<int>(payload_pack.string_entries.size());
   impl_->list_payload_entry_count = static_cast<int>(payload_pack.list_entries.size());
@@ -397,7 +397,7 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
       impl_->d_expected,
       impl_->d_string_payload_entries, impl_->string_payload_entry_count, impl_->d_string_payload_bytes,
       impl_->d_list_payload_entries, impl_->list_payload_entry_count, impl_->d_list_payload_values,
-      static_cast<int>(programs.size()), impl_->fuel, impl_->numeric_type_penalty, dev.d_fitness);
+      static_cast<int>(programs.size()), impl_->fuel, impl_->penalty, dev.d_fitness);
 
   const cudaError_t launch_err = cudaGetLastError();
   const cudaError_t sync_err = cudaDeviceSynchronize();

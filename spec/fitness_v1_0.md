@@ -19,22 +19,23 @@ A case is binary when `expected` is one of:
 
 ## Adjustable Parameter
 
-`numeric_type_penalty` is a non-negative scalar parameter.
+`penalty` is a non-negative scalar parameter.
 
 Constraint:
 
 ```text
-numeric_type_penalty >= 0
+penalty >= 0
 ```
 
 Default runtime value:
 
 ```text
-numeric_type_penalty = 1.0
+penalty = 1.0
 ```
 
 Meaning:
-- it is the penalty applied when a numeric-expected case produces a non-numeric actual value
+- it is the penalty applied when evaluation cannot produce a directly comparable result
+- this includes runtime errors and type mismatches
 
 ## Case-Level Scoring
 
@@ -46,7 +47,7 @@ For numeric expected values:
 if actual is numeric:
     score_case(actual, expected) = -|actual - expected|
 else:
-    score_case(actual, expected) = -numeric_type_penalty
+    score_case(actual, expected) = -penalty
 ```
 
 Properties:
@@ -63,31 +64,40 @@ if |actual1 - expected| > |actual2 - expected|
 then score_case(actual1, expected) < score_case(actual2, expected)
 ```
 
-Examples with `numeric_type_penalty = 1.0`:
+Examples with `penalty = 1.0`:
 - `expected = 3`, `actual = 3` => `0`
 - `expected = 3`, `actual = 2.5` => `-0.5`
 - `expected = 3`, `actual = 10` => `-7`
 - `expected = 3`, `actual = "abc"` => `-1`
-- `expected = 3`, runtime error => `0`
-
-Important consequence:
-- non-numeric output on a numeric case is penalized
-- it must not outperform a near-correct numeric answer unless the configured penalty is smaller than that numeric error
+- `expected = 3`, runtime error => `-1`
 
 ### Binary case
 
 For `Bool`, `None`, `String`, and `List` expected values:
 
 ```text
-score_case(actual, expected) =
-  1  if actual == expected
-  0  otherwise
+if actual has the same runtime type as expected:
+    score_case(actual, expected) = 1 if actual == expected else 0
+else:
+    score_case(actual, expected) = -penalty
 ```
 
-Examples:
-- exact match => `1`
-- mismatch => `0`
-- runtime error => `0`
+Examples with `penalty = 1.0`:
+- `expected = "ab"`, `actual = "ab"` => `1`
+- `expected = "ab"`, `actual = "ac"` => `0`
+- `expected = "ab"`, `actual = 7` => `-1`
+- `expected = True`, `actual = 1` => `-1`
+- binary case runtime error => `-1`
+
+## Runtime Errors
+
+Runtime errors always contribute:
+
+```text
+-penalty
+```
+
+This rule is independent of case type.
 
 ## Total Program Fitness
 
@@ -102,7 +112,7 @@ For a mixed benchmark:
 ```text
 fitness(program) =
     Σ_numeric score_numeric_case(actual_i, expected_i)
-  + exact_binary_match_count
+  + Σ_binary score_binary_case(actual_i, expected_i)
 ```
 
 Value range:
@@ -122,18 +132,12 @@ A pure numeric benchmark is solved iff total fitness is exactly:
 0
 ```
 
-Reason:
-- every numeric case is maximized by an exact numeric hit, which contributes `0`
-
 ### Pure binary benchmark
 A pure binary benchmark with `N` cases is solved iff total fitness is:
 
 ```text
 N
 ```
-
-Reason:
-- every exact match contributes `1`
 
 ### Mixed benchmark
 A mixed benchmark with `N_bin` binary cases is solved iff total fitness is:
@@ -145,14 +149,11 @@ N_bin
 Reason:
 - every numeric exact hit contributes `0`
 - every binary exact hit contributes `1`
+- any runtime error or type mismatch reduces fitness by `penalty`
 
-## Runtime Errors
+## Design Consequences
 
-Runtime error handling is distinct from type-mismatch scoring inside numeric cases.
-
-Rules:
-- runtime error => `0`
-- numeric expected + non-numeric actual => `-numeric_type_penalty`
-- binary case mismatch => `0`
-
-This is intentional. A completed but mistyped numeric output is penalized differently from a hard runtime failure.
+- numeric tasks still have a dense gradient through negative absolute error
+- binary tasks remain exact-match driven for same-type outputs
+- invalid-type outputs and runtime failures are explicitly worse than ordinary binary mismatches
+- `penalty` controls how strongly the search is pushed away from invalid executions

@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cmath>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -53,62 +53,117 @@ BytecodeProgram make_return_string_program() {
   return p;
 }
 
+bool approx(double a, double b) {
+  return std::fabs(a - b) <= 1e-9;
+}
+
 }  // namespace
 
 int main() {
-  std::vector<BytecodeProgram> programs;
-  programs.push_back(make_add_one_program());
-  programs.push_back(make_return_const_program(7));
-  programs.push_back(make_return_string_program());
-  programs.push_back(make_type_error_program());
-  programs.push_back(make_timeout_program());
+  const double penalty = 1.0;
 
-  std::vector<CaseInputs> shared_cases;
-  std::vector<Value> shared_answer;
-  for (int i = 0; i < 64; ++i) {
-    shared_cases.push_back(CaseInputs{InputBinding{0, Value::from_int(i)}});
-    shared_answer.push_back(Value::from_int(i + 1));
-  }
+  {
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_add_one_program());
+    programs.push_back(make_return_const_program(7));
+    programs.push_back(make_return_string_program());
+    programs.push_back(make_type_error_program());
+    programs.push_back(make_timeout_program());
 
-  const std::vector<double> cpu_fit =
-      g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64);
-  const g3pvm::FitnessEvalResult gpu_fit = g3pvm::eval_fitness_gpu_profiled(
-      programs, shared_cases, shared_answer, 64, 128);
-
-  if (!gpu_fit.ok) {
-    if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
-      return 0;
+    std::vector<CaseInputs> shared_cases;
+    std::vector<Value> shared_answer;
+    for (int i = 0; i < 64; ++i) {
+      shared_cases.push_back(CaseInputs{InputBinding{0, Value::from_int(i)}});
+      shared_answer.push_back(Value::from_int(i + 1));
     }
-    std::cerr << "FAIL: gpu fitness run failed: " << gpu_fit.err.message << "\n";
-    return 1;
-  }
 
-  if (cpu_fit.size() != gpu_fit.fitness.size()) {
-    std::cerr << "FAIL: cpu/gpu fitness size mismatch\n";
-    return 1;
-  }
-  for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
-    if (std::fabs(cpu_fit[i] - gpu_fit.fitness[i]) > 1e-9) {
-      std::cerr << "FAIL: cpu/gpu fitness mismatch at " << i << "\n";
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
+    const g3pvm::FitnessEvalResult gpu_fit =
+        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+
+    if (!gpu_fit.ok) {
+      if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu fitness run failed: " << gpu_fit.err.message << "\n";
+      return 1;
+    }
+
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on numeric cases\n";
+      return 1;
+    }
+    for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
+      if (!approx(cpu_fit[i], gpu_fit.fitness[i])) {
+        std::cerr << "FAIL: cpu/gpu fitness mismatch on numeric cases at " << i << "\n";
+        return 1;
+      }
+    }
+    if (!approx(cpu_fit[0], 0.0)) {
+      std::cerr << "FAIL: exact numeric program should score 0 MAE\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[1], -1674.0)) {
+      std::cerr << "FAIL: constant numeric program should accumulate negative MAE\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[2], -64.0 * penalty)) {
+      std::cerr << "FAIL: non-numeric actual against numeric expected should accumulate penalty\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[3], -64.0 * penalty) || !approx(cpu_fit[4], -64.0 * penalty)) {
+      std::cerr << "FAIL: runtime errors on numeric cases should accumulate penalty\n";
       return 1;
     }
   }
-  if (std::fabs(cpu_fit[0] - 0.0) > 1e-9) {
-    std::cerr << "FAIL: exact numeric program should score 0 MAE\n";
-    return 1;
-  }
-  if (std::fabs(cpu_fit[1] + 1674.0) > 1e-9) {
-    std::cerr << "FAIL: constant numeric program should accumulate negative MAE\n";
-    return 1;
-  }
-  if (std::fabs(cpu_fit[2] + 64.0) > 1e-9) {
-    std::cerr << "FAIL: non-numeric actual against numeric expected should accumulate fixed penalty\n";
-    return 1;
-  }
-  if (std::fabs(cpu_fit[3] - 0.0) > 1e-9 || std::fabs(cpu_fit[4] - 0.0) > 1e-9) {
-    std::cerr << "FAIL: erroring programs should score 0\n";
-    return 1;
+
+  {
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_return_string_program());
+    programs.push_back(make_return_const_program(7));
+    programs.push_back(make_type_error_program());
+
+    std::vector<CaseInputs> shared_cases(16);
+    std::vector<Value> shared_answer(16, Value::from_string_hash_len(0x9999ULL, 3));
+
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
+    const g3pvm::FitnessEvalResult gpu_fit =
+        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+
+    if (!gpu_fit.ok) {
+      if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu fitness run failed on binary cases: " << gpu_fit.err.message << "\n";
+      return 1;
+    }
+
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on binary cases\n";
+      return 1;
+    }
+    for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
+      if (!approx(cpu_fit[i], gpu_fit.fitness[i])) {
+        std::cerr << "FAIL: cpu/gpu fitness mismatch on binary cases at " << i << "\n";
+        return 1;
+      }
+    }
+    if (!approx(cpu_fit[0], 0.0)) {
+      std::cerr << "FAIL: same-tag binary mismatch should score 0\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[1], -16.0 * penalty)) {
+      std::cerr << "FAIL: binary type mismatch should accumulate penalty\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[2], -16.0 * penalty)) {
+      std::cerr << "FAIL: runtime errors on binary cases should accumulate penalty\n";
+      return 1;
+    }
   }
 
   std::cout << "g3pvm_test_fitness_cpu_gpu_parity: OK\n";

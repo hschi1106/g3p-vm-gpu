@@ -116,31 +116,9 @@ G3PVM_VM_HD inline CompareStatus compare_values(CmpOp op, const Value& a, const 
   return CompareStatus::UnsupportedTypes;
 }
 
-G3PVM_VM_HD inline bool values_equal_for_fitness(const Value& a, const Value& b) {
-  if (a.tag != b.tag) {
-    return false;
-  }
-  if (a.tag == ValueTag::None) {
-    return true;
-  }
-  if (a.tag == ValueTag::Bool) {
-    return a.b == b.b;
-  }
-  if (a.tag == ValueTag::Int) {
-    return a.i == b.i;
-  }
-  if (a.tag == ValueTag::Float) {
-    return fabs(a.f - b.f) <= 1e-12;
-  }
-  if (a.tag == ValueTag::String || a.tag == ValueTag::List) {
-    return a.i == b.i;
-  }
-  return false;
-}
-
 G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
                                                  const Value& expected,
-                                                 double numeric_type_penalty,
+                                                 double penalty,
                                                  double& out_score) {
   double a_num = 0.0;
   double b_num = 0.0;
@@ -150,15 +128,16 @@ G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
     return true;
   }
 
-  if (is_numeric(expected) && !is_numeric(actual)) {
-    out_score = -fabs(numeric_type_penalty);
+  if (is_numeric(expected)) {
+    out_score = -fabs(penalty);
     return true;
   }
 
   if (actual.tag != expected.tag) {
-    out_score = 0.0;
+    out_score = -fabs(penalty);
     return true;
   }
+
   if (actual.tag == ValueTag::None) {
     out_score = 1.0;
     return true;
@@ -172,8 +151,8 @@ G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
     return true;
   }
 
-  out_score = 0.0;
-  return false;
+  out_score = -fabs(penalty);
+  return true;
 }
 
 #undef G3PVM_VM_HD

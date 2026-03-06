@@ -62,7 +62,7 @@ Evolution args:
 - `--seed N`: RNG seed for deterministic replay
 
 Fitness args:
-- `--numeric-type-penalty F`: penalty used when a numeric-expected case produces a non-numeric actual; must be `>= 0`
+- `--penalty F`: penalty used for runtime errors and type-mismatch outputs that cannot be compared directly; must be `>= 0`
 - `--fuel N`: per-program execution budget
 
 Genome-shape args:
@@ -91,7 +91,7 @@ Evolution and fitness args:
 - `--mutation-subtree-prob F`
 - `--crossover-rate F`
 - `--selection-pressure N`
-- `--numeric-type-penalty F`
+- `--penalty F`
 - `--seed N`
 - `--fuel N`
 - `--max-expr-depth N`
@@ -161,7 +161,7 @@ Evolution args passed through to `run_cpp_evolution.py`:
 - `--population-size N`
 - `--generations N`
 - `--selection-pressure N`
-- `--numeric-type-penalty F`
+- `--penalty F`
 - `--cpp-cli PATH`
 - `--run-cpp-tool PATH`
 - `--log-dir PATH`
@@ -276,7 +276,7 @@ Update the following documents whenever the matching code changes.
 - builtin or payload behavior:
   - `spec/builtins_base_v1_0.md` or `spec/builtins_runtime_v1_0.md`
   - `docs/ARCHITECTURE.md`
-- fitness formulas or scoring args:
+- fitness formulas, type/runtime failure scoring, or scoring args:
   - `spec/fitness_v1_0.md`
   - this file
   - `README.md` if the main workflow or defaults changed

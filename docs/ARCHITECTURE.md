@@ -58,9 +58,9 @@ The scoring model is defined in [fitness_v1_0.md](../spec/fitness_v1_0.md).
 
 Operational summary:
 - numeric expected + numeric actual => negative absolute error
-- numeric expected + non-numeric actual => `-numeric_type_penalty`
-- `Bool` / `None` / `String` / `List` => binary exact match
-- runtime error => `0`
+- numeric expected + non-numeric actual => `-penalty`
+- `Bool` / `None` / `String` / `List` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
+- runtime error => `-penalty`
 
 This keeps numeric tasks dense while keeping container semantics exact and simple.
 

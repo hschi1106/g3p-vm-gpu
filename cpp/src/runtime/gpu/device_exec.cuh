@@ -12,9 +12,9 @@ __device__ inline void d_fail(DResult& out, DeviceErrCode code) {
 
 __device__ inline bool d_fitness_score_for_values(const Value& actual,
                                                   const Value& expected,
-                                                  double numeric_type_penalty,
+                                                  double penalty,
                                                   double& out_score) {
-  return vm_semantics::fitness_score_for_values(actual, expected, numeric_type_penalty, out_score);
+  return vm_semantics::fitness_score_for_values(actual, expected, penalty, out_score);
 }
 
 }  // namespace g3pvm::gpu_detail

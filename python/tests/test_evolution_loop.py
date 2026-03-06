@@ -24,10 +24,12 @@ class TestEvolutionLoop(unittest.TestCase):
         self.assertEqual(score_output("abc", 3), -1.0)
         self.assertEqual(score_output(True, 1), -1.0)
         self.assertEqual(score_output(None, 2.5), -1.0)
-        self.assertEqual(score_output_with_penalty("abc", 3, numeric_type_penalty=7.5), -7.5)
+        self.assertEqual(score_output_with_penalty("abc", 3, penalty=7.5), -7.5)
         self.assertEqual(score_output(True, True), 1.0)
         self.assertEqual(score_output("ab", "ab"), 1.0)
         self.assertEqual(score_output("ab", "ac"), 0.0)
+        self.assertEqual(score_output(1, True), -1.0)
+        self.assertEqual(score_output(None, "ac"), -1.0)
 
     def test_evolve_population_runs_with_tournament_only_api(self):
         cfg = EvolutionConfig(
@@ -56,8 +58,8 @@ class TestEvolutionLoop(unittest.TestCase):
         with self.assertRaises(ValueError):
             evolve_population(self._simple_cases(), cfg)
 
-    def test_invalid_numeric_type_penalty_raises(self):
-        cfg = EvolutionConfig(population_size=8, generations=2, numeric_type_penalty=-1.0)
+    def test_invalid_penalty_raises(self):
+        cfg = EvolutionConfig(population_size=8, generations=2, penalty=-1.0)
         with self.assertRaises(ValueError):
             evolve_population(self._simple_cases(), cfg)
 
