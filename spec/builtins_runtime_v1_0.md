@@ -107,8 +107,9 @@ For VM comparison ops:
 
 ## Fitness rule
 
-Evolution fitness is binary and exact per case:
+Evolution fitness is mixed per case:
 
-- exact output match => `+1`
-- mismatch => `+0`
+- numeric expected/actual => `-abs(actual - expected)`
+- `Bool/None/String/List` exact match => `+1`
+- `Bool/None/String/List` mismatch => `+0`
 - runtime error => `+0`

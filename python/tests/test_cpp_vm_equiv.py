@@ -83,17 +83,17 @@ class TestCppVMEquiv(unittest.TestCase):
             raise unittest.SkipTest("g++ not found")
 
         cls._tmpdir = tempfile.TemporaryDirectory(prefix="g3p_cpp_vm_")
-        cls._bin = Path(cls._tmpdir.name) / "g3p_vm_cpu_cli"
+        cls._bin = Path(cls._tmpdir.name) / "g3p_runtime_cli"
         cmd = [
             gxx,
             "-std=c++17",
             "-O2",
             "-I",
             str(ROOT / "cpp" / "include"),
-            str(ROOT / "cpp" / "src" / "payload.cpp"),
-            str(ROOT / "cpp" / "src" / "builtins.cpp"),
-            str(ROOT / "cpp" / "src" / "vm_cpu.cpp"),
-            str(ROOT / "cpp" / "src" / "vm_cpu_cli.cpp"),
+            str(ROOT / "cpp" / "src" / "runtime" / "payload" / "payload.cpp"),
+            str(ROOT / "cpp" / "src" / "runtime" / "cpu" / "builtins.cpp"),
+            str(ROOT / "cpp" / "src" / "runtime" / "cpu" / "exec_cpu.cpp"),
+            str(ROOT / "cpp" / "src" / "cli" / "runtime_cli.cpp"),
             "-o",
             str(cls._bin),
         ]

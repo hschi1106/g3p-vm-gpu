@@ -1897,8 +1897,8 @@ int main(int argc, char** argv) {
     std::vector<Value> shared_answer;
     prepare_eval_data(cfg.eval_cases, &shared_cases, &shared_answer);
 
-    g3pvm::GPUFitnessSession session;
-    const g3pvm::GPUFitnessEvalResult init_result = session.init(shared_cases, shared_answer, 20000, 256);
+    g3pvm::FitnessSessionGpu session;
+    const g3pvm::FitnessEvalResult init_result = session.init(shared_cases, shared_answer, 20000, 256);
     if (!init_result.ok) {
       std::cerr << "gpu session init failed: " << init_result.err.message << "\n";
       return 2;
@@ -1908,7 +1908,7 @@ int main(int argc, char** argv) {
     std::vector<int> last_fitness(static_cast<std::size_t>(cfg.population_size), 0);
 
     for (int rep = 0; rep < cfg.repeats; ++rep) {
-      const g3pvm::GPUFitnessEvalResult eval_result = session.eval_programs(bytecode);
+      const g3pvm::FitnessEvalResult eval_result = session.eval_programs(bytecode);
       if (!eval_result.ok) {
         std::cerr << "gpu eval failed: " << eval_result.err.message << "\n";
         return 2;
@@ -2051,7 +2051,7 @@ int main(int argc, char** argv) {
     {
       TimingAggregate tmp_seq;
       const auto seq_t0 = std::chrono::steady_clock::now();
-      const g3pvm::GPUFitnessEvalResult seq_eval = session.eval_programs(bytecode);
+      const g3pvm::FitnessEvalResult seq_eval = session.eval_programs(bytecode);
       if (!seq_eval.ok) {
         throw std::runtime_error("gpu eval failed during sequential overlap test: " + seq_eval.err.message);
       }
@@ -2067,7 +2067,7 @@ int main(int argc, char** argv) {
       allocate_device_buffers(&overlap_dev, cfg);
       cudaStream_t overlap_stream = nullptr;
       ensure_cuda(cudaStreamCreate(&overlap_stream), "cudaStreamCreate overlap_stream");
-      g3pvm::GPUFitnessEvalResult overlap_eval;
+      g3pvm::FitnessEvalResult overlap_eval;
       std::string overlap_err;
 
       const auto overlap_t0 = std::chrono::steady_clock::now();

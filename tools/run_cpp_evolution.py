@@ -72,11 +72,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--generations", type=int, default=40)
     p.add_argument("--elitism", type=int, default=2)
     p.add_argument("--mutation-rate", type=float, default=0.5)
+    p.add_argument("--mutation-subtree-prob", type=float, default=0.8)
     p.add_argument("--crossover-rate", type=float, default=0.9)
-    p.add_argument("--crossover-method", choices=["typed_subtree"], default="typed_subtree")
-    p.add_argument("--selection", choices=["tournament", "roulette", "rank", "truncation", "random"], default="tournament")
-    p.add_argument("--tournament-k", type=int, default=3)
-    p.add_argument("--truncation-ratio", type=float, default=0.5)
+    p.add_argument("--selection-pressure", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--fuel", type=int, default=20_000)
     p.add_argument("--max-expr-depth", type=int, default=5)
@@ -226,16 +224,12 @@ def main() -> None:
             str(args.elitism),
             "--mutation-rate",
             str(args.mutation_rate),
+            "--mutation-subtree-prob",
+            str(args.mutation_subtree_prob),
             "--crossover-rate",
             str(args.crossover_rate),
-            "--crossover-method",
-            args.crossover_method,
-            "--selection",
-            args.selection,
-            "--tournament-k",
-            str(args.tournament_k),
-            "--truncation-ratio",
-            str(args.truncation_ratio),
+            "--selection-pressure",
+            str(args.selection_pressure),
             "--seed",
             str(args.seed),
             "--fuel",

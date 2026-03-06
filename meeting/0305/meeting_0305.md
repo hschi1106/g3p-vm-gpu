@@ -265,7 +265,7 @@ The thread with `tid == 0` combines all statistics into a single fitness value.
 
 ### 5.5 GPU session reuse: avoid re-uploading shared cases
 
-`GPUFitnessSession` is initialized only once per session:
+`FitnessSessionGpu` is initialized only once per session:
 
 - pick GPU device
 - upload shared cases

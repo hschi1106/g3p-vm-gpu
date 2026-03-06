@@ -82,37 +82,50 @@ g3p-vm-gpu/
 │   │   ├── value.hpp              # Tagged union Value (host+device)
 │   │   ├── value_semantics.hpp    # Shared CPU/GPU arithmetic & comparison
 │   │   ├── bytecode.hpp           # BytecodeProgram + Instr
-│   │   ├── evo_ast.hpp            # AstProgram, ProgramGenome, genetic ops
+│   │   ├── genome.hpp            # AstProgram, ProgramGenome, genetic ops
 │   │   ├── evolve.hpp             # EvolutionConfig, FitnessCase, evolution API
 │   │   ├── vm_cpu.hpp             # CPU VM execution API
-│   │   ├── vm_gpu.hpp             # GPU VM execution API + GPUFitnessSession
+│   │   ├── vm_gpu.hpp             # GPU VM execution API + FitnessSessionGpu
 │   │   ├── errors.hpp             # ErrCode enum
-│   │   └── builtins.hpp           # Built-in function dispatch
+│   │   └── runtime/               # CPU/GPU runtime interfaces
 │   ├── src/
-│   │   ├── vm_cpu.cpp             # CPU VM implementation
-│   │   ├── vm_gpu.cu              # CUDA kernel + GPU VM implementation
-│   │   ├── vm_gpu/                # GPU internals
-│   │   │   ├── host_pack.hpp      # Program/case packing for GPU upload
-│   │   │   ├── types.hpp          # Device-side DInstr, DResult, DProgramMeta
-│   │   │   └── constants.hpp      # GPU constants (MAX_STACK, MAX_LOCALS, opcodes)
-│   │   ├── evo_ast.cpp            # AST operations, compiler, genetic operators
-│   │   ├── evolve.cpp             # Evolution loop + profiled variant
-│   │   ├── evolve_cli.cpp         # Evolution CLI entry point
-│   │   ├── builtins.cpp           # Built-in function implementations
-│   │   ├── vm_cpu_cli.cpp         # CPU VM CLI entry point
-│   │   ├── vm_cpu_cli/            # CLI support (JSON codec)
-│   │   │   ├── codec.cpp          # JSON ↔ BytecodeProgram conversion
+│   │   ├── evolution/
+│   │   │   ├── genome_meta.cpp    # Genome metadata hashing and AST string serialization
+│   │   │   ├── subtree_utils.cpp  # Prefix subtree traversal and rewrite helpers
+│   │   │   ├── typed_expr_analysis.cpp # Typed expression root discovery
+│   │   │   ├── compiler.cpp       # AST -> bytecode compiler
+│   │   │   ├── random_genome.cpp  # Random genome generation
+│   │   │   ├── mutation.cpp       # Mutation operators
+│   │   │   ├── crossover.cpp      # Crossover operators
+│   │   │   └── evolve.cpp         # Evolution loop + profiled variant
+│   │   ├── runtime/
+│   │   │   ├── cpu/
+│   │   │   │   ├── builtins.cpp   # CPU built-in implementations
+│   │   │   │   └── exec_cpu.cpp   # CPU execution + CPU fitness
+│   │   │   ├── gpu/
+│   │   │   │   ├── fitness_gpu.cu # GPU fitness orchestration
+│   │   │   │   ├── host_pack.hpp  # Program/case packing for GPU upload
+│   │   │   │   └── types.hpp      # Device-side structs
+│   │   │   └── payload/
+│   │   │       └── payload.cpp    # Payload registry and snapshot support
+│   │   ├── cli/
+│   │   │   ├── evolve_cli.cpp     # Evolution CLI entry point
+│   │   │   ├── runtime_cli.cpp     # Runtime CLI entry point
+│   │   │   ├── codec.cpp          # JSON ↔ runtime conversion
 │   │   │   └── json.cpp           # JSON parser
-│   │   ├── vm_cpu_multi_bench.cpp # CPU multi-program benchmark
-│   │   └── vm_gpu_multi_bench.cpp # GPU multi-program benchmark
+│   │   └── bench/
+│   │       └── runtime_multi_bench.cpp # Runtime multi-program benchmark
 │   ├── tests/
-│   │   ├── test_vm_smoke.cpp          # CPU VM basic tests
-│   │   ├── test_vm_edges.cpp          # VM edge-case tests
-│   │   ├── test_vm_gpu_smoke.cpp      # GPU VM basic tests
-│   │   ├── test_vm_gpu_multi_batch.cpp# GPU batch execution tests
-│   │   ├── test_fitness_cpu_gpu_parity.cpp # CPU/GPU fitness parity
-│   │   ├── test_evo_ast.cpp           # Evolution AST unit tests
-│   │   └── test_evolve.cpp            # Evolution loop tests
+│   │   ├── runtime/
+│   │   │   ├── test_vm_smoke.cpp  # CPU VM basic tests
+│   │   │   └── test_vm_edges.cpp  # VM edge-case tests
+│   │   ├── gpu/
+│   │   │   └── test_vm_gpu_smoke.cpp # GPU fitness smoke tests
+│   │   ├── parity/
+│   │   │   └── test_fitness_cpu_gpu_parity.cpp # CPU/GPU fitness parity
+│   │   └── evolution/
+│   │       ├── test_genome.cpp   # Evolution AST unit tests
+│   │       └── test_evolve.cpp    # Evolution loop tests
 │   ├── build/                     # Debug build artifacts
 │   └── build_release/             # Release build artifacts
 │
@@ -172,7 +185,7 @@ class AstProgram:
     version: str = "ast-prefix-v1"
 ```
 
-**C++** — structs in `cpp/include/g3pvm/evo_ast.hpp`:
+**C++** — structs in `cpp/include/g3pvm/evolution/genome.hpp`:
 
 ```cpp
 struct AstNode  { NodeKind kind; int i0 = 0, i1 = 0; };
@@ -211,7 +224,7 @@ class BytecodeProgram:
     var2idx: dict[str, int]
 ```
 
-**C++** — `cpp/include/g3pvm/bytecode.hpp`:
+**C++** — `cpp/include/g3pvm/core/bytecode.hpp`:
 
 ```cpp
 struct Instr { std::string op; int a = 0, b = 0; bool has_a = false, has_b = false; };
@@ -246,7 +259,7 @@ static_assert(sizeof(Value) <= 16);
 
 ### 3.4 Program Genome (`ProgramGenome`)
 
-The unit of evolution, defined in both `evo_encoding.py` and `evo_ast.hpp`:
+The unit of evolution, defined in both `evo_encoding.py` and `genome.hpp`:
 
 ```cpp
 struct GenomeMeta {
@@ -327,12 +340,12 @@ The compiler (`compiler.py`) uses an internal `_Compiler` class that:
 
 ```cpp
 VMResult run_bytecode(const BytecodeProgram& prog,
-                      const std::vector<LocalBinding>& inputs,
+                      const std::vector<InputBinding>& inputs,
                       int fuel);
 
-std::vector<int> run_bytecode_cpu_multi_fitness_shared_cases(
+std::vector<double> eval_fitness_cpu(
     const std::vector<BytecodeProgram>& programs,
-    const std::vector<InputCase>& cases,
+    const std::vector<CaseInputs>& cases,
     const std::vector<Value>& answer,
     int fuel);
 ```
@@ -341,13 +354,13 @@ The CPU VM mirrors the Python VM exactly: stack machine with `ip`, `stack[]`, `l
 
 ### 5.2 AST Compiler (C++)
 
-The `Compiler` class in `cpp/src/evo_ast.cpp` compiles `ProgramGenome` → `BytecodeProgram`:
+The `Compiler` class in `cpp/src/evolution/compiler.cpp` compiles `ProgramGenome` → `BytecodeProgram`:
 
 ```cpp
 BytecodeProgram compile_for_eval(const ProgramGenome& genome);
 BytecodeProgram compile_for_eval_with_preset_locals(
     const ProgramGenome& genome,
-    const std::vector<std::pair<std::string, int>>& preset_locals);
+    const std::vector<std::string>& preset_locals);
 ```
 
 Compilation conventions follow `spec/bytecode_isa_v1_0.md §4`:
@@ -357,7 +370,7 @@ Compilation conventions follow `spec/bytecode_isa_v1_0.md §4`:
 
 ### 5.3 Shared Value Semantics
 
-`cpp/include/g3pvm/value_semantics.hpp` contains **all arithmetic and comparison logic** as `__host__ __device__ inline` functions — a single source of truth compiled for both CPU and GPU:
+`cpp/include/g3pvm/core/value_semantics.hpp` contains **all arithmetic and comparison logic** as `__host__ __device__ inline` functions — a single source of truth compiled for both CPU and GPU:
 
 ```cpp
 CompareStatus compare_values(CmpOp op, Value a, Value b, bool& out);
@@ -371,7 +384,7 @@ This ensures **CPU/GPU arithmetic parity** by construction.
 
 ### 5.4 Evolution CLI
 
-`cpp/src/evolve_cli.cpp` — the main C++ evolution entry point supporting:
+`cpp/src/cli/evolve_cli.cpp` — the main C++ evolution entry point supporting:
 - `--engine cpu|gpu` engine selection
 - Configurable population size, generations, mutation/crossover rates
 - Structured stdout output (`GEN`, `FINAL`, `TIMING` lines) parsed by `tools/run_cpp_evolution.py`
@@ -383,7 +396,7 @@ This ensures **CPU/GPU arithmetic parity** by construction.
 
 ### 6.1 Device Data Structures
 
-Defined in `cpp/src/vm_gpu/types.hpp`:
+Defined in `cpp/src/runtime/gpu/types.hpp`:
 
 ```cpp
 struct DInstr {                     // Packed GPU instruction (8 bytes)
@@ -408,7 +421,7 @@ Constants: `MAX_STACK = 64`, `MAX_LOCALS = 64`, 21 opcodes (`OP_PUSH_CONST` .. `
 
 ### 6.2 Host Packing Layer
 
-`cpp/src/vm_gpu/host_pack.hpp` flattens multi-program + shared-cases into contiguous GPU-friendly arrays:
+`cpp/src/runtime/gpu/host_pack.hpp` flattens multi-program + shared-cases into contiguous GPU-friendly arrays:
 
 ```cpp
 struct PackResult {
@@ -434,10 +447,10 @@ struct DeviceArena {                // RAII CUDA memory holder
 2. **Upload** — single `cudaMemcpy` to device via `DeviceArena`
 3. **Kernel launch** — one thread per (program, case) pair; thread-local stack + locals in registers/local memory
 4. **Copyback** — fitness scores (one `int` per program) back to host
-5. **Session reuse** — `GPUFitnessSession` (pimpl pattern) keeps cases/answers on device across generations, amortizing upload cost
+5. **Session reuse** — `FitnessSessionGpu` (pimpl pattern) keeps cases/answers on device across generations, amortizing upload cost
 
 ```cpp
-class GPUFitnessSession {
+class FitnessSessionGpu {
     void init(const std::vector<InputCase>& cases,
               const std::vector<Value>& answer, int fuel, int blocksize);
     std::vector<int> eval_programs(const std::vector<BytecodeProgram>& programs);
@@ -472,7 +485,7 @@ The wrapper auto-retries with `CUDA_VISIBLE_DEVICES=0` then `=1` on device-unava
 
 ### 7.1 Configuration
 
-Defined in `cpp/include/g3pvm/evolve.hpp` (and mirrored in `python/src/g3p_vm_gpu/evolve.py`):
+Defined in `cpp/include/g3pvm/evolution/evolve.hpp` (and mirrored in `python/src/g3p_vm_gpu/evolve.py`):
 
 ```cpp
 struct EvolutionConfig {
@@ -507,16 +520,15 @@ struct Limits {
 
 ### 7.3 Genetic Operators
 
-All defined in `cpp/src/evo_ast.cpp` (public API in `evo_ast.hpp`), with Python equivalents in `evo_encoding.py`:
+Defined across `cpp/src/evolution/random_genome.cpp`, `mutation.cpp`, `crossover.cpp`,
+`subtree_utils.cpp`, and `typed_expr_analysis.cpp`
+(public API in `evolution/genome.hpp`, `mutation.hpp`, and `crossover.hpp`), with Python equivalents in `evo_encoding.py`:
 
 | Operator              | Function                        | Description                                    |
 |-----------------------|---------------------------------|------------------------------------------------|
 | Random generation     | `make_random_genome(seed, limits)` | Type-driven recursive prefix AST generation |
-| Mutation              | `mutate(genome, seed, limits)`  | Replace random subtree (80%) or regenerate     |
-| Top-level crossover   | `crossover_top_level(a, b, seed, limits)` | One-point splice of top-level statement lists |
-| Typed-subtree crossover | `crossover_typed_subtree(a, b, seed, limits)` | Same-type subtree exchange |
-| Hybrid crossover      | `crossover(a, b, seed, limits, method)` | Dispatches by `CrossoverMethod` |
-| Validation            | `validate_genome(genome, limits)` | Check size, depth, structure, compilability |
+| Mutation              | `mutate(genome, seed, limits, mutation_subtree_prob)` | Typed-subtree mutation with constant-perturb fallback |
+| Typed-subtree crossover | `crossover(a, b, seed, limits)` | Same-type subtree exchange |
 
 ### 7.4 Random Program Generation
 
@@ -747,7 +759,7 @@ ctest --test-dir cpp/build --output-on-failure
 | `test_vm_gpu_smoke.cpp`          | GPU VM basic operations               |
 | `test_vm_gpu_multi_batch.cpp`    | GPU batch execution correctness       |
 | `test_fitness_cpu_gpu_parity.cpp`| CPU vs GPU fitness result identity    |
-| `test_evo_ast.cpp`               | AST operations, compilation, genetic ops |
+| `test_genome.cpp`               | AST operations, compilation, genetic ops |
 | `test_evolve.cpp`                | Evolution loop correctness            |
 
 ### 11.3 Key Testing Invariant
@@ -804,9 +816,9 @@ PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
 | Binary                                    | Purpose                       |
 |-------------------------------------------|-------------------------------|
 | `g3pvm_evolve_cli`                        | Evolution CLI (CPU + GPU)     |
-| `g3pvm_vm_cpu_cli`                        | CPU VM CLI (JSON bytecode)    |
+| `g3pvm_runtime_cli`                        | Runtime CLI (JSON bytecode)    |
 | `g3pvm_vm_gpu_batch_cli`                  | GPU batch VM CLI              |
-| `g3pvm_vm_cpu_multi_bench`                | CPU multi-program benchmark   |
+| `g3pvm_runtime_multi_bench`                | Runtime multi-program benchmark   |
 | `g3pvm_vm_gpu_multi_bench`                | GPU multi-program benchmark   |
 | `g3pvm_vm_cpu_fitness_multi_bench`        | CPU fitness benchmark         |
 | `g3pvm_vm_gpu_fitness_multi_bench`        | GPU fitness benchmark         |
@@ -870,8 +882,8 @@ The comparison report includes multi-level speedup:
 | **Prefix-encoded AST**            | Core representation in both languages; no tree pointers, arity-based traversal   |
 | **Tagged union Value**            | Trivially copyable, ≤ 16 bytes, `__host__ __device__` annotated                 |
 | **Single-source semantics**       | `value_semantics.hpp` — `__host__ __device__ inline` for CPU/GPU parity         |
-| **Session-based GPU evaluation**  | `GPUFitnessSession` — upload cases once, reuse across generations               |
-| **Pimpl for CUDA isolation**      | `GPUFitnessSession::Impl` hides CUDA types from non-CUDA translation units      |
+| **Session-based GPU evaluation**  | `FitnessSessionGpu` — upload cases once, reuse across generations               |
+| **Pimpl for CUDA isolation**      | `FitnessSessionGpu::Impl` hides CUDA types from non-CUDA translation units      |
 | **Contiguous packing layer**      | `host_pack.hpp` flattens multi-program + shared-cases into GPU-friendly arrays   |
 | **Round-trip AST ↔ tuple DSL**    | `evo_encoding.py` converts prefix AST to/from nested tuples for genetic ops     |
 | **Frozen / immutable data**       | All Python data types are frozen dataclasses; env-passing in interpreter         |

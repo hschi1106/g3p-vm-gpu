@@ -15,7 +15,7 @@ Current invariants:
 
 - Prefix AST is the only program representation exposed publicly.
 - `typed_subtree` is the only public crossover method.
-- Public evolution runners use binary exact-match fitness only.
+- Public evolution runners use mixed fitness: numeric cases use negative MAE; `Bool/None/String/List` use binary exact match.
 - Public runners do not expose heavyweight validation flags.
 
 ## 2. Core Data Models
@@ -42,8 +42,15 @@ All evolution/benchmark inputs use one JSON schema:
 
 ## 3. C++ Evolution Pipeline
 
+- `cpp/src/evolution/` contains genome generation, mutation, crossover, selection, and evolution loop code.
+- `cpp/src/runtime/cpu/`, `cpp/src/runtime/gpu/`, and `cpp/src/runtime/payload/` split the runtime by execution responsibility.
+- `cpp/src/cli/` contains user-facing C++ entrypoints and fixture/bytecode decode helpers.
+- `cpp/src/bench/` contains benchmark binaries only.
 - `evolve.cpp` evaluates CPU/GPU fitness with aligned scoring logic.
-- Fitness is binary per case: exact output match = `1`, otherwise `0`.
+- Fitness is mixed per case:
+- numeric expected/actual => `-abs(actual - expected)`
+- `Bool/None/String/List` => exact match `1`, otherwise `0`
+- runtime errors => `0`
 - CPU and GPU both use shared-cases/shared-answer style evaluation internally.
 - GPU path uses session reuse and reports compile/upload/kernel/copyback timings.
 - Reproduction phase reports selection/crossover/mutation/elite timings.

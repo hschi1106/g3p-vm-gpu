@@ -6,8 +6,7 @@ cd "$ROOT_DIR"
 
 CASES="data/fixtures/speedup_cases_bouncing_balls_1024.json"
 CPP_CLI="cpp/build/g3pvm_evolve_cli"
-SELECTION="tournament"
-CROSSOVER_METHOD="typed_subtree"
+SELECTION_PRESSURE=3
 POPSIZE=4096
 GENERATIONS=40
 BLOCKSIZE=256
@@ -25,8 +24,7 @@ Options:
   --generations N        Generations (default: 40)
   --blocksize N          GPU blocksize (default: 256)
   --cases PATH           Cases JSON path (default: data/fixtures/speedup_cases_bouncing_balls_1024.json)
-  --selection STR        Selection method (default: tournament)
-  --crossover-method STR Crossover method (default: typed_subtree)
+  --selection-pressure N Tournament selection pressure (default: 3)
   --cpp-cli PATH         Evolve CLI path (default: cpp/build/g3pvm_evolve_cli)
   --outdir PATH          Output directory (default: logs/cpu_gpu_compare_pop<pop>_<timestamp>)
   --help                 Show this message
@@ -43,10 +41,8 @@ while [[ $# -gt 0 ]]; do
       BLOCKSIZE="$2"; shift 2 ;;
     --cases)
       CASES="$2"; shift 2 ;;
-    --selection)
-      SELECTION="$2"; shift 2 ;;
-    --crossover-method)
-      CROSSOVER_METHOD="$2"; shift 2 ;;
+    --selection-pressure)
+      SELECTION_PRESSURE="$2"; shift 2 ;;
     --cpp-cli)
       CPP_CLI="$2"; shift 2 ;;
     --outdir)
@@ -84,8 +80,7 @@ python3 tools/run_cpp_evolution.py \
   --cases "$CASES" \
   --cpp-cli "$CPP_CLI" \
   --engine cpu \
-  --selection "$SELECTION" \
-  --crossover-method "$CROSSOVER_METHOD" \
+  --selection-pressure "$SELECTION_PRESSURE" \
   --population-size "$POPSIZE" \
   --generations "$GENERATIONS" \
   --cpp-timing "$CPP_TIMING" \
@@ -99,8 +94,7 @@ scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py \
   --cpp-cli "$CPP_CLI" \
   --engine gpu \
   --blocksize "$BLOCKSIZE" \
-  --selection "$SELECTION" \
-  --crossover-method "$CROSSOVER_METHOD" \
+  --selection-pressure "$SELECTION_PRESSURE" \
   --population-size "$POPSIZE" \
   --generations "$GENERATIONS" \
   --cpp-timing "$CPP_TIMING" \

@@ -53,14 +53,14 @@ bash tools/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
 Validation behavior:
 
 - Public runners use fast evolution operators only.
-- `validate_genome` remains available as internal test/debug scaffolding, not as a benchmark/runtime flag.
+- The C++ benchmark/runtime path no longer carries a standalone `validate_genome` stage.
 
 Current benchmark contract:
 
 - Benchmark fixture: `data/fixtures/speedup_cases_bouncing_balls_1024.json`
 - Evolution-progress fixture: `data/fixtures/simple_evo_exp_1024.json`
 - Public crossover method: `typed_subtree`
-- Public fitness rule: binary exact match per case
+- Public fitness rule: numeric cases use negative MAE; `Bool/None/String/List` use binary exact match
 
 Inputs must use `fitness-cases-v1` schema (example: `data/fixtures/speedup_cases_bouncing_balls_1024.json`).
 

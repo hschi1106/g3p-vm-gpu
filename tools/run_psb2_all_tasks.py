@@ -107,10 +107,8 @@ def _run_one_task(
         str(args.population_size),
         "--generations",
         str(args.generations),
-        "--selection",
-        args.selection,
-        "--crossover-method",
-        args.crossover_method,
+        "--selection-pressure",
+        str(args.selection_pressure),
         "--seed",
         str(args.seed),
         "--log-dir",
@@ -182,8 +180,7 @@ def main() -> int:
     parser.add_argument("--blocksize", type=int, default=256)
     parser.add_argument("--population-size", type=int, default=1024)
     parser.add_argument("--generations", type=int, default=20)
-    parser.add_argument("--selection", default="tournament")
-    parser.add_argument("--crossover-method", default="typed_subtree")
+    parser.add_argument("--selection-pressure", type=int, default=3)
     parser.add_argument("--cpp-cli", default="cpp/build/g3pvm_evolve_cli")
     parser.add_argument("--run-cpp-tool", default="tools/run_cpp_evolution.py")
     parser.add_argument("--log-dir", default="")

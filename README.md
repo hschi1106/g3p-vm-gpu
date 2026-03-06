@@ -6,7 +6,7 @@ Prefix-AST genetic programming VM with Python reference implementation and C++ C
 
 - One AST representation only: linear prefix `AstProgram`.
 - One public crossover path only: `typed_subtree`.
-- One public fitness rule only: binary per-case exact match (`+1` / `+0`).
+- One public fitness rule only: numeric cases use negative MAE, `Bool/None/String/List` stay binary exact-match.
 - One fixture schema only: `fitness-cases-v1`.
 - CPU and GPU both support typed `String/List` runtime values with payload-backed exact execution for `concat` / `slice` / `index`.
 
@@ -69,7 +69,7 @@ Artifacts:
 Validation mode notes:
 
 - Public runners always use the throughput path.
-- Internal `validate_genome` hooks remain test/debug scaffolding only and are not exposed through the CLI.
+- The C++ evolution path no longer exposes or depends on a standalone `validate_genome` pass.
 
 Runtime summary:
 - Builtin `len(x)` is available for `String/List` via `CALL_BUILTIN` id `4`.
@@ -82,7 +82,10 @@ Runtime summary:
 - `CALL_LEN` / `CALL_CONCAT` / `CALL_SLICE` / `CALL_INDEX` are wired into AST/compiler/interpreter/VM/evolution on Python and C++ paths.
 
 Fitness note:
-- Evolution fitness is binary per case: exact match = `+1`, otherwise `+0` (including runtime errors).
+- Evolution fitness is mixed per case:
+- numeric => `-abs(actual - expected)`
+- `Bool/None/String/List` => exact match `1`, otherwise `0`
+- runtime errors => `0`
 
 ### PSB2 conversion and batch run
 
@@ -116,7 +119,7 @@ PSB2 batch outputs:
 
 - Base subset spec remains in [spec/subset_v1_0.md](spec/subset_v1_0.md).
 - Base builtin whitelist remains in [spec/builtins_base_v1_0.md](spec/builtins_base_v1_0.md).
-- v1.0 runtime extensions for `String/List`, new builtins, payload execution, and binary fitness are defined in [spec/builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md).
+- v1.0 runtime extensions for `String/List`, new builtins, payload execution, and mixed fitness are defined in [spec/builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md).
 - Bytecode behavior is defined in [spec/bytecode_isa_v1_0.md](spec/bytecode_isa_v1_0.md).
 
 ## GPU Runbook
