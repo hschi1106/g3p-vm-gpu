@@ -114,10 +114,10 @@ PSB2 batch outputs:
 
 ## Language / Runtime Scope
 
-- Base subset spec remains in [spec/subset_v1_0.md](/home/hschi1106/g3p-vm-gpu/spec/subset_v1_0.md).
-- Base builtin whitelist remains in [spec/builtins_base_v1_0.md](/home/hschi1106/g3p-vm-gpu/spec/builtins_base_v1_0.md).
-- v1.0 runtime extensions for `String/List`, new builtins, payload execution, and binary fitness are defined in [spec/builtins_runtime_v1_0.md](/home/hschi1106/g3p-vm-gpu/spec/builtins_runtime_v1_0.md).
-- Bytecode behavior is defined in [spec/bytecode_isa_v1_0.md](/home/hschi1106/g3p-vm-gpu/spec/bytecode_isa_v1_0.md).
+- Base subset spec remains in [spec/subset_v1_0.md](spec/subset_v1_0.md).
+- Base builtin whitelist remains in [spec/builtins_base_v1_0.md](spec/builtins_base_v1_0.md).
+- v1.0 runtime extensions for `String/List`, new builtins, payload execution, and binary fitness are defined in [spec/builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md).
+- Bytecode behavior is defined in [spec/bytecode_isa_v1_0.md](spec/bytecode_isa_v1_0.md).
 
 ## GPU Runbook
 
