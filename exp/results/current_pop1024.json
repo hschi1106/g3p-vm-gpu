@@ -1,0 +1,51 @@
+{
+  "config": {
+    "population_size": 1024,
+    "child_count": 1024,
+    "candidates_per_program": 16,
+    "donor_pool_size": 256,
+    "max_nodes": 96,
+    "max_donor_nodes": 24,
+    "tournament_k": 3,
+    "eval_cases": 1024,
+    "repeats": 5,
+    "mutation_ratio": 0.500
+  },
+  "timings_ms": {
+    "cpu_subtree": 0.765,
+    "cpu_candidate": 4.717,
+    "cpu_donor": 0.158,
+    "cpu_preprocess_total": 5.640,
+    "pack_program": 0.269,
+    "pack_candidate": 0.240,
+    "pack_donor": 0.016,
+    "pack_total": 0.525,
+    "h2d_program": 0.175,
+    "h2d_candidate": 0.023,
+    "h2d_donor": 0.048,
+    "h2d_total": 0.246,
+    "gpu_eval": 21.347,
+    "gpu_selection": 0.024,
+    "gpu_variation": 0.017,
+    "d2h_child": 0.316,
+    "gpu_selection_variation_total": 0.041,
+    "gpu_selection_variation_d2h_total": 0.357,
+    "sequential_wall": 27.905,
+    "overlap_wall": 21.385,
+    "cpu_selection": 0.057,
+    "cpu_variation": 3.366,
+    "cpu_selection_variation_total": 3.423
+  },
+  "overlap": {
+    "cpu_preprocess_hidden_by_eval": true,
+    "pack_plus_h2d_hidden_by_eval": true,
+    "cpu_preprocess_plus_pack_plus_h2d_hidden_by_eval": true,
+    "gpu_selection_variation_speedup_over_cpu": 82.850,
+    "gpu_selection_variation_d2h_speedup_over_cpu": 9.580,
+    "overlap_speedup_over_sequential": 1.305
+  },
+  "checksums": {
+    "cpu": 11702557292843140119,
+    "gpu": 3618211920372418457
+  }
+}

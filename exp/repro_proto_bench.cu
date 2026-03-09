@@ -15,13 +15,13 @@
 #include <unordered_map>
 #include <vector>
 
-#include "g3pvm/evo_ast.hpp"
-#include "g3pvm/vm_gpu.hpp"
+#include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/runtime/fitness_gpu.hpp"
 
 namespace {
 
-using g3pvm::InputCase;
-using g3pvm::LocalBinding;
+using g3pvm::CaseInputs;
+using g3pvm::InputBinding;
 using g3pvm::Value;
 using g3pvm::evo::AstNode;
 using g3pvm::evo::NodeKind;
@@ -73,7 +73,6 @@ struct BenchConfig {
   int repeats = 5;
   std::uint64_t seed = 12345;
   double mutation_ratio = 0.5;
-  bool enable_gpu_cheap_validate = true;
   std::string out_json;
 };
 
@@ -90,20 +89,13 @@ struct TimingAggregate {
   double gpu_eval_ms = 0.0;
   double gpu_selection_ms = 0.0;
   double gpu_variation_ms = 0.0;
-  double gpu_cheap_validate_ms = 0.0;
   double d2h_child_ms = 0.0;
-  double cpu_validate_fallback_ms = 0.0;
-  double gpu_validate_fallback_ms = 0.0;
   double overlap_wall_ms = 0.0;
   double sequential_wall_ms = 0.0;
   double cpu_selection_ms = 0.0;
   double cpu_variation_ms = 0.0;
   std::uint64_t cpu_checksum = 0;
   std::uint64_t gpu_checksum = 0;
-  int cpu_fallback_count = 0;
-  int gpu_fallback_count = 0;
-  int gpu_cheap_reject_count = 0;
-  int gpu_full_validate_count = 0;
 };
 
 struct PackedHostData {
@@ -132,7 +124,7 @@ struct DeviceBuffers {
   int* d_donor_name_counts = nullptr;
   Value* d_donor_consts = nullptr;
   int* d_donor_const_counts = nullptr;
-  int* d_fitness = nullptr;
+  double* d_fitness = nullptr;
   int* d_parent_a = nullptr;
   int* d_parent_b = nullptr;
   int* d_cand_a = nullptr;
@@ -145,7 +137,6 @@ struct DeviceBuffers {
   int* d_child_name_counts = nullptr;
   Value* d_child_consts = nullptr;
   int* d_child_const_counts = nullptr;
-  unsigned char* d_child_cheap_valid = nullptr;
 
   ~DeviceBuffers() {
     if (d_program_nodes) cudaFree(d_program_nodes);
@@ -172,7 +163,6 @@ struct DeviceBuffers {
     if (d_child_name_counts) cudaFree(d_child_name_counts);
     if (d_child_consts) cudaFree(d_child_consts);
     if (d_child_const_counts) cudaFree(d_child_const_counts);
-    if (d_child_cheap_valid) cudaFree(d_child_cheap_valid);
   }
 };
 
@@ -202,11 +192,15 @@ int node_arity(NodeKind kind) {
     case NodeKind::NEG:
     case NodeKind::NOT:
     case NodeKind::CALL_ABS:
+    case NodeKind::CALL_LEN:
       return 1;
     case NodeKind::CALL_MIN:
     case NodeKind::CALL_MAX:
+    case NodeKind::CALL_CONCAT:
+    case NodeKind::CALL_INDEX:
       return 2;
     case NodeKind::CALL_CLIP:
+    case NodeKind::CALL_SLICE:
       return 3;
     case NodeKind::ADD:
     case NodeKind::SUB:
@@ -250,11 +244,15 @@ __host__ __device__ int node_arity_checked(int kind_raw) {
     case NodeKind::NEG:
     case NodeKind::NOT:
     case NodeKind::CALL_ABS:
+    case NodeKind::CALL_LEN:
       return 1;
     case NodeKind::CALL_MIN:
     case NodeKind::CALL_MAX:
+    case NodeKind::CALL_CONCAT:
+    case NodeKind::CALL_INDEX:
       return 2;
     case NodeKind::CALL_CLIP:
+    case NodeKind::CALL_SLICE:
       return 3;
     case NodeKind::ADD:
     case NodeKind::SUB:
@@ -656,7 +654,7 @@ std::vector<g3pvm::BytecodeProgram> compile_population(const std::vector<Program
   return out;
 }
 
-void prepare_eval_data(int eval_cases, std::vector<InputCase>* shared_cases, std::vector<Value>* shared_answer) {
+void prepare_eval_data(int eval_cases, std::vector<CaseInputs>* shared_cases, std::vector<Value>* shared_answer) {
   shared_cases->clear();
   shared_answer->clear();
   shared_cases->reserve(static_cast<std::size_t>(eval_cases));
@@ -664,7 +662,7 @@ void prepare_eval_data(int eval_cases, std::vector<InputCase>* shared_cases, std
   const int half = eval_cases / 2;
   for (int i = 0; i < eval_cases; ++i) {
     const int x = i - half;
-    shared_cases->push_back(InputCase{LocalBinding{0, Value::from_int(x)}});
+    shared_cases->push_back(CaseInputs{InputBinding{0, Value::from_int(x)}});
     shared_answer->push_back(Value::from_int(x + 1));
   }
 }
@@ -867,7 +865,7 @@ void allocate_device_buffers(DeviceBuffers* dev, const BenchConfig& cfg) {
                          sizeof(int) * static_cast<std::size_t>(cfg.donor_pool_size)),
               "cudaMalloc d_donor_const_counts");
   ensure_cuda(cudaMalloc(reinterpret_cast<void**>(&dev->d_fitness),
-                         sizeof(int) * static_cast<std::size_t>(cfg.population_size)),
+                         sizeof(double) * static_cast<std::size_t>(cfg.population_size)),
               "cudaMalloc d_fitness");
   ensure_cuda(cudaMalloc(reinterpret_cast<void**>(&dev->d_parent_a),
                          sizeof(int) * static_cast<std::size_t>(cfg.child_count)),
@@ -905,9 +903,6 @@ void allocate_device_buffers(DeviceBuffers* dev, const BenchConfig& cfg) {
   ensure_cuda(cudaMalloc(reinterpret_cast<void**>(&dev->d_child_const_counts),
                          sizeof(int) * static_cast<std::size_t>(cfg.child_count * 2)),
               "cudaMalloc d_child_const_counts");
-  ensure_cuda(cudaMalloc(reinterpret_cast<void**>(&dev->d_child_cheap_valid),
-                         sizeof(unsigned char) * static_cast<std::size_t>(cfg.child_count * 2)),
-              "cudaMalloc d_child_cheap_valid");
 }
 
 void copy_host_to_device(const PackedHostData& packed, DeviceBuffers* dev, const BenchConfig& cfg, TimingAggregate* agg) {
@@ -1006,7 +1001,7 @@ __host__ __device__ std::uint64_t hash64(std::uint64_t x) {
   return x;
 }
 
-__global__ void tournament_select_kernel(const int* fitness,
+__global__ void tournament_select_kernel(const double* fitness,
                                          int population_size,
                                          int child_count,
                                          int candidates_per_program,
@@ -1027,11 +1022,11 @@ __global__ void tournament_select_kernel(const int* fitness,
   const std::uint64_t base = hash64(seed + static_cast<std::uint64_t>(idx) * 0x9e3779b97f4a7c15ULL);
   auto run_tournament = [&](std::uint64_t local_seed) {
     int best = static_cast<int>(local_seed % static_cast<std::uint64_t>(population_size));
-    int best_fit = fitness[best];
+    double best_fit = fitness[best];
     for (int i = 1; i < tournament_k; ++i) {
       local_seed = hash64(local_seed + static_cast<std::uint64_t>(i));
       const int cand = static_cast<int>(local_seed % static_cast<std::uint64_t>(population_size));
-      const int cand_fit = fitness[cand];
+      const double cand_fit = fitness[cand];
       if (cand_fit > best_fit) {
         best = cand;
         best_fit = cand_fit;
@@ -1107,69 +1102,6 @@ __device__ PlainNode remap_node_for_child(const PlainNode& in,
     out.i0 = remap_name_id(source_names[in.i0], child_names, child_name_count, max_names);
   }
   return out;
-}
-
-__global__ void cheap_validate_kernel(const PlainNode* child_nodes,
-                                      const int* child_used_len,
-                                      const int* child_name_counts,
-                                      const int* child_const_counts,
-                                      int max_nodes,
-                                      int max_for_k,
-                                      int max_names,
-                                      int max_consts,
-                                      int total_children,
-                                      unsigned char* child_cheap_valid) {
-  const int idx = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
-  if (idx >= total_children) {
-    return;
-  }
-
-  const int used_len = child_used_len[idx];
-  const int name_count = child_name_counts[idx];
-  const int const_count = child_const_counts[idx];
-  bool ok = true;
-
-  if (used_len <= 0 || used_len > max_nodes) ok = false;
-  if (name_count < 0 || name_count > max_names) ok = false;
-  if (const_count < 0 || const_count > max_consts) ok = false;
-
-  if (ok) {
-    const PlainNode* nodes = child_nodes + idx * max_nodes;
-    if (nodes[0].kind != static_cast<int>(NodeKind::PROGRAM)) {
-      ok = false;
-    }
-    int pending = 1;
-    for (int i = 0; ok && i < used_len; ++i) {
-      if (pending <= 0) {
-        ok = false;
-        break;
-      }
-      const PlainNode& n = nodes[i];
-      const int arity = node_arity_checked(n.kind);
-      if (arity < 0) {
-        ok = false;
-        break;
-      }
-      if ((n.kind == static_cast<int>(NodeKind::CONST) && (n.i0 < 0 || n.i0 >= const_count)) ||
-          ((n.kind == static_cast<int>(NodeKind::VAR) || n.kind == static_cast<int>(NodeKind::ASSIGN) ||
-            n.kind == static_cast<int>(NodeKind::FOR_RANGE)) &&
-           (n.i0 < 0 || n.i0 >= name_count))) {
-        ok = false;
-        break;
-      }
-      if (n.kind == static_cast<int>(NodeKind::FOR_RANGE) && (n.i1 < 0 || n.i1 > max_for_k)) {
-        ok = false;
-        break;
-      }
-      pending -= 1;
-      pending += arity;
-    }
-    if (ok && pending != 0) {
-      ok = false;
-    }
-  }
-
-  child_cheap_valid[idx] = ok ? 1 : 0;
 }
 
 __global__ void variation_kernel(const PlainNode* program_nodes,
@@ -1365,8 +1297,9 @@ __global__ void variation_kernel(const PlainNode* program_nodes,
   }
 }
 
-void cpu_tournament_select(const std::vector<int>& fitness,
+void cpu_tournament_select(const std::vector<double>& fitness,
                            const BenchConfig& cfg,
+                           std::uint64_t seed,
                            std::vector<int>* parent_a,
                            std::vector<int>* parent_b,
                            std::vector<int>* cand_a,
@@ -1380,10 +1313,10 @@ void cpu_tournament_select(const std::vector<int>& fitness,
   donor_idx->resize(static_cast<std::size_t>(cfg.child_count));
   is_mutation->resize(static_cast<std::size_t>(cfg.child_count));
   for (int idx = 0; idx < cfg.child_count; ++idx) {
-    const std::uint64_t base = hash64(cfg.seed + static_cast<std::uint64_t>(idx) * 0x9e3779b97f4a7c15ULL);
+    const std::uint64_t base = hash64(seed + static_cast<std::uint64_t>(idx) * 0x9e3779b97f4a7c15ULL);
     auto run_tournament = [&](std::uint64_t local_seed) {
       int best = static_cast<int>(local_seed % static_cast<std::uint64_t>(cfg.population_size));
-      int best_fit = fitness[static_cast<std::size_t>(best)];
+      double best_fit = fitness[static_cast<std::size_t>(best)];
       for (int i = 1; i < cfg.tournament_k; ++i) {
         local_seed = hash64(local_seed + static_cast<std::uint64_t>(i));
         const int cand = static_cast<int>(local_seed % static_cast<std::uint64_t>(cfg.population_size));
@@ -1447,106 +1380,49 @@ PlainNode cpu_remap_node_for_child(const PlainNode& in,
   return out;
 }
 
-ProgramGenome build_genome_from_flat(const PlainNode* nodes,
-                                     int node_count,
-                                     const std::uint64_t* name_ids,
-                                     int name_count,
-                                     const Value* consts,
-                                     int const_count) {
-  ProgramGenome genome;
-  genome.ast.version = "ast-prefix-v1";
-  genome.ast.nodes.reserve(static_cast<std::size_t>(node_count));
-  genome.ast.names.reserve(static_cast<std::size_t>(name_count));
-  genome.ast.consts.reserve(static_cast<std::size_t>(const_count));
-  for (int i = 0; i < node_count; ++i) {
-    const PlainNode& n = nodes[i];
-    genome.ast.nodes.push_back(AstNode{static_cast<NodeKind>(n.kind), n.i0, n.i1});
+std::uint64_t hash_value_simple(const Value& v) {
+  std::uint64_t h = hash64(static_cast<std::uint64_t>(v.tag));
+  if (v.tag == g3pvm::ValueTag::Bool) {
+    return hash64(h ^ static_cast<std::uint64_t>(v.b ? 1 : 0));
   }
-  for (int i = 0; i < name_count; ++i) {
-    std::ostringstream oss;
-    oss << "n_" << std::hex << name_ids[i];
-    genome.ast.names.push_back(oss.str());
+  if (v.tag == g3pvm::ValueTag::Int || v.tag == g3pvm::ValueTag::String || v.tag == g3pvm::ValueTag::List) {
+    return hash64(h ^ static_cast<std::uint64_t>(v.i));
   }
-  for (int i = 0; i < const_count; ++i) {
-    genome.ast.consts.push_back(consts[i]);
+  if (v.tag == g3pvm::ValueTag::Float) {
+    std::uint64_t bits = 0;
+    std::memcpy(&bits, &v.f, sizeof(bits));
+    return hash64(h ^ bits);
   }
-  genome.meta.node_count = node_count;
-  return genome;
+  return h;
 }
 
-std::uint64_t checksum_genome_nodes(const ProgramGenome& genome) {
+std::uint64_t checksum_children_flat(const BenchConfig& cfg,
+                                     const std::vector<PlainNode>& child_nodes,
+                                     const std::vector<int>& child_used_len,
+                                     const std::vector<std::uint64_t>& child_name_ids,
+                                     const std::vector<int>& child_name_counts,
+                                     const std::vector<Value>& child_consts,
+                                     const std::vector<int>& child_const_counts) {
   std::uint64_t checksum = 0;
-  for (const AstNode& n : genome.ast.nodes) {
-    checksum ^= static_cast<std::uint64_t>(static_cast<int>(n.kind) + 131 * n.i0 + 977 * n.i1);
-    checksum = hash64(checksum + 0x9e3779b97f4a7c15ULL);
-  }
-  return checksum;
-}
-
-std::uint64_t validate_and_fallback_children_cpu(const std::vector<ProgramGenome>& genomes,
-                                                 const BenchConfig& cfg,
-                                                 const std::vector<int>& parent_a,
-                                                 const std::vector<int>& parent_b,
-                                                 const std::vector<unsigned char>& is_mutation,
-                                                 const std::vector<PlainNode>& child_nodes,
-                                                 const std::vector<int>& child_used_len,
-                                                 const std::vector<std::uint64_t>& child_name_ids,
-                                                 const std::vector<int>& child_name_counts,
-                                                 const std::vector<Value>& child_consts,
-                                                 const std::vector<int>& child_const_counts,
-                                                 const std::vector<unsigned char>* cheap_valid,
-                                                 TimingAggregate* agg,
-                                                 bool gpu_side) {
-  g3pvm::evo::Limits limits;
-  limits.max_total_nodes = cfg.max_nodes;
-  limits.max_expr_depth = 5;
-  limits.max_stmts_per_block = 6;
-  limits.max_for_k = 16;
-
-  const auto t0 = std::chrono::steady_clock::now();
-  std::uint64_t checksum = 0;
-  int fallback_count = 0;
-  int cheap_reject_count = 0;
-  int full_validate_count = 0;
   const int total_children = cfg.child_count * 2;
   for (int c = 0; c < total_children; ++c) {
-    if (cheap_valid != nullptr && (*cheap_valid)[static_cast<std::size_t>(c)] == 0) {
-      fallback_count += 1;
-      cheap_reject_count += 1;
-      const int pair_idx = c / 2;
-      const bool use_a = (c % 2 == 0) || is_mutation[static_cast<std::size_t>(pair_idx)];
-      const ProgramGenome& parent = genomes[static_cast<std::size_t>(use_a ? parent_a[static_cast<std::size_t>(pair_idx)]
-                                                                            : parent_b[static_cast<std::size_t>(pair_idx)])];
-      checksum ^= checksum_genome_nodes(parent);
-      continue;
+    checksum = hash64(checksum ^ static_cast<std::uint64_t>(child_used_len[static_cast<std::size_t>(c)]));
+    checksum = hash64(checksum ^ static_cast<std::uint64_t>(child_name_counts[static_cast<std::size_t>(c)]));
+    checksum = hash64(checksum ^ static_cast<std::uint64_t>(child_const_counts[static_cast<std::size_t>(c)]));
+    const std::size_t node_base = static_cast<std::size_t>(c * cfg.max_nodes);
+    for (int i = 0; i < child_used_len[static_cast<std::size_t>(c)]; ++i) {
+      const PlainNode& n = child_nodes[node_base + static_cast<std::size_t>(i)];
+      checksum ^= static_cast<std::uint64_t>(n.kind + 131 * n.i0 + 977 * n.i1);
+      checksum = hash64(checksum + 0x9e3779b97f4a7c15ULL);
     }
-    const int node_count = child_used_len[static_cast<std::size_t>(c)];
-    full_validate_count += 1;
-    const ProgramGenome built = build_genome_from_flat(
-        &child_nodes[static_cast<std::size_t>(c * cfg.max_nodes)], node_count,
-        &child_name_ids[static_cast<std::size_t>(c * cfg.max_names)], child_name_counts[static_cast<std::size_t>(c)],
-        &child_consts[static_cast<std::size_t>(c * cfg.max_consts)], child_const_counts[static_cast<std::size_t>(c)]);
-    const g3pvm::evo::ValidationResult vr = g3pvm::evo::validate_genome(built, limits);
-    if (vr.is_valid) {
-      checksum ^= checksum_genome_nodes(built);
-    } else {
-      fallback_count += 1;
-      const int pair_idx = c / 2;
-      const bool use_a = (c % 2 == 0) || is_mutation[static_cast<std::size_t>(pair_idx)];
-      const ProgramGenome& parent = genomes[static_cast<std::size_t>(use_a ? parent_a[static_cast<std::size_t>(pair_idx)]
-                                                                            : parent_b[static_cast<std::size_t>(pair_idx)])];
-      checksum ^= checksum_genome_nodes(parent);
+    const std::size_t name_base = static_cast<std::size_t>(c * cfg.max_names);
+    for (int i = 0; i < child_name_counts[static_cast<std::size_t>(c)]; ++i) {
+      checksum = hash64(checksum ^ child_name_ids[name_base + static_cast<std::size_t>(i)]);
     }
-  }
-  const auto t1 = std::chrono::steady_clock::now();
-  if (gpu_side) {
-    agg->gpu_validate_fallback_ms += ms_between(t0, t1);
-    agg->gpu_fallback_count += fallback_count;
-    agg->gpu_cheap_reject_count += cheap_reject_count;
-    agg->gpu_full_validate_count += full_validate_count;
-  } else {
-    agg->cpu_validate_fallback_ms += ms_between(t0, t1);
-    agg->cpu_fallback_count += fallback_count;
+    const std::size_t const_base = static_cast<std::size_t>(c * cfg.max_consts);
+    for (int i = 0; i < child_const_counts[static_cast<std::size_t>(c)]; ++i) {
+      checksum = hash64(checksum ^ hash_value_simple(child_consts[const_base + static_cast<std::size_t>(i)]));
+    }
   }
   return checksum;
 }
@@ -1776,7 +1652,6 @@ BenchConfig parse_args(int argc, char** argv) {
     else if (arg == "--repeats") cfg.repeats = std::stoi(need("--repeats"));
     else if (arg == "--seed") cfg.seed = static_cast<std::uint64_t>(std::stoull(need("--seed")));
     else if (arg == "--mutation-ratio") cfg.mutation_ratio = std::stod(need("--mutation-ratio"));
-    else if (arg == "--disable-gpu-cheap-validate") cfg.enable_gpu_cheap_validate = false;
     else if (arg == "--out-json") cfg.out_json = need("--out-json");
     else if (arg == "--help") {
       std::cout
@@ -1792,7 +1667,6 @@ BenchConfig parse_args(int argc, char** argv) {
           << "  --repeats N\n"
           << "  --seed N\n"
           << "  --mutation-ratio X\n"
-          << "  --disable-gpu-cheap-validate\n"
           << "  --out-json PATH\n";
       std::exit(0);
     } else {
@@ -1822,8 +1696,7 @@ std::string to_json(const BenchConfig& cfg, const TimingAggregate& agg) {
   oss << "    \"tournament_k\": " << cfg.tournament_k << ",\n";
   oss << "    \"eval_cases\": " << cfg.eval_cases << ",\n";
   oss << "    \"repeats\": " << cfg.repeats << ",\n";
-  oss << "    \"mutation_ratio\": " << cfg.mutation_ratio << ",\n";
-  oss << "    \"enable_gpu_cheap_validate\": " << (cfg.enable_gpu_cheap_validate ? "true" : "false") << "\n";
+  oss << "    \"mutation_ratio\": " << cfg.mutation_ratio << "\n";
   oss << "  },\n";
   oss << "  \"timings_ms\": {\n";
   oss << "    \"cpu_subtree\": " << agg.cpu_subtree_ms << ",\n";
@@ -1841,16 +1714,13 @@ std::string to_json(const BenchConfig& cfg, const TimingAggregate& agg) {
   oss << "    \"gpu_eval\": " << agg.gpu_eval_ms << ",\n";
   oss << "    \"gpu_selection\": " << agg.gpu_selection_ms << ",\n";
   oss << "    \"gpu_variation\": " << agg.gpu_variation_ms << ",\n";
-  oss << "    \"gpu_cheap_validate\": " << agg.gpu_cheap_validate_ms << ",\n";
   oss << "    \"d2h_child\": " << agg.d2h_child_ms << ",\n";
-  oss << "    \"gpu_validate_fallback\": " << agg.gpu_validate_fallback_ms << ",\n";
   oss << "    \"gpu_selection_variation_total\": " << gpu_total_ms << ",\n";
   oss << "    \"gpu_selection_variation_d2h_total\": " << gpu_total_with_d2h_ms << ",\n";
   oss << "    \"sequential_wall\": " << agg.sequential_wall_ms << ",\n";
   oss << "    \"overlap_wall\": " << agg.overlap_wall_ms << ",\n";
   oss << "    \"cpu_selection\": " << agg.cpu_selection_ms << ",\n";
   oss << "    \"cpu_variation\": " << agg.cpu_variation_ms << ",\n";
-  oss << "    \"cpu_validate_fallback\": " << agg.cpu_validate_fallback_ms << ",\n";
   oss << "    \"cpu_selection_variation_total\": " << cpu_total_ms << "\n";
   oss << "  },\n";
   oss << "  \"overlap\": {\n";
@@ -1869,14 +1739,6 @@ std::string to_json(const BenchConfig& cfg, const TimingAggregate& agg) {
   oss << "  \"checksums\": {\n";
   oss << "    \"cpu\": " << agg.cpu_checksum << ",\n";
   oss << "    \"gpu\": " << agg.gpu_checksum << "\n";
-  oss << "  },\n";
-  oss << "  \"fallback_counts\": {\n";
-  oss << "    \"cpu\": " << agg.cpu_fallback_count << ",\n";
-  oss << "    \"gpu\": " << agg.gpu_fallback_count << "\n";
-  oss << "  },\n";
-  oss << "  \"gpu_cheap_validate\": {\n";
-  oss << "    \"cheap_reject_count\": " << agg.gpu_cheap_reject_count << ",\n";
-  oss << "    \"full_validate_count\": " << agg.gpu_full_validate_count << "\n";
   oss << "  }\n";
   oss << "}\n";
   return oss.str();
@@ -1893,7 +1755,7 @@ int main(int argc, char** argv) {
     const std::vector<ProgramGenome> genomes = make_population(cfg);
     const std::vector<g3pvm::BytecodeProgram> bytecode = compile_population(genomes);
 
-    std::vector<InputCase> shared_cases;
+    std::vector<CaseInputs> shared_cases;
     std::vector<Value> shared_answer;
     prepare_eval_data(cfg.eval_cases, &shared_cases, &shared_answer);
 
@@ -1905,7 +1767,7 @@ int main(int argc, char** argv) {
     }
 
     TimingAggregate agg;
-    std::vector<int> last_fitness(static_cast<std::size_t>(cfg.population_size), 0);
+    std::vector<double> last_fitness(static_cast<std::size_t>(cfg.population_size), 0.0);
 
     for (int rep = 0; rep < cfg.repeats; ++rep) {
       const g3pvm::FitnessEvalResult eval_result = session.eval_programs(bytecode);
@@ -1916,7 +1778,7 @@ int main(int argc, char** argv) {
       agg.gpu_eval_ms += eval_result.total_ms;
       last_fitness = eval_result.fitness;
       ensure_cuda(cudaMemcpy(dev.d_fitness, last_fitness.data(),
-                             sizeof(int) * static_cast<std::size_t>(cfg.population_size), cudaMemcpyHostToDevice),
+                             sizeof(double) * static_cast<std::size_t>(cfg.population_size), cudaMemcpyHostToDevice),
                   "cudaMemcpy fitness");
 
       const PreprocessData prep = run_preprocess(genomes, cfg, &agg);
@@ -1931,7 +1793,8 @@ int main(int argc, char** argv) {
       std::vector<unsigned char> cpu_mut;
 
       const auto cpu_sel_t0 = std::chrono::steady_clock::now();
-      cpu_tournament_select(last_fitness, cfg, &cpu_pa, &cpu_pb, &cpu_ca, &cpu_cb, &cpu_di, &cpu_mut);
+      const std::uint64_t rep_seed = cfg.seed + static_cast<std::uint64_t>(rep);
+      cpu_tournament_select(last_fitness, cfg, rep_seed, &cpu_pa, &cpu_pb, &cpu_ca, &cpu_cb, &cpu_di, &cpu_mut);
       const auto cpu_sel_t1 = std::chrono::steady_clock::now();
       agg.cpu_selection_ms += ms_between(cpu_sel_t0, cpu_sel_t1);
 
@@ -1947,17 +1810,15 @@ int main(int argc, char** argv) {
                           &cpu_child_name_ids, &cpu_child_name_counts, &cpu_child_consts, &cpu_child_const_counts);
       const auto cpu_var_t1 = std::chrono::steady_clock::now();
       agg.cpu_variation_ms += ms_between(cpu_var_t0, cpu_var_t1);
-      agg.cpu_checksum ^= validate_and_fallback_children_cpu(genomes, cfg, cpu_pa, cpu_pb, cpu_mut, cpu_child_nodes,
-                                                             cpu_child_used_len,
-                                                             cpu_child_name_ids, cpu_child_name_counts, cpu_child_consts,
-                                                             cpu_child_const_counts, nullptr, &agg, false);
+      agg.cpu_checksum ^= checksum_children_flat(cfg, cpu_child_nodes, cpu_child_used_len, cpu_child_name_ids,
+                                                 cpu_child_name_counts, cpu_child_consts, cpu_child_const_counts);
 
       const int threads = 256;
       const int blocks = (cfg.child_count + threads - 1) / threads;
       const auto gpu_sel_t0 = std::chrono::steady_clock::now();
       tournament_select_kernel<<<blocks, threads>>>(
           dev.d_fitness, cfg.population_size, cfg.child_count, cfg.candidates_per_program, cfg.donor_pool_size,
-          cfg.tournament_k, cfg.mutation_ratio, cfg.seed + static_cast<std::uint64_t>(rep), dev.d_parent_a,
+          cfg.tournament_k, cfg.mutation_ratio, rep_seed, dev.d_parent_a,
           dev.d_parent_b, dev.d_cand_a, dev.d_cand_b, dev.d_donor_idx, dev.d_is_mutation);
       ensure_cuda(cudaGetLastError(), "launch tournament_select_kernel");
       ensure_cuda(cudaDeviceSynchronize(), "sync tournament_select_kernel");
@@ -1977,28 +1838,12 @@ int main(int argc, char** argv) {
       const auto gpu_var_t1 = std::chrono::steady_clock::now();
       agg.gpu_variation_ms += ms_between(gpu_var_t0, gpu_var_t1);
 
-      const int total_children = cfg.child_count * 2;
-      if (cfg.enable_gpu_cheap_validate) {
-        const auto gpu_cheap_t0 = std::chrono::steady_clock::now();
-        cheap_validate_kernel<<<(total_children + threads - 1) / threads, threads>>>(
-            dev.d_child_nodes, dev.d_child_used_len, dev.d_child_name_counts, dev.d_child_const_counts, cfg.max_nodes, 16,
-            cfg.max_names, cfg.max_consts, total_children, dev.d_child_cheap_valid);
-        ensure_cuda(cudaGetLastError(), "launch cheap_validate_kernel");
-        ensure_cuda(cudaDeviceSynchronize(), "sync cheap_validate_kernel");
-        const auto gpu_cheap_t1 = std::chrono::steady_clock::now();
-        agg.gpu_cheap_validate_ms += ms_between(gpu_cheap_t0, gpu_cheap_t1);
-      } else {
-        ensure_cuda(cudaMemset(dev.d_child_cheap_valid, 1, sizeof(unsigned char) * static_cast<std::size_t>(total_children)),
-                    "cudaMemset child_cheap_valid");
-      }
-
       std::vector<PlainNode> child_copy(static_cast<std::size_t>(cfg.child_count * 2 * cfg.max_nodes));
       std::vector<int> child_used_len(static_cast<std::size_t>(cfg.child_count * 2));
       std::vector<std::uint64_t> child_name_ids(static_cast<std::size_t>(cfg.child_count * 2 * cfg.max_names));
       std::vector<int> child_name_counts(static_cast<std::size_t>(cfg.child_count * 2));
       std::vector<Value> child_consts(static_cast<std::size_t>(cfg.child_count * 2 * cfg.max_consts));
       std::vector<int> child_const_counts(static_cast<std::size_t>(cfg.child_count * 2));
-      std::vector<unsigned char> child_cheap_valid(static_cast<std::size_t>(cfg.child_count * 2));
       const auto d2h_t0 = std::chrono::steady_clock::now();
       ensure_cuda(cudaMemcpy(child_copy.data(), dev.d_child_nodes, sizeof(PlainNode) * child_copy.size(),
                              cudaMemcpyDeviceToHost),
@@ -2018,16 +1863,11 @@ int main(int argc, char** argv) {
       ensure_cuda(cudaMemcpy(child_const_counts.data(), dev.d_child_const_counts,
                              sizeof(int) * child_const_counts.size(), cudaMemcpyDeviceToHost),
                   "cudaMemcpy child_const_counts");
-      ensure_cuda(cudaMemcpy(child_cheap_valid.data(), dev.d_child_cheap_valid,
-                             sizeof(unsigned char) * child_cheap_valid.size(), cudaMemcpyDeviceToHost),
-                  "cudaMemcpy child_cheap_valid");
       ensure_cuda(cudaDeviceSynchronize(), "sync child copy");
       const auto d2h_t1 = std::chrono::steady_clock::now();
       agg.d2h_child_ms += ms_between(d2h_t0, d2h_t1);
-      agg.gpu_checksum ^= validate_and_fallback_children_cpu(genomes, cfg, cpu_pa, cpu_pb, cpu_mut, child_copy,
-                                                             child_used_len,
-                                                             child_name_ids, child_name_counts, child_consts,
-                                                             child_const_counts, &child_cheap_valid, &agg, true);
+      agg.gpu_checksum ^= checksum_children_flat(cfg, child_copy, child_used_len, child_name_ids, child_name_counts,
+                                                 child_consts, child_const_counts);
     }
 
     const double inv = 1.0 / static_cast<double>(cfg.repeats);
@@ -2043,7 +1883,6 @@ int main(int argc, char** argv) {
     agg.gpu_eval_ms *= inv;
     agg.gpu_selection_ms *= inv;
     agg.gpu_variation_ms *= inv;
-    agg.gpu_cheap_validate_ms *= inv;
     agg.d2h_child_ms *= inv;
     agg.cpu_selection_ms *= inv;
     agg.cpu_variation_ms *= inv;

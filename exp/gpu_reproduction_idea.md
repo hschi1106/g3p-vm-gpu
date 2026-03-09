@@ -182,7 +182,7 @@ selection 不打算一開始就做太複雜的版本。
 
 - mutation / crossover 的選點規則較簡化
 - typed subtree 的細節不一定完全一致
-- fallback / validation 可能簡化
+- current benchmark 不含 fallback / validation；這部分不再是這份實驗要回答的問題
 - mutation 與 crossover 比例可能固定
 
 但這些差異目前是可以接受的，因為這份實驗想回答的問題不是 search quality，而是：
