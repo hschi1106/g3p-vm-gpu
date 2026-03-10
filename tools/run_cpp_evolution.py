@@ -18,10 +18,10 @@ from typing import Any, Dict, List, Optional
 ROOT = Path(__file__).resolve().parents[1]
 
 _GEN_RE = re.compile(
-    r"^GEN\s+(?P<gen>\d+)\s+best=(?P<best>[-+]?\d+(?:\.\d+)?)\s+mean=(?P<mean>[-+]?\d+(?:\.\d+)?)\s+hash=(?P<hash>[0-9a-fA-F]+)$"
+    r"^GEN\s+(?P<gen>\d+)\s+best=(?P<best>[-+]?\d+(?:\.\d+)?)\s+mean=(?P<mean>[-+]?\d+(?:\.\d+)?)\s+program_key=(?P<program_key>.+)$"
 )
 _FINAL_RE = re.compile(
-    r"^FINAL\s+best=(?P<best>[-+]?\d+(?:\.\d+)?)\s+hash=(?P<hash>[0-9a-fA-F]+)\s+selection=(?P<selection>[a-z_]+)\s+crossover=(?P<crossover>[a-z_]+)$"
+    r"^FINAL\s+best=(?P<best>[-+]?\d+(?:\.\d+)?)\s+program_key=(?P<program_key>.+)\s+selection=(?P<selection>[a-z_]+)\s+crossover=(?P<crossover>[a-z_]+)$"
 )
 _TIMING_PHASE_RE = re.compile(r"^TIMING\s+phase=(?P<phase>[a-z_]+)\s+ms=(?P<ms>[-+]?\d+(?:\.\d+)?)$")
 _TIMING_GEN_LINE_RE = re.compile(r"^TIMING\s+gen=(?P<gen>\d+)\s+(?P<rest>.+)$")
@@ -121,7 +121,7 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
                     "generation": int(m.group("gen")),
                     "best": float(m.group("best")),
                     "mean": float(m.group("mean")),
-                    "hash": m.group("hash"),
+                    "program_key": m.group("program_key"),
                 }
             )
             continue
@@ -130,7 +130,7 @@ def _parse_cli_output(stdout: str) -> Dict[str, Any]:
         if m is not None:
             final = {
                 "best": float(m.group("best")),
-                "hash": m.group("hash"),
+                "program_key": m.group("program_key"),
                 "selection": m.group("selection"),
                 "crossover": m.group("crossover"),
             }
@@ -359,7 +359,7 @@ def main() -> None:
     print(
         "FINAL_METRIC "
         f"best={parsed['final']['best']:.6f} "
-        f"hash={parsed['final']['hash']} "
+        f"program_key={parsed['final']['program_key']} "
         f"selection={parsed['final']['selection']} "
         f"crossover={parsed['final']['crossover']}"
     )

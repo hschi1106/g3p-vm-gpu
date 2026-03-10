@@ -102,7 +102,9 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
           d_fail(result, DERR_TYPE);
           break;
         }
-        stack[sp++] = (x.tag == ValueTag::Float) ? Value::from_float(-x.f) : Value::from_int(-x.i);
+        stack[sp++] = (x.tag == ValueTag::Float)
+                          ? Value::from_float(-x.f)
+                          : Value::from_int(vm_semantics::wrap_int_neg(x.i));
       } else {
         if (x.tag != ValueTag::Bool) {
           d_fail(result, DERR_TYPE);
@@ -134,16 +136,16 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
       }
       if (ins.op == OP_ADD) {
         stack[sp++] = any_float ? Value::from_float(a_num + b_num)
-                                : Value::from_int(static_cast<long long>(a_num) +
-                                                  static_cast<long long>(b_num));
+                                : Value::from_int(vm_semantics::wrap_int_add(
+                                      static_cast<long long>(a_num), static_cast<long long>(b_num)));
       } else if (ins.op == OP_SUB) {
         stack[sp++] = any_float ? Value::from_float(a_num - b_num)
-                                : Value::from_int(static_cast<long long>(a_num) -
-                                                  static_cast<long long>(b_num));
+                                : Value::from_int(vm_semantics::wrap_int_sub(
+                                      static_cast<long long>(a_num), static_cast<long long>(b_num)));
       } else if (ins.op == OP_MUL) {
         stack[sp++] = any_float ? Value::from_float(a_num * b_num)
-                                : Value::from_int(static_cast<long long>(a_num) *
-                                                  static_cast<long long>(b_num));
+                                : Value::from_int(vm_semantics::wrap_int_mul(
+                                      static_cast<long long>(a_num), static_cast<long long>(b_num)));
       } else if (ins.op == OP_DIV) {
         stack[sp++] = Value::from_float(a_num / b_num);
       } else {
@@ -323,8 +325,16 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   }
   __syncthreads();
 
+  extern __shared__ unsigned char shared_bytes[];
+  const std::size_t code_bytes = sizeof(DInstr) * static_cast<std::size_t>(meta.code_len);
+  const std::size_t partial_offset =
+      (code_bytes + alignof(double) - 1u) & ~static_cast<std::size_t>(alignof(double) - 1u);
+  double* partial_scores = reinterpret_cast<double*>(shared_bytes + partial_offset);
+
   double local_score = 0.0;
-  for (int local_case = tid; local_case < meta.case_count; local_case += static_cast<int>(blockDim.x)) {
+  const int chunk_start = (meta.case_count * tid) / static_cast<int>(blockDim.x);
+  const int chunk_end = (meta.case_count * (tid + 1)) / static_cast<int>(blockDim.x);
+  for (int local_case = chunk_start; local_case < chunk_end; ++local_case) {
     const DResult result = d_exec_one_case(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
     if (result.is_error) {
@@ -338,8 +348,15 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     }
   }
 
-  if (local_score != 0.0) {
-    atomicAdd(&fitness_out[prog_idx], local_score);
+  partial_scores[tid] = local_score;
+  __syncthreads();
+
+  if (tid == 0) {
+    double total_score = 0.0;
+    for (int i = 0; i < static_cast<int>(blockDim.x); ++i) {
+      total_score += partial_scores[i];
+    }
+    fitness_out[prog_idx] = total_score;
   }
 }
 

@@ -166,7 +166,9 @@ FitnessEvalResult eval_fitness_gpu_profiled(
     return fitness_single_error(ErrCode::Value, "cases must not be empty");
   }
 
-  const std::size_t shared_bytes = packed.max_code_len * sizeof(DInstr);
+  const std::size_t shared_bytes =
+      packed.max_code_len * sizeof(DInstr) + (alignof(double) - 1u) +
+      static_cast<std::size_t>(blocksize) * sizeof(double);
   if (shared_bytes > static_cast<std::size_t>(props.sharedMemPerBlock)) {
     return fitness_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }
@@ -370,7 +372,9 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
     return fitness_single_error(ErrCode::Value, "cases must not be empty");
   }
 
-  const std::size_t shared_bytes = packed.max_code_len * sizeof(DInstr);
+  const std::size_t shared_bytes =
+      packed.max_code_len * sizeof(DInstr) + (alignof(double) - 1u) +
+      static_cast<std::size_t>(impl_->blocksize) * sizeof(double);
   if (shared_bytes > static_cast<std::size_t>(impl_->props.sharedMemPerBlock)) {
     return fitness_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }

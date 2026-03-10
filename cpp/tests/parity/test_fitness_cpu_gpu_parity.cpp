@@ -1,3 +1,4 @@
+#include <climits>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -50,6 +51,13 @@ BytecodeProgram make_return_string_program() {
   BytecodeProgram p;
   p.consts = {Value::from_string_hash_len(0x1234ULL, 3)};
   p.code = {ins_a("PUSH_CONST", 0), ins("RETURN")};
+  return p;
+}
+
+BytecodeProgram make_wrap_add_program() {
+  BytecodeProgram p;
+  p.consts = {Value::from_int(LLONG_MAX), Value::from_int(1)};
+  p.code = {ins_a("PUSH_CONST", 0), ins_a("PUSH_CONST", 1), ins("ADD"), ins("RETURN")};
   return p;
 }
 
@@ -162,6 +170,43 @@ int main() {
     }
     if (!approx(cpu_fit[2], -16.0 * penalty)) {
       std::cerr << "FAIL: runtime errors on binary cases should accumulate penalty\n";
+      return 1;
+    }
+  }
+
+  {
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_wrap_add_program());
+
+    std::vector<CaseInputs> shared_cases(4);
+    std::vector<Value> shared_answer(4, Value::from_int(LLONG_MIN));
+
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
+    const g3pvm::FitnessEvalResult gpu_fit =
+        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+
+    if (!gpu_fit.ok) {
+      if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu fitness run failed on wrap cases: " << gpu_fit.err.message << "\n";
+      return 1;
+    }
+
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on wrap cases\n";
+      return 1;
+    }
+    for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
+      if (!approx(cpu_fit[i], gpu_fit.fitness[i])) {
+        std::cerr << "FAIL: cpu/gpu fitness mismatch on wrap cases at " << i << "\n";
+        return 1;
+      }
+    }
+    if (!approx(cpu_fit[0], 0.0)) {
+      std::cerr << "FAIL: wrap add should match expected wrapped result\n";
       return 1;
     }
   }

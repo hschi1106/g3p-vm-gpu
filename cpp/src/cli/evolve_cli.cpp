@@ -93,6 +93,17 @@ bool is_integer_number(double x) {
   return static_cast<double>(i) == x;
 }
 
+double canonicalize_metric(double x) {
+  if (!std::isfinite(x) || x == 0.0) {
+    return x;
+  }
+  int exp = 0;
+  const double frac = std::frexp(x, &exp);
+  constexpr int keep_mantissa_bits = 48;
+  const double scaled = std::ldexp(frac, keep_mantissa_bits);
+  return std::ldexp(std::nearbyint(scaled), exp - keep_mantissa_bits);
+}
+
 Value decode_typed_or_raw_value(const JsonValue& v) {
   if (v.kind == JsonValue::Kind::Object) {
     auto it = v.object_v.find("type");
@@ -294,20 +305,21 @@ int main(int argc, char** argv) {
       int generation = 0;
       double best_fitness = 0.0;
       double mean_fitness = 0.0;
-      std::string hash_key;
+      std::string program_key;
     };
     std::vector<HistoryRow> history_rows;
     history_rows.reserve(result.history_best.size());
 
     for (int i = 0; i < static_cast<int>(result.history_best.size()); ++i) {
       const auto& best = result.history_best[static_cast<std::size_t>(i)];
-      const double best_fit = result.history_best_fitness[static_cast<std::size_t>(i)];
-      const double mean_fit = result.history_mean_fitness[static_cast<std::size_t>(i)];
-      history_rows.push_back(HistoryRow{i, best_fit, mean_fit, best.genome.meta.hash_key});
+      const double best_fit = canonicalize_metric(result.history_best_fitness[static_cast<std::size_t>(i)]);
+      const double mean_fit = canonicalize_metric(result.history_mean_fitness[static_cast<std::size_t>(i)]);
+      const std::string& program_key = best.genome.meta.program_key;
+      history_rows.push_back(HistoryRow{i, best_fit, mean_fit, program_key});
 
       std::cout << "GEN " << std::setfill('0') << std::setw(3) << i << std::setfill(' ') << " best="
                 << std::fixed << std::setprecision(6) << best_fit << " mean=" << std::fixed
-                << std::setprecision(6) << mean_fit << " hash=" << best.genome.meta.hash_key << "\n";
+                << std::setprecision(6) << mean_fit << " program_key=" << program_key << "\n";
 
       if (args.show_program == "ast" || args.show_program == "both") {
         std::cout << "AST " << std::setfill('0') << std::setw(3) << i << std::setfill(' ') << ": "
@@ -328,8 +340,8 @@ int main(int argc, char** argv) {
       }
     }
 
-    std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << result.best.fitness
-              << " hash=" << result.best.genome.meta.hash_key
+    std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << canonicalize_metric(result.best.fitness)
+              << " program_key=" << result.best.genome.meta.program_key
               << " selection=tournament"
               << " crossover=typed_subtree" << "\n";
 
@@ -436,7 +448,7 @@ int main(int argc, char** argv) {
         const auto& row = history_rows[i];
         out << "    {\"generation\": " << row.generation << ", \"best_fitness\": "
             << std::setprecision(17) << row.best_fitness << ", \"mean_fitness\": " << row.mean_fitness
-            << ", \"hash_key\": \"" << json_escape(row.hash_key) << "\"}";
+            << ", \"program_key\": \"" << json_escape(row.program_key) << "\"}";
         if (i + 1 < history_rows.size()) {
           out << ",";
         }
@@ -472,7 +484,7 @@ int main(int argc, char** argv) {
 
       out << "  \"final\": {\n";
       out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";
-      out << "    \"hash_key\": \"" << json_escape(result.best.genome.meta.hash_key) << "\",\n";
+      out << "    \"program_key\": \"" << json_escape(result.best.genome.meta.program_key) << "\",\n";
       out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(result.best.genome.ast)) << "\",\n";
       out << "    \"ast_names\": [";
       for (std::size_t i = 0; i < result.best.genome.ast.names.size(); ++i) {

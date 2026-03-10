@@ -79,7 +79,7 @@ struct GenomeMeta {
   int node_count = 0;
   int max_depth = 0;
   bool uses_builtins = false;
-  std::string hash_key;
+  std::string program_key;
 };
 
 struct ProgramGenome {
@@ -93,5 +93,6 @@ BytecodeProgram compile_for_eval_with_preset_locals(const ProgramGenome& genome,
                                                     const std::vector<std::string>& preset_locals);
 
 std::string ast_to_string(const AstProgram& program);
+std::string ast_cache_key(const AstProgram& program);
 
 }  // namespace g3pvm::evo

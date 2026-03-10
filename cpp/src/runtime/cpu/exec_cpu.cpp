@@ -134,7 +134,7 @@ ExecResult exec_cpu(const BytecodeProgram& program, const std::vector<std::pair<
           return fail(ErrCode::Type, "NEG expects numeric");
         }
         if (x.tag == ValueTag::Float) stack.push_back(Value::from_float(-x.f));
-        else stack.push_back(Value::from_int(-x.i));
+        else stack.push_back(Value::from_int(vm_semantics::wrap_int_neg(x.i)));
       } else {
         if (x.tag != ValueTag::Bool) {
           return fail(ErrCode::Type, "NOT expects bool");
@@ -169,13 +169,16 @@ ExecResult exec_cpu(const BytecodeProgram& program, const std::vector<std::pair<
 
       if (ins.op == "ADD") {
         if (any_float) stack.push_back(Value::from_float(a_num + b_num));
-        else stack.push_back(Value::from_int(static_cast<long long>(a_num) + static_cast<long long>(b_num)));
+        else stack.push_back(Value::from_int(
+            vm_semantics::wrap_int_add(static_cast<long long>(a_num), static_cast<long long>(b_num))));
       } else if (ins.op == "SUB") {
         if (any_float) stack.push_back(Value::from_float(a_num - b_num));
-        else stack.push_back(Value::from_int(static_cast<long long>(a_num) - static_cast<long long>(b_num)));
+        else stack.push_back(Value::from_int(
+            vm_semantics::wrap_int_sub(static_cast<long long>(a_num), static_cast<long long>(b_num))));
       } else if (ins.op == "MUL") {
         if (any_float) stack.push_back(Value::from_float(a_num * b_num));
-        else stack.push_back(Value::from_int(static_cast<long long>(a_num) * static_cast<long long>(b_num)));
+        else stack.push_back(Value::from_int(
+            vm_semantics::wrap_int_mul(static_cast<long long>(a_num), static_cast<long long>(b_num))));
       } else if (ins.op == "DIV") {
         stack.push_back(Value::from_float(a_num / b_num));
       } else {

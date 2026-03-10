@@ -54,11 +54,30 @@ G3PVM_VM_HD inline double py_float_mod(double a, double b) {
 }
 
 G3PVM_VM_HD inline long long py_int_mod(long long a, long long b) {
+  if (b == -1) {
+    return 0;
+  }
   long long r = a % b;
   if (r != 0 && ((r < 0) != (b < 0))) {
     r += b;
   }
   return r;
+}
+
+G3PVM_VM_HD inline long long wrap_int_neg(long long x) {
+  return static_cast<long long>(0ULL - static_cast<std::uint64_t>(x));
+}
+
+G3PVM_VM_HD inline long long wrap_int_add(long long a, long long b) {
+  return static_cast<long long>(static_cast<std::uint64_t>(a) + static_cast<std::uint64_t>(b));
+}
+
+G3PVM_VM_HD inline long long wrap_int_sub(long long a, long long b) {
+  return static_cast<long long>(static_cast<std::uint64_t>(a) - static_cast<std::uint64_t>(b));
+}
+
+G3PVM_VM_HD inline long long wrap_int_mul(long long a, long long b) {
+  return static_cast<long long>(static_cast<std::uint64_t>(a) * static_cast<std::uint64_t>(b));
 }
 
 G3PVM_VM_HD inline CompareStatus compare_values(CmpOp op, const Value& a, const Value& b, bool& out_bool) {
