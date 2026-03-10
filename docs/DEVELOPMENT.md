@@ -72,6 +72,50 @@ Genome-shape args:
 - `--max-for-k N`: maximum constant loop bound used by generated `for range(K)`
 - `--max-call-args N`: maximum allowed builtin call arity during generation/compilation
 
+### `cpp/build/g3pvm_generate_population_cli`
+
+Fixed-population generation args:
+- `--cases PATH`: input `fitness-cases-v1` file used to discover input names and probe candidate programs
+- `--out-json PATH`: output `population-seeds-v1` JSON
+- `--population-size N`: number of accepted genomes to emit
+- `--seed-start N`: first RNG seed considered during generation
+- `--probe-cases N`: number of leading cases used to reject programs that error too often
+- `--min-success-rate F`: required non-error ratio across probe cases; helps avoid all-garbage populations
+- `--max-attempts N`: hard cap on candidate seeds inspected before failing
+- `--fuel N`: per-probe execution budget
+- `--max-expr-depth N`
+- `--max-stmts-per-block N`
+- `--max-total-nodes N`
+- `--max-for-k N`
+- `--max-call-args N`
+
+### `cpp/build/g3pvm_population_bench_cli`
+
+Fixed-population benchmark args:
+- `--cases PATH`: input `fitness-cases-v1` file
+- `--population-json PATH`: input `population-seeds-v1` JSON
+- `--mode {eval-only|one-gen-e2e}`: benchmark mode
+- `--engine {cpu|gpu}`: evaluation backend
+- `--blocksize N`: GPU block size when `--engine gpu`
+- `--fuel N`: per-program execution budget
+- `--elitism N`
+- `--mutation-rate F`
+- `--mutation-subtree-prob F`
+- `--crossover-rate F`
+- `--penalty F`
+- `--selection-pressure N`
+
+Metric semantics:
+- `compile_ms`: compile-cache lookup plus any required genome-to-bytecode compilation
+- `eval_ms`: fitness execution only; compile time is excluded
+- `repro_ms`: one-generation reproduction work after the current population has been scored
+- `one-gen-e2e total_ms`: the full one-generation benchmark wall time
+
+Mode notes:
+- `eval-only` reports `compile_ms`, `eval_ms`, and `total_ms`; GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
+- `one-gen-e2e` reports `compile_ms`, `eval_ms`, `repro_ms`, `selection_ms`, `crossover_ms`, `mutation_ms`, `elite_ms`, and `total_ms`
+- `one-gen-e2e` stops after producing the next population; it does not evaluate the next population
+
 ### `tools/run_cpp_evolution.py`
 
 This is the main human-facing wrapper around `g3pvm_evolve_cli`.
@@ -169,13 +213,39 @@ Evolution args passed through to `run_cpp_evolution.py`:
 ### `scripts/run_cpu_gpu_speedup_experiment.sh`
 
 Benchmark args:
-- `--cases PATH`: benchmark fixture, usually `data/fixtures/speedup_cases_bouncing_balls_1024.json`
+- `--cases PATH`: benchmark fixture, usually `data/fixtures/bouncing_balls_1024.json`
 - `--popsize N`: population size used in both CPU and GPU runs
-- `--generations N`: generations used in both runs
+- `--generations N`: accepted for compatibility but ignored by the fixed-population benchmark flow
 - `--blocksize N`: GPU block size
+- `--generator-cli PATH`: fixed-population generator executable
+- `--bench-cli PATH`: fixed-population benchmark executable
+- `--seed-start N`: first candidate seed used during population generation
+- `--probe-cases N`: fixture cases probed while filtering candidate programs
+- `--min-success-rate F`: minimum accepted non-error probe ratio
+- `--fuel N`: shared execution budget
+- `--max-expr-depth N`
+- `--max-stmts-per-block N`
+- `--max-total-nodes N`
+- `--max-for-k N`
+- `--max-call-args N`
+- `--elitism N`
+- `--mutation-rate F`
+- `--mutation-subtree-prob F`
+- `--crossover-rate F`
+- `--penalty F`
 - `--selection-pressure N`: tournament size for both runs
-- `--cpp-cli PATH`: evolve CLI executable
+- `--cpp-cli PATH`: alias for `--bench-cli` kept for compatibility
 - `--outdir PATH`: output directory for compare reports and raw run logs
+
+Report shape:
+- `cpu.compile_ms`, `gpu.compile_ms`
+- `cpu.eval_ms`, `gpu.eval_ms`
+- `cpu.repro_ms`, `gpu.repro_ms`
+- `cpu.one_gen_e2e_total_ms`, `gpu.one_gen_e2e_total_ms`
+- `speedup.compile_cpu_over_gpu`
+- `speedup.eval_cpu_over_gpu`
+- `speedup.repro_cpu_over_gpu`
+- `speedup.one_gen_e2e_cpu_over_gpu`
 
 ### `tools/run_v1_release_gate.py`
 
@@ -213,24 +283,63 @@ Optional skips:
 ### Canonical speed benchmark
 
 ```bash
-scripts/run_gpu_command.sh -- bash scripts/run_cpu_gpu_speedup_experiment.sh \
-  --cases data/fixtures/speedup_cases_bouncing_balls_1024.json \
-  --popsize 1024 \
-  --generations 40
+bash scripts/run_cpu_gpu_speedup_experiment.sh \
+  --cases data/fixtures/bouncing_balls_1024.json \
+  --popsize 1024
+```
+
+This benchmark uses one fixed population for both CPU and GPU runs.
+The canonical interpretation is:
+- `compile`: genome-to-bytecode preparation and compile-cache lookup
+- `eval`: fitness execution only
+- `repro`: one-generation selection, elitism, crossover, and mutation work
+- `one-gen-e2e`: the full one-generation benchmark cost
+
+`eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
+
+### Generate a fixed population
+
+```bash
+cpp/build/g3pvm_generate_population_cli \
+  --cases data/fixtures/bouncing_balls_1024.json \
+  --out-json logs/fixed_population.json \
+  --population-size 1024 \
+  --probe-cases 32 \
+  --min-success-rate 0.10 \
+  --max-expr-depth 5
+```
+
+Pre-generated populations for the canonical fixtures are checked in under `data/fixtures/programs/`.
+
+### Benchmark one fixed population directly
+
+```bash
+cpp/build/g3pvm_population_bench_cli \
+  --cases data/fixtures/bouncing_balls_1024.json \
+  --population-json data/fixtures/programs/bouncing_balls_1024_pop1024.json \
+  --mode one-gen-e2e \
+  --engine cpu
 ```
 
 Primary metrics to track:
-- `cpu.inner_total_ms`
-- `gpu.inner_total_ms`
-- `gpu.gpu_kernel_total_ms`
-- `speedup.inner_total_cpu_over_gpu`
-- `speedup.eval_only_cpu_over_gpu`
+- `cpu.compile_ms`
+- `gpu.compile_ms`
+- `cpu.eval_ms`
+- `gpu.eval_ms`
+- `cpu.repro_ms`
+- `gpu.repro_ms`
+- `cpu.one_gen_e2e_total_ms`
+- `gpu.one_gen_e2e_total_ms`
+- `speedup.compile_cpu_over_gpu`
+- `speedup.eval_cpu_over_gpu`
+- `speedup.repro_cpu_over_gpu`
+- `speedup.one_gen_e2e_cpu_over_gpu`
 
 ### Canonical evolution-progress run
 
 ```bash
 scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py \
-  --cases data/fixtures/simple_evo_exp_1024.json \
+  --cases data/fixtures/simple_exp_1024.json \
   --cpp-cli cpp/build/g3pvm_evolve_cli \
   --engine gpu \
   --blocksize 256 \

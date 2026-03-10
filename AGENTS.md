@@ -59,8 +59,8 @@
 - Recommended examples:
   ```bash
   scripts/run_gpu_command.sh -- ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
-  scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py --cases data/fixtures/speedup_cases_bouncing_balls_1024.json --cpp-cli cpp/build/g3pvm_evolve_cli --engine gpu --blocksize 256 --population-size 64 --generations 2
-  scripts/run_gpu_command.sh -- bash scripts/run_cpu_gpu_speedup_experiment.sh --popsize 1024 --generations 40
+  scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py --cases data/fixtures/bouncing_balls_1024.json --cpp-cli cpp/build/g3pvm_evolve_cli --engine gpu --blocksize 256 --population-size 64 --generations 2
+  scripts/run_gpu_command.sh -- bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 1024
   ```
 
 ## Commit & Pull Request Guidelines

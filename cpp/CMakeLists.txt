@@ -49,6 +49,16 @@ add_executable(g3pvm_evolve_cli
   src/cli/evolve_cli.cpp
 )
 target_link_libraries(g3pvm_evolve_cli PRIVATE g3pvm_cpu)
+
+add_executable(g3pvm_generate_population_cli
+  src/cli/generate_population_cli.cpp
+)
+target_link_libraries(g3pvm_generate_population_cli PRIVATE g3pvm_cpu)
+
+add_executable(g3pvm_population_bench_cli
+  src/cli/population_bench_cli.cpp
+)
+target_link_libraries(g3pvm_population_bench_cli PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/runtime/gpu/fitness_gpu.cu
@@ -61,6 +71,8 @@ if(G3PVM_HAS_CUDA)
   target_link_libraries(g3pvm_cpu PUBLIC g3pvm_gpu)
   target_link_libraries(g3pvm_runtime_cli PRIVATE g3pvm_gpu)
   target_compile_definitions(g3pvm_runtime_cli PRIVATE G3PVM_HAS_CUDA=1)
+  target_link_libraries(g3pvm_population_bench_cli PRIVATE g3pvm_gpu)
+  target_compile_definitions(g3pvm_population_bench_cli PRIVATE G3PVM_HAS_CUDA=1)
 
   add_executable(g3pvm_test_vm_gpu_smoke
     tests/gpu/test_vm_gpu_smoke.cpp

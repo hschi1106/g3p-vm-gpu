@@ -16,7 +16,7 @@ echo "[3/5] Verify speedup fixture schema"
 python3 - <<'PY'
 import json
 from pathlib import Path
-p = Path("data/fixtures/speedup_cases_bouncing_balls_1024.json")
+p = Path("data/fixtures/bouncing_balls_1024.json")
 payload = json.loads(p.read_text(encoding="utf-8"))
 assert payload["format_version"] == "fitness-cases-v1"
 assert isinstance(payload["cases"], list) and payload["cases"]
@@ -25,7 +25,7 @@ PY
 
 echo "[4/5] Run CPU/GPU speedup experiment smoke"
 bash scripts/run_cpu_gpu_speedup_experiment.sh \
-  --cases data/fixtures/speedup_cases_bouncing_balls_1024.json \
+  --cases data/fixtures/bouncing_balls_1024.json \
   --popsize 64 \
   --generations 2 \
   --outdir logs/triplet_speedup_smoke

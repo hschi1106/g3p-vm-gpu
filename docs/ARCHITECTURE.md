@@ -125,6 +125,8 @@ Public genome, mutation, crossover, and evolution interfaces.
 ### `cpp/src/cli/`
 - `runtime_cli.cpp`: runtime execution CLI
 - `evolve_cli.cpp`: evolution CLI
+- `generate_population_cli.cpp`: fixed-population generator for benchmark inputs
+- `population_bench_cli.cpp`: fixed-population benchmark runner
 - codec / json / options helpers
 
 ### `cpp/src/bench/`
@@ -133,6 +135,7 @@ Benchmark binaries for runtime-focused measurement.
 ## Data and Tooling Layout
 
 - `data/fixtures/`: canonical benchmark fixtures
+- `data/fixtures/programs/`: checked-in fixed-population benchmark inputs
 - `data/psb2_datasets/`: PSB2 dataset mirror used by converters and batch runs
 - `tools/`: dataset conversion, orchestration, reporting, release gates
 - `scripts/`: operational wrappers that should be used directly by humans and agents

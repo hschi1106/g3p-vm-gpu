@@ -96,7 +96,7 @@ def main() -> int:
     p.add_argument("--speed-population-size", type=int, default=1024)
     p.add_argument("--speed-generations", type=int, default=40)
     p.add_argument("--speed-blocksize", type=int, default=256)
-    p.add_argument("--exp-cases", default="data/fixtures/simple_evo_exp_1024.json")
+    p.add_argument("--exp-cases", default="data/fixtures/simple_exp_1024.json")
     p.add_argument("--exp-population-size", type=int, default=1024)
     p.add_argument("--exp-generations", type=int, default=40)
     p.add_argument("--exp-engine", choices=["cpu", "gpu"], default="gpu")
@@ -146,7 +146,7 @@ def main() -> int:
                 "--blocksize",
                 str(args.speed_blocksize),
                 "--cases",
-                "data/fixtures/speedup_cases_bouncing_balls_1024.json",
+                "data/fixtures/bouncing_balls_1024.json",
                 "--cpp-cli",
                 args.cpp_cli,
                 "--outdir",
@@ -225,9 +225,13 @@ def main() -> int:
     if speed_step.ok:
         baseline = _load_json((ROOT / args.baseline_speed_report).resolve())
         current = _load_json(speed_out / "cpu_gpu_compare.report.json")
-        base_inner = float(baseline["speedup"]["inner_total_cpu_over_gpu"])
+        base_inner = float(
+            baseline["speedup"].get("one_gen_e2e_cpu_over_gpu", baseline["speedup"]["inner_total_cpu_over_gpu"])
+        )
         base_eval = float(baseline["speedup"]["eval_only_cpu_over_gpu"])
-        cur_inner = float(current["speedup"]["inner_total_cpu_over_gpu"])
+        cur_inner = float(
+            current["speedup"].get("one_gen_e2e_cpu_over_gpu", current["speedup"]["inner_total_cpu_over_gpu"])
+        )
         cur_eval = float(current["speedup"]["eval_only_cpu_over_gpu"])
         min_inner = base_inner * args.speedup_threshold_ratio
         min_eval = base_eval * args.speedup_threshold_ratio
