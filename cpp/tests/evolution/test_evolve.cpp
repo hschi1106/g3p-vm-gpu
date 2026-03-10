@@ -83,6 +83,10 @@ bool test_determinism_seed() {
     if (!check(a.history_best_fitness[i] == b.history_best_fitness[i], "determinism best fitness mismatch")) {
       return false;
     }
+    if (!check(a.history_best[i].genome.meta.program_key == b.history_best[i].genome.meta.program_key,
+               "determinism best program key mismatch")) {
+      return false;
+    }
   }
   return true;
 }

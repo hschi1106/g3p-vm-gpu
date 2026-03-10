@@ -40,6 +40,7 @@ std::vector<double> eval_fitness_cpu(
     const std::vector<CaseInputs>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel = 10000,
-    double penalty = 1.0);
+    double penalty = 1.0,
+    int reduction_lanes = 1);
 
 }  // namespace g3pvm

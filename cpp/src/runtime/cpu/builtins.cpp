@@ -1,4 +1,5 @@
 #include "g3pvm/runtime/builtins.hpp"
+#include "g3pvm/core/value_semantics.hpp"
 #include "g3pvm/runtime/payload.hpp"
 
 namespace g3pvm {
@@ -53,7 +54,8 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
       return fail(ErrCode::Type, "abs expects a numeric argument");
     }
     BuiltinResult out;
-    out.value = (x.tag == ValueTag::Float) ? Value::from_float(x.f < 0 ? -x.f : x.f)
+    out.value = (x.tag == ValueTag::Float)
+                    ? Value::from_float(vm_semantics::canonicalize_vm_float(x.f < 0 ? -x.f : x.f))
                                             : Value::from_int(x.i < 0 ? -x.i : x.i);
     return out;
   }
@@ -70,7 +72,7 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     }
     const double pick = (name == "min") ? (a <= b ? a : b) : (a >= b ? a : b);
     BuiltinResult out;
-    out.value = any_float ? Value::from_float(pick)
+    out.value = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(pick))
                           : Value::from_int(static_cast<long long>(pick));
     return out;
   }
@@ -96,11 +98,11 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
       }
       BuiltinResult out;
       if (x2 < lo2) {
-        out.value = Value::from_float(lo2);
+        out.value = Value::from_float(vm_semantics::canonicalize_vm_float(lo2));
       } else if (x2 > hi2) {
-        out.value = Value::from_float(hi2);
+        out.value = Value::from_float(vm_semantics::canonicalize_vm_float(hi2));
       } else {
-        out.value = Value::from_float(x2);
+        out.value = Value::from_float(vm_semantics::canonicalize_vm_float(x2));
       }
       return out;
     }

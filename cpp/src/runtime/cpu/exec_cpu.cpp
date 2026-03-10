@@ -1,5 +1,6 @@
 #include "g3pvm/runtime/exec_cpu.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -11,6 +12,17 @@
 namespace g3pvm {
 
 namespace {
+
+double canonicalize_fitness_accumulator(double value) {
+  if (!std::isfinite(value) || value == 0.0) {
+    return value == 0.0 ? 0.0 : value;
+  }
+  int exponent = 0;
+  const double mantissa = std::frexp(value, &exponent);
+  constexpr int kMantissaBits = 48;
+  const long long quantized_mantissa = std::llround(std::ldexp(mantissa, kMantissaBits));
+  return std::ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
+}
 
 struct LocalSlot {
   bool is_set = false;
@@ -133,7 +145,9 @@ ExecResult exec_cpu(const BytecodeProgram& program, const std::vector<std::pair<
         if (!is_numeric(x)) {
           return fail(ErrCode::Type, "NEG expects numeric");
         }
-        if (x.tag == ValueTag::Float) stack.push_back(Value::from_float(-x.f));
+        if (x.tag == ValueTag::Float) {
+          stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(-x.f)));
+        }
         else stack.push_back(Value::from_int(vm_semantics::wrap_int_neg(x.i)));
       } else {
         if (x.tag != ValueTag::Bool) {
@@ -168,22 +182,23 @@ ExecResult exec_cpu(const BytecodeProgram& program, const std::vector<std::pair<
       }
 
       if (ins.op == "ADD") {
-        if (any_float) stack.push_back(Value::from_float(a_num + b_num));
+        if (any_float) stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num + b_num)));
         else stack.push_back(Value::from_int(
             vm_semantics::wrap_int_add(static_cast<long long>(a_num), static_cast<long long>(b_num))));
       } else if (ins.op == "SUB") {
-        if (any_float) stack.push_back(Value::from_float(a_num - b_num));
+        if (any_float) stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num - b_num)));
         else stack.push_back(Value::from_int(
             vm_semantics::wrap_int_sub(static_cast<long long>(a_num), static_cast<long long>(b_num))));
       } else if (ins.op == "MUL") {
-        if (any_float) stack.push_back(Value::from_float(a_num * b_num));
+        if (any_float) stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num * b_num)));
         else stack.push_back(Value::from_int(
             vm_semantics::wrap_int_mul(static_cast<long long>(a_num), static_cast<long long>(b_num))));
       } else if (ins.op == "DIV") {
-        stack.push_back(Value::from_float(a_num / b_num));
+        stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num / b_num)));
       } else {
         if (any_float) {
-          stack.push_back(Value::from_float(vm_semantics::py_float_mod(a_num, b_num)));
+          stack.push_back(Value::from_float(
+              vm_semantics::canonicalize_vm_float(vm_semantics::py_float_mod(a_num, b_num))));
         } else {
           const long long ai = static_cast<long long>(a_num);
           const long long bi = static_cast<long long>(b_num);
@@ -292,7 +307,8 @@ std::vector<double> eval_fitness_cpu(
     const std::vector<CaseInputs>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel,
-    double penalty) {
+    double penalty,
+    int reduction_lanes) {
   if (programs.empty() || shared_cases.empty()) {
     return {};
   }
@@ -301,24 +317,38 @@ std::vector<double> eval_fitness_cpu(
   }
 
   std::vector<double> fitness(programs.size(), 0.0);
+  const int lanes = std::max(1, reduction_lanes);
   for (std::size_t p = 0; p < programs.size(); ++p) {
-    double score = 0.0;
-    for (std::size_t c = 0; c < shared_cases.size(); ++c) {
-      std::vector<std::pair<int, Value>> inputs;
-      inputs.reserve(shared_cases[c].size());
-      for (const InputBinding& binding : shared_cases[c]) {
-        inputs.push_back({binding.idx, binding.value});
-      }
-      const ExecResult out = exec_cpu(programs[p], inputs, fuel);
-      if (out.is_error) {
-        score -= std::fabs(penalty);
-        continue;
-      }
+    std::vector<double> partial_scores(static_cast<std::size_t>(lanes), 0.0);
+    for (int lane = 0; lane < lanes; ++lane) {
+      const std::size_t chunk_start = (shared_cases.size() * static_cast<std::size_t>(lane)) /
+                                      static_cast<std::size_t>(lanes);
+      const std::size_t chunk_end = (shared_cases.size() * static_cast<std::size_t>(lane + 1)) /
+                                    static_cast<std::size_t>(lanes);
+      double local_score = 0.0;
+      for (std::size_t c = chunk_start; c < chunk_end; ++c) {
+        std::vector<std::pair<int, Value>> inputs;
+        inputs.reserve(shared_cases[c].size());
+        for (const InputBinding& binding : shared_cases[c]) {
+          inputs.push_back({binding.idx, binding.value});
+        }
+        const ExecResult out = exec_cpu(programs[p], inputs, fuel);
+        if (out.is_error) {
+          local_score = canonicalize_fitness_accumulator(local_score - std::fabs(penalty));
+          continue;
+        }
 
-      double case_score = 0.0;
-      if (vm_semantics::fitness_score_for_values(out.value, shared_answer[c], penalty, case_score)) {
-        score += case_score;
+        double case_score = 0.0;
+        if (vm_semantics::fitness_score_for_values(out.value, shared_answer[c], penalty, case_score)) {
+          local_score = canonicalize_fitness_accumulator(local_score + case_score);
+        }
       }
+      partial_scores[static_cast<std::size_t>(lane)] = local_score;
+    }
+
+    double score = 0.0;
+    for (double partial_score : partial_scores) {
+      score = canonicalize_fitness_accumulator(score + partial_score);
     }
     fitness[p] = score;
   }

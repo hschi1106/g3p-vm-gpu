@@ -61,6 +61,21 @@ BytecodeProgram make_wrap_add_program() {
   return p;
 }
 
+BytecodeProgram make_float_mod_div_program() {
+  BytecodeProgram p;
+  p.n_locals = 1;
+  p.consts = {Value::from_float(2.207), Value::from_int(3)};
+  p.code = {
+      ins_a("PUSH_CONST", 0),
+      ins_a("PUSH_CONST", 1),
+      ins_a("LOAD", 0),
+      ins("MOD"),
+      ins("DIV"),
+      ins("RETURN"),
+  };
+  return p;
+}
+
 bool approx(double a, double b) {
   return std::fabs(a - b) <= 1e-9;
 }
@@ -207,6 +222,39 @@ int main() {
     }
     if (!approx(cpu_fit[0], 0.0)) {
       std::cerr << "FAIL: wrap add should match expected wrapped result\n";
+      return 1;
+    }
+  }
+
+  {
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_float_mod_div_program());
+
+    std::vector<CaseInputs> shared_cases{
+        CaseInputs{InputBinding{0, Value::from_float(-0.008797653959)}},
+    };
+    std::vector<Value> shared_answer{Value::from_float(0.99124093216)};
+
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
+    const g3pvm::FitnessEvalResult gpu_fit =
+        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+
+    if (!gpu_fit.ok) {
+      if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu fitness run failed on float mod/div case: " << gpu_fit.err.message << "\n";
+      return 1;
+    }
+
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on float mod/div case\n";
+      return 1;
+    }
+    if (cpu_fit[0] != gpu_fit.fitness[0]) {
+      std::cerr << "FAIL: cpu/gpu fitness mismatch on float mod/div case\n";
       return 1;
     }
   }

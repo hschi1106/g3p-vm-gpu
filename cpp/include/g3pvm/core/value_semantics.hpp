@@ -50,7 +50,25 @@ G3PVM_VM_HD inline double py_floor(double x) {
 }
 
 G3PVM_VM_HD inline double py_float_mod(double a, double b) {
-  return a - py_floor(a / b) * b;
+  double r = std::fmod(a, b);
+  if (r == 0.0) {
+    return std::copysign(0.0, b);
+  }
+  if (std::signbit(r) != std::signbit(b)) {
+    r += b;
+  }
+  return r;
+}
+
+G3PVM_VM_HD inline double canonicalize_vm_float(double value) {
+  if (!std::isfinite(value) || value == 0.0) {
+    return value == 0.0 ? 0.0 : value;
+  }
+  int exponent = 0;
+  const double mantissa = std::frexp(value, &exponent);
+  constexpr int kMantissaBits = 32;
+  const long long quantized_mantissa = static_cast<long long>(std::llround(std::ldexp(mantissa, kMantissaBits)));
+  return std::ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
 G3PVM_VM_HD inline long long py_int_mod(long long a, long long b) {

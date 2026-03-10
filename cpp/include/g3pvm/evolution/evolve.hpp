@@ -88,6 +88,9 @@ struct EvolutionRun {
 double evaluate_genome(const ProgramGenome& genome,
                        const std::vector<FitnessCase>& cases,
                        const EvolutionConfig& cfg);
+std::vector<double> evaluate_population_fitness(const std::vector<ProgramGenome>& population,
+                                                const std::vector<FitnessCase>& cases,
+                                                const EvolutionConfig& cfg);
 std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& population,
                                               const std::vector<FitnessCase>& cases,
                                               const EvolutionConfig& cfg);

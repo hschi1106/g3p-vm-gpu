@@ -80,6 +80,11 @@ if(G3PVM_HAS_CUDA)
   target_link_libraries(g3pvm_test_evolution_cpu_gpu_parity PRIVATE g3pvm_cpu g3pvm_gpu)
   add_test(NAME g3pvm_test_evolution_cpu_gpu_parity COMMAND g3pvm_test_evolution_cpu_gpu_parity)
 
+  add_executable(g3pvm_simple_exp_population_probe
+    tests/parity/simple_exp_population_probe.cpp
+  )
+  target_link_libraries(g3pvm_simple_exp_population_probe PRIVATE g3pvm_cpu g3pvm_gpu)
+
 endif()
 
 add_executable(g3pvm_test_vm_smoke

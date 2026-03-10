@@ -8,6 +8,17 @@
 
 namespace g3pvm::gpu_detail {
 
+__device__ inline double d_canonicalize_fitness_accumulator(double value) {
+  if (!isfinite(value) || value == 0.0) {
+    return value == 0.0 ? 0.0 : value;
+  }
+  int exponent = 0;
+  const double mantissa = frexp(value, &exponent);
+  constexpr int kMantissaBits = 48;
+  const long long quantized_mantissa = llround(ldexp(mantissa, kMantissaBits));
+  return ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
+}
+
 __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
                                           const DInstr* shared_code,
                                           const Value* all_consts,
@@ -103,7 +114,7 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
           break;
         }
         stack[sp++] = (x.tag == ValueTag::Float)
-                          ? Value::from_float(-x.f)
+                          ? Value::from_float(vm_semantics::canonicalize_vm_float(-x.f))
                           : Value::from_int(vm_semantics::wrap_int_neg(x.i));
       } else {
         if (x.tag != ValueTag::Bool) {
@@ -135,22 +146,22 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
         break;
       }
       if (ins.op == OP_ADD) {
-        stack[sp++] = any_float ? Value::from_float(a_num + b_num)
+        stack[sp++] = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(a_num + b_num))
                                 : Value::from_int(vm_semantics::wrap_int_add(
                                       static_cast<long long>(a_num), static_cast<long long>(b_num)));
       } else if (ins.op == OP_SUB) {
-        stack[sp++] = any_float ? Value::from_float(a_num - b_num)
+        stack[sp++] = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(a_num - b_num))
                                 : Value::from_int(vm_semantics::wrap_int_sub(
                                       static_cast<long long>(a_num), static_cast<long long>(b_num)));
       } else if (ins.op == OP_MUL) {
-        stack[sp++] = any_float ? Value::from_float(a_num * b_num)
+        stack[sp++] = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(a_num * b_num))
                                 : Value::from_int(vm_semantics::wrap_int_mul(
                                       static_cast<long long>(a_num), static_cast<long long>(b_num)));
       } else if (ins.op == OP_DIV) {
-        stack[sp++] = Value::from_float(a_num / b_num);
+        stack[sp++] = Value::from_float(vm_semantics::canonicalize_vm_float(a_num / b_num));
       } else {
         stack[sp++] = any_float
-                          ? Value::from_float(d_float_mod(a_num, b_num))
+                          ? Value::from_float(vm_semantics::canonicalize_vm_float(d_float_mod(a_num, b_num)))
                           : Value::from_int(d_int_mod(static_cast<long long>(a_num),
                                                       static_cast<long long>(b_num)));
       }
@@ -338,13 +349,13 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
     const DResult result = d_exec_one_case(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
     if (result.is_error) {
-      local_score -= fabs(penalty);
+      local_score = d_canonicalize_fitness_accumulator(local_score - fabs(penalty));
       continue;
     }
 
     double case_score = 0.0;
     if (d_fitness_score_for_values(result.value, shared_answer[local_case], penalty, case_score)) {
-      local_score += case_score;
+      local_score = d_canonicalize_fitness_accumulator(local_score + case_score);
     }
   }
 
@@ -354,7 +365,7 @@ __global__ void vm_multi_fitness_kernel_shared_cases(
   if (tid == 0) {
     double total_score = 0.0;
     for (int i = 0; i < static_cast<int>(blockDim.x); ++i) {
-      total_score += partial_scores[i];
+      total_score = d_canonicalize_fitness_accumulator(total_score + partial_scores[i]);
     }
     fitness_out[prog_idx] = total_score;
   }
