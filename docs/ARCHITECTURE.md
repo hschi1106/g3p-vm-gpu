@@ -52,6 +52,9 @@ Container values use payload-backed execution.
 - GPU exact payload operations use bounded per-thread scratch.
 - When exact payload materialization does not fit, GPU falls back to deterministic compact transport instead of aborting the full evaluation.
 
+See also:
+- [CPP_RUNTIME_PAYLOAD.md](CPP_RUNTIME_PAYLOAD.md) for the C++ container token, payload registry, exact/fallback split, and collision tradeoffs.
+
 ## Fitness Model
 
 The scoring model is defined in [fitness_v1_0.md](../spec/fitness_v1_0.md).

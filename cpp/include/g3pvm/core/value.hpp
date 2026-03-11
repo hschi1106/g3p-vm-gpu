@@ -60,8 +60,9 @@ struct Value {
     return out;
   }
 
-  // String/List are represented as deterministic 64-bit hashes in v1.0 base.
-  // Full container payload support is added by higher layers.
+  // String/List use a compact packed token in the base Value representation:
+  // upper 16 bits store a saturated length, lower 48 bits store a deterministic hash.
+  // Full container payloads live in higher runtime layers keyed by this packed token.
   static constexpr std::uint64_t k_container_hash_mask = (1ULL << 48) - 1ULL;
   static constexpr std::uint32_t k_container_len_max = 0xFFFFU;
 
@@ -135,27 +136,11 @@ struct Value {
     return (u & k_container_hash_mask);
   }
 
-  G3PVM_HD static Value from_string_hash(std::int64_t h) {
-    Value out;
-    out.i = pack_container_payload(static_cast<std::uint64_t>(h), 0U);
-    out.b = false;
-    out.tag = ValueTag::String;
-    return out;
-  }
-
   G3PVM_HD static Value from_string_hash_len(std::uint64_t h, std::uint32_t len) {
     Value out;
     out.i = pack_container_payload(h, len);
     out.b = false;
     out.tag = ValueTag::String;
-    return out;
-  }
-
-  G3PVM_HD static Value from_list_hash(std::int64_t h) {
-    Value out;
-    out.i = pack_container_payload(static_cast<std::uint64_t>(h), 0U);
-    out.b = false;
-    out.tag = ValueTag::List;
     return out;
   }
 
