@@ -14,7 +14,7 @@
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/mutation.hpp"
-#include "g3pvm/runtime/cpu/builtins.hpp"
+#include "g3pvm/runtime/cpu/builtins_cpu.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 

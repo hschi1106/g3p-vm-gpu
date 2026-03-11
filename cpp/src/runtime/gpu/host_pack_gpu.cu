@@ -1,9 +1,9 @@
-#include "g3pvm/runtime/gpu/host_pack.hpp"
+#include "g3pvm/runtime/gpu/host_pack_gpu.hpp"
 
 #include <cstdint>
 
-#include "g3pvm/runtime/gpu/constants.hpp"
-#include "opcode_map.hpp"
+#include "g3pvm/runtime/gpu/constants_gpu.hpp"
+#include "opcode_map_gpu.hpp"
 
 namespace g3pvm::gpu_detail {
 

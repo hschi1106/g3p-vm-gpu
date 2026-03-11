@@ -3,8 +3,8 @@
 #include <cmath>
 #include <cstdint>
 
-#include "device_builtins.cuh"
-#include "device_exec.cuh"
+#include "builtins_device.cuh"
+#include "execute_bytecode_device.cuh"
 
 namespace g3pvm::gpu_detail {
 

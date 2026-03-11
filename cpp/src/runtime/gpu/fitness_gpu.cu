@@ -11,11 +11,11 @@
 #include <vector>
 
 #include "g3pvm/runtime/payload/payload.hpp"
-#include "g3pvm/runtime/gpu/constants.hpp"
-#include "g3pvm/runtime/gpu/host_pack.hpp"
-#include "kernels.cuh"
-#include "opcode_map.hpp"
-#include "g3pvm/runtime/gpu/types.hpp"
+#include "g3pvm/runtime/gpu/constants_gpu.hpp"
+#include "g3pvm/runtime/gpu/host_pack_gpu.hpp"
+#include "device/kernels_device.cuh"
+#include "opcode_map_gpu.hpp"
+#include "g3pvm/runtime/gpu/device_types_gpu.hpp"
 
 namespace g3pvm {
 

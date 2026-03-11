@@ -96,10 +96,17 @@ This keeps numeric tasks dense while keeping container semantics exact and simpl
 Public value, error, bytecode, and shared fitness/value semantics headers.
 
 ### `cpp/include/g3pvm/runtime/cpu/`
-Public CPU execution, fitness, and builtin interfaces.
+Public CPU execution, fitness, and builtin interfaces:
+- `execute_bytecode_cpu.hpp`
+- `fitness_cpu.hpp`
+- `builtins_cpu.hpp`
 
 ### `cpp/include/g3pvm/runtime/gpu/`
-Public GPU host-side contracts for packed device types, constants, and host packing.
+Public GPU host-side contracts for fitness orchestration and packed device data:
+- `fitness_gpu.hpp`
+- `host_pack_gpu.hpp`
+- `device_types_gpu.hpp`
+- `constants_gpu.hpp`
 
 ### `cpp/include/g3pvm/runtime/payload/`
 Public payload registry interface for host-side string/list snapshots and lookup.
@@ -108,14 +115,15 @@ Public payload registry interface for host-side string/list snapshots and lookup
 Public genome, mutation, crossover, and evolution interfaces.
 
 ### `cpp/src/runtime/cpu/`
-- builtin implementation
-- bytecode execution in `execute_bytecode_cpu.*`
-- CPU fitness accumulation in `fitness_cpu.*`
+- `builtins_cpu.cpp`: builtin implementation
+- `execute_bytecode_cpu.cpp`: bytecode execution
+- `fitness_cpu.cpp`: CPU fitness accumulation
 
 ### `cpp/src/runtime/gpu/`
-- GPU fitness orchestration
-- host-side packing and kernel launch
-- device execution and builtin helpers
+- `fitness_gpu.cu`: GPU fitness orchestration
+- `host_pack_gpu.cu`: host-side program and case packing
+- `opcode_map_gpu.*`: host opcode-to-device opcode mapping
+- `device/`: CUDA device-side execution, builtin, arithmetic, and kernel entry helpers
 
 ### `cpp/src/runtime/payload/`
 - payload registry

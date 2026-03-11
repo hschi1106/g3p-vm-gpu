@@ -1,6 +1,6 @@
 #pragma once
 
-#include "device_arith.cuh"
+#include "arith_device.cuh"
 
 namespace g3pvm::gpu_detail {
 

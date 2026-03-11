@@ -22,7 +22,7 @@ endif()
 
 add_library(g3pvm_cpu
   src/runtime/payload/payload.cpp
-  src/runtime/cpu/builtins.cpp
+  src/runtime/cpu/builtins_cpu.cpp
   src/runtime/cpu/execute_bytecode_cpu.cpp
   src/runtime/cpu/fitness_cpu.cpp
   src/evolution/genome_meta.cpp
@@ -63,8 +63,8 @@ target_link_libraries(g3pvm_population_bench_cli PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/runtime/gpu/fitness_gpu.cu
-    src/runtime/gpu/opcode_map.cpp
-    src/runtime/gpu/host_pack.cu
+    src/runtime/gpu/opcode_map_gpu.cpp
+    src/runtime/gpu/host_pack_gpu.cu
     src/runtime/payload/payload.cpp
   )
   target_include_directories(g3pvm_gpu PUBLIC include)

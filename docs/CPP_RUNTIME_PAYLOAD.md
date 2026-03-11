@@ -39,7 +39,7 @@ This compact representation is the public runtime transport form for containers.
 
 The host-side registry lives in:
 
-- [cpp/include/g3pvm/runtime/payload.hpp](../cpp/include/g3pvm/runtime/payload.hpp)
+- [cpp/include/g3pvm/runtime/payload/payload.hpp](../cpp/include/g3pvm/runtime/payload/payload.hpp)
 - [cpp/src/runtime/payload/payload.cpp](../cpp/src/runtime/payload/payload.cpp)
 
 It stores:
@@ -179,7 +179,7 @@ Costs:
 For the full runtime picture, read these in order:
 
 1. [cpp/include/g3pvm/core/value.hpp](../cpp/include/g3pvm/core/value.hpp)
-2. [cpp/include/g3pvm/runtime/payload.hpp](../cpp/include/g3pvm/runtime/payload.hpp)
+2. [cpp/include/g3pvm/runtime/payload/payload.hpp](../cpp/include/g3pvm/runtime/payload/payload.hpp)
 3. [cpp/src/runtime/payload/payload.cpp](../cpp/src/runtime/payload/payload.cpp)
-4. [cpp/src/runtime/cpu/builtins.cpp](../cpp/src/runtime/cpu/builtins.cpp)
+4. [cpp/src/runtime/cpu/builtins_cpu.cpp](../cpp/src/runtime/cpu/builtins_cpu.cpp)
 5. GPU mirrors under `cpp/src/runtime/gpu/`

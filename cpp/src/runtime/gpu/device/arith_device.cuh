@@ -1,7 +1,7 @@
 #pragma once
 
 #include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/gpu/types.hpp"
+#include "g3pvm/runtime/gpu/device_types_gpu.hpp"
 
 namespace g3pvm::gpu_detail {
 
