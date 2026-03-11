@@ -1,4 +1,4 @@
-#include "g3pvm/runtime/fitness_cpu.hpp"
+#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 
 namespace g3pvm {
 

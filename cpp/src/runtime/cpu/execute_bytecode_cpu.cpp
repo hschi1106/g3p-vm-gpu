@@ -1,11 +1,11 @@
-#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 
 #include <cstddef>
 #include <string>
 #include <vector>
 
 #include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/builtins.hpp"
+#include "g3pvm/runtime/cpu/builtins.hpp"
 
 namespace g3pvm {
 

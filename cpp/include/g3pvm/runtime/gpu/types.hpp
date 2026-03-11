@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "g3pvm/core/value.hpp"
-#include "constants.hpp"
+#include "g3pvm/runtime/gpu/constants.hpp"
 
 namespace g3pvm::gpu_detail {
 

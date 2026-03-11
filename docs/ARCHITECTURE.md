@@ -95,8 +95,14 @@ This keeps numeric tasks dense while keeping container semantics exact and simpl
 ### `cpp/include/g3pvm/core/`
 Public value, error, bytecode, and shared fitness/value semantics headers.
 
-### `cpp/include/g3pvm/runtime/`
-Public CPU execution, GPU fitness, builtin, and payload interfaces.
+### `cpp/include/g3pvm/runtime/cpu/`
+Public CPU execution, fitness, and builtin interfaces.
+
+### `cpp/include/g3pvm/runtime/gpu/`
+Public GPU host-side contracts for packed device types, constants, and host packing.
+
+### `cpp/include/g3pvm/runtime/payload/`
+Public payload registry interface for host-side string/list snapshots and lookup.
 
 ### `cpp/include/g3pvm/evolution/`
 Public genome, mutation, crossover, and evolution interfaces.

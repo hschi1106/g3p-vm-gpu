@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "g3pvm/core/bytecode.hpp"
-#include "g3pvm/runtime/fitness_cpu.hpp"
-#include "types.hpp"
+#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
+#include "g3pvm/runtime/gpu/types.hpp"
 
 namespace g3pvm::gpu_detail {
 

@@ -8,13 +8,13 @@
 
 #include "g3pvm/core/errors.hpp"
 #include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
-#include "g3pvm/runtime/fitness_cpu.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #include "g3pvm/cli/codec.hpp"
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/cli/options.hpp"
 #ifdef G3PVM_HAS_CUDA
-#include "g3pvm/runtime/fitness_gpu.hpp"
+#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 #endif
 
 // Keep runtime_cli.cpp directly buildable by tests that compile only this file.

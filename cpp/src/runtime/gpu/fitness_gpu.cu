@@ -1,4 +1,4 @@
-#include "g3pvm/runtime/fitness_gpu.hpp"
+#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 
 #include <cuda_runtime.h>
 
@@ -10,12 +10,12 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/runtime/payload.hpp"
-#include "constants.hpp"
-#include "host_pack.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
+#include "g3pvm/runtime/gpu/constants.hpp"
+#include "g3pvm/runtime/gpu/host_pack.hpp"
 #include "kernels.cuh"
 #include "opcode_map.hpp"
-#include "types.hpp"
+#include "g3pvm/runtime/gpu/types.hpp"
 
 namespace g3pvm {
 

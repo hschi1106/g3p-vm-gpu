@@ -10,9 +10,9 @@
 
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/mutation.hpp"
-#include "g3pvm/runtime/fitness_cpu.hpp"
+#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #ifdef G3PVM_HAS_CUDA
-#include "g3pvm/runtime/fitness_gpu.hpp"
+#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 #endif
 
 namespace g3pvm::evo {

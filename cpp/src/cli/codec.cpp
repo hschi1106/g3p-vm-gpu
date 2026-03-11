@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <cstdint>
 
-#include "g3pvm/runtime/payload.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 
 namespace g3pvm::cli_detail {
 

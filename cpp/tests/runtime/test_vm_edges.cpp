@@ -3,9 +3,9 @@
 
 #include "g3pvm/core/bytecode.hpp"
 #include "g3pvm/core/errors.hpp"
-#include "g3pvm/runtime/payload.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 #include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 
 namespace {
 

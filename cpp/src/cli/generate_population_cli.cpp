@@ -14,7 +14,7 @@
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 
 // Keep directly buildable.
 #include "json.cpp"

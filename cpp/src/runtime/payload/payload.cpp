@@ -1,4 +1,4 @@
-#include "g3pvm/runtime/payload.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 
 #include <cstddef>
 #include <cstdint>
