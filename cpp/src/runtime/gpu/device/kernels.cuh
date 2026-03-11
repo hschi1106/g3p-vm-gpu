@@ -5,7 +5,7 @@
 
 namespace g3pvm::gpu_detail {
 
-__device__ inline double canonicalize_fitness_accumulator_device(double value) {
+__device__ inline double d_canonicalize_fitness_accumulator(double value) {
   if (!isfinite(value) || value == 0.0) {
     return value == 0.0 ? 0.0 : value;
   }
@@ -16,7 +16,7 @@ __device__ inline double canonicalize_fitness_accumulator_device(double value) {
   return ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
-__global__ void evaluate_fitness_device(
+__global__ void evaluate_fitness(
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
     const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
     const Value* shared_answer,
@@ -57,16 +57,16 @@ __global__ void evaluate_fitness_device(
   const int chunk_start = (meta.case_count * tid) / static_cast<int>(blockDim.x);
   const int chunk_end = (meta.case_count * (tid + 1)) / static_cast<int>(blockDim.x);
   for (int local_case = chunk_start; local_case < chunk_end; ++local_case) {
-    const DResult result = execute_bytecode_device(
+    const DResult result = d_execute_bytecode(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
     if (result.is_error) {
-      local_score = canonicalize_fitness_accumulator_device(local_score - fabs(penalty));
+      local_score = d_canonicalize_fitness_accumulator(local_score - fabs(penalty));
       continue;
     }
 
     double case_score = 0.0;
     if (vm_semantics::fitness_score_for_values(result.value, shared_answer[local_case], penalty, case_score)) {
-      local_score = canonicalize_fitness_accumulator_device(local_score + case_score);
+      local_score = d_canonicalize_fitness_accumulator(local_score + case_score);
     }
   }
 
@@ -76,7 +76,7 @@ __global__ void evaluate_fitness_device(
   if (tid == 0) {
     double total_score = 0.0;
     for (int i = 0; i < static_cast<int>(blockDim.x); ++i) {
-      total_score = canonicalize_fitness_accumulator_device(total_score + partial_scores[i]);
+      total_score = d_canonicalize_fitness_accumulator(total_score + partial_scores[i]);
     }
     fitness_out[prog_idx] = total_score;
   }

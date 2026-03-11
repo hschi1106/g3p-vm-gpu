@@ -13,14 +13,14 @@ __device__ inline void d_fail(DResult& out, DeviceErrCode code) {
   out.err_code = static_cast<int>(code);
 }
 
-__device__ inline DResult execute_bytecode_device(const DProgramMeta& meta,
-                                                  const DInstr* shared_code,
-                                                  const Value* all_consts,
-                                                  const Value* shared_case_local_vals,
-                                                  const unsigned char* shared_case_local_set,
-                                                  const DPayloadTables& payload_tables,
-                                                  int local_case,
-                                                  int fuel) {
+__device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
+                                             const DInstr* shared_code,
+                                             const Value* all_consts,
+                                             const Value* shared_case_local_vals,
+                                             const unsigned char* shared_case_local_set,
+                                             const DPayloadTables& payload_tables,
+                                             int local_case,
+                                             int fuel) {
   DResult result;
   result.is_error = 0;
   result.err_code = DERR_VALUE;
