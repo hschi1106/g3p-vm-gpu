@@ -11,25 +11,6 @@
 
 namespace g3pvm {
 
-// Returns one fitness score per program.
-// Per-case scoring:
-//   if expected is numeric:
-//     actual numeric => -abs(actual - expected)
-//     actual non-numeric => -penalty
-//   Bool/None/String/List => exact match ? 1 : 0
-//     type mismatch => -penalty
-//   runtime error => -penalty
-// All programs share one case set.
-// Returns empty vector when input shapes are invalid or device is unavailable.
-std::vector<double> eval_fitness_gpu(
-    const std::vector<BytecodeProgram>& programs,
-    const std::vector<CaseInputs>& shared_cases,
-    const std::vector<Value>& shared_answer,
-    int fuel = 10000,
-    int blocksize = 256,
-    double penalty = 1.0);
-
-// Debug variant for fitness evaluation with observable CUDA failure reason.
 struct FitnessEvalResult {
   bool ok = false;
   std::vector<double> fitness;
@@ -40,14 +21,6 @@ struct FitnessEvalResult {
   double total_ms = 0.0;
   Err err{ErrCode::Value, ""};
 };
-
-FitnessEvalResult eval_fitness_gpu_profiled(
-    const std::vector<BytecodeProgram>& programs,
-    const std::vector<CaseInputs>& shared_cases,
-    const std::vector<Value>& shared_answer,
-    int fuel = 10000,
-    int blocksize = 256,
-    double penalty = 1.0);
 
 class FitnessSessionGpu {
  public:

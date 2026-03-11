@@ -21,8 +21,6 @@ struct PackResult {
   std::size_t max_code_len = 0;
 };
 
-PackResult pack_programs_and_shared_cases(const std::vector<BytecodeProgram>& programs,
-                                          const std::vector<CaseInputs>& shared_cases);
 PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
                                                 int shared_case_count);
 void pack_shared_cases_only(const std::vector<CaseInputs>& shared_cases,

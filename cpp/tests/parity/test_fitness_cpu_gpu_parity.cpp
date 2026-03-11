@@ -80,6 +80,20 @@ bool approx(double a, double b) {
   return std::fabs(a - b) <= 1e-9;
 }
 
+g3pvm::FitnessEvalResult eval_gpu_via_session(const std::vector<BytecodeProgram>& programs,
+                                              const std::vector<CaseInputs>& shared_cases,
+                                              const std::vector<Value>& shared_answer,
+                                              int fuel,
+                                              int blocksize,
+                                              double penalty) {
+  g3pvm::FitnessSessionGpu session;
+  g3pvm::FitnessEvalResult init = session.init(shared_cases, shared_answer, fuel, blocksize, penalty);
+  if (!init.ok) {
+    return init;
+  }
+  return session.eval_programs(programs);
+}
+
 }  // namespace
 
 int main() {
@@ -103,7 +117,7 @@ int main() {
     const std::vector<double> cpu_fit =
         g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
     const g3pvm::FitnessEvalResult gpu_fit =
-        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+        eval_gpu_via_session(programs, shared_cases, shared_answer, 64, 128, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
@@ -154,7 +168,7 @@ int main() {
     const std::vector<double> cpu_fit =
         g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
     const g3pvm::FitnessEvalResult gpu_fit =
-        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+        eval_gpu_via_session(programs, shared_cases, shared_answer, 64, 128, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
@@ -199,7 +213,7 @@ int main() {
     const std::vector<double> cpu_fit =
         g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
     const g3pvm::FitnessEvalResult gpu_fit =
-        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+        eval_gpu_via_session(programs, shared_cases, shared_answer, 64, 128, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
@@ -238,7 +252,7 @@ int main() {
     const std::vector<double> cpu_fit =
         g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty);
     const g3pvm::FitnessEvalResult gpu_fit =
-        g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 64, 128, penalty);
+        eval_gpu_via_session(programs, shared_cases, shared_answer, 64, 128, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {

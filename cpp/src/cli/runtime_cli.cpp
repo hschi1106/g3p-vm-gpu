@@ -80,8 +80,18 @@ int main(int argc, char** argv) {
         fitness = g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, fuel);
       } else if (engine == "gpu") {
 #ifdef G3PVM_HAS_CUDA
-        const g3pvm::FitnessEvalResult gpu_fit = g3pvm::eval_fitness_gpu_profiled(
-            programs, shared_cases, shared_answer, fuel, blocksize);
+        g3pvm::FitnessSessionGpu gpu_session;
+        const g3pvm::FitnessEvalResult init = gpu_session.init(shared_cases, shared_answer, fuel, blocksize);
+        if (!init.ok) {
+          std::cout << "ERR " << g3pvm::err_code_name(init.err.code) << "\n";
+          if (!init.err.message.empty()) {
+            std::cout << "MSG " << init.err.message << "\n";
+          } else {
+            std::cout << "MSG fitness evaluation failure\n";
+          }
+          return 0;
+        }
+        const g3pvm::FitnessEvalResult gpu_fit = gpu_session.eval_programs(programs);
         if (!gpu_fit.ok) {
           std::cout << "ERR " << g3pvm::err_code_name(gpu_fit.err.code) << "\n";
           if (!gpu_fit.err.message.empty()) {

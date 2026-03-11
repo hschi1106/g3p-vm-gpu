@@ -33,8 +33,13 @@ int main() {
   std::vector<BytecodeProgram> programs = {p};
   std::vector<g3pvm::CaseInputs> shared_cases(1);
   std::vector<Value> shared_answer = {Value::from_int(5)};
-  const g3pvm::FitnessEvalResult out =
-      g3pvm::eval_fitness_gpu_profiled(programs, shared_cases, shared_answer, 100, 1);
+  g3pvm::FitnessSessionGpu session;
+  const g3pvm::FitnessEvalResult init = session.init(shared_cases, shared_answer, 100, 1);
+  if (!init.ok) {
+    std::cout << "g3pvm_test_vm_gpu_smoke: SKIP (" << init.err.message << ")\n";
+    return 0;
+  }
+  const g3pvm::FitnessEvalResult out = session.eval_programs(programs);
   if (!out.ok) {
     std::cout << "g3pvm_test_vm_gpu_smoke: SKIP (" << out.err.message << ")\n";
     return 0;

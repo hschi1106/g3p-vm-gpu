@@ -432,9 +432,14 @@ int main() {
           const double cpu_case =
               g3pvm::eval_fitness_cpu({bc}, shared_cases, shared_answer, cpu_cfg.fuel, cpu_cfg.penalty,
                                       cpu_cfg.gpu_blocksize)[0];
-          const g3pvm::FitnessEvalResult gpu_case =
-              g3pvm::eval_fitness_gpu_profiled({bc}, shared_cases, shared_answer, gpu_cfg.fuel,
-                                               gpu_cfg.gpu_blocksize, gpu_cfg.penalty);
+          g3pvm::FitnessSessionGpu gpu_case_session;
+          const g3pvm::FitnessEvalResult init =
+              gpu_case_session.init(shared_cases, shared_answer, gpu_cfg.fuel, gpu_cfg.gpu_blocksize,
+                                    gpu_cfg.penalty);
+          if (!init.ok) {
+            throw std::runtime_error("case-level gpu fitness init failed: " + init.err.message);
+          }
+          const g3pvm::FitnessEvalResult gpu_case = gpu_case_session.eval_programs({bc});
           if (!gpu_case.ok) {
             throw std::runtime_error("case-level gpu fitness failed: " + gpu_case.err.message);
           }

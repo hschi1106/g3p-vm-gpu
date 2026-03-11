@@ -76,14 +76,6 @@ void pack_shared_cases_only(const std::vector<CaseInputs>& shared_cases,
   }
 }
 
-PackResult pack_programs_and_shared_cases(const std::vector<BytecodeProgram>& programs,
-                                          const std::vector<CaseInputs>& shared_cases) {
-  PackResult out = pack_programs_with_shared_case_count(programs, static_cast<int>(shared_cases.size()));
-  pack_shared_cases_only(shared_cases, &out.packed_case_local_vals, &out.packed_case_local_set);
-
-  return out;
-}
-
 DeviceArena::~DeviceArena() {
   if (d_consts) cudaFree(d_consts);
   if (d_code) cudaFree(d_code);
