@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "g3pvm/core/builtin.hpp"
+#include "g3pvm/core/opcode.hpp"
 #include "g3pvm/core/value_semantics.hpp"
 #include "g3pvm/runtime/cpu/builtins_cpu.hpp"
 
@@ -37,14 +38,14 @@ bool value_to_bool(const Value& v, bool& out) {
   return true;
 }
 
-ExecResult compare_values(const std::string& op, const Value& a, const Value& b) {
+ExecResult compare_values(const Opcode op, const Value& a, const Value& b) {
   vm_semantics::CmpOp cmp_op = vm_semantics::CmpOp::EQ;
-  if (op == "LT") cmp_op = vm_semantics::CmpOp::LT;
-  else if (op == "LE") cmp_op = vm_semantics::CmpOp::LE;
-  else if (op == "GT") cmp_op = vm_semantics::CmpOp::GT;
-  else if (op == "GE") cmp_op = vm_semantics::CmpOp::GE;
-  else if (op == "EQ") cmp_op = vm_semantics::CmpOp::EQ;
-  else if (op == "NE") cmp_op = vm_semantics::CmpOp::NE;
+  if (op == Opcode::Lt) cmp_op = vm_semantics::CmpOp::LT;
+  else if (op == Opcode::Le) cmp_op = vm_semantics::CmpOp::LE;
+  else if (op == Opcode::Gt) cmp_op = vm_semantics::CmpOp::GT;
+  else if (op == Opcode::Ge) cmp_op = vm_semantics::CmpOp::GE;
+  else if (op == Opcode::Eq) cmp_op = vm_semantics::CmpOp::EQ;
+  else if (op == Opcode::Ne) cmp_op = vm_semantics::CmpOp::NE;
   else return fail(ErrCode::Type, "unknown comparison op");
 
   bool out_bool = false;
@@ -90,8 +91,12 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
 
     const Instr& ins = program.code[static_cast<std::size_t>(ip)];
     ip += 1;
+    Opcode op = Opcode::PushConst;
+    if (!opcode_from_name(ins.op, op)) {
+      return fail(ErrCode::Type, "unknown opcode: " + ins.op);
+    }
 
-    if (ins.op == "PUSH_CONST") {
+    if (op == Opcode::PushConst) {
       if (!ins.has_a || ins.a < 0 || ins.a >= static_cast<int>(program.consts.size())) {
         return fail(ErrCode::Value, "const index out of range");
       }
@@ -99,7 +104,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "LOAD") {
+    if (op == Opcode::Load) {
       if (!ins.has_a || ins.a < 0 || ins.a >= static_cast<int>(locals.size())) {
         return fail(ErrCode::Name, "local index out of range");
       }
@@ -111,7 +116,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "STORE") {
+    if (op == Opcode::Store) {
       if (!ins.has_a || ins.a < 0 || ins.a >= static_cast<int>(locals.size())) {
         return fail(ErrCode::Name, "local index out of range");
       }
@@ -124,13 +129,13 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "NEG" || ins.op == "NOT") {
+    if (op == Opcode::Neg || op == Opcode::Not) {
       if (stack.empty()) {
         return fail(ErrCode::Value, "stack underflow");
       }
       const Value x = stack.back();
       stack.pop_back();
-      if (ins.op == "NEG") {
+      if (op == Opcode::Neg) {
         if (!is_numeric(x)) {
           return fail(ErrCode::Type, "NEG expects numeric");
         }
@@ -148,8 +153,8 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "ADD" || ins.op == "SUB" || ins.op == "MUL" || ins.op == "DIV" ||
-        ins.op == "MOD") {
+    if (op == Opcode::Add || op == Opcode::Sub || op == Opcode::Mul || op == Opcode::Div ||
+        op == Opcode::Mod) {
       if (stack.size() < 2) {
         return fail(ErrCode::Value, "stack underflow");
       }
@@ -162,35 +167,35 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       double b_num = 0.0;
       bool any_float = false;
       if (!to_numeric_pair(a, b, a_num, b_num, any_float)) {
-        return fail(ErrCode::Type, ins.op + " expects numeric operands");
+        return fail(ErrCode::Type, std::string(opcode_name(op)) + " expects numeric operands");
       }
 
-      if ((ins.op == "DIV" || ins.op == "MOD") && b_num == 0.0) {
-        return fail(ErrCode::ZeroDiv, (ins.op == "DIV") ? "division by zero" : "modulo by zero");
+      if ((op == Opcode::Div || op == Opcode::Mod) && b_num == 0.0) {
+        return fail(ErrCode::ZeroDiv, (op == Opcode::Div) ? "division by zero" : "modulo by zero");
       }
 
-      if (ins.op == "ADD") {
+      if (op == Opcode::Add) {
         if (any_float) {
           stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num + b_num)));
         } else {
           stack.push_back(Value::from_int(
               vm_semantics::wrap_int_add(static_cast<long long>(a_num), static_cast<long long>(b_num))));
         }
-      } else if (ins.op == "SUB") {
+      } else if (op == Opcode::Sub) {
         if (any_float) {
           stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num - b_num)));
         } else {
           stack.push_back(Value::from_int(
               vm_semantics::wrap_int_sub(static_cast<long long>(a_num), static_cast<long long>(b_num))));
         }
-      } else if (ins.op == "MUL") {
+      } else if (op == Opcode::Mul) {
         if (any_float) {
           stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num * b_num)));
         } else {
           stack.push_back(Value::from_int(
               vm_semantics::wrap_int_mul(static_cast<long long>(a_num), static_cast<long long>(b_num))));
         }
-      } else if (ins.op == "DIV") {
+      } else if (op == Opcode::Div) {
         stack.push_back(Value::from_float(vm_semantics::canonicalize_vm_float(a_num / b_num)));
       } else if (any_float) {
         stack.push_back(
@@ -203,8 +208,8 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "LT" || ins.op == "LE" || ins.op == "GT" || ins.op == "GE" || ins.op == "EQ" ||
-        ins.op == "NE") {
+    if (op == Opcode::Lt || op == Opcode::Le || op == Opcode::Gt || op == Opcode::Ge || op == Opcode::Eq ||
+        op == Opcode::Ne) {
       if (stack.size() < 2) {
         return fail(ErrCode::Value, "stack underflow");
       }
@@ -212,7 +217,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       stack.pop_back();
       const Value a = stack.back();
       stack.pop_back();
-      ExecResult cmp = compare_values(ins.op, a, b);
+      ExecResult cmp = compare_values(op, a, b);
       if (cmp.is_error) {
         return cmp;
       }
@@ -220,7 +225,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "JMP") {
+    if (op == Opcode::Jmp) {
       if (!ins.has_a || ins.a < 0 || ins.a > static_cast<int>(program.code.size())) {
         return fail(ErrCode::Value, "jump target out of range");
       }
@@ -228,7 +233,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "JMP_IF_FALSE" || ins.op == "JMP_IF_TRUE") {
+    if (op == Opcode::JmpIfFalse || op == Opcode::JmpIfTrue) {
       if (stack.empty()) {
         return fail(ErrCode::Value, "stack underflow");
       }
@@ -241,12 +246,12 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       if (!value_to_bool(c, cond)) {
         return fail(ErrCode::Type, "jump condition must be bool");
       }
-      if (ins.op == "JMP_IF_FALSE" && !cond) ip = ins.a;
-      if (ins.op == "JMP_IF_TRUE" && cond) ip = ins.a;
+      if (op == Opcode::JmpIfFalse && !cond) ip = ins.a;
+      if (op == Opcode::JmpIfTrue && cond) ip = ins.a;
       continue;
     }
 
-    if (ins.op == "CALL_BUILTIN") {
+    if (op == Opcode::CallBuiltin) {
       const int bid = ins.has_a ? ins.a : -1;
       const int argc = ins.has_b ? ins.b : -1;
       if (argc < 0) {
@@ -276,7 +281,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       continue;
     }
 
-    if (ins.op == "RETURN") {
+    if (op == Opcode::Return) {
       if (stack.empty()) {
         return fail(ErrCode::Value, "return requires value on stack");
       }
@@ -284,8 +289,6 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       out.value = stack.back();
       return out;
     }
-
-    return fail(ErrCode::Type, "unknown opcode: " + ins.op);
   }
 
   return fail(ErrCode::Value, "program finished without return");
