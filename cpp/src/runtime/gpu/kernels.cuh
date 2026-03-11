@@ -265,46 +265,6 @@ __device__ inline DResult d_exec_one_case(const DProgramMeta& meta,
   return result;
 }
 
-__global__ void vm_multi_kernel_shared_cases(const Value* all_consts, const DInstr* all_code,
-                                             const DProgramMeta* metas,
-                                             const Value* shared_case_local_vals,
-                                             const unsigned char* shared_case_local_set,
-                                             const DStringPayloadEntry* string_payload_entries,
-                                             int string_payload_entry_count,
-                                             const char* string_payload_bytes,
-                                             const DListPayloadEntry* list_payload_entries,
-                                             int list_payload_entry_count,
-                                             const Value* list_payload_values,
-                                             int n_programs, int fuel, DResult* all_out) {
-  const int prog_idx = static_cast<int>(blockIdx.x);
-  const int tid = static_cast<int>(threadIdx.x);
-  if (prog_idx < 0 || prog_idx >= n_programs) return;
-
-  const DProgramMeta meta = metas[prog_idx];
-  const DPayloadTables payload_tables{
-      string_payload_entries,
-      string_payload_entry_count,
-      string_payload_bytes,
-      list_payload_entries,
-      list_payload_entry_count,
-      list_payload_values,
-  };
-
-  extern __shared__ DInstr shared_code[];
-  if (meta.is_valid && meta.code_len > 0) {
-    for (int i = tid; i < meta.code_len; i += static_cast<int>(blockDim.x)) {
-      shared_code[i] = all_code[meta.code_offset + i];
-    }
-  }
-  __syncthreads();
-
-  for (int local_case = tid; local_case < meta.case_count; local_case += static_cast<int>(blockDim.x)) {
-    const int out_idx = meta.case_offset + local_case;
-    all_out[out_idx] = d_exec_one_case(
-        meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
-  }
-}
-
 __global__ void vm_multi_fitness_kernel_shared_cases(
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
     const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
