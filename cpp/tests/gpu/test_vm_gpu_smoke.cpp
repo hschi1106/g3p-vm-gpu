@@ -1,6 +1,4 @@
 #include <iostream>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "g3pvm/core/bytecode.hpp"
@@ -14,16 +12,8 @@ using g3pvm::BytecodeProgram;
 using g3pvm::Opcode;
 using g3pvm::Value;
 
-g3pvm::Instr ins(const std::string& op) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return g3pvm::Instr{opcode, 0, 0, false, false};
-}
-g3pvm::Instr ins_a(const std::string& op, int a) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return g3pvm::Instr{opcode, a, 0, true, false};
-}
+g3pvm::Instr ins(Opcode op) { return g3pvm::Instr{op, 0, 0, false, false}; }
+g3pvm::Instr ins_a(Opcode op, int a) { return g3pvm::Instr{op, a, 0, true, false}; }
 
 bool check(bool cond, const std::string& msg) {
   if (!cond) {
@@ -38,7 +28,7 @@ bool check(bool cond, const std::string& msg) {
 int main() {
   BytecodeProgram p;
   p.consts = {Value::from_int(2), Value::from_int(3)};
-  p.code = {ins_a("PUSH_CONST", 0), ins_a("PUSH_CONST", 1), ins("ADD"), ins("RETURN")};
+  p.code = {ins_a(Opcode::PushConst, 0), ins_a(Opcode::PushConst, 1), ins(Opcode::Add), ins(Opcode::Return)};
 
   std::vector<BytecodeProgram> programs = {p};
   std::vector<g3pvm::CaseInputs> shared_cases(1);

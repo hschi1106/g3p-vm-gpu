@@ -1,6 +1,4 @@
 #include <iostream>
-#include <stdexcept>
-#include <string>
 
 #include "g3pvm/core/bytecode.hpp"
 #include "g3pvm/core/errors.hpp"
@@ -17,21 +15,9 @@ using g3pvm::ExecResult;
 using g3pvm::Opcode;
 using g3pvm::Value;
 
-Instr ins(const std::string& op) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return Instr{opcode, 0, 0, false, false};
-}
-Instr ins_a(const std::string& op, int a) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return Instr{opcode, a, 0, true, false};
-}
-Instr ins_ab(const std::string& op, int a, int b) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return Instr{opcode, a, b, true, true};
-}
+Instr ins(Opcode op) { return Instr{op, 0, 0, false, false}; }
+Instr ins_a(Opcode op, int a) { return Instr{op, a, 0, true, false}; }
+Instr ins_ab(Opcode op, int a, int b) { return Instr{op, a, b, true, true}; }
 
 bool check(bool cond, const std::string& msg) {
   if (!cond) {
@@ -49,14 +35,14 @@ bool expect_err(const ExecResult& out, ErrCode code, const std::string& msg) {
 
 bool test_jump_target_out_of_range() {
   BytecodeProgram p;
-  p.code = {ins_a("JMP", 99)};
+  p.code = {ins_a(Opcode::Jmp, 99)};
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Value, "jump target out of range");
 }
 
 bool test_stack_underflow() {
   BytecodeProgram p;
-  p.code = {ins("ADD")};
+  p.code = {ins(Opcode::Add)};
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Value, "stack underflow on ADD");
 }
@@ -65,8 +51,8 @@ bool test_builtin_arity_error() {
   BytecodeProgram p;
   p.consts = {Value::from_int(7)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_ab("CALL_BUILTIN", 0, 2),  // abs expects 1 arg
+      ins_a(Opcode::PushConst, 0),
+      ins_ab(Opcode::CallBuiltin, 0, 2),  // abs expects 1 arg
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Value, "builtin arity triggers stack underflow");
@@ -76,8 +62,8 @@ bool test_builtin_arity_type_error() {
   BytecodeProgram p;
   p.consts = {Value::from_int(7)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_ab("CALL_BUILTIN", 0, 0),  // abs with argc=0
+      ins_a(Opcode::PushConst, 0),
+      ins_ab(Opcode::CallBuiltin, 0, 0),  // abs with argc=0
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Type, "builtin arity type error");
@@ -87,8 +73,8 @@ bool test_timeout() {
   BytecodeProgram p;
   p.consts = {Value::from_int(1)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("JMP", 0),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::Jmp, 0),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 1);
   return expect_err(out, ErrCode::Timeout, "timeout");
@@ -98,9 +84,9 @@ bool test_builtin_len_string_ok() {
   BytecodeProgram p;
   p.consts = {Value::from_string_hash_len(0x1234ULL, 7U)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_ab("CALL_BUILTIN", 4, 1),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_ab(Opcode::CallBuiltin, 4, 1),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "len(string) should not error")) return false;
@@ -112,9 +98,9 @@ bool test_builtin_len_list_ok() {
   BytecodeProgram p;
   p.consts = {Value::from_list_hash_len(0x5678ULL, 3U)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_ab("CALL_BUILTIN", 4, 1),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_ab(Opcode::CallBuiltin, 4, 1),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "len(list) should not error")) return false;
@@ -126,8 +112,8 @@ bool test_builtin_len_type_error() {
   BytecodeProgram p;
   p.consts = {Value::from_int(11)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_ab("CALL_BUILTIN", 4, 1),
+      ins_a(Opcode::PushConst, 0),
+      ins_ab(Opcode::CallBuiltin, 4, 1),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Type, "len(int) should error");
@@ -140,10 +126,10 @@ bool test_compare_string_eq_ok() {
       Value::from_string_hash_len(0x1111ULL, 2U),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins("EQ"),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins(Opcode::Eq),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "string EQ should not error")) return false;
@@ -158,10 +144,10 @@ bool test_builtin_concat_string_ok() {
       Value::from_string_hash_len(0x2222ULL, 3U),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 5, 2),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 5, 2),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "concat(string,string) should not error")) return false;
@@ -176,10 +162,10 @@ bool test_builtin_concat_list_ok() {
       Value::from_list_hash_len(0x4444ULL, 4U),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 5, 2),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 5, 2),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "concat(list,list) should not error")) return false;
@@ -194,9 +180,9 @@ bool test_builtin_concat_type_error() {
       Value::from_list_hash_len(0x4444ULL, 4U),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 5, 2),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 5, 2),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Type, "concat(string,list) should error");
@@ -210,11 +196,11 @@ bool test_builtin_slice_string_ok() {
       Value::from_int(6),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_a("PUSH_CONST", 2),
-      ins_ab("CALL_BUILTIN", 6, 3),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_a(Opcode::PushConst, 2),
+      ins_ab(Opcode::CallBuiltin, 6, 3),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "slice(string,2,6) should not error")) return false;
@@ -230,11 +216,11 @@ bool test_builtin_slice_list_negative_idx_ok() {
       Value::from_int(-1),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_a("PUSH_CONST", 2),
-      ins_ab("CALL_BUILTIN", 6, 3),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_a(Opcode::PushConst, 2),
+      ins_ab(Opcode::CallBuiltin, 6, 3),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "slice(list,-5,-1) should not error")) return false;
@@ -250,10 +236,10 @@ bool test_builtin_slice_type_error() {
       Value::from_int(6),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_a("PUSH_CONST", 2),
-      ins_ab("CALL_BUILTIN", 6, 3),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_a(Opcode::PushConst, 2),
+      ins_ab(Opcode::CallBuiltin, 6, 3),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Type, "slice(string,float,int) should error");
@@ -266,10 +252,10 @@ bool test_builtin_index_string_ok() {
       Value::from_int(3),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 7, 2),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 7, 2),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "index(string,3) should not error")) return false;
@@ -283,10 +269,10 @@ bool test_builtin_index_list_negative_ok() {
       Value::from_int(-2),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 7, 2),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 7, 2),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "index(list,-2) should not error")) return false;
@@ -300,9 +286,9 @@ bool test_builtin_index_oob_error() {
       Value::from_int(5),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 7, 2),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 7, 2),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Value, "index(string,5) should error");
@@ -315,9 +301,9 @@ bool test_builtin_index_type_error() {
       Value::from_float(1.5),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 7, 2),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 7, 2),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   return expect_err(out, ErrCode::Type, "index(string,float) should error");
@@ -331,10 +317,10 @@ bool test_builtin_index_string_payload_exact_ok() {
       Value::from_int(2),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 7, 2),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 7, 2),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "index(payload_string,2) should not error")) return false;
@@ -351,10 +337,10 @@ bool test_builtin_index_list_payload_exact_ok() {
       Value::from_int(1),
   };
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_ab("CALL_BUILTIN", 7, 2),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, 7, 2),
+      ins(Opcode::Return),
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "index(payload_list,1) should not error")) return false;

@@ -1,8 +1,6 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "g3pvm/core/bytecode.hpp"
@@ -18,35 +16,27 @@ using g3pvm::Value;
 using g3pvm::ExecResult;
 using g3pvm::Opcode;
 
-g3pvm::Instr ins(const std::string& op) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in bench");
-  return g3pvm::Instr{opcode, 0, 0, false, false};
-}
-g3pvm::Instr ins_a(const std::string& op, int a) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in bench");
-  return g3pvm::Instr{opcode, a, 0, true, false};
-}
+g3pvm::Instr ins(Opcode op) { return g3pvm::Instr{op, 0, 0, false, false}; }
+g3pvm::Instr ins_a(Opcode op, int a) { return g3pvm::Instr{op, a, 0, true, false}; }
 
 BytecodeProgram make_pass_program() {
   BytecodeProgram p;
   p.n_locals = 1;
   p.consts = {Value::from_int(1)};
-  p.code = {ins_a("LOAD", 0), ins_a("PUSH_CONST", 0), ins("ADD"), ins("RETURN")};
+  p.code = {ins_a(Opcode::Load, 0), ins_a(Opcode::PushConst, 0), ins(Opcode::Add), ins(Opcode::Return)};
   return p;
 }
 
 BytecodeProgram make_fail_program() {
   BytecodeProgram p;
   p.consts = {Value::from_bool(true)};
-  p.code = {ins_a("PUSH_CONST", 0), ins("NEG")};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Neg)};
   return p;
 }
 
 BytecodeProgram make_timeout_program() {
   BytecodeProgram p;
-  p.code = {ins_a("JMP", 0)};
+  p.code = {ins_a(Opcode::Jmp, 0)};
   return p;
 }
 

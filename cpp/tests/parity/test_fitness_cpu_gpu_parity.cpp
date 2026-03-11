@@ -1,8 +1,6 @@
 #include <climits>
 #include <cmath>
 #include <iostream>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "g3pvm/core/bytecode.hpp"
@@ -18,56 +16,49 @@ using g3pvm::InputBinding;
 using g3pvm::Opcode;
 using g3pvm::Value;
 
-g3pvm::Instr ins(const std::string& op) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return g3pvm::Instr{opcode, 0, 0, false, false};
-}
-g3pvm::Instr ins_a(const std::string& op, int a) {
-  Opcode opcode = Opcode::PushConst;
-  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
-  return g3pvm::Instr{opcode, a, 0, true, false};
-}
+g3pvm::Instr ins(Opcode op) { return g3pvm::Instr{op, 0, 0, false, false}; }
+g3pvm::Instr ins_a(Opcode op, int a) { return g3pvm::Instr{op, a, 0, true, false}; }
+g3pvm::Instr ins_ab(Opcode op, int a, int b) { return g3pvm::Instr{op, a, b, true, true}; }
 
 BytecodeProgram make_add_one_program() {
   BytecodeProgram p;
   p.n_locals = 1;
   p.consts = {Value::from_int(1)};
-  p.code = {ins_a("LOAD", 0), ins_a("PUSH_CONST", 0), ins("ADD"), ins("RETURN")};
+  p.code = {ins_a(Opcode::Load, 0), ins_a(Opcode::PushConst, 0), ins(Opcode::Add), ins(Opcode::Return)};
   return p;
 }
 
 BytecodeProgram make_type_error_program() {
   BytecodeProgram p;
   p.consts = {Value::from_bool(true)};
-  p.code = {ins_a("PUSH_CONST", 0), ins("NEG")};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Neg)};
   return p;
 }
 
 BytecodeProgram make_timeout_program() {
   BytecodeProgram p;
-  p.code = {ins_a("JMP", 0)};
+  p.code = {ins_a(Opcode::Jmp, 0)};
   return p;
 }
 
 BytecodeProgram make_return_const_program(int v) {
   BytecodeProgram p;
   p.consts = {Value::from_int(v)};
-  p.code = {ins_a("PUSH_CONST", 0), ins("RETURN")};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Return)};
   return p;
 }
 
 BytecodeProgram make_return_string_program() {
   BytecodeProgram p;
   p.consts = {Value::from_string_hash_len(0x1234ULL, 3)};
-  p.code = {ins_a("PUSH_CONST", 0), ins("RETURN")};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Return)};
   return p;
 }
 
 BytecodeProgram make_wrap_add_program() {
   BytecodeProgram p;
   p.consts = {Value::from_int(LLONG_MAX), Value::from_int(1)};
-  p.code = {ins_a("PUSH_CONST", 0), ins_a("PUSH_CONST", 1), ins("ADD"), ins("RETURN")};
+  p.code = {ins_a(Opcode::PushConst, 0), ins_a(Opcode::PushConst, 1), ins(Opcode::Add), ins(Opcode::Return)};
   return p;
 }
 
@@ -76,12 +67,12 @@ BytecodeProgram make_float_mod_div_program() {
   p.n_locals = 1;
   p.consts = {Value::from_float(2.207), Value::from_int(3)};
   p.code = {
-      ins_a("PUSH_CONST", 0),
-      ins_a("PUSH_CONST", 1),
-      ins_a("LOAD", 0),
-      ins("MOD"),
-      ins("DIV"),
-      ins("RETURN"),
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_a(Opcode::Load, 0),
+      ins(Opcode::Mod),
+      ins(Opcode::Div),
+      ins(Opcode::Return),
   };
   return p;
 }
