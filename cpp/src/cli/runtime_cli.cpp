@@ -8,7 +8,8 @@
 
 #include "g3pvm/core/errors.hpp"
 #include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/fitness_cpu.hpp"
 #include "g3pvm/cli/codec.hpp"
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/cli/options.hpp"
@@ -128,7 +129,7 @@ int main(int argc, char** argv) {
           for (const auto& binding : one_case) {
             inputs.push_back({binding.idx, binding.value});
           }
-          per_prog.push_back(g3pvm::exec_cpu(programs[p], inputs, fuel));
+          per_prog.push_back(g3pvm::execute_bytecode_cpu(programs[p], inputs, fuel));
         }
       }
     } else {

@@ -7,7 +7,7 @@
 #include "g3pvm/core/bytecode.hpp"
 #include "g3pvm/core/errors.hpp"
 #include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
 
 namespace {
 
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
       // Keep case shape identical across all programs. Programs that do not
       // use locals will ignore this binding.
       inputs.push_back({0, Value::from_int(ci)});
-      ExecResult out = g3pvm::exec_cpu(*prog, inputs, fuel);
+      ExecResult out = g3pvm::execute_bytecode_cpu(*prog, inputs, fuel);
       total += 1;
       if (!out.is_error) {
         ret_ok += 1;

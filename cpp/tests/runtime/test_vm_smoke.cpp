@@ -5,7 +5,7 @@
 #include "g3pvm/core/bytecode.hpp"
 #include "g3pvm/core/errors.hpp"
 #include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
 
 namespace {
 
@@ -37,7 +37,7 @@ bool test_basic_arithmetic() {
       ins("ADD"),
       ins("RETURN"),
   };
-  ExecResult out = g3pvm::exec_cpu(p, {}, 100);
+  ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 100);
   if (!check(!out.is_error, "basic arithmetic should return")) return false;
   if (!check(out.value.tag == ValueTag::Int, "basic arithmetic result should be int")) return false;
   if (!check(out.value.i == 3, "basic arithmetic result should be 3")) return false;
@@ -64,7 +64,7 @@ bool test_loop_like_control_flow() {
       ins_a("LOAD", 0),
       ins("RETURN"),
   };
-  ExecResult out = g3pvm::exec_cpu(p, {}, 1000);
+  ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 1000);
   if (!check(!out.is_error, "control-flow program should return")) return false;
   if (!check(out.value.tag == ValueTag::Int, "control-flow result should be int")) return false;
   if (!check(out.value.i == 5, "control-flow result should be 5")) return false;

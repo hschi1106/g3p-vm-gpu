@@ -19,7 +19,7 @@
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/mutation.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/fitness_cpu.hpp"
 #ifdef G3PVM_HAS_CUDA
 #include "g3pvm/runtime/fitness_gpu.hpp"
 #endif

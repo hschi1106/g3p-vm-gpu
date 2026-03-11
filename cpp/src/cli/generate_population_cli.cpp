@@ -14,7 +14,7 @@
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/execute_bytecode_cpu.hpp"
 
 // Keep directly buildable.
 #include "json.cpp"
@@ -245,7 +245,8 @@ int main(int argc, char** argv) {
       int successes = 0;
       for (int i = 0; i < probe_case_count; ++i) {
         const g3pvm::ExecResult out =
-            g3pvm::exec_cpu(program, case_inputs_to_locals(cases[static_cast<std::size_t>(i)], input_names), args.fuel);
+            g3pvm::execute_bytecode_cpu(
+                program, case_inputs_to_locals(cases[static_cast<std::size_t>(i)], input_names), args.fuel);
         if (!out.is_error) {
           ++successes;
         }

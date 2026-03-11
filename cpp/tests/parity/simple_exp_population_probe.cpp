@@ -15,7 +15,7 @@
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 #include "g3pvm/runtime/builtins.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/fitness_cpu.hpp"
 #include "g3pvm/runtime/fitness_gpu.hpp"
 
 // Keep this file directly buildable without adding new library targets.

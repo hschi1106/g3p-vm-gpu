@@ -6,7 +6,7 @@
 
 #include "g3pvm/core/bytecode.hpp"
 #include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/exec_cpu.hpp"
+#include "g3pvm/runtime/fitness_cpu.hpp"
 #include "g3pvm/runtime/fitness_gpu.hpp"
 
 namespace {

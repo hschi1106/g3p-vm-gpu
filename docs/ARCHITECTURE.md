@@ -103,8 +103,8 @@ Public genome, mutation, crossover, and evolution interfaces.
 
 ### `cpp/src/runtime/cpu/`
 - builtin implementation
-- bytecode execution
-- CPU fitness accumulation
+- bytecode execution in `execute_bytecode_cpu.*`
+- CPU fitness accumulation in `fitness_cpu.*`
 
 ### `cpp/src/runtime/gpu/`
 - GPU fitness orchestration

@@ -23,7 +23,8 @@ endif()
 add_library(g3pvm_cpu
   src/runtime/payload/payload.cpp
   src/runtime/cpu/builtins.cpp
-  src/runtime/cpu/exec_cpu.cpp
+  src/runtime/cpu/execute_bytecode_cpu.cpp
+  src/runtime/cpu/fitness_cpu.cpp
   src/evolution/genome_meta.cpp
   src/evolution/subtree_utils.cpp
   src/evolution/typed_expr_analysis.cpp
