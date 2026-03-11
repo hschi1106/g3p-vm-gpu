@@ -15,24 +15,23 @@ namespace g3pvm::evo {
 
 namespace {
 
-const char* op_name(NodeKind op) {
+Opcode op_name(NodeKind op) {
   switch (op) {
-    case NodeKind::ADD: return "ADD";
-    case NodeKind::SUB: return "SUB";
-    case NodeKind::MUL: return "MUL";
-    case NodeKind::DIV: return "DIV";
-    case NodeKind::MOD: return "MOD";
-    case NodeKind::LT: return "LT";
-    case NodeKind::LE: return "LE";
-    case NodeKind::GT: return "GT";
-    case NodeKind::GE: return "GE";
-    case NodeKind::EQ: return "EQ";
-    case NodeKind::NE: return "NE";
-    case NodeKind::AND: return "AND";
-    case NodeKind::OR: return "OR";
-    case NodeKind::NEG: return "NEG";
-    case NodeKind::NOT: return "NOT";
-    default: return "ADD";
+    case NodeKind::ADD: return Opcode::Add;
+    case NodeKind::SUB: return Opcode::Sub;
+    case NodeKind::MUL: return Opcode::Mul;
+    case NodeKind::DIV: return Opcode::Div;
+    case NodeKind::MOD: return Opcode::Mod;
+    case NodeKind::LT: return Opcode::Lt;
+    case NodeKind::LE: return Opcode::Le;
+    case NodeKind::GT: return Opcode::Gt;
+    case NodeKind::GE: return Opcode::Ge;
+    case NodeKind::EQ: return Opcode::Eq;
+    case NodeKind::NE: return Opcode::Ne;
+    case NodeKind::NEG: return Opcode::Neg;
+    case NodeKind::NOT: return Opcode::Not;
+    default:
+      throw std::runtime_error("prefix compile: unsupported opcode lowering for node kind");
   }
 }
 
@@ -97,11 +96,11 @@ class Compiler {
 
   std::string new_temp() { return std::string("\x00for_i_") + std::to_string(tmp_counter_++); }
 
-  void emit(const std::string& op, int a = 0, bool has_a = false, int b = 0, bool has_b = false) {
+  void emit(Opcode op, int a = 0, bool has_a = false, int b = 0, bool has_b = false) {
     code_.push_back(Instr{op, a, b, has_a, has_b});
   }
 
-  void emit_jump(const std::string& op, const std::string& label) {
+  void emit_jump(Opcode op, const std::string& label) {
     emit(op, 0, true, 0, false);
     unresolved_.push_back({static_cast<int>(code_.size()) - 1, label});
   }
@@ -144,28 +143,28 @@ class Compiler {
     const AstNode& node = node_at(program, idx);
     switch (node.kind) {
       case NodeKind::CONST:
-        emit("PUSH_CONST", add_const(const_at(program, node.i0)), true);
+        emit(Opcode::PushConst, add_const(const_at(program, node.i0)), true);
         return idx + 1;
       case NodeKind::VAR:
-        emit("LOAD", local(name_at(program, node.i0)), true);
+        emit(Opcode::Load, local(name_at(program, node.i0)), true);
         return idx + 1;
       case NodeKind::NEG:
       case NodeKind::NOT: {
         const std::size_t next = compile_expr_prefix(program, idx + 1);
-        emit(node.kind == NodeKind::NEG ? "NEG" : "NOT");
+        emit(node.kind == NodeKind::NEG ? Opcode::Neg : Opcode::Not);
         return next;
       }
       case NodeKind::AND: {
         const std::string false_label = new_label("and_false");
         const std::string end_label = new_label("and_end");
         std::size_t next = compile_expr_prefix(program, idx + 1);
-        emit_jump("JMP_IF_FALSE", false_label);
+        emit_jump(Opcode::JmpIfFalse, false_label);
         next = compile_expr_prefix(program, next);
-        emit("NOT");
-        emit("NOT");
-        emit_jump("JMP", end_label);
+        emit(Opcode::Not);
+        emit(Opcode::Not);
+        emit_jump(Opcode::Jmp, end_label);
         mark_label(false_label);
-        emit("PUSH_CONST", add_const(Value::from_bool(false)), true);
+        emit(Opcode::PushConst, add_const(Value::from_bool(false)), true);
         mark_label(end_label);
         return next;
       }
@@ -173,13 +172,13 @@ class Compiler {
         const std::string true_label = new_label("or_true");
         const std::string end_label = new_label("or_end");
         std::size_t next = compile_expr_prefix(program, idx + 1);
-        emit_jump("JMP_IF_TRUE", true_label);
+        emit_jump(Opcode::JmpIfTrue, true_label);
         next = compile_expr_prefix(program, next);
-        emit("NOT");
-        emit("NOT");
-        emit_jump("JMP", end_label);
+        emit(Opcode::Not);
+        emit(Opcode::Not);
+        emit_jump(Opcode::Jmp, end_label);
         mark_label(true_label);
-        emit("PUSH_CONST", add_const(Value::from_bool(true)), true);
+        emit(Opcode::PushConst, add_const(Value::from_bool(true)), true);
         mark_label(end_label);
         return next;
       }
@@ -203,9 +202,9 @@ class Compiler {
         const std::string else_label = new_label("ifexpr_else");
         const std::string end_label = new_label("ifexpr_end");
         std::size_t next = compile_expr_prefix(program, idx + 1);
-        emit_jump("JMP_IF_FALSE", else_label);
+        emit_jump(Opcode::JmpIfFalse, else_label);
         next = compile_expr_prefix(program, next);
-        emit_jump("JMP", end_label);
+        emit_jump(Opcode::Jmp, end_label);
         mark_label(else_label);
         next = compile_expr_prefix(program, next);
         mark_label(end_label);
@@ -232,7 +231,7 @@ class Compiler {
         else if (node.kind == NodeKind::CALL_LEN) builtin_id = g3pvm::BuiltinId::Len;
         else if (node.kind == NodeKind::CALL_CONCAT) builtin_id = g3pvm::BuiltinId::Concat;
         else if (node.kind == NodeKind::CALL_SLICE) builtin_id = g3pvm::BuiltinId::Slice;
-        emit("CALL_BUILTIN", static_cast<int>(builtin_id), true, argc, true);
+        emit(Opcode::CallBuiltin, static_cast<int>(builtin_id), true, argc, true);
         return next;
       }
       default:
@@ -256,21 +255,21 @@ class Compiler {
     const AstNode& node = node_at(program, idx);
     if (node.kind == NodeKind::ASSIGN) {
       const std::size_t next = compile_expr_prefix(program, idx + 1);
-      emit("STORE", local(name_at(program, node.i0)), true);
+      emit(Opcode::Store, local(name_at(program, node.i0)), true);
       return next;
     }
     if (node.kind == NodeKind::RETURN) {
       const std::size_t next = compile_expr_prefix(program, idx + 1);
-      emit("RETURN");
+      emit(Opcode::Return);
       return next;
     }
     if (node.kind == NodeKind::IF_STMT) {
       const std::string else_label = new_label("if_else");
       const std::string end_label = new_label("if_end");
       std::size_t next = compile_expr_prefix(program, idx + 1);
-      emit_jump("JMP_IF_FALSE", else_label);
+      emit_jump(Opcode::JmpIfFalse, else_label);
       next = compile_block_prefix(program, next);
-      emit_jump("JMP", end_label);
+      emit_jump(Opcode::Jmp, end_label);
       mark_label(else_label);
       next = compile_block_prefix(program, next);
       mark_label(end_label);
@@ -278,8 +277,8 @@ class Compiler {
     }
     if (node.kind == NodeKind::FOR_RANGE) {
       if (node.i1 < 0) {
-        emit("PUSH_CONST", add_const(Value::from_bool(true)), true);
-        emit("NEG");
+        emit(Opcode::PushConst, add_const(Value::from_bool(true)), true);
+        emit(Opcode::Neg);
         return compile_block_prefix(program, idx + 1);
       }
 
@@ -292,25 +291,25 @@ class Compiler {
       const std::string loop_label = new_label("for_loop");
       const std::string end_label = new_label("for_end");
 
-      emit("PUSH_CONST", idx_0, true);
-      emit("STORE", counter_i, true);
+      emit(Opcode::PushConst, idx_0, true);
+      emit(Opcode::Store, counter_i, true);
 
       mark_label(loop_label);
-      emit("LOAD", counter_i, true);
-      emit("PUSH_CONST", idx_k, true);
-      emit("LT");
-      emit_jump("JMP_IF_FALSE", end_label);
+      emit(Opcode::Load, counter_i, true);
+      emit(Opcode::PushConst, idx_k, true);
+      emit(Opcode::Lt);
+      emit_jump(Opcode::JmpIfFalse, end_label);
 
-      emit("LOAD", counter_i, true);
-      emit("STORE", user_i, true);
+      emit(Opcode::Load, counter_i, true);
+      emit(Opcode::Store, user_i, true);
 
       const std::size_t next = compile_block_prefix(program, idx + 1);
 
-      emit("LOAD", counter_i, true);
-      emit("PUSH_CONST", idx_1, true);
-      emit("ADD");
-      emit("STORE", counter_i, true);
-      emit_jump("JMP", loop_label);
+      emit(Opcode::Load, counter_i, true);
+      emit(Opcode::PushConst, idx_1, true);
+      emit(Opcode::Add);
+      emit(Opcode::Store, counter_i, true);
+      emit_jump(Opcode::Jmp, loop_label);
       mark_label(end_label);
       return next;
     }

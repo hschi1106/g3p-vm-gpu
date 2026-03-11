@@ -334,7 +334,7 @@ int main(int argc, char** argv) {
         std::cout << "BYTECODE_HEAD";
         const std::size_t cap = std::min<std::size_t>(12, bc.code.size());
         for (std::size_t j = 0; j < cap; ++j) {
-          std::cout << " " << j << ":" << bc.code[j].op;
+          std::cout << " " << j << ":" << g3pvm::opcode_name(bc.code[j].op);
         }
         std::cout << "\n";
       }

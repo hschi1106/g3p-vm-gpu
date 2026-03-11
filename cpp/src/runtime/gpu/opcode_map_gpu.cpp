@@ -5,12 +5,6 @@
 
 namespace g3pvm::gpu_detail {
 
-int host_opcode(const std::string& op) {
-  Opcode opcode = Opcode::PushConst;
-  if (!opcode_from_name(op, opcode)) {
-    return -1;
-  }
-  return static_cast<int>(opcode);
-}
+int host_opcode(const Opcode op) { return static_cast<int>(op); }
 
 }  // namespace g3pvm::gpu_detail

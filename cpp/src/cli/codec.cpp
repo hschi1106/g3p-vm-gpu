@@ -166,7 +166,10 @@ BytecodeProgram decode_program(const JsonValue& bc) {
   }
   for (const JsonValue& ci : code.array_v) {
     Instr ins;
-    ins.op = require_string(require_object_field(ci, "op"), "op");
+    const std::string op_name = require_string(require_object_field(ci, "op"), "op");
+    if (!opcode_from_name(op_name, ins.op)) {
+      throw std::runtime_error("unknown opcode: " + op_name);
+    }
 
     auto a_it = ci.object_v.find("a");
     if (a_it != ci.object_v.end() && a_it->second.kind != JsonValue::Kind::Null) {

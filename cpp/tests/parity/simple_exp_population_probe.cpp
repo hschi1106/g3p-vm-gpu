@@ -83,7 +83,7 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
     }
     fuel -= 1;
     const g3pvm::Instr& ins = program.code[static_cast<std::size_t>(ip)];
-    std::cout << "trace step=" << step++ << " ip=" << ip << " op=" << ins.op;
+    std::cout << "trace step=" << step++ << " ip=" << ip << " op=" << g3pvm::opcode_name(ins.op);
     if (ins.has_a) {
       std::cout << " a=" << ins.a;
     }
@@ -101,17 +101,17 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       std::cout << "\n";
     };
 
-    if (ins.op == "PUSH_CONST") {
+    if (ins.op == g3pvm::Opcode::PushConst) {
       stack.push_back(program.consts[static_cast<std::size_t>(ins.a)]);
       print_stack();
       continue;
     }
-    if (ins.op == "LOAD") {
+    if (ins.op == g3pvm::Opcode::Load) {
       stack.push_back(locals[static_cast<std::size_t>(ins.a)].value);
       print_stack();
       continue;
     }
-    if (ins.op == "STORE") {
+    if (ins.op == g3pvm::Opcode::Store) {
       locals[static_cast<std::size_t>(ins.a)].is_set = true;
       locals[static_cast<std::size_t>(ins.a)].value = stack.back();
       stack.pop_back();
@@ -120,7 +120,7 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == "NEG") {
+    if (ins.op == g3pvm::Opcode::Neg) {
       const Value x = stack.back();
       stack.pop_back();
       if (x.tag == g3pvm::ValueTag::Float) {
@@ -131,14 +131,15 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == "NOT") {
+    if (ins.op == g3pvm::Opcode::Not) {
       const Value x = stack.back();
       stack.pop_back();
       stack.push_back(Value::from_bool(!x.b));
       print_stack();
       continue;
     }
-    if (ins.op == "ADD" || ins.op == "SUB" || ins.op == "MUL" || ins.op == "DIV" || ins.op == "MOD") {
+    if (ins.op == g3pvm::Opcode::Add || ins.op == g3pvm::Opcode::Sub || ins.op == g3pvm::Opcode::Mul ||
+        ins.op == g3pvm::Opcode::Div || ins.op == g3pvm::Opcode::Mod) {
       const Value b = stack.back();
       stack.pop_back();
       const Value a = stack.back();
@@ -148,19 +149,19 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       bool any_float = false;
       g3pvm::vm_semantics::to_numeric_pair(a, b, a_num, b_num, any_float);
       std::cout << "  arith lhs=" << value_debug_string(a) << " rhs=" << value_debug_string(b) << "\n";
-      if (ins.op == "ADD") {
+      if (ins.op == g3pvm::Opcode::Add) {
         stack.push_back(any_float ? Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num + b_num))
                                   : Value::from_int(g3pvm::vm_semantics::wrap_int_add(
                                         static_cast<long long>(a_num), static_cast<long long>(b_num))));
-      } else if (ins.op == "SUB") {
+      } else if (ins.op == g3pvm::Opcode::Sub) {
         stack.push_back(any_float ? Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num - b_num))
                                   : Value::from_int(g3pvm::vm_semantics::wrap_int_sub(
                                         static_cast<long long>(a_num), static_cast<long long>(b_num))));
-      } else if (ins.op == "MUL") {
+      } else if (ins.op == g3pvm::Opcode::Mul) {
         stack.push_back(any_float ? Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num * b_num))
                                   : Value::from_int(g3pvm::vm_semantics::wrap_int_mul(
                                         static_cast<long long>(a_num), static_cast<long long>(b_num))));
-      } else if (ins.op == "DIV") {
+      } else if (ins.op == g3pvm::Opcode::Div) {
         stack.push_back(Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num / b_num)));
       } else if (any_float) {
         const double mod_value = g3pvm::vm_semantics::py_float_mod(a_num, b_num);
@@ -173,18 +174,19 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == "LT" || ins.op == "LE" || ins.op == "GT" || ins.op == "GE" || ins.op == "EQ" || ins.op == "NE") {
+    if (ins.op == g3pvm::Opcode::Lt || ins.op == g3pvm::Opcode::Le || ins.op == g3pvm::Opcode::Gt ||
+        ins.op == g3pvm::Opcode::Ge || ins.op == g3pvm::Opcode::Eq || ins.op == g3pvm::Opcode::Ne) {
       const Value b = stack.back();
       stack.pop_back();
       const Value a = stack.back();
       stack.pop_back();
       bool out_bool = false;
       g3pvm::vm_semantics::CmpOp cmp_op = g3pvm::vm_semantics::CmpOp::EQ;
-      if (ins.op == "LT") cmp_op = g3pvm::vm_semantics::CmpOp::LT;
-      else if (ins.op == "LE") cmp_op = g3pvm::vm_semantics::CmpOp::LE;
-      else if (ins.op == "GT") cmp_op = g3pvm::vm_semantics::CmpOp::GT;
-      else if (ins.op == "GE") cmp_op = g3pvm::vm_semantics::CmpOp::GE;
-      else if (ins.op == "NE") cmp_op = g3pvm::vm_semantics::CmpOp::NE;
+      if (ins.op == g3pvm::Opcode::Lt) cmp_op = g3pvm::vm_semantics::CmpOp::LT;
+      else if (ins.op == g3pvm::Opcode::Le) cmp_op = g3pvm::vm_semantics::CmpOp::LE;
+      else if (ins.op == g3pvm::Opcode::Gt) cmp_op = g3pvm::vm_semantics::CmpOp::GT;
+      else if (ins.op == g3pvm::Opcode::Ge) cmp_op = g3pvm::vm_semantics::CmpOp::GE;
+      else if (ins.op == g3pvm::Opcode::Ne) cmp_op = g3pvm::vm_semantics::CmpOp::NE;
       g3pvm::vm_semantics::compare_values(cmp_op, a, b, out_bool);
       stack.push_back(Value::from_bool(out_bool));
       std::cout << "  cmp lhs=" << value_debug_string(a) << " rhs=" << value_debug_string(b)
@@ -192,20 +194,20 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == "JMP") {
+    if (ins.op == g3pvm::Opcode::Jmp) {
       ip = ins.a;
       continue;
     }
-    if (ins.op == "JMP_IF_FALSE" || ins.op == "JMP_IF_TRUE") {
+    if (ins.op == g3pvm::Opcode::JmpIfFalse || ins.op == g3pvm::Opcode::JmpIfTrue) {
       const Value c = stack.back();
       stack.pop_back();
       std::cout << "  branch cond=" << value_debug_string(c) << "\n";
-      if (ins.op == "JMP_IF_FALSE" && !c.b) ip = ins.a;
-      if (ins.op == "JMP_IF_TRUE" && c.b) ip = ins.a;
+      if (ins.op == g3pvm::Opcode::JmpIfFalse && !c.b) ip = ins.a;
+      if (ins.op == g3pvm::Opcode::JmpIfTrue && c.b) ip = ins.a;
       print_stack();
       continue;
     }
-    if (ins.op == "CALL_BUILTIN") {
+    if (ins.op == g3pvm::Opcode::CallBuiltin) {
       const int argc = ins.b;
       std::vector<Value> args;
       const std::size_t start = stack.size() - static_cast<std::size_t>(argc);
@@ -227,7 +229,7 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == "RETURN") {
+    if (ins.op == g3pvm::Opcode::Return) {
       std::cout << "  return " << value_debug_string(stack.back()) << "\n";
       return;
     }
@@ -413,7 +415,7 @@ int main() {
         dump_consts(bc);
         for (std::size_t op_idx = 0; op_idx < bc.code.size(); ++op_idx) {
           const auto& ins = bc.code[op_idx];
-          std::cout << "op[" << op_idx << "]=" << ins.op;
+          std::cout << "op[" << op_idx << "]=" << g3pvm::opcode_name(ins.op);
           if (ins.has_a) {
             std::cout << " a=" << ins.a;
           }

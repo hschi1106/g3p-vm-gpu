@@ -4,12 +4,13 @@
 #include <unordered_map>
 #include <vector>
 
+#include "g3pvm/core/opcode.hpp"
 #include "g3pvm/core/value.hpp"
 
 namespace g3pvm {
 
 struct Instr {
-  std::string op;
+  Opcode op = Opcode::PushConst;
   int a = 0;
   int b = 0;
   bool has_a = false;

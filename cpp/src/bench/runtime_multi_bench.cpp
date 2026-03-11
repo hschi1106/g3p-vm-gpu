@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -15,9 +16,18 @@ using g3pvm::BytecodeProgram;
 using g3pvm::ErrCode;
 using g3pvm::Value;
 using g3pvm::ExecResult;
+using g3pvm::Opcode;
 
-g3pvm::Instr ins(const std::string& op) { return g3pvm::Instr{op, 0, 0, false, false}; }
-g3pvm::Instr ins_a(const std::string& op, int a) { return g3pvm::Instr{op, a, 0, true, false}; }
+g3pvm::Instr ins(const std::string& op) {
+  Opcode opcode = Opcode::PushConst;
+  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in bench");
+  return g3pvm::Instr{opcode, 0, 0, false, false};
+}
+g3pvm::Instr ins_a(const std::string& op, int a) {
+  Opcode opcode = Opcode::PushConst;
+  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in bench");
+  return g3pvm::Instr{opcode, a, 0, true, false};
+}
 
 BytecodeProgram make_pass_program() {
   BytecodeProgram p;

@@ -91,10 +91,7 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
 
     const Instr& ins = program.code[static_cast<std::size_t>(ip)];
     ip += 1;
-    Opcode op = Opcode::PushConst;
-    if (!opcode_from_name(ins.op, op)) {
-      return fail(ErrCode::Type, "unknown opcode: " + ins.op);
-    }
+    const Opcode op = ins.op;
 
     if (op == Opcode::PushConst) {
       if (!ins.has_a || ins.a < 0 || ins.a >= static_cast<int>(program.consts.size())) {

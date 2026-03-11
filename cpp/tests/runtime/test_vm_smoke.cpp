@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -13,12 +14,21 @@ using g3pvm::BytecodeProgram;
 using g3pvm::ErrCode;
 using g3pvm::Instr;
 using g3pvm::ExecResult;
+using g3pvm::Opcode;
 using g3pvm::Value;
 using g3pvm::ValueTag;
 
-Instr ins(const std::string& op) { return Instr{op, 0, 0, false, false}; }
+Instr ins(const std::string& op) {
+  Opcode opcode = Opcode::PushConst;
+  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
+  return Instr{opcode, 0, 0, false, false};
+}
 
-Instr ins_a(const std::string& op, int a) { return Instr{op, a, 0, true, false}; }
+Instr ins_a(const std::string& op, int a) {
+  Opcode opcode = Opcode::PushConst;
+  if (!g3pvm::opcode_from_name(op, opcode)) throw std::runtime_error("unknown opcode in test");
+  return Instr{opcode, a, 0, true, false};
+}
 
 bool check(bool cond, const std::string& msg) {
   if (!cond) {
