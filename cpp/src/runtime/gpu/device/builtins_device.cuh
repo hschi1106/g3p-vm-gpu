@@ -4,10 +4,6 @@
 
 namespace g3pvm::gpu_detail {
 
-static constexpr int DMAX_THREAD_PAYLOAD_ENTRIES = 32;
-static constexpr int DMAX_THREAD_STRING_BYTES = 512;
-static constexpr int DMAX_THREAD_LIST_VALUES = 128;
-
 struct DPayloadTables {
   const DStringPayloadEntry* string_entries = nullptr;
   int string_entry_count = 0;
@@ -145,7 +141,7 @@ __device__ inline bool d_builtin_call(int bid,
                                       DThreadPayloadState& payload_state,
                                       Value& out,
                                       DeviceErrCode& err) {
-  if (bid == 0) {
+  if (bid == DBUILTIN_ABS) {
     if (argc != 1) {
       err = DERR_TYPE;
       return false;
@@ -161,7 +157,7 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == 1 || bid == 2) {
+  if (bid == DBUILTIN_MIN || bid == DBUILTIN_MAX) {
     if (argc != 2) {
       err = DERR_TYPE;
       return false;
@@ -173,13 +169,14 @@ __device__ inline bool d_builtin_call(int bid,
       err = DERR_TYPE;
       return false;
     }
-    const double pick = (bid == 1) ? ((a <= b) ? a : b) : ((a >= b) ? a : b);
+    const double pick =
+        (bid == DBUILTIN_MIN) ? ((a <= b) ? a : b) : ((a >= b) ? a : b);
     out = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(pick))
                     : Value::from_int(static_cast<long long>(pick));
     return true;
   }
 
-  if (bid == 3) {
+  if (bid == DBUILTIN_CLAMP) {
     if (argc != 3) {
       err = DERR_TYPE;
       return false;
@@ -218,7 +215,7 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == 4) {
+  if (bid == DBUILTIN_LEN) {
     if (argc != 1) {
       err = DERR_TYPE;
       return false;
@@ -232,7 +229,7 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == 5) {
+  if (bid == DBUILTIN_CONCAT) {
     if (argc != 2) {
       err = DERR_TYPE;
       return false;
@@ -289,7 +286,7 @@ __device__ inline bool d_builtin_call(int bid,
     return false;
   }
 
-  if (bid == 6) {
+  if (bid == DBUILTIN_SLICE) {
     if (argc != 3) {
       err = DERR_TYPE;
       return false;
@@ -353,7 +350,7 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == 7) {
+  if (bid == DBUILTIN_INDEX) {
     if (argc != 2) {
       err = DERR_TYPE;
       return false;
