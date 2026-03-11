@@ -23,7 +23,7 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
     meta.case_count = shared_case_count;
     meta.case_local_offset = 0;
     meta.is_valid = 1;
-    meta.err_code = DERR_VALUE;
+    meta.err_code = ErrCode::Value;
 
     out.all_consts.insert(out.all_consts.end(), prog.consts.begin(), prog.consts.end());
     meta.const_len = static_cast<int>(prog.consts.size());
@@ -32,7 +32,7 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
       const int op = host_opcode(ins.op);
       if (op < 0) {
         meta.is_valid = 0;
-        meta.err_code = DERR_TYPE;
+        meta.err_code = ErrCode::Type;
         continue;
       }
       DInstr di;
@@ -50,7 +50,7 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
 
     if (prog.n_locals < 0 || prog.n_locals > MAX_LOCALS) {
       meta.is_valid = 0;
-      meta.err_code = DERR_VALUE;
+      meta.err_code = ErrCode::Value;
     }
 
     out.total_cases += static_cast<std::size_t>(shared_case_count);

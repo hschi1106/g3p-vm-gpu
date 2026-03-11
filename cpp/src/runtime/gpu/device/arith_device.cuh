@@ -27,7 +27,7 @@ __device__ inline long long d_int_mod(long long a, long long b) {
 }
 
 __device__ inline bool d_compare(const int op, const Value& a, const Value& b, bool& out_bool,
-                                 DeviceErrCode& err) {
+                                 ErrCode& err) {
   vm_semantics::CmpOp cmp_op = vm_semantics::CmpOp::EQ;
   if (op == OP_LT) cmp_op = vm_semantics::CmpOp::LT;
   else if (op == OP_LE) cmp_op = vm_semantics::CmpOp::LE;
@@ -36,7 +36,7 @@ __device__ inline bool d_compare(const int op, const Value& a, const Value& b, b
   else if (op == OP_EQ) cmp_op = vm_semantics::CmpOp::EQ;
   else if (op == OP_NE) cmp_op = vm_semantics::CmpOp::NE;
   else {
-    err = DERR_TYPE;
+    err = ErrCode::Type;
     return false;
   }
 
@@ -44,7 +44,7 @@ __device__ inline bool d_compare(const int op, const Value& a, const Value& b, b
   if (status == vm_semantics::CompareStatus::Ok) {
     return true;
   }
-  err = DERR_TYPE;
+  err = ErrCode::Type;
   return false;
 }
 

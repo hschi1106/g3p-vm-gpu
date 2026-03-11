@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "g3pvm/core/builtin.hpp"
 #include "subtree_utils.hpp"
 
 namespace g3pvm::evo {
@@ -223,16 +224,15 @@ class Compiler {
         for (int i = 0; i < argc; ++i) {
           next = compile_expr_prefix(program, next);
         }
-        int builtin_id = 0;
-        if (node.kind == NodeKind::CALL_ABS) builtin_id = 0;
-        else if (node.kind == NodeKind::CALL_MIN) builtin_id = 1;
-        else if (node.kind == NodeKind::CALL_MAX) builtin_id = 2;
-        else if (node.kind == NodeKind::CALL_CLIP) builtin_id = 3;
-        else if (node.kind == NodeKind::CALL_LEN) builtin_id = 4;
-        else if (node.kind == NodeKind::CALL_CONCAT) builtin_id = 5;
-        else if (node.kind == NodeKind::CALL_SLICE) builtin_id = 6;
-        else builtin_id = 7;
-        emit("CALL_BUILTIN", builtin_id, true, argc, true);
+        g3pvm::BuiltinId builtin_id = g3pvm::BuiltinId::Index;
+        if (node.kind == NodeKind::CALL_ABS) builtin_id = g3pvm::BuiltinId::Abs;
+        else if (node.kind == NodeKind::CALL_MIN) builtin_id = g3pvm::BuiltinId::Min;
+        else if (node.kind == NodeKind::CALL_MAX) builtin_id = g3pvm::BuiltinId::Max;
+        else if (node.kind == NodeKind::CALL_CLIP) builtin_id = g3pvm::BuiltinId::Clip;
+        else if (node.kind == NodeKind::CALL_LEN) builtin_id = g3pvm::BuiltinId::Len;
+        else if (node.kind == NodeKind::CALL_CONCAT) builtin_id = g3pvm::BuiltinId::Concat;
+        else if (node.kind == NodeKind::CALL_SLICE) builtin_id = g3pvm::BuiltinId::Slice;
+        emit("CALL_BUILTIN", static_cast<int>(builtin_id), true, argc, true);
         return next;
       }
       default:

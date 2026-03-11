@@ -15,6 +15,7 @@
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 #include "g3pvm/runtime/cpu/builtins_cpu.hpp"
+#include "g3pvm/core/builtin.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 
@@ -212,18 +213,13 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
         args.push_back(stack[i]);
       }
       stack.resize(start);
-      std::string name;
-      if (ins.a == 0) name = "abs";
-      else if (ins.a == 1) name = "min";
-      else if (ins.a == 2) name = "max";
-      else if (ins.a == 3) name = "clip";
-      else if (ins.a == 4) name = "len";
-      else if (ins.a == 5) name = "concat";
-      else if (ins.a == 6) name = "slice";
-      else if (ins.a == 7) name = "index";
-      const g3pvm::BuiltinResult out = g3pvm::builtin_call(name, args);
+      g3pvm::BuiltinId builtin_id = g3pvm::BuiltinId::Abs;
+      if (!g3pvm::builtin_id_from_int(ins.a, builtin_id)) {
+        throw std::runtime_error("unknown builtin id in probe");
+      }
+      const g3pvm::BuiltinResult out = g3pvm::builtin_call(builtin_id, args);
       stack.push_back(out.value);
-      std::cout << "  builtin " << name;
+      std::cout << "  builtin " << g3pvm::builtin_name(builtin_id);
       for (const Value& arg : args) {
         std::cout << " " << value_debug_string(arg);
       }

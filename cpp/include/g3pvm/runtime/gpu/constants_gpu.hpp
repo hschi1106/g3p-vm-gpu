@@ -12,14 +12,6 @@ constexpr int DMAX_THREAD_LIST_VALUES = 128;
 constexpr std::uint8_t DINSTR_HAS_A = 1;
 constexpr std::uint8_t DINSTR_HAS_B = 2;
 
-enum DeviceErrCode : int {
-  DERR_NAME = 0,
-  DERR_TYPE = 1,
-  DERR_ZERODIV = 2,
-  DERR_VALUE = 3,
-  DERR_TIMEOUT = 4,
-};
-
 enum DeviceOp : int {
   OP_PUSH_CONST = 0,
   OP_LOAD = 1,
@@ -42,17 +34,6 @@ enum DeviceOp : int {
   OP_JMP_IF_TRUE = 18,
   OP_CALL_BUILTIN = 19,
   OP_RETURN = 20,
-};
-
-enum DeviceBuiltinId : int {
-  DBUILTIN_ABS = 0,
-  DBUILTIN_MIN = 1,
-  DBUILTIN_MAX = 2,
-  DBUILTIN_CLAMP = 3,
-  DBUILTIN_LEN = 4,
-  DBUILTIN_CONCAT = 5,
-  DBUILTIN_SLICE = 6,
-  DBUILTIN_INDEX = 7,
 };
 
 }  // namespace g3pvm::gpu_detail

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "g3pvm/core/builtin.hpp"
 #include "arith_device.cuh"
 
 namespace g3pvm::gpu_detail {
@@ -134,21 +135,21 @@ __device__ inline bool d_register_local_list(DThreadPayloadState& st, const Valu
   return true;
 }
 
-__device__ inline bool d_builtin_call(int bid,
+__device__ inline bool d_builtin_call(BuiltinId bid,
                                       const Value* args,
                                       int argc,
                                       const DPayloadTables& tables,
                                       DThreadPayloadState& payload_state,
                                       Value& out,
-                                      DeviceErrCode& err) {
-  if (bid == DBUILTIN_ABS) {
+                                      ErrCode& err) {
+  if (bid == BuiltinId::Abs) {
     if (argc != 1) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const Value& x = args[0];
     if (!d_is_num(x)) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     out = (x.tag == ValueTag::Float)
@@ -157,35 +158,35 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == DBUILTIN_MIN || bid == DBUILTIN_MAX) {
+  if (bid == BuiltinId::Min || bid == BuiltinId::Max) {
     if (argc != 2) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     double a = 0.0;
     double b = 0.0;
     bool any_float = false;
     if (!d_to_numeric_pair(args[0], args[1], a, b, any_float)) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const double pick =
-        (bid == DBUILTIN_MIN) ? ((a <= b) ? a : b) : ((a >= b) ? a : b);
+        (bid == BuiltinId::Min) ? ((a <= b) ? a : b) : ((a >= b) ? a : b);
     out = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(pick))
                     : Value::from_int(static_cast<long long>(pick));
     return true;
   }
 
-  if (bid == DBUILTIN_CLAMP) {
+  if (bid == BuiltinId::Clip) {
     if (argc != 3) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const Value& x = args[0];
     const Value& lo = args[1];
     const Value& hi = args[2];
     if (!d_is_num(x) || !d_is_num(lo) || !d_is_num(hi)) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const bool any_float =
@@ -195,7 +196,7 @@ __device__ inline bool d_builtin_call(int bid,
       const double lo2 = (lo.tag == ValueTag::Float) ? lo.f : static_cast<double>(lo.i);
       const double hi2 = (hi.tag == ValueTag::Float) ? hi.f : static_cast<double>(hi.i);
       if (lo2 > hi2) {
-        err = DERR_VALUE;
+        err = ErrCode::Value;
         return false;
       }
       out = (x2 < lo2) ? Value::from_float(vm_semantics::canonicalize_vm_float(lo2))
@@ -207,7 +208,7 @@ __device__ inline bool d_builtin_call(int bid,
     const long long lo2 = lo.i;
     const long long hi2 = hi.i;
     if (lo2 > hi2) {
-      err = DERR_VALUE;
+      err = ErrCode::Value;
       return false;
     }
     out = (x2 < lo2) ? Value::from_int(lo2)
@@ -215,23 +216,23 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == DBUILTIN_LEN) {
+  if (bid == BuiltinId::Len) {
     if (argc != 1) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const Value& x = args[0];
     if (x.tag != ValueTag::String && x.tag != ValueTag::List) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     out = Value::from_int(static_cast<long long>(Value::container_len(x)));
     return true;
   }
 
-  if (bid == DBUILTIN_CONCAT) {
+  if (bid == BuiltinId::Concat) {
     if (argc != 2) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const Value& a = args[0];
@@ -282,24 +283,24 @@ __device__ inline bool d_builtin_call(int bid,
       out = Value::from_list_hash_len(h, len);
       return true;
     }
-    err = DERR_TYPE;
+    err = ErrCode::Type;
     return false;
   }
 
-  if (bid == DBUILTIN_SLICE) {
+  if (bid == BuiltinId::Slice) {
     if (argc != 3) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const Value& x = args[0];
     const Value& lo = args[1];
     const Value& hi = args[2];
     if (!(x.tag == ValueTag::String || x.tag == ValueTag::List)) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     if (lo.tag != ValueTag::Int || hi.tag != ValueTag::Int) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const long long n = static_cast<long long>(Value::container_len(x));
@@ -350,25 +351,25 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  if (bid == DBUILTIN_INDEX) {
+  if (bid == BuiltinId::Index) {
     if (argc != 2) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const Value& x = args[0];
     const Value& i = args[1];
     if (!(x.tag == ValueTag::String || x.tag == ValueTag::List)) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     if (i.tag != ValueTag::Int) {
-      err = DERR_TYPE;
+      err = ErrCode::Type;
       return false;
     }
     const long long n = static_cast<long long>(Value::container_len(x));
     long long j = 0;
     if (!d_norm_index_idx(i.i, n, j)) {
-      err = DERR_VALUE;
+      err = ErrCode::Value;
       return false;
     }
     if (x.tag == ValueTag::String) {
@@ -397,7 +398,7 @@ __device__ inline bool d_builtin_call(int bid,
     return true;
   }
 
-  err = DERR_NAME;
+  err = ErrCode::Name;
   return false;
 }
 

@@ -29,20 +29,4 @@ int host_opcode(const std::string& op) {
   return -1;
 }
 
-ErrCode from_device_err(const int code) {
-  if (code == DERR_NAME) return ErrCode::Name;
-  if (code == DERR_TYPE) return ErrCode::Type;
-  if (code == DERR_ZERODIV) return ErrCode::ZeroDiv;
-  if (code == DERR_TIMEOUT) return ErrCode::Timeout;
-  return ErrCode::Value;
-}
-
-const char* device_err_message(const int code) {
-  if (code == DERR_NAME) return "gpu vm name error";
-  if (code == DERR_TYPE) return "gpu vm type error";
-  if (code == DERR_ZERODIV) return "gpu vm zero division";
-  if (code == DERR_TIMEOUT) return "gpu vm timeout";
-  return "gpu vm value error";
-}
-
 }  // namespace g3pvm::gpu_detail

@@ -4,7 +4,7 @@
 
 namespace g3pvm {
 
-enum class ErrCode {
+enum class ErrCode : int {
   Name,
   Type,
   ZeroDiv,

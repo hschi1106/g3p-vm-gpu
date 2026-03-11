@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "g3pvm/core/builtin.hpp"
 #include "g3pvm/core/value_semantics.hpp"
 #include "g3pvm/runtime/cpu/builtins_cpu.hpp"
 
@@ -262,18 +263,12 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
       }
       stack.resize(start);
 
-      std::string name;
-      if (bid == 0) name = "abs";
-      else if (bid == 1) name = "min";
-      else if (bid == 2) name = "max";
-      else if (bid == 3) name = "clip";
-      else if (bid == 4) name = "len";
-      else if (bid == 5) name = "concat";
-      else if (bid == 6) name = "slice";
-      else if (bid == 7) name = "index";
-      else return fail(ErrCode::Name, "unknown builtin id");
+      BuiltinId builtin_id = BuiltinId::Abs;
+      if (!builtin_id_from_int(bid, builtin_id)) {
+        return fail(ErrCode::Name, "unknown builtin id");
+      }
 
-      BuiltinResult out = builtin_call(name, args);
+      BuiltinResult out = builtin_call(builtin_id, args);
       if (out.is_error) {
         return ExecResult{true, Value::none(), out.err};
       }

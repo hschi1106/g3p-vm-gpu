@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "g3pvm/core/errors.hpp"
 #include "g3pvm/core/value.hpp"
 #include "g3pvm/runtime/gpu/constants_gpu.hpp"
 
@@ -16,7 +17,7 @@ struct DInstr {
 
 struct DResult {
   int is_error = 0;
-  int err_code = DERR_VALUE;
+  ErrCode err_code = ErrCode::Value;
   Value value = Value::none();
 };
 
@@ -30,7 +31,7 @@ struct DProgramMeta {
   int case_count = 0;
   int case_local_offset = 0;
   int is_valid = 0;
-  int err_code = DERR_VALUE;
+  ErrCode err_code = ErrCode::Value;
 };
 
 struct DStringPayloadEntry {

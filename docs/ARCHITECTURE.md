@@ -93,7 +93,7 @@ This keeps numeric tasks dense while keeping container semantics exact and simpl
 ## C++ Module Map
 
 ### `cpp/include/g3pvm/core/`
-Public value, error, bytecode, and shared fitness/value semantics headers.
+Public value, error, builtin id, bytecode, and shared fitness/value semantics headers.
 
 ### `cpp/include/g3pvm/runtime/cpu/`
 Public CPU execution, fitness, and builtin interfaces:

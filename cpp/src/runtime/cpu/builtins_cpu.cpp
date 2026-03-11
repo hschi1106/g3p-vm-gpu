@@ -44,8 +44,8 @@ bool normalize_index_idx(long long idx, long long n, long long& out) {
 
 }  // namespace
 
-BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& args) {
-  if (name == "abs") {
+BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
+  if (id == BuiltinId::Abs) {
     if (args.size() != 1) {
       return fail(ErrCode::Type, "abs expects 1 argument");
     }
@@ -60,24 +60,24 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     return out;
   }
 
-  if (name == "min" || name == "max") {
+  if (id == BuiltinId::Min || id == BuiltinId::Max) {
     if (args.size() != 2) {
-      return fail(ErrCode::Type, name + " expects 2 arguments");
+      return fail(ErrCode::Type, std::string(builtin_name(id)) + " expects 2 arguments");
     }
     double a = 0.0;
     double b = 0.0;
     bool any_float = false;
     if (!to_numeric_pair(args[0], args[1], a, b, any_float)) {
-      return fail(ErrCode::Type, name + " expects numeric arguments");
+      return fail(ErrCode::Type, std::string(builtin_name(id)) + " expects numeric arguments");
     }
-    const double pick = (name == "min") ? (a <= b ? a : b) : (a >= b ? a : b);
+    const double pick = (id == BuiltinId::Min) ? (a <= b ? a : b) : (a >= b ? a : b);
     BuiltinResult out;
     out.value = any_float ? Value::from_float(vm_semantics::canonicalize_vm_float(pick))
                           : Value::from_int(static_cast<long long>(pick));
     return out;
   }
 
-  if (name == "clip") {
+  if (id == BuiltinId::Clip) {
     if (args.size() != 3) {
       return fail(ErrCode::Type, "clip expects 3 arguments: clip(x, lo, hi)");
     }
@@ -124,7 +124,7 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     return out;
   }
 
-  if (name == "len") {
+  if (id == BuiltinId::Len) {
     if (args.size() != 1) {
       return fail(ErrCode::Type, "len expects 1 argument");
     }
@@ -137,7 +137,7 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     return out;
   }
 
-  if (name == "concat") {
+  if (id == BuiltinId::Concat) {
     if (args.size() != 2) {
       return fail(ErrCode::Type, "concat expects 2 arguments");
     }
@@ -174,7 +174,7 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     return fail(ErrCode::Type, "concat expects (string,string) or (list,list)");
   }
 
-  if (name == "slice") {
+  if (id == BuiltinId::Slice) {
     if (args.size() != 3) {
       return fail(ErrCode::Type, "slice expects 3 arguments: slice(x, lo, hi)");
     }
@@ -224,7 +224,7 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     return out;
   }
 
-  if (name == "index") {
+  if (id == BuiltinId::Index) {
     if (args.size() != 2) {
       return fail(ErrCode::Type, "index expects 2 arguments: index(x, i)");
     }
@@ -261,7 +261,7 @@ BuiltinResult builtin_call(const std::string& name, const std::vector<Value>& ar
     return out;
   }
 
-  return fail(ErrCode::Name, "unknown builtin: " + name);
+  return fail(ErrCode::Name, "unknown builtin");
 }
 
 }  // namespace g3pvm

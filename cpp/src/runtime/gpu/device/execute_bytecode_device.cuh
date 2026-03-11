@@ -2,15 +2,16 @@
 
 #include <cstdint>
 
+#include "g3pvm/core/builtin.hpp"
 #include "builtins_device.cuh"
 #include "g3pvm/core/value_semantics.hpp"
 #include "g3pvm/runtime/gpu/device_types_gpu.hpp"
 
 namespace g3pvm::gpu_detail {
 
-__device__ inline void d_fail(DResult& out, DeviceErrCode code) {
+__device__ inline void d_fail(DResult& out, ErrCode code) {
   out.is_error = 1;
-  out.err_code = static_cast<int>(code);
+  out.err_code = code;
 }
 
 __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
@@ -23,11 +24,11 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
                                              int fuel) {
   DResult result;
   result.is_error = 0;
-  result.err_code = DERR_VALUE;
+  result.err_code = ErrCode::Value;
   result.value = Value::none();
 
   if (!meta.is_valid) {
-    d_fail(result, static_cast<DeviceErrCode>(meta.err_code));
+    d_fail(result, meta.err_code);
     return result;
   }
 
@@ -52,7 +53,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
   while (ip < meta.code_len) {
     if (fuel_left <= 0) {
-      d_fail(result, DERR_TIMEOUT);
+      d_fail(result, ErrCode::Timeout);
       break;
     }
     fuel_left -= 1;
@@ -62,7 +63,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_PUSH_CONST) {
       if (!d_has_a(ins) || ins.a < 0 || ins.a >= meta.const_len || sp >= MAX_STACK) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       stack[sp++] = all_consts[meta.const_offset + ins.a];
@@ -71,11 +72,11 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_LOAD) {
       if (!d_has_a(ins) || ins.a < 0 || ins.a >= meta.n_locals || sp >= MAX_STACK) {
-        d_fail(result, DERR_NAME);
+        d_fail(result, ErrCode::Name);
         break;
       }
       if ((local_set_mask & (std::uint64_t{1} << ins.a)) == 0) {
-        d_fail(result, DERR_NAME);
+        d_fail(result, ErrCode::Name);
         break;
       }
       stack[sp++] = locals[ins.a];
@@ -84,11 +85,11 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_STORE) {
       if (!d_has_a(ins) || ins.a < 0 || ins.a >= meta.n_locals) {
-        d_fail(result, DERR_NAME);
+        d_fail(result, ErrCode::Name);
         break;
       }
       if (sp < 1) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       locals[ins.a] = stack[--sp];
@@ -98,13 +99,13 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_NEG || ins.op == OP_NOT) {
       if (sp < 1) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       Value x = stack[--sp];
       if (ins.op == OP_NEG) {
         if (!d_is_num(x)) {
-          d_fail(result, DERR_TYPE);
+          d_fail(result, ErrCode::Type);
           break;
         }
         stack[sp++] = (x.tag == ValueTag::Float)
@@ -112,7 +113,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
                           : Value::from_int(vm_semantics::wrap_int_neg(x.i));
       } else {
         if (x.tag != ValueTag::Bool) {
-          d_fail(result, DERR_TYPE);
+          d_fail(result, ErrCode::Type);
           break;
         }
         stack[sp++] = Value::from_bool(!x.b);
@@ -123,7 +124,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
     if (ins.op == OP_ADD || ins.op == OP_SUB || ins.op == OP_MUL || ins.op == OP_DIV ||
         ins.op == OP_MOD) {
       if (sp < 2) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       Value b = stack[--sp];
@@ -132,11 +133,11 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
       double b_num = 0.0;
       bool any_float = false;
       if (!d_to_numeric_pair(a, b, a_num, b_num, any_float)) {
-        d_fail(result, DERR_TYPE);
+        d_fail(result, ErrCode::Type);
         break;
       }
       if ((ins.op == OP_DIV || ins.op == OP_MOD) && b_num == 0.0) {
-        d_fail(result, DERR_ZERODIV);
+        d_fail(result, ErrCode::ZeroDiv);
         break;
       }
       if (ins.op == OP_ADD) {
@@ -165,13 +166,13 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
     if (ins.op == OP_LT || ins.op == OP_LE || ins.op == OP_GT || ins.op == OP_GE ||
         ins.op == OP_EQ || ins.op == OP_NE) {
       if (sp < 2) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       Value b = stack[--sp];
       Value a = stack[--sp];
       bool cmp = false;
-      DeviceErrCode derr = DERR_TYPE;
+      ErrCode derr = ErrCode::Type;
       if (!d_compare(ins.op, a, b, cmp, derr)) {
         d_fail(result, derr);
         break;
@@ -182,7 +183,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_JMP) {
       if (!d_has_a(ins) || ins.a < 0 || ins.a > meta.code_len) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       ip = ins.a;
@@ -191,16 +192,16 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_JMP_IF_FALSE || ins.op == OP_JMP_IF_TRUE) {
       if (sp < 1) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       if (!d_has_a(ins) || ins.a < 0 || ins.a > meta.code_len) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       Value c = stack[--sp];
       if (c.tag != ValueTag::Bool) {
-        d_fail(result, DERR_TYPE);
+        d_fail(result, ErrCode::Type);
         break;
       }
       if (ins.op == OP_JMP_IF_FALSE && !c.b) ip = ins.a;
@@ -209,29 +210,33 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
     }
 
     if (ins.op == OP_CALL_BUILTIN) {
-      const int bid = d_has_a(ins) ? ins.a : -1;
+      BuiltinId bid = BuiltinId::Abs;
       const int argc = d_has_b(ins) ? ins.b : -1;
+      if (!d_has_a(ins) || !builtin_id_from_int(ins.a, bid)) {
+        d_fail(result, ErrCode::Name);
+        break;
+      }
       if (argc < 0 || sp < argc) {
-        d_fail(result, (argc < 0) ? DERR_TYPE : DERR_VALUE);
+        d_fail(result, (argc < 0) ? ErrCode::Type : ErrCode::Value);
         break;
       }
       Value args_buf[4];
       if (argc > 4) {
-        d_fail(result, DERR_TYPE);
+        d_fail(result, ErrCode::Type);
         break;
       }
       for (int i = 0; i < argc; ++i) {
         args_buf[i] = stack[sp - argc + i];
       }
       sp -= argc;
-      DeviceErrCode derr = DERR_TYPE;
+      ErrCode derr = ErrCode::Type;
       Value ret = Value::none();
       if (!d_builtin_call(bid, args_buf, argc, payload_tables, payload_state, ret, derr)) {
         d_fail(result, derr);
         break;
       }
       if (sp >= MAX_STACK) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       stack[sp++] = ret;
@@ -240,7 +245,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
 
     if (ins.op == OP_RETURN) {
       if (sp < 1) {
-        d_fail(result, DERR_VALUE);
+        d_fail(result, ErrCode::Value);
         break;
       }
       result.is_error = 0;
@@ -249,12 +254,12 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
       break;
     }
 
-    d_fail(result, DERR_TYPE);
+    d_fail(result, ErrCode::Type);
     break;
   }
 
   if (!returned && !result.is_error) {
-    d_fail(result, DERR_VALUE);
+    d_fail(result, ErrCode::Value);
   }
   return result;
 }
