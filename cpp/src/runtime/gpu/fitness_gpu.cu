@@ -269,8 +269,8 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   const auto upload_t1 = std::chrono::steady_clock::now();
 
   const auto kernel_t0 = std::chrono::steady_clock::now();
-  gpu_detail::vm_multi_fitness_kernel_shared_cases<<<static_cast<unsigned int>(programs.size()), impl_->blocksize,
-                                                     shared_bytes>>>(
+  gpu_detail::evaluate_fitness_device<<<static_cast<unsigned int>(programs.size()), impl_->blocksize,
+                                        shared_bytes>>>(
       dev.d_consts, dev.d_code, dev.d_metas, impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set,
       impl_->d_expected,
       impl_->d_string_payload_entries, impl_->string_payload_entry_count, impl_->d_string_payload_bytes,
