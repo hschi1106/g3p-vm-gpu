@@ -325,12 +325,7 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
                                                        std::mt19937_64* rng) {
   std::vector<ProgramGenome> next_population;
   next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-  const int elite_count = std::min(cfg.elitism, static_cast<int>(scored.size()));
-  for (int i = 0; i < elite_count; ++i) {
-    next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
-  }
-
-  const int offspring_count = cfg.population_size - elite_count;
+  const int offspring_count = cfg.population_size;
   std::vector<ProgramGenome> selected_parents;
   selected_parents.reserve(static_cast<std::size_t>(offspring_count));
   for (int i = 0; i < offspring_count; ++i) {
@@ -388,7 +383,6 @@ int main() {
   EvolutionConfig cpu_cfg;
   cpu_cfg.population_size = 2048;
   cpu_cfg.generations = 40;
-  cpu_cfg.elitism = 2;
   cpu_cfg.mutation_rate = 0.5;
   cpu_cfg.mutation_subtree_prob = 0.8;
   cpu_cfg.crossover_rate = 0.9;

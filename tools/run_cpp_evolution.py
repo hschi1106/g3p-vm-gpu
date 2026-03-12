@@ -70,7 +70,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--blocksize", type=int, default=256, help="GPU blocksize when --engine gpu.")
     p.add_argument("--population-size", type=int, default=64)
     p.add_argument("--generations", type=int, default=40)
-    p.add_argument("--elitism", type=int, default=2)
     p.add_argument("--mutation-rate", type=float, default=0.5)
     p.add_argument("--mutation-subtree-prob", type=float, default=0.8)
     p.add_argument("--crossover-rate", type=float, default=0.9)
@@ -221,8 +220,6 @@ def main() -> None:
             str(args.population_size),
             "--generations",
             str(args.generations),
-            "--elitism",
-            str(args.elitism),
             "--mutation-rate",
             str(args.mutation_rate),
             "--mutation-subtree-prob",

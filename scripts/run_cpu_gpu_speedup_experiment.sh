@@ -20,7 +20,6 @@ MAX_STMTS_PER_BLOCK=6
 MAX_TOTAL_NODES=80
 MAX_FOR_K=16
 MAX_CALL_ARGS=3
-ELITISM=2
 MUTATION_RATE=0.5
 MUTATION_SUBTREE_PROB=0.8
 CROSSOVER_RATE=0.9
@@ -55,7 +54,6 @@ Options:
   --max-total-nodes N          Generator max AST nodes (default: 80)
   --max-for-k N                Generator max for-range constant (default: 16)
   --max-call-args N            Generator max builtin call arity (default: 3)
-  --elitism N                  One-gen benchmark elitism (default: 2)
   --mutation-rate F            One-gen benchmark mutation rate (default: 0.5)
   --mutation-subtree-prob F    One-gen benchmark mutation subtree probability (default: 0.8)
   --crossover-rate F           One-gen benchmark crossover rate (default: 0.9)
@@ -101,8 +99,6 @@ while [[ $# -gt 0 ]]; do
       MAX_FOR_K="$2"; shift 2 ;;
     --max-call-args)
       MAX_CALL_ARGS="$2"; shift 2 ;;
-    --elitism)
-      ELITISM="$2"; shift 2 ;;
     --mutation-rate)
       MUTATION_RATE="$2"; shift 2 ;;
     --mutation-subtree-prob)
@@ -174,7 +170,6 @@ run_bench() {
     --engine "$engine"
     --blocksize "$BLOCKSIZE"
     --fuel "$FUEL"
-    --elitism "$ELITISM"
     --mutation-rate "$MUTATION_RATE"
     --mutation-subtree-prob "$MUTATION_SUBTREE_PROB"
     --crossover-rate "$CROSSOVER_RATE"
@@ -263,7 +258,6 @@ report = {
         "one_gen_e2e_selection_ms": one_cpu.get("selection_ms"),
         "one_gen_e2e_crossover_ms": one_cpu.get("crossover_ms"),
         "one_gen_e2e_mutation_ms": one_cpu.get("mutation_ms"),
-        "one_gen_e2e_elite_ms": one_cpu.get("elite_ms"),
         "one_gen_e2e_pack_upload_ms": one_cpu.get("pack_upload_ms"),
         "one_gen_e2e_kernel_ms": one_cpu.get("kernel_ms"),
         "one_gen_e2e_copyback_ms": one_cpu.get("copyback_ms"),
@@ -288,7 +282,6 @@ report = {
         "one_gen_e2e_selection_ms": one_gpu.get("selection_ms"),
         "one_gen_e2e_crossover_ms": one_gpu.get("crossover_ms"),
         "one_gen_e2e_mutation_ms": one_gpu.get("mutation_ms"),
-        "one_gen_e2e_elite_ms": one_gpu.get("elite_ms"),
         "one_gen_e2e_pack_upload_ms": one_gpu.get("pack_upload_ms"),
         "one_gen_e2e_kernel_ms": one_gpu.get("kernel_ms"),
         "one_gen_e2e_copyback_ms": one_gpu.get("copyback_ms"),

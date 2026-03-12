@@ -35,7 +35,6 @@ class TestEvolutionLoop(unittest.TestCase):
         cfg = EvolutionConfig(
             population_size=24,
             generations=8,
-            elitism=2,
             mutation_rate=0.7,
             mutation_subtree_prob=0.75,
             crossover_rate=0.9,

@@ -26,7 +26,6 @@ struct EvalCase {
 struct EvolutionConfig {
   int population_size = 64;
   int generations = 40;
-  int elitism = 2;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
   double crossover_rate = 0.9;
@@ -64,7 +63,6 @@ struct EvolutionTiming {
   double generations_selection_ms_total = 0.0;
   double generations_crossover_ms_total = 0.0;
   double generations_mutation_ms_total = 0.0;
-  double generations_elite_copy_ms_total = 0.0;
   double total_ms = 0.0;
   std::vector<double> generation_eval_ms;
   std::vector<double> generation_repro_ms;
@@ -77,7 +75,6 @@ struct EvolutionTiming {
   std::vector<double> generation_selection_ms;
   std::vector<double> generation_crossover_ms;
   std::vector<double> generation_mutation_ms;
-  std::vector<double> generation_elite_copy_ms;
 };
 
 struct EvolutionRun {

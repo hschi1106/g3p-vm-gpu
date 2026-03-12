@@ -47,7 +47,6 @@ struct CliOptions {
   std::string engine = "cpu";
   int blocksize = 256;
   int fuel = 20000;
-  int elitism = 2;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
   double crossover_rate = 0.9;
@@ -154,7 +153,6 @@ CliOptions parse_cli(int argc, char** argv) {
     else if (arg == "--engine") opts.engine = need_value("--engine");
     else if (arg == "--blocksize") opts.blocksize = std::stoi(need_value("--blocksize"));
     else if (arg == "--fuel") opts.fuel = std::stoi(need_value("--fuel"));
-    else if (arg == "--elitism") opts.elitism = std::stoi(need_value("--elitism"));
     else if (arg == "--mutation-rate") opts.mutation_rate = std::stod(need_value("--mutation-rate"));
     else if (arg == "--mutation-subtree-prob") opts.mutation_subtree_prob = std::stod(need_value("--mutation-subtree-prob"));
     else if (arg == "--crossover-rate") opts.crossover_rate = std::stod(need_value("--crossover-rate"));
@@ -333,7 +331,6 @@ struct ReproductionRun {
   double selection_ms = 0.0;
   double crossover_ms = 0.0;
   double mutation_ms = 0.0;
-  double elite_ms = 0.0;
 };
 
 ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
@@ -341,16 +338,7 @@ ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
                                      std::mt19937_64* rng) {
   ReproductionRun out;
   out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-
-  const int elite_count = std::min<int>(cfg.elitism, static_cast<int>(scored.size()));
-  const auto elite_t0 = std::chrono::steady_clock::now();
-  for (int i = 0; i < elite_count; ++i) {
-    out.next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
-  }
-  const auto elite_t1 = std::chrono::steady_clock::now();
-  out.elite_ms = std::chrono::duration<double, std::milli>(elite_t1 - elite_t0).count();
-
-  const int offspring_count = static_cast<int>(cfg.population_size) - elite_count;
+  const int offspring_count = static_cast<int>(cfg.population_size);
   std::vector<ProgramGenome> selected_parents;
   selected_parents.reserve(static_cast<std::size_t>(offspring_count));
 
@@ -415,7 +403,6 @@ int main(int argc, char** argv) {
     EvolutionConfig cfg;
     cfg.population_size = static_cast<int>(population.size());
     cfg.generations = 1;
-    cfg.elitism = args.elitism;
     cfg.mutation_rate = args.mutation_rate;
     cfg.mutation_subtree_prob = args.mutation_subtree_prob;
     cfg.crossover_rate = args.crossover_rate;
@@ -475,7 +462,6 @@ int main(int argc, char** argv) {
               << " selection_ms=" << reproduction.selection_ms
               << " crossover_ms=" << reproduction.crossover_ms
               << " mutation_ms=" << reproduction.mutation_ms
-              << " elite_ms=" << reproduction.elite_ms
               << " total_ms=" << total_ms
               << " pack_upload_ms=" << eval.pack_upload_ms
               << " kernel_ms=" << eval.kernel_ms

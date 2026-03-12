@@ -30,7 +30,6 @@ bool run_one(int selection_pressure) {
   g3pvm::evo::EvolutionConfig cfg;
   cfg.population_size = 24;
   cfg.generations = 8;
-  cfg.elitism = 2;
   cfg.mutation_rate = 0.7;
   cfg.mutation_subtree_prob = 0.8;
   cfg.crossover_rate = 0.9;

@@ -22,7 +22,6 @@ class FitnessCase:
 class EvolutionConfig:
     population_size: int = 64
     generations: int = 40
-    elitism: int = 2
     mutation_rate: float = 0.5
     mutation_subtree_prob: float = 0.8
     crossover_rate: float = 0.9
@@ -112,8 +111,6 @@ def evolve_population(
         raise ValueError("population_size must be > 0")
     if cfg.generations <= 0:
         raise ValueError("generations must be > 0")
-    if cfg.elitism < 0 or cfg.elitism > cfg.population_size:
-        raise ValueError("elitism must be in [0, population_size]")
     if cfg.selection_pressure <= 0:
         raise ValueError("selection_pressure must be > 0")
     if cfg.penalty < 0:
@@ -135,21 +132,31 @@ def evolve_population(
         history_best_fitness.append(best.fitness)
         history_mean_fitness.append(sum(item.fitness for item in scored) / len(scored))
 
-        next_population: List[ProgramGenome] = [item.genome for item in scored[: cfg.elitism]]
-        while len(next_population) < cfg.population_size:
-            parent_a = select_parent_tournament(scored, rng, cfg.selection_pressure)
-            child = parent_a
-            if rng.random() < cfg.crossover_rate:
-                parent_b = select_parent_tournament(scored, rng, cfg.selection_pressure)
-                child = crossover(parent_a, parent_b, seed=rng.randint(0, 2_000_000_000), limits=cfg.limits)
+        selected_parents: List[ProgramGenome] = [
+            select_parent_tournament(scored, rng, cfg.selection_pressure) for _ in range(cfg.population_size)
+        ]
+        next_population = list(selected_parents)
+        if len(selected_parents) > 1:
+            for i, parent_a in enumerate(selected_parents):
+                if rng.random() >= cfg.crossover_rate:
+                    continue
+                mate_idx = rng.randrange(len(selected_parents))
+                if mate_idx == i:
+                    mate_idx = (mate_idx + 1) % len(selected_parents)
+                next_population[i] = crossover(
+                    parent_a,
+                    selected_parents[mate_idx],
+                    seed=rng.randint(0, 2_000_000_000),
+                    limits=cfg.limits,
+                )
+        for i, child in enumerate(next_population):
             if rng.random() < cfg.mutation_rate:
-                child = mutate(
+                next_population[i] = mutate(
                     child,
                     seed=rng.randint(0, 2_000_000_000),
                     limits=cfg.limits,
                     mutation_subtree_prob=cfg.mutation_subtree_prob,
                 )
-            next_population.append(child)
         population = next_population
 
     final_scored = evaluate_population(population, cases, cfg)

@@ -80,7 +80,6 @@ int main() {
   g3pvm::evo::EvolutionConfig cpu_cfg;
   cpu_cfg.population_size = 64;
   cpu_cfg.generations = 8;
-  cpu_cfg.elitism = 2;
   cpu_cfg.mutation_rate = 0.7;
   cpu_cfg.mutation_subtree_prob = 0.8;
   cpu_cfg.crossover_rate = 0.9;

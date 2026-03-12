@@ -101,7 +101,6 @@ struct ReproductionResult {
   double selection_ms = 0.0;
   double crossover_ms = 0.0;
   double mutation_ms = 0.0;
-  double elite_copy_ms = 0.0;
 };
 
 CompiledPopulation compile_population(const std::vector<ProgramGenome>& population,
@@ -231,16 +230,7 @@ ReproductionResult reproduce_population(const std::vector<ScoredGenome>& scored,
                                         std::mt19937_64& rng) {
   ReproductionResult out;
   out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-
-  const int elite_count = std::min(cfg.elitism, static_cast<int>(scored.size()));
-  const auto elite_t0 = std::chrono::steady_clock::now();
-  for (int i = 0; i < elite_count; ++i) {
-    out.next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
-  }
-  const auto elite_t1 = std::chrono::steady_clock::now();
-  out.elite_copy_ms = std::chrono::duration<double, std::milli>(elite_t1 - elite_t0).count();
-
-  const int offspring_count = cfg.population_size - elite_count;
+  const int offspring_count = cfg.population_size;
   std::vector<ProgramGenome> selected_parents;
   selected_parents.reserve(static_cast<std::size_t>(offspring_count));
 
@@ -343,9 +333,6 @@ EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
   if (cfg.generations <= 0) {
     throw std::invalid_argument("generations must be > 0");
   }
-  if (cfg.elitism < 0 || cfg.elitism > cfg.population_size) {
-    throw std::invalid_argument("elitism must be in [0, population_size]");
-  }
 
   const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);
@@ -379,7 +366,6 @@ EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
   run.timing.generation_selection_ms.reserve(static_cast<std::size_t>(cfg.generations));
   run.timing.generation_crossover_ms.reserve(static_cast<std::size_t>(cfg.generations));
   run.timing.generation_mutation_ms.reserve(static_cast<std::size_t>(cfg.generations));
-  run.timing.generation_elite_copy_ms.reserve(static_cast<std::size_t>(cfg.generations));
 
   CompileCache compile_cache;
 #ifdef G3PVM_HAS_CUDA
@@ -436,11 +422,9 @@ EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
     run.timing.generations_selection_ms_total += reproduction.selection_ms;
     run.timing.generations_crossover_ms_total += reproduction.crossover_ms;
     run.timing.generations_mutation_ms_total += reproduction.mutation_ms;
-    run.timing.generations_elite_copy_ms_total += reproduction.elite_copy_ms;
     run.timing.generation_selection_ms.push_back(reproduction.selection_ms);
     run.timing.generation_crossover_ms.push_back(reproduction.crossover_ms);
     run.timing.generation_mutation_ms.push_back(reproduction.mutation_ms);
-    run.timing.generation_elite_copy_ms.push_back(reproduction.elite_copy_ms);
 
     run.timing.generation_eval_ms.push_back(
         std::chrono::duration<double, std::milli>(eval_t1 - eval_t0).count());

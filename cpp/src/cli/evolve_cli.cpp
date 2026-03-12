@@ -30,7 +30,6 @@ struct CliOptions {
   int blocksize = 256;
   int population_size = 64;
   int generations = 40;
-  int elitism = 2;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
   double crossover_rate = 0.9;
@@ -196,8 +195,6 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.population_size = std::stoi(need_value("--population-size"));
     } else if (arg == "--generations") {
       opts.generations = std::stoi(need_value("--generations"));
-    } else if (arg == "--elitism") {
-      opts.elitism = std::stoi(need_value("--elitism"));
     } else if (arg == "--mutation-rate") {
       opts.mutation_rate = std::stod(need_value("--mutation-rate"));
     } else if (arg == "--mutation-subtree-prob") {
@@ -282,7 +279,6 @@ int main(int argc, char** argv) {
     g3pvm::evo::EvolutionConfig cfg;
     cfg.population_size = args.population_size;
     cfg.generations = args.generations;
-    cfg.elitism = args.elitism;
     cfg.mutation_rate = args.mutation_rate;
     cfg.mutation_subtree_prob = args.mutation_subtree_prob;
     cfg.crossover_rate = args.crossover_rate;
@@ -362,8 +358,6 @@ int main(int argc, char** argv) {
                 << run.timing.generations_crossover_ms_total << "\n";
       std::cout << "TIMING phase=generations_mutation_total ms=" << std::fixed << std::setprecision(3)
                 << run.timing.generations_mutation_ms_total << "\n";
-      std::cout << "TIMING phase=generations_elite_copy_total ms=" << std::fixed << std::setprecision(3)
-                << run.timing.generations_elite_copy_ms_total << "\n";
       std::cout << "TIMING phase=cpu_generations_program_compile_total ms=" << std::fixed << std::setprecision(3)
                 << run.timing.cpu_generations_program_compile_ms_total << "\n";
       std::cout << "TIMING phase=final_eval ms=" << std::fixed << std::setprecision(3)
@@ -393,7 +387,6 @@ int main(int argc, char** argv) {
                   << " selection_ms=" << run.timing.generation_selection_ms[i]
                   << " crossover_ms=" << run.timing.generation_crossover_ms[i]
                   << " mutation_ms=" << run.timing.generation_mutation_ms[i]
-                  << " elite_ms=" << run.timing.generation_elite_copy_ms[i]
                   << " cpu_compile_ms=" << run.timing.generation_cpu_program_compile_ms[i] << "\n";
         if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
           std::cout << "TIMING gpu_gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
@@ -438,7 +431,6 @@ int main(int argc, char** argv) {
       out << "      \"generations_selection_ms_total\": " << run.timing.generations_selection_ms_total << ",\n";
       out << "      \"generations_crossover_ms_total\": " << run.timing.generations_crossover_ms_total << ",\n";
       out << "      \"generations_mutation_ms_total\": " << run.timing.generations_mutation_ms_total << ",\n";
-      out << "      \"generations_elite_copy_ms_total\": " << run.timing.generations_elite_copy_ms_total << ",\n";
       out << "      \"total_ms\": " << run.timing.total_ms << "\n";
       out << "    }\n";
       out << "  },\n";
@@ -478,7 +470,6 @@ int main(int argc, char** argv) {
       dump_vec("generation_selection_ms", run.timing.generation_selection_ms, false);
       dump_vec("generation_crossover_ms", run.timing.generation_crossover_ms, false);
       dump_vec("generation_mutation_ms", run.timing.generation_mutation_ms, false);
-      dump_vec("generation_elite_copy_ms", run.timing.generation_elite_copy_ms, false);
       dump_vec("generation_total_ms", run.timing.generation_total_ms, true);
       out << "  },\n";
 

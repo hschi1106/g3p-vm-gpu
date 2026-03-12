@@ -97,7 +97,7 @@ This benchmark now uses a fixed generated population instead of a multi-generati
 It reports four phase-oriented metrics:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only; `compile` is intentionally excluded
-- `repro`: one-generation host-side reproduction work
+- `repro`: one-generation host-side selection, crossover, and mutation work
 - `one-gen-e2e`: `compile + eval + repro` plus the remaining one-generation orchestration
 
 Reusable fixed populations for the canonical fixtures live in `data/fixtures/programs/`.

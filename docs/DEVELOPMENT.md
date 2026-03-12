@@ -54,10 +54,9 @@ Core execution args:
 Evolution args:
 - `--population-size N`: individuals per generation
 - `--generations N`: number of generations to run
-- `--elitism N`: number of elites copied without mutation/crossover
-- `--mutation-rate F`: probability that a non-elite child is mutated
+- `--mutation-rate F`: probability that a selected child is mutated
 - `--mutation-subtree-prob F`: internal mutation operator mix; probability of typed-subtree mutation instead of constant perturbation
-- `--crossover-rate F`: probability that a child is built via crossover instead of direct reproduction
+- `--crossover-rate F`: probability that a selected child is rebuilt via crossover
 - `--selection-pressure N`: tournament size; larger values increase selection pressure
 - `--seed N`: RNG seed for deterministic replay
 
@@ -98,7 +97,6 @@ Fixed-population benchmark args:
 - `--engine {cpu|gpu}`: evaluation backend
 - `--blocksize N`: GPU block size when `--engine gpu`
 - `--fuel N`: per-program execution budget
-- `--elitism N`
 - `--mutation-rate F`
 - `--mutation-subtree-prob F`
 - `--crossover-rate F`
@@ -109,14 +107,14 @@ Metric semantics:
 - `compile_ms`: compile-cache lookup plus any required genome-to-bytecode compilation
 - `eval_ms`: fitness execution only; compile time is excluded
 - `repro_ms`: one-generation reproduction work after the current population has been scored
-- `selection_ms`: tournament-selection pool construction for all non-elite offspring
+- `selection_ms`: tournament-selection pool construction for the full offspring pool
 - `crossover_ms`: crossover pass over the selected parent pool
 - `mutation_ms`: mutation pass over the post-crossover offspring pool
 - `one-gen-e2e total_ms`: the full one-generation benchmark wall time
 
 Mode notes:
 - `eval-only` reports `compile_ms`, `eval_ms`, and `total_ms`; GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
-- `one-gen-e2e` reports `compile_ms`, `eval_ms`, `repro_ms`, `selection_ms`, `crossover_ms`, `mutation_ms`, `elite_ms`, and `total_ms`
+- `one-gen-e2e` reports `compile_ms`, `eval_ms`, `repro_ms`, `selection_ms`, `crossover_ms`, `mutation_ms`, and `total_ms`
 - `one-gen-e2e` stops after producing the next population; it does not evaluate the next population
 
 ### `tools/run_cpp_evolution.py`
@@ -133,7 +131,6 @@ Execution args:
 Evolution and fitness args:
 - `--population-size N`
 - `--generations N`
-- `--elitism N`
 - `--mutation-rate F`
 - `--mutation-subtree-prob F`
 - `--crossover-rate F`
@@ -231,7 +228,6 @@ Benchmark args:
 - `--max-total-nodes N`
 - `--max-for-k N`
 - `--max-call-args N`
-- `--elitism N`
 - `--mutation-rate F`
 - `--mutation-subtree-prob F`
 - `--crossover-rate F`
@@ -295,7 +291,7 @@ This benchmark uses one fixed population for both CPU and GPU runs.
 The canonical interpretation is:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only
-- `repro`: one-generation selection, elitism, crossover, and mutation work
+- `repro`: one-generation selection, crossover, and mutation work
 - `one-gen-e2e`: the full one-generation benchmark cost
 
 `eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
