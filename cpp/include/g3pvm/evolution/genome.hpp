@@ -88,8 +88,6 @@ struct ProgramGenome {
 };
 
 ProgramGenome make_random_genome(std::uint64_t seed, const Limits& limits = Limits{});
-BytecodeProgram compile_for_eval(const ProgramGenome& genome,
-                                 const std::vector<std::string>& preset_locals = {});
 
 std::string ast_to_string(const AstProgram& program);
 std::string ast_cache_key(const AstProgram& program);

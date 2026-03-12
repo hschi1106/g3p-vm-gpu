@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 
+#include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/mutation.hpp"

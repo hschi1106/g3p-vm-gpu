@@ -9,6 +9,6 @@
 namespace g3pvm::evo {
 
 BytecodeProgram compile_for_eval(const ProgramGenome& genome,
-                                 const std::vector<std::string>& preset_locals);
+                                 const std::vector<std::string>& preset_locals = {});
 
 }  // namespace g3pvm::evo

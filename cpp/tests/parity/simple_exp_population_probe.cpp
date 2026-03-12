@@ -12,6 +12,7 @@
 #include "g3pvm/cli/codec.hpp"
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/core/value_semantics.hpp"
+#include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/mutation.hpp"
