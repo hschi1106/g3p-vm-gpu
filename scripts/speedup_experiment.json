@@ -1,0 +1,30 @@
+{
+  "bench_cli": "cpp/build/g3pvm_population_bench_cli",
+  "fixtures": [
+    "data/fixtures/bouncing_balls_1024.json",
+    "data/fixtures/gcd_1024.json",
+    "data/fixtures/middle_character_1024.json",
+    "data/fixtures/simple_affine_2x_plus_3_1024.json",
+    "data/fixtures/simple_exp_1024.json",
+    "data/fixtures/simple_square_x2_1024.json",
+    "data/fixtures/simple_x_plus_1_1024.json",
+    "data/fixtures/solve_boolean_1024.json"
+  ],
+  "population_sizes": [1024],
+  "blocksize": 256,
+  "seed_start": 0,
+  "probe_cases": 32,
+  "min_success_rate": 0.1,
+  "fuel": 20000,
+  "max_expr_depth": 5,
+  "max_stmts_per_block": 6,
+  "max_total_nodes": 80,
+  "max_for_k": 16,
+  "max_call_args": 3,
+  "mutation_rate": 0.5,
+  "mutation_subtree_prob": 0.8,
+  "crossover_rate": 0.9,
+  "penalty": 1.0,
+  "selection_pressure": 3,
+  "outdir_prefix": "logs/fixture_speedup"
+}

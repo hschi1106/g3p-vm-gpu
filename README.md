@@ -71,7 +71,7 @@ ctest --test-dir cpp/build --output-on-failure
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure
-bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 64
+python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --population-sizes 64 --probe-cases 8 --min-success-rate 0.0
 ```
 
 ## Main Entrypoints
@@ -88,15 +88,18 @@ cpp/build/g3pvm_evolve_cli \
   --out-json logs/simple_exp_1024.run.json
 ```
 
-### Run CPU vs GPU benchmark
+### Run CPU vs GPU benchmark sweep
 
 ```bash
-bash scripts/run_cpu_gpu_speedup_experiment.sh \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --popsize 1024
+python3 scripts/speedup_experiment.py
 ```
 
-This benchmark now generates one fixed population per run instead of using a multi-generation evolution run.
+This script reads [speedup_experiment.json](scripts/speedup_experiment.json),
+runs all configured fixtures, and writes one report directory containing:
+- per-fixture CPU/GPU reports
+- an aggregate summary JSON/Markdown
+
+Each fixture benchmark generates one fixed population per run instead of using a multi-generation evolution run.
 It always executes one complete generation and reports a phase breakdown:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only; `compile` is intentionally excluded
@@ -104,16 +107,14 @@ It always executes one complete generation and reports a phase breakdown:
 - `selection`, `crossover`, `mutation`: the internal reproduction phases
 - `total`: the full one-generation benchmark wall time
 
-### Generate and benchmark one fixed population in one step
+### Run one small benchmark smoke
 
 ```bash
-cpp/build/g3pvm_population_bench_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --out-population-json logs/fixed_population.json \
-  --population-size 1024 \
-  --probe-cases 32 \
-  --min-success-rate 0.10 \
-  --engine cpu
+python3 scripts/speedup_experiment.py \
+  --fixtures bouncing_balls_1024 \
+  --population-sizes 64 \
+  --probe-cases 8 \
+  --min-success-rate 0.0
 ```
 
 ### Convert PSB2 task into `fitness-cases-v1`

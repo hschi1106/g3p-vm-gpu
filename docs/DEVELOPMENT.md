@@ -27,7 +27,7 @@ ctest --test-dir cpp/build --output-on-failure
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure
-bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 64
+python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --population-sizes 64 --probe-cases 8 --min-success-rate 0.0
 ```
 
 ## GPU Run Policy
@@ -136,29 +136,37 @@ Dataset-conversion args:
 - `--out-test PATH`: optional test fixture output path
 - `--summary-json PATH`: optional conversion summary JSON path
 
-### `scripts/run_cpu_gpu_speedup_experiment.sh`
+### `scripts/speedup_experiment.py`
 
 Benchmark args:
-- `--cases PATH`: benchmark fixture, usually `data/fixtures/bouncing_balls_1024.json`
-- `--popsize N`: population size used in both CPU and GPU runs
-- `--blocksize N`: GPU block size
-- `--bench-cli PATH`: fixed-population benchmark executable
-- `--seed-start N`: first candidate seed used during population generation
-- `--probe-cases N`: fixture cases probed while filtering candidate programs
-- `--min-success-rate F`: minimum accepted non-error probe ratio
-- `--fuel N`: shared execution budget
-- `--max-expr-depth N`
-- `--max-stmts-per-block N`
-- `--max-total-nodes N`
-- `--max-for-k N`
-- `--max-call-args N`
-- `--mutation-rate F`
-- `--mutation-subtree-prob F`
-- `--crossover-rate F`
-- `--penalty F`
-- `--selection-pressure N`: tournament size for both runs
-- `--cpp-cli PATH`: alias for `--bench-cli` kept for compatibility
-- `--outdir PATH`: output directory for compare reports and raw run logs
+- `--config PATH`: override the default JSON config in `scripts/`
+- `--fixtures LIST`: comma-separated fixture stems or paths to run; default runs all configured fixtures
+- `--outdir PATH`: output directory for reports
+- `--bench-cli PATH`: override the benchmark CLI executable
+- `--population-sizes LIST`: override configured population sizes
+- `--probe-cases N`: override configured probe case count
+- `--min-success-rate F`: override configured acceptance threshold
+
+Config keys in `scripts/speedup_experiment.json`:
+- `bench_cli`
+- `fixtures`
+- `population_sizes`
+- `blocksize`
+- `seed_start`
+- `probe_cases`
+- `min_success_rate`
+- `fuel`
+- `max_expr_depth`
+- `max_stmts_per_block`
+- `max_total_nodes`
+- `max_for_k`
+- `max_call_args`
+- `mutation_rate`
+- `mutation_subtree_prob`
+- `crossover_rate`
+- `penalty`
+- `selection_pressure`
+- `outdir_prefix`
 
 Report shape:
 - `cpu.compile_ms`, `gpu.compile_ms`
@@ -175,12 +183,10 @@ Report shape:
 ### Canonical speed benchmark
 
 ```bash
-bash scripts/run_cpu_gpu_speedup_experiment.sh \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --popsize 1024
+python3 scripts/speedup_experiment.py
 ```
 
-This benchmark generates one fixed population per run and uses that same population for both CPU and GPU runs.
+This benchmark sweep generates one fixed population per fixture run and uses that same generation configuration for both CPU and GPU runs.
 The canonical interpretation is:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only
@@ -189,16 +195,14 @@ The canonical interpretation is:
 
 `eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
 
-### Generate and benchmark one fixed population in one step
+### Run one small benchmark smoke
 
 ```bash
-cpp/build/g3pvm_population_bench_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --out-population-json logs/fixed_population.json \
-  --population-size 1024 \
-  --probe-cases 32 \
-  --min-success-rate 0.10 \
-  --engine cpu
+python3 scripts/speedup_experiment.py \
+  --fixtures bouncing_balls_1024 \
+  --population-sizes 64 \
+  --probe-cases 8 \
+  --min-success-rate 0.0
 ```
 
 Primary metrics to track:
