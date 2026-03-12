@@ -24,7 +24,10 @@ ctest --test-dir cpp/build --output-on-failure
 ### Recommended full check
 
 ```bash
-bash scripts/run_triplet_checks.sh
+PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+cmake --build cpp/build -j4
+scripts/run_gpu_command.sh -- ctest --test-dir cpp/build --output-on-failure
+bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 64
 ```
 
 ## GPU Run Policy
@@ -105,40 +108,6 @@ Metric semantics:
 - `total_ms`: the full one-generation benchmark wall time
 - GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
 
-### `tools/run_cpp_evolution.py`
-
-This is the main human-facing wrapper around `g3pvm_evolve_cli`.
-
-Execution args:
-- `--cases PATH`: input `fitness-cases-v1` file
-- `--cpp-cli PATH`: native evolve CLI executable
-- `--engine {cpu|gpu}`: CPU or GPU evaluation
-- `--blocksize N`: GPU block size when `--engine gpu`
-- `--timeout-sec N`: subprocess timeout in seconds; `0` disables timeout
-
-Evolution and fitness args:
-- `--population-size N`
-- `--generations N`
-- `--mutation-rate F`
-- `--mutation-subtree-prob F`
-- `--crossover-rate F`
-- `--selection-pressure N`
-- `--penalty F`
-- `--seed N`
-- `--fuel N`
-- `--max-expr-depth N`
-- `--max-stmts-per-block N`
-- `--max-total-nodes N`
-- `--max-for-k N`
-- `--max-call-args N`
-
-Output and diagnostics args:
-- `--show-program {none|ast|bytecode|both}`: request final-program rendering from native CLI
-- `--cpp-timing {none|summary|per_gen|all}`: timing detail requested from native CLI
-- `--log-dir PATH`: directory for stdout, stderr, timing, summary, and evolution JSON artifacts
-- `--run-tag TAG`: suffix used in generated log filenames
-- `--print-command`: print the exact subprocess command before execution
-
 ### `tools/fetch_psb2_datasets.py`
 
 Dataset-fetch args:
@@ -168,34 +137,12 @@ Dataset-conversion args:
 - `--out-test PATH`: optional test fixture output path
 - `--summary-json PATH`: optional conversion summary JSON path
 
-### `tools/run_psb2_all_tasks.py`
-
-Dataset selection args:
-- `--datasets-root PATH`: root containing `data/psb2_datasets/<task>/...`
-- `--tasks LIST|all`: comma-separated task list or `all`
-- `--n-train N`: training cases per task after conversion
-- `--n-test N`: test cases per task after conversion
-- `--seed N`: conversion and evolution seed
-
-Evolution args passed through to `run_cpp_evolution.py`:
-- `--engine {cpu|gpu}`
-- `--blocksize N`
-- `--population-size N`
-- `--generations N`
-- `--selection-pressure N`
-- `--penalty F`
-- `--cpp-cli PATH`
-- `--run-cpp-tool PATH`
-- `--log-dir PATH`
-
 ### `scripts/run_cpu_gpu_speedup_experiment.sh`
 
 Benchmark args:
 - `--cases PATH`: benchmark fixture, usually `data/fixtures/bouncing_balls_1024.json`
 - `--popsize N`: population size used in both CPU and GPU runs
-- `--generations N`: accepted for compatibility but ignored by the fixed-population benchmark flow
 - `--blocksize N`: GPU block size
-- `--generator-cli PATH`: fixed-population generator executable
 - `--bench-cli PATH`: fixed-population benchmark executable
 - `--seed-start N`: first candidate seed used during population generation
 - `--probe-cases N`: fixture cases probed while filtering candidate programs
@@ -218,42 +165,11 @@ Report shape:
 - `cpu.compile_ms`, `gpu.compile_ms`
 - `cpu.eval_ms`, `gpu.eval_ms`
 - `cpu.repro_ms`, `gpu.repro_ms`
-- `cpu.one_gen_e2e_total_ms`, `gpu.one_gen_e2e_total_ms`
+- `cpu.total_ms`, `gpu.total_ms`
 - `speedup.compile_cpu_over_gpu`
 - `speedup.eval_cpu_over_gpu`
 - `speedup.repro_cpu_over_gpu`
-- `speedup.one_gen_e2e_cpu_over_gpu`
-
-### `tools/run_v1_release_gate.py`
-
-Gate orchestration args:
-- `--out-dir PATH`: root output directory for gate artifacts
-- `--cpp-build-dir PATH`: build tree passed to `ctest`
-- `--cpp-cli PATH`: native evolve CLI
-- `--baseline-speed-report PATH`: reference speedup report used by the speed gate
-- `--speedup-threshold-ratio F`: minimum acceptable fraction of baseline speedup
-
-Speed benchmark args:
-- `--speed-population-size N`
-- `--speed-generations N`
-- `--speed-blocksize N`
-
-Evolution gate args:
-- `--exp-cases PATH`
-- `--exp-population-size N`
-- `--exp-generations N`
-- `--exp-engine {cpu|gpu}`
-
-PSB2 gate args:
-- `--psb2-datasets-root PATH`
-- `--psb2-n-train N`
-- `--psb2-n-test N`
-- `--psb2-population-size N`
-- `--psb2-generations N`
-
-Optional skips:
-- `--skip-python-tests`
-- `--skip-cpp-tests`
+- `speedup.total_cpu_over_gpu`
 
 ## Benchmark Workflow
 
@@ -293,23 +209,23 @@ Primary metrics to track:
 - `gpu.eval_ms`
 - `cpu.repro_ms`
 - `gpu.repro_ms`
-- `cpu.one_gen_e2e_total_ms`
-- `gpu.one_gen_e2e_total_ms`
+- `cpu.total_ms`
+- `gpu.total_ms`
 - `speedup.compile_cpu_over_gpu`
 - `speedup.eval_cpu_over_gpu`
 - `speedup.repro_cpu_over_gpu`
-- `speedup.one_gen_e2e_cpu_over_gpu`
+- `speedup.total_cpu_over_gpu`
 
 ### Canonical evolution-progress run
 
 ```bash
-scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py \
+scripts/run_gpu_command.sh -- cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
-  --cpp-cli cpp/build/g3pvm_evolve_cli \
   --engine gpu \
   --blocksize 256 \
   --population-size 1024 \
-  --generations 20
+  --generations 20 \
+  --out-json logs/simple_exp_1024.run.json
 ```
 
 ## PSB2 Workflow
@@ -326,17 +242,6 @@ python3 tools/convert_psb2_to_fitness_cases.py \
   --out logs/psb2/converted/bouncing-balls.train.json \
   --out-test logs/psb2/converted/bouncing-balls.test.json \
   --summary-json logs/psb2/converted/bouncing-balls.summary.json
-```
-
-### Run all tasks
-
-```bash
-python3 tools/run_psb2_all_tasks.py \
-  --datasets-root data/psb2_datasets \
-  --tasks all \
-  --engine gpu \
-  --population-size 1024 \
-  --generations 20
 ```
 
 ## Document Sync Rules

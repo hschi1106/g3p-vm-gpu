@@ -44,7 +44,7 @@ g3p-vm-gpu/
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, native tests
 - `spec/`: normative behavior contracts
 - `docs/`: operational and architectural documentation
-- `tools/`: conversion, orchestration, reporting, and gate tools
+- `tools/`: dataset fetch, conversion, and audit utilities
 - `scripts/`: direct execution wrappers used by humans and agents
 - `data/`: fixtures and datasets
 - `logs/`: generated artifacts

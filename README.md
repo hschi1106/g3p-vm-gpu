@@ -46,7 +46,7 @@ Use the documents below as the source of truth.
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
 - `cpp/src/cli/`: `evolve_cli`, benchmark/population utilities
 - `cpp/src/bench/`: benchmark binaries
-- `tools/`: conversion, orchestration, release-gate tools
+- `tools/`: dataset conversion and audit utilities
 - `scripts/`: execution wrappers and convenience scripts
 
 ## Quick Start
@@ -68,7 +68,10 @@ ctest --test-dir cpp/build --output-on-failure
 ### Full local check
 
 ```bash
-bash scripts/run_triplet_checks.sh
+PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+cmake --build cpp/build -j4
+scripts/run_gpu_command.sh -- ctest --test-dir cpp/build --output-on-failure
+bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 64
 ```
 
 ## Main Entrypoints
@@ -76,13 +79,13 @@ bash scripts/run_triplet_checks.sh
 ### Run one evolution job
 
 ```bash
-python3 tools/run_cpp_evolution.py \
+scripts/run_gpu_command.sh -- cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
-  --cpp-cli cpp/build/g3pvm_evolve_cli \
   --engine gpu \
   --blocksize 256 \
   --population-size 1024 \
-  --generations 20
+  --generations 20 \
+  --out-json logs/simple_exp_1024.run.json
 ```
 
 ### Run CPU vs GPU benchmark
@@ -120,17 +123,6 @@ python3 tools/convert_psb2_to_fitness_cases.py \
   --edge-file data/psb2_datasets/bouncing-balls/bouncing-balls-edge.json \
   --random-file data/psb2_datasets/bouncing-balls/bouncing-balls-random.json \
   --out logs/psb2/bouncing-balls.train.json
-```
-
-### Run all PSB2 tasks
-
-```bash
-python3 tools/run_psb2_all_tasks.py \
-  --datasets-root data/psb2_datasets \
-  --tasks all \
-  --engine gpu \
-  --population-size 1024 \
-  --generations 20
 ```
 
 ## GPU Commands
