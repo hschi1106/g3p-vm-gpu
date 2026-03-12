@@ -104,6 +104,9 @@ ProgramGenome mutate(const ProgramGenome& genome,
   if (out.meta.node_count > limits.max_total_nodes) {
     return genome;
   }
+  if (out.meta.max_depth > limits.max_expr_depth) {
+    return genome;
+  }
   for (const AstNode& node : out.ast.nodes) {
     if (node.kind == NodeKind::FOR_RANGE && (node.i1 < 0 || node.i1 > limits.max_for_k)) {
       return genome;

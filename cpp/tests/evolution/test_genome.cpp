@@ -99,6 +99,31 @@ bool test_ast_cache_key_distinguishes_program_payload() {
   return true;
 }
 
+bool test_build_genome_meta_tracks_max_expr_depth() {
+  using g3pvm::Value;
+  using g3pvm::evo::AstProgram;
+  using g3pvm::evo::AstNode;
+  using g3pvm::evo::NodeKind;
+
+  AstProgram program;
+  program.nodes = {
+      AstNode{NodeKind::PROGRAM, 0, 0},
+      AstNode{NodeKind::BLOCK_CONS, 0, 0},
+      AstNode{NodeKind::RETURN, 0, 0},
+      AstNode{NodeKind::ADD, 0, 0},
+      AstNode{NodeKind::NEG, 0, 0},
+      AstNode{NodeKind::CONST, 0, 0},
+      AstNode{NodeKind::MUL, 0, 0},
+      AstNode{NodeKind::CONST, 1, 0},
+      AstNode{NodeKind::CONST, 2, 0},
+      AstNode{NodeKind::BLOCK_NIL, 0, 0},
+  };
+  program.consts = {Value::from_int(1), Value::from_int(2), Value::from_int(3)};
+
+  const g3pvm::evo::GenomeMeta meta = g3pvm::evo::build_genome_meta(program);
+  return check(meta.max_depth == 3, "genome meta should track max expression depth");
+}
+
 }  // namespace
 
 int main() {
@@ -106,6 +131,7 @@ int main() {
   if (!test_mutation_and_crossover_invariants()) return 1;
   if (!test_for_k_constraints()) return 1;
   if (!test_ast_cache_key_distinguishes_program_payload()) return 1;
+  if (!test_build_genome_meta_tracks_max_expr_depth()) return 1;
   std::cout << "g3pvm_test_genome: OK\n";
   return 0;
 }

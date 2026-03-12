@@ -34,6 +34,9 @@ ProgramGenome build_valid_child(const AstProgram& candidate,
   if (out.meta.node_count > limits.max_total_nodes) {
     return fallback_parent;
   }
+  if (out.meta.max_depth > limits.max_expr_depth) {
+    return fallback_parent;
+  }
   for (const AstNode& node : out.ast.nodes) {
     if (node.kind == NodeKind::FOR_RANGE && (node.i1 < 0 || node.i1 > limits.max_for_k)) {
       return fallback_parent;
