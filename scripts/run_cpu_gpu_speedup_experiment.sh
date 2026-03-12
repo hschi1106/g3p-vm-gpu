@@ -152,11 +152,7 @@ run_bench() {
     --max-call-args "$MAX_CALL_ARGS"
     --out-population-json "$POP_JSON"
   )
-  if [[ "$engine" == "gpu" ]]; then
-    scripts/run_gpu_command.sh -- "${cmd[@]}" | tee "$outfile"
-  else
-    "${cmd[@]}" | tee "$outfile"
-  fi
+  "${cmd[@]}" | tee "$outfile"
 }
 
 echo "[exp] running one-gen-e2e CPU..."

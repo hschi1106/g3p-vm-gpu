@@ -48,19 +48,17 @@
 ## Profiling Guidelines
 - GPU profiling must use `nsys` only.
 - Do not use `ncu` in this project environment.
-- If GPU execution fails due to device contention or occupancy, explicitly retry with `CUDA_VISIBLE_DEVICES=0` and `CUDA_VISIBLE_DEVICES=1`.
+- GPU-capable C++ paths select the least-used visible CUDA device internally.
+- To force a specific visible-device index for a run, use `G3PVM_CUDA_DEVICE=0` or `G3PVM_CUDA_DEVICE=1`.
 
 ## GPU Device Runbook
-- Always run GPU commands through:
-  ```bash
-  scripts/run_gpu_command.sh -- <gpu_command> [args...]
-  ```
-- The wrapper automatically tries `CUDA_VISIBLE_DEVICES=0` then `CUDA_VISIBLE_DEVICES=1`.
+- Run GPU-capable binaries directly.
+- The C++ GPU runtime selects the least-used visible CUDA device automatically.
 - Recommended examples:
   ```bash
-  scripts/run_gpu_command.sh -- ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
-  scripts/run_gpu_command.sh -- python3 tools/run_cpp_evolution.py --cases data/fixtures/bouncing_balls_1024.json --cpp-cli cpp/build/g3pvm_evolve_cli --engine gpu --blocksize 256 --population-size 64 --generations 2
-  scripts/run_gpu_command.sh -- bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 1024
+  ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
+  cpp/build/g3pvm_evolve_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --blocksize 256 --population-size 64 --generations 2 --out-json logs/bouncing_balls_1024.run.json
+  bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 1024
   ```
 
 ## Commit & Pull Request Guidelines

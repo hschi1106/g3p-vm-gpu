@@ -26,19 +26,18 @@ ctest --test-dir cpp/build --output-on-failure
 ```bash
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
-scripts/run_gpu_command.sh -- ctest --test-dir cpp/build --output-on-failure
+ctest --test-dir cpp/build --output-on-failure
 bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 64
 ```
 
 ## GPU Run Policy
 
-All GPU commands must go through:
+GPU-capable C++ paths select the least-used visible CUDA device internally.
+To force a specific visible-device index for a run, set:
 
 ```bash
-scripts/run_gpu_command.sh -- <gpu_command> [args...]
+G3PVM_CUDA_DEVICE=0
 ```
-
-The wrapper retries `CUDA_VISIBLE_DEVICES=0` and then `1` on device-unavailable failures.
 
 ## Public CLI And Script Arguments
 
@@ -219,7 +218,7 @@ Primary metrics to track:
 ### Canonical evolution-progress run
 
 ```bash
-scripts/run_gpu_command.sh -- cpp/build/g3pvm_evolve_cli \
+cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
   --blocksize 256 \

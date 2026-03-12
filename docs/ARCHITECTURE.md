@@ -160,7 +160,7 @@ Benchmark binaries for runtime-focused measurement.
 - `data/fixtures/`: canonical benchmark fixtures
 - `data/psb2_datasets/`: PSB2 dataset mirror used by fetch/convert/audit utilities
 - `tools/`: dataset fetch, conversion, and audit utilities
-- `scripts/`: operational wrappers that should be used directly by humans and agents
+- `scripts/`: benchmark and experiment entry scripts
 - `logs/`: generated run artifacts, benchmark reports, gate outputs
 
 ## What To Update When Code Changes

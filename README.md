@@ -70,7 +70,7 @@ ctest --test-dir cpp/build --output-on-failure
 ```bash
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
-scripts/run_gpu_command.sh -- ctest --test-dir cpp/build --output-on-failure
+ctest --test-dir cpp/build --output-on-failure
 bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_balls_1024.json --popsize 64
 ```
 
@@ -79,7 +79,7 @@ bash scripts/run_cpu_gpu_speedup_experiment.sh --cases data/fixtures/bouncing_ba
 ### Run one evolution job
 
 ```bash
-scripts/run_gpu_command.sh -- cpp/build/g3pvm_evolve_cli \
+cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
   --blocksize 256 \
@@ -127,13 +127,12 @@ python3 tools/convert_psb2_to_fitness_cases.py \
 
 ## GPU Commands
 
-Always run GPU commands through:
+GPU-capable C++ paths select the least-used visible CUDA device internally.
+To force a specific visible-device index, set:
 
 ```bash
-scripts/run_gpu_command.sh -- <gpu_command> [args...]
+G3PVM_CUDA_DEVICE=0
 ```
-
-The wrapper retries `CUDA_VISIBLE_DEVICES=0` then `CUDA_VISIBLE_DEVICES=1` when the device is unavailable.
 
 ## Change Discipline
 

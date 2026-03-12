@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <string>
@@ -72,7 +73,38 @@ double ms_between(std::chrono::steady_clock::time_point a, std::chrono::steady_c
   return std::chrono::duration<double, std::milli>(b - a).count();
 }
 
-bool select_least_used_device(cudaDeviceProp& props_out, std::string& message_out) {
+bool query_device(int dev, cudaDeviceProp& props_out, std::string& message_out) {
+  const cudaError_t set_err = cudaSetDevice(dev);
+  if (set_err != cudaSuccess) {
+    message_out = "cuda device select failure err=";
+    message_out += cudaGetErrorString(set_err);
+    return false;
+  }
+
+  const cudaError_t prop_err = cudaGetDeviceProperties(&props_out, dev);
+  if (prop_err != cudaSuccess) {
+    message_out = "cuda device query failure err=";
+    message_out += cudaGetErrorString(prop_err);
+    return false;
+  }
+  return true;
+}
+
+bool parse_env_device_override(int* out_dev) {
+  const char* raw = std::getenv("G3PVM_CUDA_DEVICE");
+  if (raw == nullptr || *raw == '\0') {
+    return false;
+  }
+  char* end = nullptr;
+  const long parsed = std::strtol(raw, &end, 10);
+  if (end == raw || *end != '\0' || parsed < 0 || parsed > std::numeric_limits<int>::max()) {
+    return false;
+  }
+  *out_dev = static_cast<int>(parsed);
+  return true;
+}
+
+bool select_gpu_device(cudaDeviceProp& props_out, std::string& message_out) {
   int device_count = 0;
   const cudaError_t count_err = cudaGetDeviceCount(&device_count);
   if (count_err != cudaSuccess || device_count <= 0) {
@@ -82,6 +114,15 @@ bool select_least_used_device(cudaDeviceProp& props_out, std::string& message_ou
       message_out += cudaGetErrorString(count_err);
     }
     return false;
+  }
+
+  int override_dev = -1;
+  if (parse_env_device_override(&override_dev)) {
+    if (override_dev >= device_count) {
+      message_out = "cuda device override out of range";
+      return false;
+    }
+    return query_device(override_dev, props_out, message_out);
   }
 
   int best_dev = -1;
@@ -113,21 +154,7 @@ bool select_least_used_device(cudaDeviceProp& props_out, std::string& message_ou
     return false;
   }
 
-  const cudaError_t set_err = cudaSetDevice(best_dev);
-  if (set_err != cudaSuccess) {
-    message_out = "cuda device select failure err=";
-    message_out += cudaGetErrorString(set_err);
-    return false;
-  }
-
-  const cudaError_t prop_err = cudaGetDeviceProperties(&props_out, best_dev);
-  if (prop_err != cudaSuccess) {
-    message_out = "cuda device query failure err=";
-    message_out += cudaGetErrorString(prop_err);
-    return false;
-  }
-
-  return true;
+  return query_device(best_dev, props_out, message_out);
 }
 
 }  // namespace
@@ -186,7 +213,7 @@ FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseBindings>& share
   }
 
   std::string select_msg;
-  if (!select_least_used_device(impl_->props, select_msg)) {
+  if (!select_gpu_device(impl_->props, select_msg)) {
     return fitness_single_error(ErrCode::Value, select_msg);
   }
   if (blocksize > impl_->props.maxThreadsPerBlock) {

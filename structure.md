@@ -45,7 +45,7 @@ g3p-vm-gpu/
 - `spec/`: normative behavior contracts
 - `docs/`: operational and architectural documentation
 - `tools/`: dataset fetch, conversion, and audit utilities
-- `scripts/`: direct execution wrappers used by humans and agents
+- `scripts/`: benchmark and experiment entry scripts
 - `data/`: fixtures and datasets
 - `logs/`: generated artifacts
 

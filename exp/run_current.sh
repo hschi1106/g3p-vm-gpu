@@ -10,13 +10,13 @@ bash "${EXP_DIR}/build_repro_proto_bench.sh"
 
 mkdir -p "${RESULTS_DIR}"
 
-"${ROOT_DIR}/scripts/run_gpu_command.sh" -- \
+G3PVM_CUDA_DEVICE="${G3PVM_CUDA_DEVICE:-0}" \
   "${BENCH_BIN}" \
   --population-size 1024 \
   --child-count 1024 \
   --out-json "${RESULTS_DIR}/current_pop1024.json"
 
-"${ROOT_DIR}/scripts/run_gpu_command.sh" -- \
+G3PVM_CUDA_DEVICE="${G3PVM_CUDA_DEVICE:-0}" \
   "${BENCH_BIN}" \
   --population-size 4096 \
   --child-count 4096 \
