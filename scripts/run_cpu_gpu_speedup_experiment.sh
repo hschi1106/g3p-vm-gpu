@@ -5,10 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 CASES="data/fixtures/bouncing_balls_1024.json"
-GENERATOR_CLI="cpp/build/g3pvm_generate_population_cli"
 BENCH_CLI="cpp/build/g3pvm_population_bench_cli"
 POPSIZE=1024
-GENERATIONS=1
 BLOCKSIZE=256
 OUTDIR=""
 SEED_START=0
@@ -30,18 +28,12 @@ usage() {
   cat <<USAGE
 Usage: scripts/run_cpu_gpu_speedup_experiment.sh [options]
 
-Run fixed-population CPU/GPU speed benchmark and write logs + compare report.
-
-Primary metrics:
-  - eval-only
-  - one-gen-e2e
+Run one-generation CPU/GPU benchmark on one fixed population and write logs + compare report.
 
 Options:
   --cases PATH                 Benchmark fixture (default: data/fixtures/bouncing_balls_1024.json)
   --popsize N                  Population size for generated fixed population (default: 1024)
-  --generations N              Accepted for compatibility; ignored by this benchmark (default: 1)
   --blocksize N                GPU blocksize (default: 256)
-  --generator-cli PATH         Population generator CLI (default: cpp/build/g3pvm_generate_population_cli)
   --bench-cli PATH             Population benchmark CLI (default: cpp/build/g3pvm_population_bench_cli)
   --cpp-cli PATH               Alias for --bench-cli for compatibility
   --outdir PATH                Output directory (default: logs/cpu_gpu_compare_pop<pop>_<timestamp>)
@@ -69,12 +61,8 @@ while [[ $# -gt 0 ]]; do
       CASES="$2"; shift 2 ;;
     --popsize)
       POPSIZE="$2"; shift 2 ;;
-    --generations)
-      GENERATIONS="$2"; shift 2 ;;
     --blocksize)
       BLOCKSIZE="$2"; shift 2 ;;
-    --generator-cli)
-      GENERATOR_CLI="$2"; shift 2 ;;
     --bench-cli)
       BENCH_CLI="$2"; shift 2 ;;
     --cpp-cli)
@@ -128,10 +116,6 @@ if [[ ! -f "$CASES" ]]; then
   echo "Missing cases file: $CASES" >&2
   exit 2
 fi
-if [[ ! -x "$GENERATOR_CLI" ]]; then
-  echo "Missing or non-executable generator cli: $GENERATOR_CLI" >&2
-  exit 2
-fi
 if [[ ! -x "$BENCH_CLI" ]]; then
   echo "Missing or non-executable bench cli: $BENCH_CLI" >&2
   exit 2
@@ -140,33 +124,15 @@ fi
 POP_JSON="$OUTDIR/fixed_population.seeds.json"
 
 echo "[exp] outdir: $OUTDIR"
-echo "[exp] popsize=$POPSIZE blocksize=$BLOCKSIZE generations_ignored=$GENERATIONS"
-echo "[exp] primary_metrics=eval-only,one-gen-e2e"
-
-echo "[exp] generating fixed population..."
-"$GENERATOR_CLI" \
-  --cases "$CASES" \
-  --out-json "$POP_JSON" \
-  --population-size "$POPSIZE" \
-  --seed-start "$SEED_START" \
-  --probe-cases "$PROBE_CASES" \
-  --min-success-rate "$MIN_SUCCESS_RATE" \
-  --fuel "$FUEL" \
-  --max-expr-depth "$MAX_EXPR_DEPTH" \
-  --max-stmts-per-block "$MAX_STMTS_PER_BLOCK" \
-  --max-total-nodes "$MAX_TOTAL_NODES" \
-  --max-for-k "$MAX_FOR_K" \
-  --max-call-args "$MAX_CALL_ARGS" | tee "$OUTDIR/generate_population.console.log"
+echo "[exp] popsize=$POPSIZE blocksize=$BLOCKSIZE"
+echo "[exp] primary_metric=one-generation-e2e"
 
 run_bench() {
   local engine="$1"
-  local mode="$2"
-  local outfile="$3"
+  local outfile="$2"
   local -a cmd=(
     "$BENCH_CLI"
     --cases "$CASES"
-    --population-json "$POP_JSON"
-    --mode "$mode"
     --engine "$engine"
     --blocksize "$BLOCKSIZE"
     --fuel "$FUEL"
@@ -176,6 +142,22 @@ run_bench() {
     --penalty "$PENALTY"
     --selection-pressure "$SELECTION_PRESSURE"
   )
+  if [[ -f "$POP_JSON" ]]; then
+    cmd+=(--population-json "$POP_JSON")
+  else
+    cmd+=(
+      --population-size "$POPSIZE"
+      --seed-start "$SEED_START"
+      --probe-cases "$PROBE_CASES"
+      --min-success-rate "$MIN_SUCCESS_RATE"
+      --max-expr-depth "$MAX_EXPR_DEPTH"
+      --max-stmts-per-block "$MAX_STMTS_PER_BLOCK"
+      --max-total-nodes "$MAX_TOTAL_NODES"
+      --max-for-k "$MAX_FOR_K"
+      --max-call-args "$MAX_CALL_ARGS"
+      --out-population-json "$POP_JSON"
+    )
+  fi
   if [[ "$engine" == "gpu" ]]; then
     scripts/run_gpu_command.sh -- "${cmd[@]}" | tee "$outfile"
   else
@@ -183,17 +165,11 @@ run_bench() {
   fi
 }
 
-echo "[exp] running eval-only CPU..."
-run_bench cpu eval-only "$OUTDIR/eval_only_cpu.console.log"
-
-echo "[exp] running eval-only GPU..."
-run_bench gpu eval-only "$OUTDIR/eval_only_gpu.console.log"
-
 echo "[exp] running one-gen-e2e CPU..."
-run_bench cpu one-gen-e2e "$OUTDIR/one_gen_cpu.console.log"
+run_bench cpu "$OUTDIR/one_gen_cpu.console.log"
 
 echo "[exp] running one-gen-e2e GPU..."
-run_bench gpu one-gen-e2e "$OUTDIR/one_gen_gpu.console.log"
+run_bench gpu "$OUTDIR/one_gen_gpu.console.log"
 
 echo "[exp] generating compare report..."
 python3 - "$OUTDIR" <<'PY'
@@ -203,7 +179,6 @@ import re
 import sys
 
 outdir = sys.argv[1]
-
 BENCH_RE = re.compile(r"^BENCH\s+(?P<body>.+)$")
 
 def parse_value(raw: str):
@@ -234,70 +209,23 @@ def speedup(cpu_ms, gpu_ms):
         return None
     return cpu_ms / gpu_ms
 
-eval_cpu = parse_bench(os.path.join(outdir, "eval_only_cpu.console.log"))
-eval_gpu = parse_bench(os.path.join(outdir, "eval_only_gpu.console.log"))
-one_cpu = parse_bench(os.path.join(outdir, "one_gen_cpu.console.log"))
-one_gpu = parse_bench(os.path.join(outdir, "one_gen_gpu.console.log"))
+cpu = parse_bench(os.path.join(outdir, "one_gen_cpu.console.log"))
+gpu = parse_bench(os.path.join(outdir, "one_gen_gpu.console.log"))
 
 report = {
-    "benchmark_type": "fixed_population_compare_v1",
+    "benchmark_type": "fixed_population_compare_v2",
     "population_json": os.path.join(outdir, "fixed_population.seeds.json"),
-    "cpu": {
-        "compile_ms": eval_cpu.get("compile_ms"),
-        "eval_ms": eval_cpu.get("eval_ms"),
-        "eval_only_ms": eval_cpu.get("total_ms"),
-        "eval_only_checksum": eval_cpu.get("checksum"),
-        "eval_pack_upload_ms": eval_cpu.get("pack_upload_ms"),
-        "eval_kernel_ms": eval_cpu.get("kernel_ms"),
-        "eval_copyback_ms": eval_cpu.get("copyback_ms"),
-        "eval_session_init_ms": eval_cpu.get("session_init_ms"),
-        "one_gen_e2e_total_ms": one_cpu.get("total_ms"),
-        "one_gen_e2e_compile_ms": one_cpu.get("compile_ms"),
-        "one_gen_e2e_eval_ms": one_cpu.get("eval_ms"),
-        "one_gen_e2e_repro_ms": one_cpu.get("repro_ms"),
-        "one_gen_e2e_selection_ms": one_cpu.get("selection_ms"),
-        "one_gen_e2e_crossover_ms": one_cpu.get("crossover_ms"),
-        "one_gen_e2e_mutation_ms": one_cpu.get("mutation_ms"),
-        "one_gen_e2e_pack_upload_ms": one_cpu.get("pack_upload_ms"),
-        "one_gen_e2e_kernel_ms": one_cpu.get("kernel_ms"),
-        "one_gen_e2e_copyback_ms": one_cpu.get("copyback_ms"),
-        "one_gen_e2e_session_init_ms": one_cpu.get("session_init_ms"),
-        "one_gen_e2e_mean_fitness": one_cpu.get("mean_fitness"),
-        "one_gen_e2e_best_fitness": one_cpu.get("best_fitness"),
-        "one_gen_e2e_best_program_key": one_cpu.get("best_program_key"),
+    "cpu": cpu,
+    "gpu": gpu,
+    "speedup": {
+        "compile_cpu_over_gpu": speedup(cpu.get("compile_ms"), gpu.get("compile_ms")),
+        "eval_cpu_over_gpu": speedup(cpu.get("eval_ms"), gpu.get("eval_ms")),
+        "repro_cpu_over_gpu": speedup(cpu.get("repro_ms"), gpu.get("repro_ms")),
+        "selection_cpu_over_gpu": speedup(cpu.get("selection_ms"), gpu.get("selection_ms")),
+        "crossover_cpu_over_gpu": speedup(cpu.get("crossover_ms"), gpu.get("crossover_ms")),
+        "mutation_cpu_over_gpu": speedup(cpu.get("mutation_ms"), gpu.get("mutation_ms")),
+        "total_cpu_over_gpu": speedup(cpu.get("total_ms"), gpu.get("total_ms")),
     },
-    "gpu": {
-        "compile_ms": eval_gpu.get("compile_ms"),
-        "eval_ms": eval_gpu.get("eval_ms"),
-        "eval_only_ms": eval_gpu.get("total_ms"),
-        "eval_only_checksum": eval_gpu.get("checksum"),
-        "eval_pack_upload_ms": eval_gpu.get("pack_upload_ms"),
-        "eval_kernel_ms": eval_gpu.get("kernel_ms"),
-        "eval_copyback_ms": eval_gpu.get("copyback_ms"),
-        "eval_session_init_ms": eval_gpu.get("session_init_ms"),
-        "one_gen_e2e_total_ms": one_gpu.get("total_ms"),
-        "one_gen_e2e_compile_ms": one_gpu.get("compile_ms"),
-        "one_gen_e2e_eval_ms": one_gpu.get("eval_ms"),
-        "one_gen_e2e_repro_ms": one_gpu.get("repro_ms"),
-        "one_gen_e2e_selection_ms": one_gpu.get("selection_ms"),
-        "one_gen_e2e_crossover_ms": one_gpu.get("crossover_ms"),
-        "one_gen_e2e_mutation_ms": one_gpu.get("mutation_ms"),
-        "one_gen_e2e_pack_upload_ms": one_gpu.get("pack_upload_ms"),
-        "one_gen_e2e_kernel_ms": one_gpu.get("kernel_ms"),
-        "one_gen_e2e_copyback_ms": one_gpu.get("copyback_ms"),
-        "one_gen_e2e_session_init_ms": one_gpu.get("session_init_ms"),
-        "one_gen_e2e_mean_fitness": one_gpu.get("mean_fitness"),
-        "one_gen_e2e_best_fitness": one_gpu.get("best_fitness"),
-        "one_gen_e2e_best_program_key": one_gpu.get("best_program_key"),
-    },
-}
-report["speedup"] = {
-    "compile_cpu_over_gpu": speedup(report["cpu"]["compile_ms"], report["gpu"]["compile_ms"]),
-    "eval_cpu_over_gpu": speedup(report["cpu"]["eval_ms"], report["gpu"]["eval_ms"]),
-    "repro_cpu_over_gpu": speedup(report["cpu"]["one_gen_e2e_repro_ms"], report["gpu"]["one_gen_e2e_repro_ms"]),
-    "eval_only_cpu_over_gpu": speedup(report["cpu"]["eval_only_ms"], report["gpu"]["eval_only_ms"]),
-    "one_gen_e2e_cpu_over_gpu": speedup(report["cpu"]["one_gen_e2e_total_ms"], report["gpu"]["one_gen_e2e_total_ms"]),
-    "inner_total_cpu_over_gpu": speedup(report["cpu"]["one_gen_e2e_total_ms"], report["gpu"]["one_gen_e2e_total_ms"]),
 }
 
 json_path = os.path.join(outdir, "cpu_gpu_compare.report.json")
@@ -319,11 +247,8 @@ lines.append(f"- benchmark_type: `{report['benchmark_type']}`")
 lines.append("")
 lines.append("## Speedup")
 lines.append("")
-lines.append(f"- compile_cpu_over_gpu: {fmt_speed(report['speedup']['compile_cpu_over_gpu'])}")
-lines.append(f"- eval_cpu_over_gpu: {fmt_speed(report['speedup']['eval_cpu_over_gpu'])}")
-lines.append(f"- repro_cpu_over_gpu: {fmt_speed(report['speedup']['repro_cpu_over_gpu'])}")
-lines.append(f"- eval_only_cpu_over_gpu: {fmt_speed(report['speedup']['eval_only_cpu_over_gpu'])}")
-lines.append(f"- one_gen_e2e_cpu_over_gpu: {fmt_speed(report['speedup']['one_gen_e2e_cpu_over_gpu'])}")
+for key, value in report["speedup"].items():
+    lines.append(f"- {key}: {fmt_speed(value)}")
 lines.append("")
 lines.append("## CPU")
 lines.append("")

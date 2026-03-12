@@ -48,11 +48,6 @@ add_executable(g3pvm_evolve_cli
 )
 target_link_libraries(g3pvm_evolve_cli PRIVATE g3pvm_cpu)
 
-add_executable(g3pvm_generate_population_cli
-  src/cli/generate_population_cli.cpp
-)
-target_link_libraries(g3pvm_generate_population_cli PRIVATE g3pvm_cpu)
-
 add_executable(g3pvm_population_bench_cli
   src/cli/population_bench_cli.cpp
 )

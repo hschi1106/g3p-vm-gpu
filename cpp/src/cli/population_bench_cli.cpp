@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -17,9 +19,10 @@
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/mutation.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #ifdef G3PVM_HAS_CUDA
 #include "g3pvm/runtime/gpu/fitness_gpu.hpp"
@@ -31,20 +34,22 @@
 
 namespace {
 
+using g3pvm::BytecodeProgram;
+using g3pvm::CaseBindings;
+using g3pvm::ExecResult;
+using g3pvm::InputBinding;
 using g3pvm::Value;
 using g3pvm::cli_detail::JsonValue;
-using g3pvm::evo::EvolutionConfig;
 using g3pvm::evo::EvalCase;
+using g3pvm::evo::EvolutionConfig;
 using g3pvm::evo::NamedInputs;
 using g3pvm::evo::ProgramGenome;
 using g3pvm::evo::ScoredGenome;
-using g3pvm::InputBinding;
-using g3pvm::CaseBindings;
 
 struct CliOptions {
   std::string cases_path;
   std::string population_json;
-  std::string mode = "one-gen-e2e";
+  std::string out_population_json;
   std::string engine = "cpu";
   int blocksize = 256;
   int fuel = 20000;
@@ -53,6 +58,57 @@ struct CliOptions {
   double crossover_rate = 0.9;
   double penalty = 1.0;
   int selection_pressure = 3;
+  int population_size = 1024;
+  std::uint64_t seed_start = 0;
+  int probe_cases = 32;
+  double min_success_rate = 0.10;
+  int max_attempts = 200000;
+  int max_expr_depth = 5;
+  int max_stmts_per_block = 6;
+  int max_total_nodes = 80;
+  int max_for_k = 16;
+  int max_call_args = 3;
+};
+
+struct PopulationSeedSet {
+  g3pvm::evo::Limits limits;
+  std::vector<std::uint64_t> seeds;
+};
+
+struct AcceptedSeed {
+  std::uint64_t seed = 0;
+  int probe_successes = 0;
+  int node_count = 0;
+  std::string program_key;
+};
+
+struct GeneratedPopulation {
+  PopulationSeedSet seed_set;
+  std::vector<ProgramGenome> population;
+  int attempts = 0;
+  int probe_case_count = 0;
+  int min_successes = 0;
+};
+
+struct CompiledPopulation {
+  std::vector<BytecodeProgram> programs;
+  double compile_ms = 0.0;
+};
+
+struct EvalRun {
+  std::vector<double> fitness;
+  double eval_ms = 0.0;
+  double session_init_ms = 0.0;
+  double pack_upload_ms = 0.0;
+  double kernel_ms = 0.0;
+  double copyback_ms = 0.0;
+};
+
+struct ReproductionRun {
+  std::vector<ProgramGenome> next_population;
+  double selection_ms = 0.0;
+  double crossover_ms = 0.0;
+  double mutation_ms = 0.0;
 };
 
 std::string read_text_file(const std::string& path) {
@@ -117,6 +173,9 @@ std::vector<EvalCase> parse_cases_v1(const JsonValue& payload) {
     }
     out.push_back(EvalCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
   }
+  if (out.empty()) {
+    throw std::runtime_error("cases must not be empty");
+  }
   return out;
 }
 
@@ -130,7 +189,7 @@ CliOptions parse_cli(int argc, char** argv) {
     };
     if (arg == "--cases") opts.cases_path = need_value("--cases");
     else if (arg == "--population-json") opts.population_json = need_value("--population-json");
-    else if (arg == "--mode") opts.mode = need_value("--mode");
+    else if (arg == "--out-population-json") opts.out_population_json = need_value("--out-population-json");
     else if (arg == "--engine") opts.engine = need_value("--engine");
     else if (arg == "--blocksize") opts.blocksize = std::stoi(need_value("--blocksize"));
     else if (arg == "--fuel") opts.fuel = std::stoi(need_value("--fuel"));
@@ -139,23 +198,32 @@ CliOptions parse_cli(int argc, char** argv) {
     else if (arg == "--crossover-rate") opts.crossover_rate = std::stod(need_value("--crossover-rate"));
     else if (arg == "--penalty") opts.penalty = std::stod(need_value("--penalty"));
     else if (arg == "--selection-pressure") opts.selection_pressure = std::stoi(need_value("--selection-pressure"));
+    else if (arg == "--population-size") opts.population_size = std::stoi(need_value("--population-size"));
+    else if (arg == "--seed-start") opts.seed_start = static_cast<std::uint64_t>(std::stoull(need_value("--seed-start")));
+    else if (arg == "--probe-cases") opts.probe_cases = std::stoi(need_value("--probe-cases"));
+    else if (arg == "--min-success-rate") opts.min_success_rate = std::stod(need_value("--min-success-rate"));
+    else if (arg == "--max-attempts") opts.max_attempts = std::stoi(need_value("--max-attempts"));
+    else if (arg == "--max-expr-depth") opts.max_expr_depth = std::stoi(need_value("--max-expr-depth"));
+    else if (arg == "--max-stmts-per-block") opts.max_stmts_per_block = std::stoi(need_value("--max-stmts-per-block"));
+    else if (arg == "--max-total-nodes") opts.max_total_nodes = std::stoi(need_value("--max-total-nodes"));
+    else if (arg == "--max-for-k") opts.max_for_k = std::stoi(need_value("--max-for-k"));
+    else if (arg == "--max-call-args") opts.max_call_args = std::stoi(need_value("--max-call-args"));
     else throw std::runtime_error("unknown argument: " + arg);
   }
   if (opts.cases_path.empty()) throw std::runtime_error("--cases is required");
-  if (opts.population_json.empty()) throw std::runtime_error("--population-json is required");
-  if (opts.mode != "eval-only" && opts.mode != "one-gen-e2e") {
-    throw std::runtime_error("--mode must be eval-only or one-gen-e2e");
-  }
   if (opts.engine != "cpu" && opts.engine != "gpu") {
     throw std::runtime_error("--engine must be cpu or gpu");
   }
+  if (opts.population_json.empty()) {
+    if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
+    if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
+    if (opts.min_success_rate < 0.0 || opts.min_success_rate > 1.0) {
+      throw std::runtime_error("--min-success-rate must be in [0, 1]");
+    }
+    if (opts.max_attempts <= 0) throw std::runtime_error("--max-attempts must be > 0");
+  }
   return opts;
 }
-
-struct PopulationSeedSet {
-  g3pvm::evo::Limits limits;
-  std::vector<std::uint64_t> seeds;
-};
 
 PopulationSeedSet parse_population_seed_set(const JsonValue& root) {
   if (root.kind != JsonValue::Kind::Object) {
@@ -186,13 +254,17 @@ PopulationSeedSet parse_population_seed_set(const JsonValue& root) {
   return out;
 }
 
-std::vector<ProgramGenome> make_population_from_seeds(const PopulationSeedSet& seed_set) {
-  std::vector<ProgramGenome> out;
-  out.reserve(seed_set.seeds.size());
-  for (std::uint64_t seed : seed_set.seeds) {
-    out.push_back(g3pvm::evo::generate_random_genome(seed, seed_set.limits));
+std::string json_escape(const std::string& s) {
+  std::ostringstream oss;
+  for (char c : s) {
+    if (c == '"') oss << "\\\"";
+    else if (c == '\\') oss << "\\\\";
+    else if (c == '\n') oss << "\\n";
+    else if (c == '\r') oss << "\\r";
+    else if (c == '\t') oss << "\\t";
+    else oss << c;
   }
-  return out;
+  return oss.str();
 }
 
 std::vector<std::string> build_canonical_input_names(const std::vector<EvalCase>& cases) {
@@ -232,10 +304,148 @@ std::vector<Value> build_expected_values(const std::vector<EvalCase>& cases) {
   return out;
 }
 
-struct CompiledPopulation {
-  std::vector<g3pvm::BytecodeProgram> programs;
-  double compile_ms = 0.0;
-};
+std::vector<std::pair<int, Value>> case_inputs_to_locals(const EvalCase& one_case,
+                                                         const std::vector<std::string>& input_names) {
+  std::vector<std::pair<int, Value>> out;
+  out.reserve(input_names.size());
+  for (std::size_t i = 0; i < input_names.size(); ++i) {
+    auto it = one_case.inputs.find(input_names[i]);
+    if (it != one_case.inputs.end()) {
+      out.push_back({static_cast<int>(i), it->second});
+    }
+  }
+  return out;
+}
+
+std::vector<ProgramGenome> make_population_from_seeds(const PopulationSeedSet& seed_set) {
+  std::vector<ProgramGenome> out;
+  out.reserve(seed_set.seeds.size());
+  for (std::uint64_t seed : seed_set.seeds) {
+    out.push_back(g3pvm::evo::generate_random_genome(seed, seed_set.limits));
+  }
+  return out;
+}
+
+void write_population_seed_set(const std::string& path,
+                               const PopulationSeedSet& seed_set,
+                               const std::vector<AcceptedSeed>* accepted,
+                               const std::string& cases_path,
+                               int probe_case_count,
+                               double min_success_rate,
+                               int fuel,
+                               int attempts) {
+  std::ofstream out(path);
+  if (!out) {
+    throw std::runtime_error("failed to open out-population-json path");
+  }
+  out << "{\n";
+  out << "  \"format_version\": \"population-seeds-v1\",\n";
+  out << "  \"cases_path\": \"" << json_escape(cases_path) << "\",\n";
+  out << "  \"population_size\": " << seed_set.seeds.size() << ",\n";
+  out << "  \"probe_cases\": " << probe_case_count << ",\n";
+  out << "  \"min_success_rate\": " << std::setprecision(17) << min_success_rate << ",\n";
+  out << "  \"fuel\": " << fuel << ",\n";
+  out << "  \"attempts\": " << attempts << ",\n";
+  out << "  \"limits\": {\n";
+  out << "    \"max_expr_depth\": " << seed_set.limits.max_expr_depth << ",\n";
+  out << "    \"max_stmts_per_block\": " << seed_set.limits.max_stmts_per_block << ",\n";
+  out << "    \"max_total_nodes\": " << seed_set.limits.max_total_nodes << ",\n";
+  out << "    \"max_for_k\": " << seed_set.limits.max_for_k << ",\n";
+  out << "    \"max_call_args\": " << seed_set.limits.max_call_args << "\n";
+  out << "  },\n";
+  out << "  \"seeds\": [\n";
+  for (std::size_t i = 0; i < seed_set.seeds.size(); ++i) {
+    out << "    {\"seed\": " << seed_set.seeds[i];
+    if (accepted != nullptr) {
+      const AcceptedSeed& row = accepted->at(i);
+      out << ", \"probe_successes\": " << row.probe_successes
+          << ", \"node_count\": " << row.node_count
+          << ", \"program_key\": \"" << json_escape(row.program_key) << "\"";
+    }
+    out << "}";
+    if (i + 1 < seed_set.seeds.size()) {
+      out << ",";
+    }
+    out << "\n";
+  }
+  out << "  ]\n";
+  out << "}\n";
+}
+
+GeneratedPopulation generate_population(const CliOptions& args,
+                                        const std::vector<EvalCase>& cases,
+                                        const std::vector<std::string>& input_names) {
+  const g3pvm::evo::Limits limits{
+      args.max_expr_depth,
+      args.max_stmts_per_block,
+      args.max_total_nodes,
+      args.max_for_k,
+      args.max_call_args,
+  };
+  const int probe_case_count = std::min<int>(args.probe_cases, static_cast<int>(cases.size()));
+  const int min_successes =
+      std::max(1, static_cast<int>(std::ceil(args.min_success_rate * static_cast<double>(probe_case_count))));
+
+  std::vector<AcceptedSeed> accepted;
+  accepted.reserve(static_cast<std::size_t>(args.population_size));
+  std::vector<ProgramGenome> population;
+  population.reserve(static_cast<std::size_t>(args.population_size));
+
+  std::uint64_t candidate_seed = args.seed_start;
+  int attempts = 0;
+  while (static_cast<int>(accepted.size()) < args.population_size && attempts < args.max_attempts) {
+    ++attempts;
+    const ProgramGenome genome = g3pvm::evo::generate_random_genome(candidate_seed, limits);
+    const BytecodeProgram program = g3pvm::evo::compile_for_eval(genome, input_names);
+
+    int successes = 0;
+    for (int i = 0; i < probe_case_count; ++i) {
+      const ExecResult out = g3pvm::execute_bytecode_cpu(
+          program, case_inputs_to_locals(cases[static_cast<std::size_t>(i)], input_names), args.fuel);
+      if (!out.is_error) {
+        ++successes;
+      }
+    }
+
+    if (successes >= min_successes) {
+      accepted.push_back(AcceptedSeed{
+          candidate_seed,
+          successes,
+          genome.meta.node_count,
+          genome.meta.program_key,
+      });
+      population.push_back(genome);
+    }
+    ++candidate_seed;
+  }
+
+  if (static_cast<int>(accepted.size()) != args.population_size) {
+    throw std::runtime_error("failed to collect enough accepted genomes");
+  }
+
+  GeneratedPopulation out;
+  out.seed_set.limits = limits;
+  out.seed_set.seeds.reserve(accepted.size());
+  for (const AcceptedSeed& one : accepted) {
+    out.seed_set.seeds.push_back(one.seed);
+  }
+  out.population = std::move(population);
+  out.attempts = attempts;
+  out.probe_case_count = probe_case_count;
+  out.min_successes = min_successes;
+
+  if (!args.out_population_json.empty()) {
+    write_population_seed_set(args.out_population_json,
+                              out.seed_set,
+                              &accepted,
+                              args.cases_path,
+                              probe_case_count,
+                              args.min_success_rate,
+                              args.fuel,
+                              attempts);
+  }
+  return out;
+}
 
 CompiledPopulation compile_population(const std::vector<ProgramGenome>& population,
                                       const std::vector<std::string>& input_names) {
@@ -250,15 +460,6 @@ CompiledPopulation compile_population(const std::vector<ProgramGenome>& populati
   return out;
 }
 
-struct EvalRun {
-  std::vector<double> fitness;
-  double eval_ms = 0.0;
-  double session_init_ms = 0.0;
-  double pack_upload_ms = 0.0;
-  double kernel_ms = 0.0;
-  double copyback_ms = 0.0;
-};
-
 void canonicalize_fitness_vector(std::vector<double>* fitness) {
   if (fitness == nullptr) {
     return;
@@ -268,14 +469,15 @@ void canonicalize_fitness_vector(std::vector<double>* fitness) {
   }
 }
 
-EvalRun evaluate_compiled_population(const std::vector<g3pvm::BytecodeProgram>& programs,
-                                     const std::vector<CaseBindings>& shared_cases,
-                                     const std::vector<Value>& shared_answer,
+EvalRun evaluate_compiled_population(const std::vector<BytecodeProgram>& programs,
+                                     const std::vector<CaseBindings>& shared_case_bindings,
+                                     const std::vector<Value>& expected_values,
                                      const CliOptions& args) {
   EvalRun out;
   if (args.engine == "cpu") {
     const auto t0 = std::chrono::steady_clock::now();
-    out.fitness = g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, args.fuel, args.penalty);
+    out.fitness = g3pvm::eval_fitness_cpu(
+        programs, shared_case_bindings, expected_values, args.fuel, args.penalty);
     const auto t1 = std::chrono::steady_clock::now();
     out.eval_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     canonicalize_fitness_vector(&out.fitness);
@@ -284,7 +486,8 @@ EvalRun evaluate_compiled_population(const std::vector<g3pvm::BytecodeProgram>& 
 #ifdef G3PVM_HAS_CUDA
   g3pvm::FitnessSessionGpu session;
   const auto t0 = std::chrono::steady_clock::now();
-  const auto init_result = session.init(shared_cases, shared_answer, args.fuel, args.blocksize, args.penalty);
+  const auto init_result =
+      session.init(shared_case_bindings, expected_values, args.fuel, args.blocksize, args.penalty);
   const auto t1 = std::chrono::steady_clock::now();
   if (!init_result.ok) {
     throw std::runtime_error("gpu session init failed: " + init_result.err.message);
@@ -307,13 +510,6 @@ EvalRun evaluate_compiled_population(const std::vector<g3pvm::BytecodeProgram>& 
 #endif
 }
 
-struct ReproductionRun {
-  std::vector<ProgramGenome> next_population;
-  double selection_ms = 0.0;
-  double crossover_ms = 0.0;
-  double mutation_ms = 0.0;
-};
-
 ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
                                      const EvolutionConfig& cfg,
                                      std::mt19937_64* rng) {
@@ -322,8 +518,8 @@ ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
   const int offspring_count = static_cast<int>(cfg.population_size);
 
   const auto selection_t0 = std::chrono::steady_clock::now();
-  std::vector<ProgramGenome> selected_parents = g3pvm::evo::tournament_selection(
-      scored, *rng, cfg.selection_pressure, offspring_count);
+  std::vector<ProgramGenome> selected_parents =
+      g3pvm::evo::tournament_selection(scored, *rng, cfg.selection_pressure, offspring_count);
   const auto selection_t1 = std::chrono::steady_clock::now();
   out.selection_ms = std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
 
@@ -355,9 +551,8 @@ ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
   const auto mutation_t1 = std::chrono::steady_clock::now();
   out.mutation_ms = std::chrono::duration<double, std::milli>(mutation_t1 - mutation_t0).count();
 
-  out.next_population.insert(out.next_population.end(),
-                             std::make_move_iterator(offspring.begin()),
-                             std::make_move_iterator(offspring.end()));
+  out.next_population.insert(
+      out.next_population.end(), std::make_move_iterator(offspring.begin()), std::make_move_iterator(offspring.end()));
   return out;
 }
 
@@ -367,11 +562,28 @@ int main(int argc, char** argv) {
   try {
     const CliOptions args = parse_cli(argc, argv);
     const JsonValue cases_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.cases_path)).parse();
-    const JsonValue population_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.population_json)).parse();
     const std::vector<EvalCase> cases = parse_cases_v1(cases_payload);
-    const PopulationSeedSet seed_set = parse_population_seed_set(population_payload);
-    std::vector<ProgramGenome> population = make_population_from_seeds(seed_set);
     const std::vector<std::string> input_names = build_canonical_input_names(cases);
+
+    PopulationSeedSet seed_set;
+    std::vector<ProgramGenome> population;
+    int attempts = 0;
+    int probe_case_count = 0;
+    int min_successes = 0;
+    if (!args.population_json.empty()) {
+      const JsonValue population_payload =
+          g3pvm::cli_detail::JsonParser(read_text_file(args.population_json)).parse();
+      seed_set = parse_population_seed_set(population_payload);
+      population = make_population_from_seeds(seed_set);
+    } else {
+      const GeneratedPopulation generated = generate_population(args, cases, input_names);
+      seed_set = generated.seed_set;
+      population = generated.population;
+      attempts = generated.attempts;
+      probe_case_count = generated.probe_case_count;
+      min_successes = generated.min_successes;
+    }
+
     const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
     const std::vector<Value> expected_values = build_expected_values(cases);
 
@@ -388,24 +600,6 @@ int main(int argc, char** argv) {
     cfg.seed = 0;
     cfg.fuel = args.fuel;
     cfg.limits = seed_set.limits;
-
-    if (args.mode == "eval-only") {
-      const auto compile = compile_population(population, input_names);
-      const EvalRun eval = evaluate_compiled_population(compile.programs, shared_case_bindings, expected_values, args);
-      long double checksum = 0.0L;
-      for (double one : eval.fitness) checksum += one;
-      std::cout << "BENCH mode=eval-only engine=" << args.engine
-                << " population_size=" << population.size()
-                << " compile_ms=" << std::fixed << std::setprecision(3) << compile.compile_ms
-                << " eval_ms=" << eval.eval_ms
-                << " total_ms="
-                << (compile.compile_ms + eval.eval_ms)
-                << " pack_upload_ms=" << eval.pack_upload_ms
-                << " kernel_ms=" << eval.kernel_ms
-                << " copyback_ms=" << eval.copyback_ms
-                << " checksum=" << std::setprecision(17) << static_cast<double>(checksum) << "\n";
-      return 0;
-    }
 
     const auto all_t0 = std::chrono::steady_clock::now();
     const auto compile = compile_population(population, input_names);
@@ -429,7 +623,7 @@ int main(int argc, char** argv) {
     const double repro_ms = std::chrono::duration<double, std::milli>(repro_t1 - repro_t0).count();
     const double total_ms = std::chrono::duration<double, std::milli>(all_t1 - all_t0).count();
 
-    std::cout << "BENCH mode=one-gen-e2e engine=" << args.engine
+    std::cout << "BENCH engine=" << args.engine
               << " population_size=" << population.size()
               << " compile_ms=" << std::fixed << std::setprecision(3) << compile.compile_ms
               << " eval_ms=" << eval.eval_ms
@@ -444,7 +638,17 @@ int main(int argc, char** argv) {
               << " mean_fitness=" << std::setprecision(17)
               << static_cast<double>(fitness_sum / static_cast<long double>(eval.fitness.size()))
               << " best_fitness=" << scored.front().fitness
-              << " best_program_key=" << scored.front().genome.meta.program_key << "\n";
+              << " best_program_key=" << scored.front().genome.meta.program_key
+              << " population_source=" << (args.population_json.empty() ? "generated" : "loaded");
+    if (args.population_json.empty()) {
+      std::cout << " generation_attempts=" << attempts
+                << " probe_cases=" << probe_case_count
+                << " min_successes=" << min_successes;
+    }
+    if (!args.out_population_json.empty()) {
+      std::cout << " out_population_json=" << args.out_population_json;
+    }
+    std::cout << "\n";
     return 0;
   } catch (const std::exception& e) {
     std::cerr << e.what() << "\n";

@@ -93,25 +93,15 @@ bash scripts/run_cpu_gpu_speedup_experiment.sh \
   --popsize 1024
 ```
 
-This benchmark now uses a fixed generated population instead of a multi-generation evolution run.
-It reports four phase-oriented metrics:
+This benchmark now uses one fixed generated population instead of a multi-generation evolution run.
+It always executes one complete generation and reports a phase breakdown:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only; `compile` is intentionally excluded
 - `repro`: one-generation host-side selection, crossover, and mutation work
-- `one-gen-e2e`: `compile + eval + repro` plus the remaining one-generation orchestration
+- `selection`, `crossover`, `mutation`: the internal reproduction phases
+- `total`: the full one-generation benchmark wall time
 
 Reusable fixed populations for the canonical fixtures live in `data/fixtures/programs/`.
-
-### Generate one fixed benchmark population
-
-```bash
-cpp/build/g3pvm_generate_population_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --out-json logs/fixed_population.json \
-  --population-size 1024 \
-  --probe-cases 32 \
-  --min-success-rate 0.10
-```
 
 ### Benchmark one fixed population directly
 
@@ -119,9 +109,20 @@ cpp/build/g3pvm_generate_population_cli \
 cpp/build/g3pvm_population_bench_cli \
   --cases data/fixtures/bouncing_balls_1024.json \
   --population-json data/fixtures/programs/bouncing_balls_1024_pop1024.json \
-  --mode one-gen-e2e \
   --engine gpu \
   --blocksize 256
+```
+
+### Generate and benchmark one fixed population in one step
+
+```bash
+cpp/build/g3pvm_population_bench_cli \
+  --cases data/fixtures/bouncing_balls_1024.json \
+  --out-population-json logs/fixed_population.json \
+  --population-size 1024 \
+  --probe-cases 32 \
+  --min-success-rate 0.10 \
+  --engine cpu
 ```
 
 ### Convert PSB2 task into `fitness-cases-v1`

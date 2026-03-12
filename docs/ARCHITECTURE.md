@@ -149,8 +149,7 @@ Public evolution interfaces split by responsibility:
 
 ### `cpp/src/cli/`
 - `evolve_cli.cpp`: evolution CLI
-- `generate_population_cli.cpp`: fixed-population generator for benchmark inputs
-- `population_bench_cli.cpp`: fixed-population benchmark runner
+- `population_bench_cli.cpp`: fixed-population benchmark runner; can also generate and optionally save benchmark populations
 - codec / json / options helpers
 
 ### `cpp/src/bench/`

@@ -71,32 +71,25 @@ Genome-shape args:
 - `--max-for-k N`: maximum constant loop bound used by generated `for range(K)`
 - `--max-call-args N`: maximum allowed builtin call arity during generation/compilation
 
-### `cpp/build/g3pvm_generate_population_cli`
+### `cpp/build/g3pvm_population_bench_cli`
 
-Fixed-population generation args:
-- `--cases PATH`: input `fitness-cases-v1` file used to discover input names and probe candidate programs
-- `--out-json PATH`: output `population-seeds-v1` JSON
-- `--population-size N`: number of accepted genomes to emit
+Fixed-population benchmark args:
+- `--cases PATH`: input `fitness-cases-v1` file
+- `--population-json PATH`: optional input `population-seeds-v1` JSON; if omitted, the CLI generates a fixed population first
+- `--out-population-json PATH`: optional output path when generating a new fixed population
+- `--engine {cpu|gpu}`: evaluation backend
+- `--blocksize N`: GPU block size when `--engine gpu`
+- `--fuel N`: per-program execution budget
+- `--population-size N`: number of accepted genomes when generating a fixed population
 - `--seed-start N`: first RNG seed considered during generation
 - `--probe-cases N`: number of leading cases used to reject programs that error too often
-- `--min-success-rate F`: required non-error ratio across probe cases; helps avoid all-garbage populations
+- `--min-success-rate F`: required non-error ratio across probe cases
 - `--max-attempts N`: hard cap on candidate seeds inspected before failing
-- `--fuel N`: per-probe execution budget
 - `--max-expr-depth N`
 - `--max-stmts-per-block N`
 - `--max-total-nodes N`
 - `--max-for-k N`
 - `--max-call-args N`
-
-### `cpp/build/g3pvm_population_bench_cli`
-
-Fixed-population benchmark args:
-- `--cases PATH`: input `fitness-cases-v1` file
-- `--population-json PATH`: input `population-seeds-v1` JSON
-- `--mode {eval-only|one-gen-e2e}`: benchmark mode
-- `--engine {cpu|gpu}`: evaluation backend
-- `--blocksize N`: GPU block size when `--engine gpu`
-- `--fuel N`: per-program execution budget
 - `--mutation-rate F`
 - `--mutation-subtree-prob F`
 - `--crossover-rate F`
@@ -110,12 +103,8 @@ Metric semantics:
 - `selection_ms`: tournament-selection pool construction for the full offspring pool
 - `crossover_ms`: crossover pass over the selected parent pool
 - `mutation_ms`: mutation pass over the post-crossover offspring pool
-- `one-gen-e2e total_ms`: the full one-generation benchmark wall time
-
-Mode notes:
-- `eval-only` reports `compile_ms`, `eval_ms`, and `total_ms`; GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
-- `one-gen-e2e` reports `compile_ms`, `eval_ms`, `repro_ms`, `selection_ms`, `crossover_ms`, `mutation_ms`, and `total_ms`
-- `one-gen-e2e` stops after producing the next population; it does not evaluate the next population
+- `total_ms`: the full one-generation benchmark wall time
+- GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
 
 ### `tools/run_cpp_evolution.py`
 
@@ -282,21 +271,9 @@ The canonical interpretation is:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only
 - `repro`: one-generation selection, crossover, and mutation work
-- `one-gen-e2e`: the full one-generation benchmark cost
+- `total`: the full one-generation benchmark cost
 
 `eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
-
-### Generate a fixed population
-
-```bash
-cpp/build/g3pvm_generate_population_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --out-json logs/fixed_population.json \
-  --population-size 1024 \
-  --probe-cases 32 \
-  --min-success-rate 0.10 \
-  --max-expr-depth 5
-```
 
 Pre-generated populations for the canonical fixtures are checked in under `data/fixtures/programs/`.
 
@@ -306,7 +283,18 @@ Pre-generated populations for the canonical fixtures are checked in under `data/
 cpp/build/g3pvm_population_bench_cli \
   --cases data/fixtures/bouncing_balls_1024.json \
   --population-json data/fixtures/programs/bouncing_balls_1024_pop1024.json \
-  --mode one-gen-e2e \
+  --engine cpu
+```
+
+### Generate and benchmark one fixed population in one step
+
+```bash
+cpp/build/g3pvm_population_bench_cli \
+  --cases data/fixtures/bouncing_balls_1024.json \
+  --out-population-json logs/fixed_population.json \
+  --population-size 1024 \
+  --probe-cases 32 \
+  --min-success-rate 0.10 \
   --engine cpu
 ```
 
