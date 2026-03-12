@@ -15,14 +15,14 @@ bool check(bool cond, const std::string& msg) {
   return true;
 }
 
-std::vector<g3pvm::evo::FitnessCase> simple_cases() {
+std::vector<g3pvm::evo::EvalCase> simple_cases() {
   using g3pvm::Value;
-  using g3pvm::evo::FitnessCase;
+  using g3pvm::evo::EvalCase;
   return {
-      FitnessCase{{{"x", Value::from_int(0)}, {"y", Value::from_int(0)}}, Value::from_int(0)},
-      FitnessCase{{{"x", Value::from_int(1)}, {"y", Value::from_int(2)}}, Value::from_int(3)},
-      FitnessCase{{{"x", Value::from_int(-1)}, {"y", Value::from_int(4)}}, Value::from_int(3)},
-      FitnessCase{{{"x", Value::from_int(3)}, {"y", Value::from_int(-2)}}, Value::from_int(1)},
+      EvalCase{{{"x", Value::from_int(0)}, {"y", Value::from_int(0)}}, Value::from_int(0)},
+      EvalCase{{{"x", Value::from_int(1)}, {"y", Value::from_int(2)}}, Value::from_int(3)},
+      EvalCase{{{"x", Value::from_int(-1)}, {"y", Value::from_int(4)}}, Value::from_int(3)},
+      EvalCase{{{"x", Value::from_int(3)}, {"y", Value::from_int(-2)}}, Value::from_int(1)},
   };
 }
 

@@ -11,7 +11,7 @@
 namespace {
 
 using g3pvm::BytecodeProgram;
-using g3pvm::CaseInputs;
+using g3pvm::CaseBindings;
 using g3pvm::InputBinding;
 using g3pvm::Opcode;
 using g3pvm::Value;
@@ -82,7 +82,7 @@ bool approx(double a, double b) {
 }
 
 g3pvm::FitnessEvalResult eval_gpu_via_session(const std::vector<BytecodeProgram>& programs,
-                                              const std::vector<CaseInputs>& shared_cases,
+                                              const std::vector<CaseBindings>& shared_cases,
                                               const std::vector<Value>& shared_answer,
                                               int fuel,
                                               int blocksize,
@@ -108,10 +108,10 @@ int main() {
     programs.push_back(make_type_error_program());
     programs.push_back(make_timeout_program());
 
-    std::vector<CaseInputs> shared_cases;
+    std::vector<CaseBindings> shared_cases;
     std::vector<Value> shared_answer;
     for (int i = 0; i < 64; ++i) {
-      shared_cases.push_back(CaseInputs{InputBinding{0, Value::from_int(i)}});
+      shared_cases.push_back(CaseBindings{InputBinding{0, Value::from_int(i)}});
       shared_answer.push_back(Value::from_int(i + 1));
     }
 
@@ -163,7 +163,7 @@ int main() {
     programs.push_back(make_return_const_program(7));
     programs.push_back(make_type_error_program());
 
-    std::vector<CaseInputs> shared_cases(16);
+    std::vector<CaseBindings> shared_cases(16);
     std::vector<Value> shared_answer(16, Value::from_string_hash_len(0x9999ULL, 3));
 
     const std::vector<double> cpu_fit =
@@ -208,7 +208,7 @@ int main() {
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_wrap_add_program());
 
-    std::vector<CaseInputs> shared_cases(4);
+    std::vector<CaseBindings> shared_cases(4);
     std::vector<Value> shared_answer(4, Value::from_int(LLONG_MIN));
 
     const std::vector<double> cpu_fit =
@@ -245,8 +245,8 @@ int main() {
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_float_mod_div_program());
 
-    std::vector<CaseInputs> shared_cases{
-        CaseInputs{InputBinding{0, Value::from_float(-0.008797653959)}},
+    std::vector<CaseBindings> shared_cases{
+        CaseBindings{InputBinding{0, Value::from_float(-0.008797653959)}},
     };
     std::vector<Value> shared_answer{Value::from_float(0.99124093216)};
 

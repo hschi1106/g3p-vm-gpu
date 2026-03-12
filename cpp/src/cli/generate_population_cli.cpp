@@ -24,7 +24,7 @@ namespace {
 
 using g3pvm::Value;
 using g3pvm::cli_detail::JsonValue;
-using g3pvm::evo::FitnessCase;
+using g3pvm::evo::EvalCase;
 using g3pvm::evo::NamedInputs;
 
 struct CliOptions {
@@ -90,7 +90,7 @@ NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
-std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
+std::vector<EvalCase> parse_cases_v1(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
   }
@@ -104,7 +104,7 @@ std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
     throw std::runtime_error("input JSON must include list field: cases");
   }
 
-  std::vector<FitnessCase> out;
+  std::vector<EvalCase> out;
   out.reserve(cases_it->second.array_v.size());
   for (const JsonValue& row : cases_it->second.array_v) {
     const auto inputs_it = row.object_v.find("inputs");
@@ -112,7 +112,7 @@ std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
     if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
       throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    out.push_back(FitnessCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
+    out.push_back(EvalCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
   }
   if (out.empty()) {
     throw std::runtime_error("cases must not be empty");
@@ -130,7 +130,7 @@ std::string read_text_file(const std::string& path) {
   return buffer.str();
 }
 
-std::vector<std::string> collect_case_input_names(const std::vector<FitnessCase>& cases) {
+std::vector<std::string> collect_case_input_names(const std::vector<EvalCase>& cases) {
   std::set<std::string> names;
   for (const auto& one_case : cases) {
     for (const auto& kv : one_case.inputs) {
@@ -140,7 +140,7 @@ std::vector<std::string> collect_case_input_names(const std::vector<FitnessCase>
   return std::vector<std::string>(names.begin(), names.end());
 }
 
-std::vector<std::pair<int, Value>> case_inputs_to_locals(const FitnessCase& one_case,
+std::vector<std::pair<int, Value>> case_inputs_to_locals(const EvalCase& one_case,
                                                          const std::vector<std::string>& input_names) {
   std::vector<std::pair<int, Value>> out;
   out.reserve(input_names.size());
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
   try {
     const CliOptions args = parse_cli(argc, argv);
     const JsonValue payload = g3pvm::cli_detail::JsonParser(read_text_file(args.cases_path)).parse();
-    const std::vector<FitnessCase> cases = parse_cases_v1(payload);
+    const std::vector<EvalCase> cases = parse_cases_v1(payload);
     const std::vector<std::string> input_names = collect_case_input_names(cases);
 
     const g3pvm::evo::Limits limits{

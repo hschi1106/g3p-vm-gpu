@@ -138,7 +138,7 @@ g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
-std::vector<g3pvm::evo::FitnessCase> parse_cases_v1(const JsonValue& payload) {
+std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
   }
@@ -154,7 +154,7 @@ std::vector<g3pvm::evo::FitnessCase> parse_cases_v1(const JsonValue& payload) {
     throw std::runtime_error("input JSON must include list field: cases");
   }
 
-  std::vector<g3pvm::evo::FitnessCase> out;
+  std::vector<g3pvm::evo::EvalCase> out;
   out.reserve(cases_it->second.array_v.size());
   for (const JsonValue& row : cases_it->second.array_v) {
     if (row.kind != JsonValue::Kind::Object) {
@@ -165,7 +165,7 @@ std::vector<g3pvm::evo::FitnessCase> parse_cases_v1(const JsonValue& payload) {
     if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
       throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    out.push_back(g3pvm::evo::FitnessCase{decode_inputs(inputs_it->second),
+    out.push_back(g3pvm::evo::EvalCase{decode_inputs(inputs_it->second),
                                           decode_typed_or_raw_value(expected_it->second)});
   }
   if (out.empty()) {
@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
 
     g3pvm::cli_detail::JsonParser parser(text);
     const JsonValue payload = parser.parse();
-    const std::vector<g3pvm::evo::FitnessCase> cases = parse_cases_v1(payload);
+    const std::vector<g3pvm::evo::EvalCase> cases = parse_cases_v1(payload);
 
     g3pvm::evo::EvolutionConfig cfg;
     cfg.population_size = args.population_size;

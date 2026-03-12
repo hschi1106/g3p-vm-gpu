@@ -33,12 +33,12 @@ namespace {
 using g3pvm::Value;
 using g3pvm::cli_detail::JsonValue;
 using g3pvm::evo::EvolutionConfig;
-using g3pvm::evo::FitnessCase;
+using g3pvm::evo::EvalCase;
 using g3pvm::evo::NamedInputs;
 using g3pvm::evo::ProgramGenome;
 using g3pvm::evo::ScoredGenome;
 using g3pvm::InputBinding;
-using g3pvm::CaseInputs;
+using g3pvm::CaseBindings;
 
 struct CliOptions {
   std::string cases_path;
@@ -97,7 +97,7 @@ NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
-std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
+std::vector<EvalCase> parse_cases_v1(const JsonValue& payload) {
   auto fv_it = payload.object_v.find("format_version");
   if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
       fv_it->second.string_v != "fitness-cases-v1") {
@@ -107,7 +107,7 @@ std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
   if (cases_it == payload.object_v.end() || cases_it->second.kind != JsonValue::Kind::Array) {
     throw std::runtime_error("input JSON must include list field: cases");
   }
-  std::vector<FitnessCase> out;
+  std::vector<EvalCase> out;
   out.reserve(cases_it->second.array_v.size());
   for (const JsonValue& row : cases_it->second.array_v) {
     const auto inputs_it = row.object_v.find("inputs");
@@ -115,7 +115,7 @@ std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
     if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
       throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    out.push_back(FitnessCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
+    out.push_back(EvalCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
   }
   return out;
 }
@@ -216,9 +216,9 @@ std::vector<ProgramGenome> make_population_from_seeds(const PopulationSeedSet& s
   return out;
 }
 
-std::vector<std::string> collect_case_input_names(const std::vector<FitnessCase>& cases) {
+std::vector<std::string> build_canonical_input_names(const std::vector<EvalCase>& cases) {
   std::set<std::string> names;
-  for (const FitnessCase& one_case : cases) {
+  for (const EvalCase& one_case : cases) {
     for (const auto& kv : one_case.inputs) {
       names.insert(kv.first);
     }
@@ -226,12 +226,12 @@ std::vector<std::string> collect_case_input_names(const std::vector<FitnessCase>
   return std::vector<std::string>(names.begin(), names.end());
 }
 
-std::vector<CaseInputs> to_shared_cases(const std::vector<FitnessCase>& cases,
-                                        const std::vector<std::string>& input_names) {
-  std::vector<CaseInputs> out;
+std::vector<CaseBindings> build_shared_case_bindings(const std::vector<EvalCase>& cases,
+                                                     const std::vector<std::string>& input_names) {
+  std::vector<CaseBindings> out;
   out.reserve(cases.size());
-  for (const FitnessCase& one_case : cases) {
-    CaseInputs bindings;
+  for (const EvalCase& one_case : cases) {
+    CaseBindings bindings;
     bindings.reserve(input_names.size());
     for (std::size_t i = 0; i < input_names.size(); ++i) {
       auto it = one_case.inputs.find(input_names[i]);
@@ -244,10 +244,10 @@ std::vector<CaseInputs> to_shared_cases(const std::vector<FitnessCase>& cases,
   return out;
 }
 
-std::vector<Value> to_shared_answer(const std::vector<FitnessCase>& cases) {
+std::vector<Value> build_expected_values(const std::vector<EvalCase>& cases) {
   std::vector<Value> out;
   out.reserve(cases.size());
-  for (const FitnessCase& one_case : cases) {
+  for (const EvalCase& one_case : cases) {
     out.push_back(one_case.expected);
   }
   return out;
@@ -290,7 +290,7 @@ void canonicalize_fitness_vector(std::vector<double>* fitness) {
 }
 
 EvalRun evaluate_compiled_population(const std::vector<g3pvm::BytecodeProgram>& programs,
-                                     const std::vector<CaseInputs>& shared_cases,
+                                     const std::vector<CaseBindings>& shared_cases,
                                      const std::vector<Value>& shared_answer,
                                      const CliOptions& args) {
   EvalRun out;
@@ -335,12 +335,12 @@ int main(int argc, char** argv) {
     const CliOptions args = parse_cli(argc, argv);
     const JsonValue cases_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.cases_path)).parse();
     const JsonValue population_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.population_json)).parse();
-    const std::vector<FitnessCase> cases = parse_cases_v1(cases_payload);
+    const std::vector<EvalCase> cases = parse_cases_v1(cases_payload);
     const PopulationSeedSet seed_set = parse_population_seed_set(population_payload);
     std::vector<ProgramGenome> population = make_population_from_seeds(seed_set);
-    const std::vector<std::string> input_names = collect_case_input_names(cases);
-    const std::vector<CaseInputs> shared_cases = to_shared_cases(cases, input_names);
-    const std::vector<Value> shared_answer = to_shared_answer(cases);
+    const std::vector<std::string> input_names = build_canonical_input_names(cases);
+    const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
+    const std::vector<Value> expected_values = build_expected_values(cases);
 
     EvolutionConfig cfg;
     cfg.population_size = static_cast<int>(population.size());
@@ -359,7 +359,7 @@ int main(int argc, char** argv) {
 
     if (args.mode == "eval-only") {
       const auto compile = compile_population(population, input_names);
-      const EvalRun eval = evaluate_compiled_population(compile.programs, shared_cases, shared_answer, args);
+      const EvalRun eval = evaluate_compiled_population(compile.programs, shared_case_bindings, expected_values, args);
       long double checksum = 0.0L;
       for (double one : eval.fitness) checksum += one;
       std::cout << "BENCH mode=eval-only engine=" << args.engine
@@ -377,7 +377,7 @@ int main(int argc, char** argv) {
 
     const auto all_t0 = std::chrono::steady_clock::now();
     const auto compile = compile_population(population, input_names);
-    const EvalRun eval = evaluate_compiled_population(compile.programs, shared_cases, shared_answer, args);
+    const EvalRun eval = evaluate_compiled_population(compile.programs, shared_case_bindings, expected_values, args);
 
     std::vector<ScoredGenome> scored;
     scored.reserve(population.size());

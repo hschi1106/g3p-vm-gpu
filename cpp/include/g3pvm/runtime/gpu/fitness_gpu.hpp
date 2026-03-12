@@ -31,7 +31,7 @@ class FitnessSessionGpu {
   FitnessSessionGpu(FitnessSessionGpu&&) noexcept;
   FitnessSessionGpu& operator=(FitnessSessionGpu&&) noexcept;
 
-  FitnessEvalResult init(const std::vector<CaseInputs>& shared_cases,
+  FitnessEvalResult init(const std::vector<CaseBindings>& shared_cases,
                             const std::vector<Value>& shared_answer,
                             int fuel = 10000,
                             int blocksize = 256,

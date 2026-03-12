@@ -170,7 +170,7 @@ FitnessSessionGpu& FitnessSessionGpu::operator=(FitnessSessionGpu&&) noexcept = 
 
 bool FitnessSessionGpu::is_ready() const { return impl_ && impl_->ready; }
 
-FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseInputs>& shared_cases,
+FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseBindings>& shared_cases,
                                              const std::vector<Value>& shared_answer,
                                              int fuel,
                                              int blocksize,

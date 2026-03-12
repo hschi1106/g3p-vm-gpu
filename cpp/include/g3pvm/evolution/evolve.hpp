@@ -18,7 +18,7 @@ enum class EvalEngine {
 
 using NamedInputs = std::unordered_map<std::string, Value>;
 
-struct FitnessCase {
+struct EvalCase {
   NamedInputs inputs;
   Value expected = Value::none();
 };
@@ -86,21 +86,21 @@ struct EvolutionRun {
 };
 
 double evaluate_genome(const ProgramGenome& genome,
-                       const std::vector<FitnessCase>& cases,
+                       const std::vector<EvalCase>& cases,
                        const EvolutionConfig& cfg);
 std::vector<double> evaluate_population_fitness(const std::vector<ProgramGenome>& population,
-                                                const std::vector<FitnessCase>& cases,
+                                                const std::vector<EvalCase>& cases,
                                                 const EvolutionConfig& cfg);
 std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& population,
-                                              const std::vector<FitnessCase>& cases,
+                                              const std::vector<EvalCase>& cases,
                                               const EvolutionConfig& cfg);
 ProgramGenome select_parent_tournament(const std::vector<ScoredGenome>& scored,
                                        std::mt19937_64& rng,
                                        int selection_pressure);
-EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
+EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population = nullptr);
-EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
+EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
                                         const EvolutionConfig& cfg,
                                         const std::vector<ProgramGenome>* initial_population = nullptr);
 

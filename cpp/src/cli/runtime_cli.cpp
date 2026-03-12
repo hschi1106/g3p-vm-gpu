@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
 
     std::vector<g3pvm::BytecodeProgram> programs =
         g3pvm::cli_detail::decode_programs(g3pvm::cli_detail::require_object_field(*req, "programs"));
-    std::vector<g3pvm::CaseInputs> shared_cases =
+    std::vector<g3pvm::CaseBindings> shared_cases =
         g3pvm::cli_detail::decode_cases(g3pvm::cli_detail::require_object_field(*req, "shared_cases"));
 
     auto shared_answer_it = req->object_v.find("shared_answer");

@@ -29,7 +29,7 @@ using g3pvm::Value;
 using g3pvm::cli_detail::JsonParser;
 using g3pvm::cli_detail::JsonValue;
 using g3pvm::evo::EvolutionConfig;
-using g3pvm::evo::FitnessCase;
+using g3pvm::evo::EvalCase;
 using g3pvm::evo::ProgramGenome;
 using g3pvm::evo::ScoredGenome;
 
@@ -286,7 +286,7 @@ g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
-std::vector<FitnessCase> load_cases_v1(const std::string& path) {
+std::vector<EvalCase> load_cases_v1(const std::string& path) {
   const JsonValue payload = JsonParser(read_text_file(path)).parse();
   const auto fv_it = payload.object_v.find("format_version");
   if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
@@ -298,7 +298,7 @@ std::vector<FitnessCase> load_cases_v1(const std::string& path) {
     throw std::runtime_error("input JSON must include list field: cases");
   }
 
-  std::vector<FitnessCase> out;
+  std::vector<EvalCase> out;
   out.reserve(cases_it->second.array_v.size());
   for (const JsonValue& row : cases_it->second.array_v) {
     const auto inputs_it = row.object_v.find("inputs");
@@ -306,7 +306,7 @@ std::vector<FitnessCase> load_cases_v1(const std::string& path) {
     if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
       throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    out.push_back(FitnessCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
+    out.push_back(EvalCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
   }
   return out;
 }
@@ -347,9 +347,9 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   return next_population;
 }
 
-g3pvm::CaseInputs to_case_inputs(const FitnessCase& one_case,
+g3pvm::CaseBindings to_case_inputs(const EvalCase& one_case,
                                  const std::vector<std::string>& input_names) {
-  g3pvm::CaseInputs out;
+  g3pvm::CaseBindings out;
   out.reserve(input_names.size());
   for (std::size_t i = 0; i < input_names.size(); ++i) {
     const auto it = one_case.inputs.find(input_names[i]);
@@ -363,7 +363,7 @@ g3pvm::CaseInputs to_case_inputs(const FitnessCase& one_case,
 }  // namespace
 
 int main() {
-  const std::vector<FitnessCase> cases = load_cases_v1("data/fixtures/simple_exp_1024.json");
+  const std::vector<EvalCase> cases = load_cases_v1("data/fixtures/simple_exp_1024.json");
 
   EvolutionConfig cpu_cfg;
   cpu_cfg.population_size = 2048;
@@ -425,7 +425,7 @@ int main() {
           std::cout << "\n";
         }
         for (std::size_t case_idx = 0; case_idx < cases.size(); ++case_idx) {
-          const std::vector<g3pvm::CaseInputs> shared_cases{to_case_inputs(cases[case_idx], input_names)};
+          const std::vector<g3pvm::CaseBindings> shared_cases{to_case_inputs(cases[case_idx], input_names)};
           const std::vector<Value> shared_answer{cases[case_idx].expected};
           const double cpu_case =
               g3pvm::eval_fitness_cpu({bc}, shared_cases, shared_answer, cpu_cfg.fuel, cpu_cfg.penalty,

@@ -187,11 +187,11 @@ BytecodeProgram decode_program(const JsonValue& bc) {
   return program;
 }
 
-CaseInputs decode_input_case(const JsonValue& v) {
+CaseBindings decode_input_case(const JsonValue& v) {
   if (v.kind != JsonValue::Kind::Array) {
     throw std::runtime_error("input case must be array");
   }
-  CaseInputs one_case;
+  CaseBindings one_case;
   one_case.reserve(v.array_v.size());
   for (const JsonValue& item : v.array_v) {
     const int idx = require_int(require_object_field(item, "idx"), "idx");
@@ -201,11 +201,11 @@ CaseInputs decode_input_case(const JsonValue& v) {
   return one_case;
 }
 
-std::vector<CaseInputs> decode_cases(const JsonValue& v) {
+std::vector<CaseBindings> decode_cases(const JsonValue& v) {
   if (v.kind != JsonValue::Kind::Array) {
     throw std::runtime_error("shared_cases must be array");
   }
-  std::vector<CaseInputs> out;
+  std::vector<CaseBindings> out;
   out.reserve(v.array_v.size());
   for (const JsonValue& case_node : v.array_v) {
     out.push_back(decode_input_case(case_node));

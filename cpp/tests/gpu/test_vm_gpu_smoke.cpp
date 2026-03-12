@@ -31,7 +31,7 @@ int main() {
   p.code = {ins_a(Opcode::PushConst, 0), ins_a(Opcode::PushConst, 1), ins(Opcode::Add), ins(Opcode::Return)};
 
   std::vector<BytecodeProgram> programs = {p};
-  std::vector<g3pvm::CaseInputs> shared_cases(1);
+  std::vector<g3pvm::CaseBindings> shared_cases(1);
   std::vector<Value> shared_answer = {Value::from_int(5)};
   g3pvm::FitnessSessionGpu session;
   const g3pvm::FitnessEvalResult init = session.init(shared_cases, shared_answer, 100, 1);

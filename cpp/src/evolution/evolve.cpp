@@ -50,9 +50,9 @@ std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg) {
   return out;
 }
 
-std::vector<std::string> collect_case_input_names(const std::vector<FitnessCase>& cases) {
+std::vector<std::string> build_canonical_input_names(const std::vector<EvalCase>& cases) {
   std::set<std::string> names;
-  for (const FitnessCase& one_case : cases) {
+  for (const EvalCase& one_case : cases) {
     for (const auto& kv : one_case.inputs) {
       names.insert(kv.first);
     }
@@ -60,12 +60,12 @@ std::vector<std::string> collect_case_input_names(const std::vector<FitnessCase>
   return std::vector<std::string>(names.begin(), names.end());
 }
 
-std::vector<CaseInputs> to_shared_cases(const std::vector<FitnessCase>& cases,
-                                       const std::vector<std::string>& input_names) {
-  std::vector<CaseInputs> out;
+std::vector<CaseBindings> build_shared_case_bindings(const std::vector<EvalCase>& cases,
+                                                     const std::vector<std::string>& input_names) {
+  std::vector<CaseBindings> out;
   out.reserve(cases.size());
-  for (const FitnessCase& one_case : cases) {
-    CaseInputs c;
+  for (const EvalCase& one_case : cases) {
+    CaseBindings c;
     c.reserve(input_names.size());
     for (std::size_t i = 0; i < input_names.size(); ++i) {
       auto it = one_case.inputs.find(input_names[i]);
@@ -78,10 +78,10 @@ std::vector<CaseInputs> to_shared_cases(const std::vector<FitnessCase>& cases,
   return out;
 }
 
-std::vector<Value> to_shared_answer(const std::vector<FitnessCase>& cases) {
+std::vector<Value> build_expected_values(const std::vector<EvalCase>& cases) {
   std::vector<Value> out;
   out.reserve(cases.size());
-  for (const FitnessCase& one_case : cases) {
+  for (const EvalCase& one_case : cases) {
     out.push_back(one_case.expected);
   }
   return out;
@@ -126,7 +126,7 @@ CompiledPopulation compile_population(const std::vector<ProgramGenome>& populati
 std::vector<double> evaluate_population_fitness_cpu_shared_cases(
     const std::vector<ProgramGenome>& population,
     const std::vector<std::string>& input_names,
-    const std::vector<CaseInputs>& shared_cases,
+    const std::vector<CaseBindings>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel,
     double penalty,
@@ -155,7 +155,7 @@ std::vector<double> evaluate_population_fitness_cpu_shared_cases(
 std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
     const std::vector<ProgramGenome>& population,
     const std::vector<std::string>& input_names,
-    const std::vector<CaseInputs>& shared_cases,
+    const std::vector<CaseBindings>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel,
     double penalty,
@@ -254,33 +254,33 @@ std::string eval_engine_name(EvalEngine engine) {
 }
 
 double evaluate_genome(const ProgramGenome& genome,
-                       const std::vector<FitnessCase>& cases,
+                       const std::vector<EvalCase>& cases,
                        const EvolutionConfig& cfg) {
-  const std::vector<std::string> input_names = collect_case_input_names(cases);
-  const std::vector<CaseInputs> shared_cases = to_shared_cases(cases, input_names);
-  const std::vector<Value> shared_answer = to_shared_answer(cases);
+  const std::vector<std::string> input_names = build_canonical_input_names(cases);
+  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
+  const std::vector<Value> expected_values = build_expected_values(cases);
   std::vector<ProgramGenome> one{genome};
   CompileCache cache;
   EvolutionTiming timing;
   const std::vector<ScoredGenome> scored =
-      evaluate_population_cpu_shared_cases(one, input_names, shared_cases, shared_answer, cfg.fuel,
+      evaluate_population_cpu_shared_cases(one, input_names, shared_case_bindings, expected_values, cfg.fuel,
                                            cfg.penalty, cfg.gpu_blocksize, &cache, &timing, false, nullptr);
   return scored.front().fitness;
 }
 
 std::vector<double> evaluate_population_fitness(const std::vector<ProgramGenome>& population,
-                                                const std::vector<FitnessCase>& cases,
+                                                const std::vector<EvalCase>& cases,
                                                 const EvolutionConfig& cfg) {
-  const std::vector<std::string> input_names = collect_case_input_names(cases);
-  const std::vector<CaseInputs> shared_cases = to_shared_cases(cases, input_names);
-  const std::vector<Value> shared_answer = to_shared_answer(cases);
+  const std::vector<std::string> input_names = build_canonical_input_names(cases);
+  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
+  const std::vector<Value> expected_values = build_expected_values(cases);
   CompileCache cache;
   EvolutionTiming timing;
   if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
     FitnessSessionGpu session;
     const FitnessEvalResult init_result =
-        session.init(shared_cases, shared_answer, cfg.fuel, cfg.gpu_blocksize, cfg.penalty);
+        session.init(shared_case_bindings, expected_values, cfg.fuel, cfg.gpu_blocksize, cfg.penalty);
     if (!init_result.ok) {
       throw std::runtime_error("gpu fitness session init failed: " + init_result.err.message);
     }
@@ -289,20 +289,20 @@ std::vector<double> evaluate_population_fitness(const std::vector<ProgramGenome>
     throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
   }
-  return evaluate_population_fitness_cpu_shared_cases(population, input_names, shared_cases, shared_answer,
+  return evaluate_population_fitness_cpu_shared_cases(population, input_names, shared_case_bindings, expected_values,
                                                       cfg.fuel, cfg.penalty, cfg.gpu_blocksize, &cache,
                                                       &timing, false);
 }
 
 std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& population,
-                                              const std::vector<FitnessCase>& cases,
+                                              const std::vector<EvalCase>& cases,
                                               const EvolutionConfig& cfg) {
-  const std::vector<std::string> input_names = collect_case_input_names(cases);
-  const std::vector<CaseInputs> shared_cases = to_shared_cases(cases, input_names);
-  const std::vector<Value> shared_answer = to_shared_answer(cases);
+  const std::vector<std::string> input_names = build_canonical_input_names(cases);
+  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
+  const std::vector<Value> expected_values = build_expected_values(cases);
   CompileCache cache;
   EvolutionTiming timing;
-  return evaluate_population_cpu_shared_cases(population, input_names, shared_cases, shared_answer, cfg.fuel,
+  return evaluate_population_cpu_shared_cases(population, input_names, shared_case_bindings, expected_values, cfg.fuel,
                                               cfg.penalty, cfg.gpu_blocksize, &cache, &timing, false, nullptr);
 }
 
@@ -325,13 +325,13 @@ ProgramGenome select_parent_tournament(const std::vector<ScoredGenome>& scored,
   return best->genome;
 }
 
-EvolutionResult evolve_population(const std::vector<FitnessCase>& cases,
+EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population) {
   return evolve_population_profiled(cases, cfg, initial_population).result;
 }
 
-EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
+EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
                                         const EvolutionConfig& cfg,
                                         const std::vector<ProgramGenome>* initial_population) {
   if (cases.empty()) {
@@ -361,9 +361,9 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
     throw std::invalid_argument("initial_population size must match population_size");
   }
 
-  const std::vector<std::string> case_input_names = collect_case_input_names(cases);
-  const std::vector<CaseInputs> shared_cases = to_shared_cases(cases, case_input_names);
-  const std::vector<Value> shared_answer = to_shared_answer(cases);
+  const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
+  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
+  const std::vector<Value> expected_values = build_expected_values(cases);
 
   EvolutionRun run;
   run.timing.init_population_ms = std::chrono::duration<double, std::milli>(init_t1 - init_t0).count();
@@ -389,7 +389,7 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
 #ifdef G3PVM_HAS_CUDA
     const auto gpu_init_t0 = std::chrono::steady_clock::now();
     const FitnessEvalResult init_result =
-        gpu_session.init(shared_cases, shared_answer, cfg.fuel, cfg.gpu_blocksize, cfg.penalty);
+        gpu_session.init(shared_case_bindings, expected_values, cfg.fuel, cfg.gpu_blocksize, cfg.penalty);
     if (!init_result.ok) {
       throw std::runtime_error("gpu fitness session init failed: " + init_result.err.message);
     }
@@ -408,14 +408,14 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
     double fitness_sum = 0.0;
     if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-      scored = evaluate_population_gpu(population, case_input_names, &gpu_session, &compile_cache,
+      scored = evaluate_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache,
                                        &run.timing, true, &fitness_sum);
 #else
       throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
     } else {
       scored = evaluate_population_cpu_shared_cases(
-          population, case_input_names, shared_cases, shared_answer, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
+          population, canonical_input_names, shared_case_bindings, expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
           &compile_cache, &run.timing, true, &fitness_sum);
     }
     const auto eval_t1 = std::chrono::steady_clock::now();
@@ -499,14 +499,14 @@ EvolutionRun evolve_population_profiled(const std::vector<FitnessCase>& cases,
   const auto final_eval_t0 = std::chrono::steady_clock::now();
   if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-    result.final_population =
-        evaluate_population_gpu(population, case_input_names, &gpu_session, &compile_cache, &run.timing, false, nullptr);
+        result.final_population =
+        evaluate_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache, &run.timing, false, nullptr);
 #else
     throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
   } else {
     result.final_population = evaluate_population_cpu_shared_cases(
-        population, case_input_names, shared_cases, shared_answer, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
+        population, canonical_input_names, shared_case_bindings, expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
         &compile_cache, &run.timing, false, nullptr);
   }
   const auto final_eval_t1 = std::chrono::steady_clock::now();

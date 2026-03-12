@@ -27,7 +27,7 @@ double canonicalize_fitness_accumulator(double value) {
 
 std::vector<double> eval_fitness_cpu(
     const std::vector<BytecodeProgram>& programs,
-    const std::vector<CaseInputs>& shared_cases,
+    const std::vector<CaseBindings>& shared_cases,
     const std::vector<Value>& shared_answer,
     int fuel,
     double penalty,

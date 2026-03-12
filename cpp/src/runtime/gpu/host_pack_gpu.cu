@@ -60,7 +60,7 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
   return out;
 }
 
-void pack_shared_cases_only(const std::vector<CaseInputs>& shared_cases,
+void pack_shared_cases_only(const std::vector<CaseBindings>& shared_cases,
                             std::vector<Value>* packed_case_local_vals,
                             std::vector<unsigned char>* packed_case_local_set) {
   packed_case_local_vals->assign(shared_cases.size() * MAX_LOCALS, Value::none());
