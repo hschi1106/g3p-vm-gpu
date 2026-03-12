@@ -49,7 +49,8 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
   int ip = 0;
   int fuel_left = fuel;
   bool returned = false;
-  DThreadPayloadState payload_state;
+  // Local exact payload scratch must start empty for every thread/case.
+  DThreadPayloadState payload_state{};
 
   while (ip < meta.code_len) {
     if (fuel_left <= 0) {

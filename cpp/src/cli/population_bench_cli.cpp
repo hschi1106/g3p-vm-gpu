@@ -433,7 +433,7 @@ EvalRun evaluate_compiled_population(const std::vector<BytecodeProgram>& program
   if (args.engine == "cpu") {
     const auto t0 = std::chrono::steady_clock::now();
     out.fitness = g3pvm::eval_fitness_cpu(
-        programs, shared_case_bindings, expected_values, args.fuel, args.penalty);
+        programs, shared_case_bindings, expected_values, args.fuel, args.penalty, args.blocksize);
     const auto t1 = std::chrono::steady_clock::now();
     out.eval_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     canonicalize_fitness_vector(&out.fitness);

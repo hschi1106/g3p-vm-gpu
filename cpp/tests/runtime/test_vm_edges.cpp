@@ -208,6 +208,37 @@ bool test_builtin_slice_string_ok() {
   return check(g3pvm::Value::container_len(out.value) == 4U, "slice(string,2,6) length mismatch");
 }
 
+bool test_builtin_slice_string_payload_empty_ok() {
+  g3pvm::payload::clear();
+  BytecodeProgram p;
+  p.consts = {
+      g3pvm::payload::make_string_value("we"),
+      Value::from_int(1),
+      Value::from_int(-4),
+  };
+  p.code = {
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_a(Opcode::PushConst, 2),
+      ins_ab(Opcode::CallBuiltin, 6, 3),
+      ins(Opcode::Return),
+  };
+  ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
+  if (!check(!out.is_error, "slice(payload_string,1,-4) should not error")) return false;
+  if (!check(out.value.tag == g3pvm::ValueTag::String,
+             "slice(payload_string,1,-4) should return string")) {
+    return false;
+  }
+  std::string exact;
+  if (!check(g3pvm::payload::lookup_string(out.value, &exact),
+             "slice(payload_string,1,-4) should keep exact empty payload")) {
+    return false;
+  }
+  if (!check(exact.empty(), "slice(payload_string,1,-4) should produce empty string")) return false;
+  return check(g3pvm::Value::container_len(out.value) == 0U,
+               "slice(payload_string,1,-4) should return len=0 string");
+}
+
 bool test_builtin_slice_list_negative_idx_ok() {
   BytecodeProgram p;
   p.consts = {
@@ -364,6 +395,7 @@ int main() {
   if (!test_builtin_concat_list_ok()) return 1;
   if (!test_builtin_concat_type_error()) return 1;
   if (!test_builtin_slice_string_ok()) return 1;
+  if (!test_builtin_slice_string_payload_empty_ok()) return 1;
   if (!test_builtin_slice_list_negative_idx_ok()) return 1;
   if (!test_builtin_slice_type_error()) return 1;
   if (!test_builtin_index_string_ok()) return 1;

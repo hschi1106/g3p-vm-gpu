@@ -315,7 +315,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       const char* xp = nullptr;
       int xl = 0;
       if (d_lookup_string_payload(tables, payload_state, x, xp, xl) &&
-          l >= 0 && h >= l && h <= xl &&
+          l >= 0 && l <= xl && h >= 0 && h <= xl &&
           payload_state.string_bytes_used + static_cast<int>(out_len) <= DMAX_THREAD_STRING_BYTES) {
         const int off = payload_state.string_bytes_used;
         for (int i = 0; i < static_cast<int>(out_len); ++i) {
@@ -334,7 +334,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
     const Value* xp = nullptr;
     int xl = 0;
     if (d_lookup_list_payload(tables, payload_state, x, xp, xl) &&
-        l >= 0 && h >= l && h <= xl &&
+        l >= 0 && l <= xl && h >= 0 && h <= xl &&
         payload_state.list_values_used + static_cast<int>(out_len) <= DMAX_THREAD_LIST_VALUES) {
       const int off = payload_state.list_values_used;
       for (int i = 0; i < static_cast<int>(out_len); ++i) {

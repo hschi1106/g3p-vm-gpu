@@ -200,7 +200,8 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
       if (payload::lookup_string(x, &sx)) {
         const std::size_t ls = static_cast<std::size_t>(l);
         const std::size_t hs = static_cast<std::size_t>(h);
-        return BuiltinResult{false, payload::make_string_value(sx.substr(ls, hs - ls)), Err{ErrCode::Value, ""}};
+        const std::size_t count = (hs > ls) ? (hs - ls) : 0U;
+        return BuiltinResult{false, payload::make_string_value(sx.substr(ls, count)), Err{ErrCode::Value, ""}};
       }
       const std::uint64_t out_h = Value::slice_container_hash48(3U, x, lo.i, hi.i);
       BuiltinResult out;
