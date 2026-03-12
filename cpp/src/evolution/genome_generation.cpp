@@ -70,8 +70,6 @@ int choose_name_for_type(std::mt19937_64& rng, const PrefixGenCtx& ctx, RType ty
   return choose_one(rng, names);
 }
 
-void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, int depth, RType target);
-
 void emit_random_leaf(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, RType target) {
   const int var_id = choose_name_for_type(rng, ctx, target);
   if (var_id >= 0 && std::bernoulli_distribution(0.45)(rng)) {
