@@ -113,7 +113,8 @@ Public payload registry interface for host-side string/list snapshots and lookup
 
 ### `cpp/include/g3pvm/evolution/`
 Public evolution interfaces split by responsibility:
-- `genome.hpp`: core AST/genome data types, metadata, and canonical AST serialization helpers
+- `ast_program.hpp`: prefix AST program representation, shape limits, and canonical AST serialization helpers
+- `genome.hpp`: genome metadata and `ProgramGenome` wrapper
 - `genome_generation.hpp`: random genome generation
 - `compiler.hpp`: AST-to-bytecode lowering
 - `selection.hpp`: ranking and parent selection
@@ -135,7 +136,8 @@ Public evolution interfaces split by responsibility:
 - payload snapshot generation for GPU
 
 ### `cpp/src/evolution/`
-- `genome.cpp`: genome metadata and canonical AST serialization
+- `ast_program.cpp`: canonical AST serialization and cache-key generation
+- `genome.cpp`: genome metadata construction
 - `subtree_utils.*`: subtree traversal and rewrite
 - `typed_expr_analysis.*`: typed expression root analysis
 - `compiler.cpp`: AST-to-bytecode compiler

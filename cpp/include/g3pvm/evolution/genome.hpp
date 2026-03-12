@@ -1,79 +1,9 @@
 #pragma once
 
-#include <cstdint>
 #include <string>
-#include <unordered_map>
-#include <vector>
-
-#include "g3pvm/core/bytecode.hpp"
+#include "g3pvm/evolution/ast_program.hpp"
 
 namespace g3pvm::evo {
-
-enum class RType {
-  Num,
-  Bool,
-  NoneType,
-  Container,
-  Any,
-  Invalid,
-};
-
-enum class NodeKind {
-  PROGRAM,
-  BLOCK_NIL,
-  BLOCK_CONS,
-  ASSIGN,
-  IF_STMT,
-  FOR_RANGE,
-  RETURN,
-  CONST,
-  VAR,
-  NEG,
-  NOT,
-  ADD,
-  SUB,
-  MUL,
-  DIV,
-  MOD,
-  LT,
-  LE,
-  GT,
-  GE,
-  EQ,
-  NE,
-  AND,
-  OR,
-  IF_EXPR,
-  CALL_ABS,
-  CALL_MIN,
-  CALL_MAX,
-  CALL_CLIP,
-  CALL_LEN,
-  CALL_CONCAT,
-  CALL_SLICE,
-  CALL_INDEX,
-};
-
-struct AstNode {
-  NodeKind kind = NodeKind::PROGRAM;
-  int i0 = 0;
-  int i1 = 0;
-};
-
-struct AstProgram {
-  std::vector<AstNode> nodes;
-  std::vector<std::string> names;
-  std::vector<Value> consts;
-  std::string version = "ast-prefix-v1";
-};
-
-struct Limits {
-  int max_expr_depth = 5;
-  int max_stmts_per_block = 6;
-  int max_total_nodes = 80;
-  int max_for_k = 16;
-  int max_call_args = 3;
-};
 
 struct GenomeMeta {
   int node_count = 0;
@@ -88,7 +18,5 @@ struct ProgramGenome {
 };
 
 GenomeMeta build_genome_meta(const AstProgram& ast);
-std::string ast_to_string(const AstProgram& program);
-std::string ast_cache_key(const AstProgram& program);
 
 }  // namespace g3pvm::evo

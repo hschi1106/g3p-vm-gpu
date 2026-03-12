@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "g3pvm/evolution/ast_program.hpp"
 #include "g3pvm/evolution/genome.hpp"
 
 namespace g3pvm::evo {
