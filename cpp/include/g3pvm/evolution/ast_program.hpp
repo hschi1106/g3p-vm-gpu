@@ -11,7 +11,8 @@ enum class RType {
   Num,
   Bool,
   NoneType,
-  Container,
+  String,
+  List,
   Any,
   Invalid,
 };

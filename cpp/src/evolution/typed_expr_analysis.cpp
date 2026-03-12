@@ -46,7 +46,8 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       const Value& v = p.consts[static_cast<std::size_t>(n.i0)];
       if (v.tag == ValueTag::None) t = RType::NoneType;
       else if (v.tag == ValueTag::Bool) t = RType::Bool;
-      else if (v.tag == ValueTag::String || v.tag == ValueTag::List) t = RType::Container;
+      else if (v.tag == ValueTag::String) t = RType::String;
+      else if (v.tag == ValueTag::List) t = RType::List;
       else t = RType::Num;
     }
     if (out != nullptr && t != RType::Invalid) out->push_back(TypedExprRoot{idx, end[idx], t});
@@ -71,7 +72,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     ExprCheck f = infer_expr_prefix(p, end, t.next, env, out);
     RType r = RType::Invalid;
     if (c.t == RType::Bool && t.t == f.t &&
-        (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType || t.t == RType::Container)) {
+        (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType || t.t == RType::String || t.t == RType::List)) {
       r = t.t;
     }
     if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, f.next, r});
@@ -84,7 +85,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     bool ok = true;
     if (n.kind == NodeKind::CALL_LEN) {
       ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
-      if (a.t != RType::Container) ok = false;
+      if (a.t != RType::String && a.t != RType::List) ok = false;
       cur = a.next;
       const RType r = ok ? RType::Num : RType::Invalid;
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, cur, r});
@@ -93,7 +94,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     if (n.kind == NodeKind::CALL_CONCAT) {
       ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
       ExprCheck b = infer_expr_prefix(p, end, a.next, env, out);
-      const RType r = (a.t == RType::Container && b.t == RType::Container) ? RType::Container : RType::Invalid;
+      const RType r = (a.t == b.t && (a.t == RType::String || a.t == RType::List)) ? a.t : RType::Invalid;
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, b.next, r});
       return {r, b.next};
     }
@@ -101,14 +102,20 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       ExprCheck x = infer_expr_prefix(p, end, cur, env, out);
       ExprCheck lo = infer_expr_prefix(p, end, x.next, env, out);
       ExprCheck hi = infer_expr_prefix(p, end, lo.next, env, out);
-      const RType r = (x.t == RType::Container && lo.t == RType::Num && hi.t == RType::Num) ? RType::Container : RType::Invalid;
+      const RType r = ((x.t == RType::String || x.t == RType::List) && lo.t == RType::Num && hi.t == RType::Num)
+                          ? x.t
+                          : RType::Invalid;
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, hi.next, r});
       return {r, hi.next};
     }
     if (n.kind == NodeKind::CALL_INDEX) {
       ExprCheck x = infer_expr_prefix(p, end, cur, env, out);
       ExprCheck i = infer_expr_prefix(p, end, x.next, env, out);
-      const RType r = (x.t == RType::Container && i.t == RType::Num) ? RType::Num : RType::Invalid;
+      RType r = RType::Invalid;
+      if (i.t == RType::Num) {
+        if (x.t == RType::String) r = RType::String;
+        else if (x.t == RType::List) r = RType::Any;
+      }
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, i.next, r});
       return {r, i.next};
     }
@@ -131,7 +138,10 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     else if (n.kind == NodeKind::LT || n.kind == NodeKind::LE || n.kind == NodeKind::GT || n.kind == NodeKind::GE)
       r = (a.t == RType::Num && b.t == RType::Num) ? RType::Bool : RType::Invalid;
     else if (n.kind == NodeKind::EQ || n.kind == NodeKind::NE)
-      r = (a.t == b.t && (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType || a.t == RType::Container)) ? RType::Bool : RType::Invalid;
+      r = (a.t == b.t &&
+           (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType || a.t == RType::String || a.t == RType::List))
+              ? RType::Bool
+              : RType::Invalid;
     else
       r = (a.t == RType::Num && b.t == RType::Num) ? RType::Num : RType::Invalid;
     if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, b.next, r});

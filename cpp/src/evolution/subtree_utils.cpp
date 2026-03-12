@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "g3pvm/runtime/payload/payload.hpp"
+
 namespace g3pvm::evo::subtree {
 
 namespace {
@@ -182,10 +184,26 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
   Value value = Value::from_int(0);
   if (type == RType::Bool) value = Value::from_bool(rand_prob(rng, 0.5));
   else if (type == RType::NoneType) value = Value::none();
-  else if (type == RType::Container) {
-    const std::uint32_t n = static_cast<std::uint32_t>(rand_int(rng, 0, 8));
-    const std::uint64_t h = static_cast<std::uint64_t>(rng());
-    value = rand_prob(rng, 0.5) ? Value::from_string_hash_len(h, n) : Value::from_list_hash_len(h, n);
+  else if (type == RType::String) {
+    static constexpr char kAlphabet[] = "abcdefghijklmnopqrstuvwxyz";
+    const int len = rand_int(rng, 0, 8);
+    std::string s;
+    s.reserve(static_cast<std::size_t>(len));
+    for (int i = 0; i < len; ++i) {
+      s.push_back(kAlphabet[rand_int(rng, 0, 25)]);
+    }
+    value = g3pvm::payload::make_string_value(s);
+  } else if (type == RType::List) {
+    const int len = rand_int(rng, 0, 4);
+    std::vector<Value> elems;
+    elems.reserve(static_cast<std::size_t>(len));
+    for (int i = 0; i < len; ++i) {
+      const int scalar_kind = rand_int(rng, 0, 2);
+      if (scalar_kind == 0) elems.push_back(Value::from_int(rand_int(rng, -8, 8)));
+      else if (scalar_kind == 1) elems.push_back(Value::from_bool(rand_prob(rng, 0.5)));
+      else elems.push_back(Value::none());
+    }
+    value = g3pvm::payload::make_list_value(elems);
   } else if (rand_prob(rng, 0.5)) {
     value = Value::from_int(rand_int(rng, -8, 8));
   } else {
