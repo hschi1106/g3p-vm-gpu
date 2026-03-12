@@ -28,7 +28,7 @@ usage() {
   cat <<USAGE
 Usage: scripts/run_cpu_gpu_speedup_experiment.sh [options]
 
-Run one-generation CPU/GPU benchmark on one fixed population and write logs + compare report.
+Run one-generation CPU/GPU benchmark on one generated fixed population and write logs + compare report.
 
 Options:
   --cases PATH                 Benchmark fixture (default: data/fixtures/bouncing_balls_1024.json)
@@ -141,23 +141,17 @@ run_bench() {
     --crossover-rate "$CROSSOVER_RATE"
     --penalty "$PENALTY"
     --selection-pressure "$SELECTION_PRESSURE"
+    --population-size "$POPSIZE"
+    --seed-start "$SEED_START"
+    --probe-cases "$PROBE_CASES"
+    --min-success-rate "$MIN_SUCCESS_RATE"
+    --max-expr-depth "$MAX_EXPR_DEPTH"
+    --max-stmts-per-block "$MAX_STMTS_PER_BLOCK"
+    --max-total-nodes "$MAX_TOTAL_NODES"
+    --max-for-k "$MAX_FOR_K"
+    --max-call-args "$MAX_CALL_ARGS"
+    --out-population-json "$POP_JSON"
   )
-  if [[ -f "$POP_JSON" ]]; then
-    cmd+=(--population-json "$POP_JSON")
-  else
-    cmd+=(
-      --population-size "$POPSIZE"
-      --seed-start "$SEED_START"
-      --probe-cases "$PROBE_CASES"
-      --min-success-rate "$MIN_SUCCESS_RATE"
-      --max-expr-depth "$MAX_EXPR_DEPTH"
-      --max-stmts-per-block "$MAX_STMTS_PER_BLOCK"
-      --max-total-nodes "$MAX_TOTAL_NODES"
-      --max-for-k "$MAX_FOR_K"
-      --max-call-args "$MAX_CALL_ARGS"
-      --out-population-json "$POP_JSON"
-    )
-  fi
   if [[ "$engine" == "gpu" ]]; then
     scripts/run_gpu_command.sh -- "${cmd[@]}" | tee "$outfile"
   else

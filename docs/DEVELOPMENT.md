@@ -75,12 +75,11 @@ Genome-shape args:
 
 Fixed-population benchmark args:
 - `--cases PATH`: input `fitness-cases-v1` file
-- `--population-json PATH`: optional input `population-seeds-v1` JSON; if omitted, the CLI generates a fixed population first
-- `--out-population-json PATH`: optional output path when generating a new fixed population
+- `--out-population-json PATH`: optional output path for the generated `population-seeds-v1` JSON
 - `--engine {cpu|gpu}`: evaluation backend
 - `--blocksize N`: GPU block size when `--engine gpu`
 - `--fuel N`: per-program execution budget
-- `--population-size N`: number of accepted genomes when generating a fixed population
+- `--population-size N`: number of accepted genomes in the generated fixed population
 - `--seed-start N`: first RNG seed considered during generation
 - `--probe-cases N`: number of leading cases used to reject programs that error too often
 - `--min-success-rate F`: required non-error ratio across probe cases
@@ -266,7 +265,7 @@ bash scripts/run_cpu_gpu_speedup_experiment.sh \
   --popsize 1024
 ```
 
-This benchmark uses one fixed population for both CPU and GPU runs.
+This benchmark generates one fixed population per run and uses that same population for both CPU and GPU runs.
 The canonical interpretation is:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only
@@ -274,17 +273,6 @@ The canonical interpretation is:
 - `total`: the full one-generation benchmark cost
 
 `eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
-
-Pre-generated populations for the canonical fixtures are checked in under `data/fixtures/programs/`.
-
-### Benchmark one fixed population directly
-
-```bash
-cpp/build/g3pvm_population_bench_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --population-json data/fixtures/programs/bouncing_balls_1024_pop1024.json \
-  --engine cpu
-```
 
 ### Generate and benchmark one fixed population in one step
 

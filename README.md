@@ -93,25 +93,13 @@ bash scripts/run_cpu_gpu_speedup_experiment.sh \
   --popsize 1024
 ```
 
-This benchmark now uses one fixed generated population instead of a multi-generation evolution run.
+This benchmark now generates one fixed population per run instead of using a multi-generation evolution run.
 It always executes one complete generation and reports a phase breakdown:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only; `compile` is intentionally excluded
 - `repro`: one-generation host-side selection, crossover, and mutation work
 - `selection`, `crossover`, `mutation`: the internal reproduction phases
 - `total`: the full one-generation benchmark wall time
-
-Reusable fixed populations for the canonical fixtures live in `data/fixtures/programs/`.
-
-### Benchmark one fixed population directly
-
-```bash
-cpp/build/g3pvm_population_bench_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
-  --population-json data/fixtures/programs/bouncing_balls_1024_pop1024.json \
-  --engine gpu \
-  --blocksize 256
-```
 
 ### Generate and benchmark one fixed population in one step
 

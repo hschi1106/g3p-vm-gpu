@@ -48,7 +48,6 @@ using g3pvm::evo::ScoredGenome;
 
 struct CliOptions {
   std::string cases_path;
-  std::string population_json;
   std::string out_population_json;
   std::string engine = "cpu";
   int blocksize = 256;
@@ -70,11 +69,6 @@ struct CliOptions {
   int max_call_args = 3;
 };
 
-struct PopulationSeedSet {
-  g3pvm::evo::Limits limits;
-  std::vector<std::uint64_t> seeds;
-};
-
 struct AcceptedSeed {
   std::uint64_t seed = 0;
   int probe_successes = 0;
@@ -83,8 +77,9 @@ struct AcceptedSeed {
 };
 
 struct GeneratedPopulation {
-  PopulationSeedSet seed_set;
+  g3pvm::evo::Limits limits;
   std::vector<ProgramGenome> population;
+  std::vector<std::uint64_t> seeds;
   int attempts = 0;
   int probe_case_count = 0;
   int min_successes = 0;
@@ -188,7 +183,6 @@ CliOptions parse_cli(int argc, char** argv) {
       return argv[++i];
     };
     if (arg == "--cases") opts.cases_path = need_value("--cases");
-    else if (arg == "--population-json") opts.population_json = need_value("--population-json");
     else if (arg == "--out-population-json") opts.out_population_json = need_value("--out-population-json");
     else if (arg == "--engine") opts.engine = need_value("--engine");
     else if (arg == "--blocksize") opts.blocksize = std::stoi(need_value("--blocksize"));
@@ -214,44 +208,13 @@ CliOptions parse_cli(int argc, char** argv) {
   if (opts.engine != "cpu" && opts.engine != "gpu") {
     throw std::runtime_error("--engine must be cpu or gpu");
   }
-  if (opts.population_json.empty()) {
-    if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
-    if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
-    if (opts.min_success_rate < 0.0 || opts.min_success_rate > 1.0) {
-      throw std::runtime_error("--min-success-rate must be in [0, 1]");
-    }
-    if (opts.max_attempts <= 0) throw std::runtime_error("--max-attempts must be > 0");
+  if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
+  if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
+  if (opts.min_success_rate < 0.0 || opts.min_success_rate > 1.0) {
+    throw std::runtime_error("--min-success-rate must be in [0, 1]");
   }
+  if (opts.max_attempts <= 0) throw std::runtime_error("--max-attempts must be > 0");
   return opts;
-}
-
-PopulationSeedSet parse_population_seed_set(const JsonValue& root) {
-  if (root.kind != JsonValue::Kind::Object) {
-    throw std::runtime_error("population-json must be object");
-  }
-  const auto fv_it = root.object_v.find("format_version");
-  if (fv_it == root.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
-      fv_it->second.string_v != "population-seeds-v1") {
-    throw std::runtime_error("population-json must include format_version=population-seeds-v1");
-  }
-  const auto limits_it = root.object_v.find("limits");
-  const auto seeds_it = root.object_v.find("seeds");
-  if (limits_it == root.object_v.end() || limits_it->second.kind != JsonValue::Kind::Object ||
-      seeds_it == root.object_v.end() || seeds_it->second.kind != JsonValue::Kind::Array) {
-    throw std::runtime_error("population-json missing limits/seeds");
-  }
-  const auto& obj = limits_it->second.object_v;
-  PopulationSeedSet out;
-  out.limits.max_expr_depth = static_cast<int>(obj.at("max_expr_depth").number_v);
-  out.limits.max_stmts_per_block = static_cast<int>(obj.at("max_stmts_per_block").number_v);
-  out.limits.max_total_nodes = static_cast<int>(obj.at("max_total_nodes").number_v);
-  out.limits.max_for_k = static_cast<int>(obj.at("max_for_k").number_v);
-  out.limits.max_call_args = static_cast<int>(obj.at("max_call_args").number_v);
-  out.seeds.reserve(seeds_it->second.array_v.size());
-  for (const JsonValue& row : seeds_it->second.array_v) {
-    out.seeds.push_back(static_cast<std::uint64_t>(row.object_v.at("seed").number_v));
-  }
-  return out;
 }
 
 std::string json_escape(const std::string& s) {
@@ -317,17 +280,9 @@ std::vector<std::pair<int, Value>> case_inputs_to_locals(const EvalCase& one_cas
   return out;
 }
 
-std::vector<ProgramGenome> make_population_from_seeds(const PopulationSeedSet& seed_set) {
-  std::vector<ProgramGenome> out;
-  out.reserve(seed_set.seeds.size());
-  for (std::uint64_t seed : seed_set.seeds) {
-    out.push_back(g3pvm::evo::generate_random_genome(seed, seed_set.limits));
-  }
-  return out;
-}
-
 void write_population_seed_set(const std::string& path,
-                               const PopulationSeedSet& seed_set,
+                               const g3pvm::evo::Limits& limits,
+                               const std::vector<std::uint64_t>& seeds,
                                const std::vector<AcceptedSeed>* accepted,
                                const std::string& cases_path,
                                int probe_case_count,
@@ -341,21 +296,21 @@ void write_population_seed_set(const std::string& path,
   out << "{\n";
   out << "  \"format_version\": \"population-seeds-v1\",\n";
   out << "  \"cases_path\": \"" << json_escape(cases_path) << "\",\n";
-  out << "  \"population_size\": " << seed_set.seeds.size() << ",\n";
+  out << "  \"population_size\": " << seeds.size() << ",\n";
   out << "  \"probe_cases\": " << probe_case_count << ",\n";
   out << "  \"min_success_rate\": " << std::setprecision(17) << min_success_rate << ",\n";
   out << "  \"fuel\": " << fuel << ",\n";
   out << "  \"attempts\": " << attempts << ",\n";
   out << "  \"limits\": {\n";
-  out << "    \"max_expr_depth\": " << seed_set.limits.max_expr_depth << ",\n";
-  out << "    \"max_stmts_per_block\": " << seed_set.limits.max_stmts_per_block << ",\n";
-  out << "    \"max_total_nodes\": " << seed_set.limits.max_total_nodes << ",\n";
-  out << "    \"max_for_k\": " << seed_set.limits.max_for_k << ",\n";
-  out << "    \"max_call_args\": " << seed_set.limits.max_call_args << "\n";
+  out << "    \"max_expr_depth\": " << limits.max_expr_depth << ",\n";
+  out << "    \"max_stmts_per_block\": " << limits.max_stmts_per_block << ",\n";
+  out << "    \"max_total_nodes\": " << limits.max_total_nodes << ",\n";
+  out << "    \"max_for_k\": " << limits.max_for_k << ",\n";
+  out << "    \"max_call_args\": " << limits.max_call_args << "\n";
   out << "  },\n";
   out << "  \"seeds\": [\n";
-  for (std::size_t i = 0; i < seed_set.seeds.size(); ++i) {
-    out << "    {\"seed\": " << seed_set.seeds[i];
+  for (std::size_t i = 0; i < seeds.size(); ++i) {
+    out << "    {\"seed\": " << seeds[i];
     if (accepted != nullptr) {
       const AcceptedSeed& row = accepted->at(i);
       out << ", \"probe_successes\": " << row.probe_successes
@@ -363,7 +318,7 @@ void write_population_seed_set(const std::string& path,
           << ", \"program_key\": \"" << json_escape(row.program_key) << "\"";
     }
     out << "}";
-    if (i + 1 < seed_set.seeds.size()) {
+    if (i + 1 < seeds.size()) {
       out << ",";
     }
     out << "\n";
@@ -424,10 +379,10 @@ GeneratedPopulation generate_population(const CliOptions& args,
   }
 
   GeneratedPopulation out;
-  out.seed_set.limits = limits;
-  out.seed_set.seeds.reserve(accepted.size());
+  out.limits = limits;
+  out.seeds.reserve(accepted.size());
   for (const AcceptedSeed& one : accepted) {
-    out.seed_set.seeds.push_back(one.seed);
+    out.seeds.push_back(one.seed);
   }
   out.population = std::move(population);
   out.attempts = attempts;
@@ -436,7 +391,8 @@ GeneratedPopulation generate_population(const CliOptions& args,
 
   if (!args.out_population_json.empty()) {
     write_population_seed_set(args.out_population_json,
-                              out.seed_set,
+                              out.limits,
+                              out.seeds,
                               &accepted,
                               args.cases_path,
                               probe_case_count,
@@ -564,25 +520,8 @@ int main(int argc, char** argv) {
     const JsonValue cases_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.cases_path)).parse();
     const std::vector<EvalCase> cases = parse_cases_v1(cases_payload);
     const std::vector<std::string> input_names = build_canonical_input_names(cases);
-
-    PopulationSeedSet seed_set;
-    std::vector<ProgramGenome> population;
-    int attempts = 0;
-    int probe_case_count = 0;
-    int min_successes = 0;
-    if (!args.population_json.empty()) {
-      const JsonValue population_payload =
-          g3pvm::cli_detail::JsonParser(read_text_file(args.population_json)).parse();
-      seed_set = parse_population_seed_set(population_payload);
-      population = make_population_from_seeds(seed_set);
-    } else {
-      const GeneratedPopulation generated = generate_population(args, cases, input_names);
-      seed_set = generated.seed_set;
-      population = generated.population;
-      attempts = generated.attempts;
-      probe_case_count = generated.probe_case_count;
-      min_successes = generated.min_successes;
-    }
+    const GeneratedPopulation generated = generate_population(args, cases, input_names);
+    const std::vector<ProgramGenome>& population = generated.population;
 
     const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
     const std::vector<Value> expected_values = build_expected_values(cases);
@@ -599,7 +538,7 @@ int main(int argc, char** argv) {
     cfg.selection_pressure = args.selection_pressure;
     cfg.seed = 0;
     cfg.fuel = args.fuel;
-    cfg.limits = seed_set.limits;
+    cfg.limits = generated.limits;
 
     const auto all_t0 = std::chrono::steady_clock::now();
     const auto compile = compile_population(population, input_names);
@@ -639,12 +578,10 @@ int main(int argc, char** argv) {
               << static_cast<double>(fitness_sum / static_cast<long double>(eval.fitness.size()))
               << " best_fitness=" << scored.front().fitness
               << " best_program_key=" << scored.front().genome.meta.program_key
-              << " population_source=" << (args.population_json.empty() ? "generated" : "loaded");
-    if (args.population_json.empty()) {
-      std::cout << " generation_attempts=" << attempts
-                << " probe_cases=" << probe_case_count
-                << " min_successes=" << min_successes;
-    }
+              << " population_source=generated"
+              << " generation_attempts=" << generated.attempts
+              << " probe_cases=" << generated.probe_case_count
+              << " min_successes=" << generated.min_successes;
     if (!args.out_population_json.empty()) {
       std::cout << " out_population_json=" << args.out_population_json;
     }

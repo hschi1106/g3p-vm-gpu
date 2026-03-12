@@ -158,7 +158,6 @@ Benchmark binaries for runtime-focused measurement.
 ## Data and Tooling Layout
 
 - `data/fixtures/`: canonical benchmark fixtures
-- `data/fixtures/programs/`: checked-in fixed-population benchmark inputs
 - `data/psb2_datasets/`: PSB2 dataset mirror used by converters and batch runs
 - `tools/`: dataset conversion, orchestration, reporting, release gates
 - `scripts/`: operational wrappers that should be used directly by humans and agents
