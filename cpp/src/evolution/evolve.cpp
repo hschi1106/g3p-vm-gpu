@@ -96,6 +96,14 @@ struct CompiledPopulation {
   double compile_ms = 0.0;
 };
 
+struct ReproductionResult {
+  std::vector<ProgramGenome> next_population;
+  double selection_ms = 0.0;
+  double crossover_ms = 0.0;
+  double mutation_ms = 0.0;
+  double elite_copy_ms = 0.0;
+};
+
 CompiledPopulation compile_population(const std::vector<ProgramGenome>& population,
                                       const std::vector<std::string>& input_names,
                                       CompileCache* compile_cache) {
@@ -123,7 +131,7 @@ CompiledPopulation compile_population(const std::vector<ProgramGenome>& populati
   return out;
 }
 
-std::vector<double> evaluate_population_fitness_cpu_shared_cases(
+std::vector<ScoredGenome> score_population_cpu(
     const std::vector<ProgramGenome>& population,
     const std::vector<std::string>& input_names,
     const std::vector<CaseBindings>& shared_cases,
@@ -133,7 +141,8 @@ std::vector<double> evaluate_population_fitness_cpu_shared_cases(
     int reduction_lanes,
     CompileCache* compile_cache,
     EvolutionTiming* timing,
-    bool record_per_gen) {
+    bool record_per_gen,
+    double* fitness_sum_out) {
   const CompiledPopulation compiled = compile_population(population, input_names, compile_cache);
   std::vector<double> fitness =
       eval_fitness_cpu(compiled.programs, shared_cases, shared_answer, fuel, penalty, reduction_lanes);
@@ -149,24 +158,6 @@ std::vector<double> evaluate_population_fitness_cpu_shared_cases(
     timing->generation_cpu_program_compile_ms.push_back(compiled.compile_ms);
   }
 
-  return fitness;
-}
-
-std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
-    const std::vector<ProgramGenome>& population,
-    const std::vector<std::string>& input_names,
-    const std::vector<CaseBindings>& shared_cases,
-    const std::vector<Value>& shared_answer,
-    int fuel,
-    double penalty,
-    int reduction_lanes,
-    CompileCache* compile_cache,
-    EvolutionTiming* timing,
-    bool record_per_gen,
-    double* fitness_sum_out) {
-  const std::vector<double> fitness = evaluate_population_fitness_cpu_shared_cases(
-      population, input_names, shared_cases, shared_answer, fuel, penalty, reduction_lanes,
-      compile_cache, timing, record_per_gen);
   if (fitness_sum_out != nullptr) {
     long double sum = 0.0L;
     for (double one : fitness) {
@@ -185,13 +176,14 @@ std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
 }
 
 #ifdef G3PVM_HAS_CUDA
-std::vector<double> evaluate_population_fitness_gpu(
+std::vector<ScoredGenome> score_population_gpu(
     const std::vector<ProgramGenome>& population,
     const std::vector<std::string>& input_names,
     FitnessSessionGpu* session,
     CompileCache* compile_cache,
     EvolutionTiming* timing,
-    bool record_per_gen) {
+    bool record_per_gen,
+    double* fitness_sum_out) {
   const CompiledPopulation compiled = compile_population(population, input_names, compile_cache);
   FitnessEvalResult fit = session->eval_programs(compiled.programs);
   if (!fit.ok) {
@@ -215,19 +207,7 @@ std::vector<double> evaluate_population_fitness_gpu(
     timing->generation_gpu_copyback_ms.push_back(fit.copyback_ms);
   }
 
-  return fit.fitness;
-}
-
-std::vector<ScoredGenome> evaluate_population_gpu(
-    const std::vector<ProgramGenome>& population,
-    const std::vector<std::string>& input_names,
-    FitnessSessionGpu* session,
-    CompileCache* compile_cache,
-    EvolutionTiming* timing,
-    bool record_per_gen,
-    double* fitness_sum_out) {
-  const std::vector<double> fitness =
-      evaluate_population_fitness_gpu(population, input_names, session, compile_cache, timing, record_per_gen);
+  const std::vector<double>& fitness = fit.fitness;
   if (fitness_sum_out != nullptr) {
     long double sum = 0.0L;
     for (double one : fitness) {
@@ -246,52 +226,72 @@ std::vector<ScoredGenome> evaluate_population_gpu(
 }
 #endif
 
+ReproductionResult reproduce_population(const std::vector<ScoredGenome>& scored,
+                                        const EvolutionConfig& cfg,
+                                        std::mt19937_64& rng) {
+  ReproductionResult out;
+  out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
+
+  const int elite_count = std::min(cfg.elitism, static_cast<int>(scored.size()));
+  const auto elite_t0 = std::chrono::steady_clock::now();
+  for (int i = 0; i < elite_count; ++i) {
+    out.next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
+  }
+  const auto elite_t1 = std::chrono::steady_clock::now();
+  out.elite_copy_ms = std::chrono::duration<double, std::milli>(elite_t1 - elite_t0).count();
+
+  const int offspring_count = cfg.population_size - elite_count;
+  std::vector<ProgramGenome> selected_parents;
+  selected_parents.reserve(static_cast<std::size_t>(offspring_count));
+
+  const auto selection_t0 = std::chrono::steady_clock::now();
+  for (int i = 0; i < offspring_count; ++i) {
+    selected_parents.push_back(tournament_selection(scored, rng, cfg.selection_pressure));
+  }
+  const auto selection_t1 = std::chrono::steady_clock::now();
+  out.selection_ms = std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
+
+  std::vector<ProgramGenome> offspring = selected_parents;
+  std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+  std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
+
+  const auto crossover_t0 = std::chrono::steady_clock::now();
+  if (selected_parents.size() > 1) {
+    std::uniform_int_distribution<std::size_t> mate_pick(0, selected_parents.size() - 1);
+    for (std::size_t i = 0; i < offspring.size(); ++i) {
+      if (prob_dist(rng) >= cfg.crossover_rate) {
+        continue;
+      }
+      std::size_t mate_idx = mate_pick(rng);
+      if (mate_idx == i) {
+        mate_idx = (mate_idx + 1) % selected_parents.size();
+      }
+      offspring[i] = crossover(selected_parents[i], selected_parents[mate_idx], seed_dist(rng), cfg.limits);
+    }
+  }
+  const auto crossover_t1 = std::chrono::steady_clock::now();
+  out.crossover_ms = std::chrono::duration<double, std::milli>(crossover_t1 - crossover_t0).count();
+
+  const auto mutation_t0 = std::chrono::steady_clock::now();
+  for (ProgramGenome& child : offspring) {
+    if (prob_dist(rng) < cfg.mutation_rate) {
+      child = mutate(child, seed_dist(rng), cfg.limits, cfg.mutation_subtree_prob);
+    }
+  }
+  const auto mutation_t1 = std::chrono::steady_clock::now();
+  out.mutation_ms = std::chrono::duration<double, std::milli>(mutation_t1 - mutation_t0).count();
+
+  out.next_population.insert(out.next_population.end(),
+                             std::make_move_iterator(offspring.begin()),
+                             std::make_move_iterator(offspring.end()));
+  return out;
+}
+
 }  // namespace
 
 std::string eval_engine_name(EvalEngine engine) {
   if (engine == EvalEngine::GPU) return "gpu";
   return "cpu";
-}
-
-double evaluate_genome(const ProgramGenome& genome,
-                       const std::vector<EvalCase>& cases,
-                       const EvolutionConfig& cfg) {
-  const std::vector<std::string> input_names = build_canonical_input_names(cases);
-  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
-  const std::vector<Value> expected_values = build_expected_values(cases);
-  std::vector<ProgramGenome> one{genome};
-  CompileCache cache;
-  EvolutionTiming timing;
-  const std::vector<ScoredGenome> scored =
-      evaluate_population_cpu_shared_cases(one, input_names, shared_case_bindings, expected_values, cfg.fuel,
-                                           cfg.penalty, cfg.gpu_blocksize, &cache, &timing, false, nullptr);
-  return scored.front().fitness;
-}
-
-std::vector<double> evaluate_population_fitness(const std::vector<ProgramGenome>& population,
-                                                const std::vector<EvalCase>& cases,
-                                                const EvolutionConfig& cfg) {
-  const std::vector<std::string> input_names = build_canonical_input_names(cases);
-  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
-  const std::vector<Value> expected_values = build_expected_values(cases);
-  CompileCache cache;
-  EvolutionTiming timing;
-  if (cfg.eval_engine == EvalEngine::GPU) {
-#ifdef G3PVM_HAS_CUDA
-    FitnessSessionGpu session;
-    const FitnessEvalResult init_result =
-        session.init(shared_case_bindings, expected_values, cfg.fuel, cfg.gpu_blocksize, cfg.penalty);
-    if (!init_result.ok) {
-      throw std::runtime_error("gpu fitness session init failed: " + init_result.err.message);
-    }
-    return evaluate_population_fitness_gpu(population, input_names, &session, &cache, &timing, false);
-#else
-    throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
-#endif
-  }
-  return evaluate_population_fitness_cpu_shared_cases(population, input_names, shared_case_bindings, expected_values,
-                                                      cfg.fuel, cfg.penalty, cfg.gpu_blocksize, &cache,
-                                                      &timing, false);
 }
 
 std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& population,
@@ -302,13 +302,13 @@ std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& 
   const std::vector<Value> expected_values = build_expected_values(cases);
   CompileCache cache;
   EvolutionTiming timing;
-  return evaluate_population_cpu_shared_cases(population, input_names, shared_case_bindings, expected_values, cfg.fuel,
-                                              cfg.penalty, cfg.gpu_blocksize, &cache, &timing, false, nullptr);
+  return score_population_cpu(population, input_names, shared_case_bindings, expected_values, cfg.fuel,
+                              cfg.penalty, cfg.gpu_blocksize, &cache, &timing, false, nullptr);
 }
 
-ProgramGenome select_parent_tournament(const std::vector<ScoredGenome>& scored,
-                                       std::mt19937_64& rng,
-                                       int selection_pressure) {
+ProgramGenome tournament_selection(const std::vector<ScoredGenome>& scored,
+                                   std::mt19937_64& rng,
+                                   int selection_pressure) {
   if (scored.empty()) {
     throw std::invalid_argument("scored population is empty");
   }
@@ -408,13 +408,13 @@ EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
     double fitness_sum = 0.0;
     if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-      scored = evaluate_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache,
-                                       &run.timing, true, &fitness_sum);
+      scored = score_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache,
+                                    &run.timing, true, &fitness_sum);
 #else
       throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
     } else {
-      scored = evaluate_population_cpu_shared_cases(
+      scored = score_population_cpu(
           population, canonical_input_names, shared_case_bindings, expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
           &compile_cache, &run.timing, true, &fitness_sum);
     }
@@ -426,66 +426,21 @@ EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
     const double mean = fitness_sum / static_cast<double>(scored.size());
     result.history_mean_fitness.push_back(mean);
 
-    std::vector<ProgramGenome> next_population;
-    next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-
-    const auto elite_t0 = std::chrono::steady_clock::now();
-    for (int i = 0; i < cfg.elitism; ++i) {
-      next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
-    }
-    const auto elite_t1 = std::chrono::steady_clock::now();
-
-    std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
-    std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
-
-    double selection_ms = 0.0;
-    double crossover_ms = 0.0;
-    double mutation_ms = 0.0;
-
     const auto repro_t0 = std::chrono::steady_clock::now();
-    while (static_cast<int>(next_population.size()) < cfg.population_size) {
-      const auto select_t0 = std::chrono::steady_clock::now();
-      const ProgramGenome p1 =
-          select_parent_tournament(scored, rng, cfg.selection_pressure);
-      const auto select_t1 = std::chrono::steady_clock::now();
-      selection_ms += std::chrono::duration<double, std::milli>(select_t1 - select_t0).count();
-
-      ProgramGenome child = p1;
-      if (prob_dist(rng) < cfg.crossover_rate) {
-        const auto select2_t0 = std::chrono::steady_clock::now();
-        const ProgramGenome p2 =
-            select_parent_tournament(scored, rng, cfg.selection_pressure);
-        const auto select2_t1 = std::chrono::steady_clock::now();
-        selection_ms += std::chrono::duration<double, std::milli>(select2_t1 - select2_t0).count();
-
-        const auto cross_t0 = std::chrono::steady_clock::now();
-        child = crossover(p1, p2, seed_dist(rng), cfg.limits);
-        const auto cross_t1 = std::chrono::steady_clock::now();
-        crossover_ms += std::chrono::duration<double, std::milli>(cross_t1 - cross_t0).count();
-      }
-
-      if (prob_dist(rng) < cfg.mutation_rate) {
-        const auto mut_t0 = std::chrono::steady_clock::now();
-        child = mutate(child, seed_dist(rng), cfg.limits, cfg.mutation_subtree_prob);
-        const auto mut_t1 = std::chrono::steady_clock::now();
-        mutation_ms += std::chrono::duration<double, std::milli>(mut_t1 - mut_t0).count();
-      }
-      next_population.push_back(child);
-    }
+    ReproductionResult reproduction = reproduce_population(scored, cfg, rng);
     const auto repro_t1 = std::chrono::steady_clock::now();
 
-    population = std::move(next_population);
+    population = std::move(reproduction.next_population);
     const auto gen_t1 = std::chrono::steady_clock::now();
 
-    const double elite_ms = std::chrono::duration<double, std::milli>(elite_t1 - elite_t0).count();
-    run.timing.generations_selection_ms_total += selection_ms;
-    run.timing.generations_crossover_ms_total += crossover_ms;
-    run.timing.generations_mutation_ms_total += mutation_ms;
-    run.timing.generations_elite_copy_ms_total += elite_ms;
-    run.timing.generation_selection_ms.push_back(selection_ms);
-    run.timing.generation_crossover_ms.push_back(crossover_ms);
-    run.timing.generation_mutation_ms.push_back(mutation_ms);
-    run.timing.generation_elite_copy_ms.push_back(elite_ms);
+    run.timing.generations_selection_ms_total += reproduction.selection_ms;
+    run.timing.generations_crossover_ms_total += reproduction.crossover_ms;
+    run.timing.generations_mutation_ms_total += reproduction.mutation_ms;
+    run.timing.generations_elite_copy_ms_total += reproduction.elite_copy_ms;
+    run.timing.generation_selection_ms.push_back(reproduction.selection_ms);
+    run.timing.generation_crossover_ms.push_back(reproduction.crossover_ms);
+    run.timing.generation_mutation_ms.push_back(reproduction.mutation_ms);
+    run.timing.generation_elite_copy_ms.push_back(reproduction.elite_copy_ms);
 
     run.timing.generation_eval_ms.push_back(
         std::chrono::duration<double, std::milli>(eval_t1 - eval_t0).count());
@@ -500,12 +455,12 @@ EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
   if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
         result.final_population =
-        evaluate_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache, &run.timing, false, nullptr);
+        score_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache, &run.timing, false, nullptr);
 #else
     throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
   } else {
-    result.final_population = evaluate_population_cpu_shared_cases(
+    result.final_population = score_population_cpu(
         population, canonical_input_names, shared_case_bindings, expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
         &compile_cache, &run.timing, false, nullptr);
   }

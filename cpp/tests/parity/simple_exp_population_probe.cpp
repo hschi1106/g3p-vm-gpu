@@ -325,25 +325,45 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
                                                        std::mt19937_64* rng) {
   std::vector<ProgramGenome> next_population;
   next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-  for (int i = 0; i < cfg.elitism; ++i) {
+  const int elite_count = std::min(cfg.elitism, static_cast<int>(scored.size()));
+  for (int i = 0; i < elite_count; ++i) {
     next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
   }
 
+  const int offspring_count = cfg.population_size - elite_count;
+  std::vector<ProgramGenome> selected_parents;
+  selected_parents.reserve(static_cast<std::size_t>(offspring_count));
+  for (int i = 0; i < offspring_count; ++i) {
+    selected_parents.push_back(g3pvm::evo::tournament_selection(scored, *rng, cfg.selection_pressure));
+  }
+
+  std::vector<ProgramGenome> offspring = selected_parents;
   std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
   std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
 
-  while (static_cast<int>(next_population.size()) < cfg.population_size) {
-    const ProgramGenome p1 = g3pvm::evo::select_parent_tournament(scored, *rng, cfg.selection_pressure);
-    ProgramGenome child = p1;
-    if (prob_dist(*rng) < cfg.crossover_rate) {
-      const ProgramGenome p2 = g3pvm::evo::select_parent_tournament(scored, *rng, cfg.selection_pressure);
-      child = g3pvm::evo::crossover(p1, p2, seed_dist(*rng), cfg.limits);
+  if (selected_parents.size() > 1) {
+    std::uniform_int_distribution<std::size_t> mate_pick(0, selected_parents.size() - 1);
+    for (std::size_t i = 0; i < offspring.size(); ++i) {
+      if (prob_dist(*rng) >= cfg.crossover_rate) {
+        continue;
+      }
+      std::size_t mate_idx = mate_pick(*rng);
+      if (mate_idx == i) {
+        mate_idx = (mate_idx + 1) % selected_parents.size();
+      }
+      offspring[i] = g3pvm::evo::crossover(selected_parents[i], selected_parents[mate_idx],
+                                           seed_dist(*rng), cfg.limits);
     }
+  }
+
+  for (ProgramGenome& child : offspring) {
     if (prob_dist(*rng) < cfg.mutation_rate) {
       child = g3pvm::evo::mutate(child, seed_dist(*rng), cfg.limits, cfg.mutation_subtree_prob);
     }
-    next_population.push_back(child);
   }
+  next_population.insert(next_population.end(),
+                         std::make_move_iterator(offspring.begin()),
+                         std::make_move_iterator(offspring.end()));
   return next_population;
 }
 
@@ -390,10 +410,11 @@ int main() {
   std::vector<ProgramGenome> population = init_population(cpu_cfg);
 
   for (int gen = 0; gen < cpu_cfg.generations; ++gen) {
-    const std::vector<double> cpu_fit = g3pvm::evo::evaluate_population_fitness(population, cases, cpu_cfg);
-    std::vector<double> gpu_fit;
+    const std::vector<g3pvm::evo::ScoredGenome> cpu_scored =
+        g3pvm::evo::evaluate_population(population, cases, cpu_cfg);
+    std::vector<g3pvm::evo::ScoredGenome> gpu_scored;
     try {
-      gpu_fit = g3pvm::evo::evaluate_population_fitness(population, cases, gpu_cfg);
+      gpu_scored = g3pvm::evo::evaluate_population(population, cases, gpu_cfg);
     } catch (const std::runtime_error& err) {
       if (std::string(err.what()).find("cuda device unavailable") != std::string::npos) {
         std::cout << "simple_exp_population_probe: SKIP (" << err.what() << ")\n";
@@ -402,14 +423,18 @@ int main() {
       throw;
     }
 
-    for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
-      if (cpu_fit[i] != gpu_fit[i]) {
+    for (std::size_t i = 0; i < cpu_scored.size(); ++i) {
+      if (cpu_scored[i].genome.meta.program_key != gpu_scored[i].genome.meta.program_key ||
+          cpu_scored[i].fitness != gpu_scored[i].fitness) {
         std::cout << "generation=" << gen << " index=" << i << "\n";
-        std::cout << "cpu_fitness=" << cpu_fit[i] << "\n";
-        std::cout << "gpu_fitness=" << gpu_fit[i] << "\n";
-        std::cout << "program_key=" << population[i].meta.program_key << "\n";
+        std::cout << "cpu_program_key=" << cpu_scored[i].genome.meta.program_key << "\n";
+        std::cout << "gpu_program_key=" << gpu_scored[i].genome.meta.program_key << "\n";
+        std::cout << "cpu_fitness=" << cpu_scored[i].fitness << "\n";
+        std::cout << "gpu_fitness=" << gpu_scored[i].fitness << "\n";
+        const ProgramGenome& mismatched = cpu_scored[i].genome;
+        std::cout << "program_key=" << mismatched.meta.program_key << "\n";
         const g3pvm::BytecodeProgram bc =
-            g3pvm::evo::compile_for_eval(population[i], input_names);
+            g3pvm::evo::compile_for_eval(mismatched, input_names);
         std::cout << std::setprecision(17);
         std::cout << "bytecode_consts=" << bc.consts.size() << " bytecode_code=" << bc.code.size() << "\n";
         dump_consts(bc);

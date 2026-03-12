@@ -85,18 +85,12 @@ struct EvolutionRun {
   EvolutionTiming timing;
 };
 
-double evaluate_genome(const ProgramGenome& genome,
-                       const std::vector<EvalCase>& cases,
-                       const EvolutionConfig& cfg);
-std::vector<double> evaluate_population_fitness(const std::vector<ProgramGenome>& population,
-                                                const std::vector<EvalCase>& cases,
-                                                const EvolutionConfig& cfg);
 std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& population,
                                               const std::vector<EvalCase>& cases,
                                               const EvolutionConfig& cfg);
-ProgramGenome select_parent_tournament(const std::vector<ScoredGenome>& scored,
-                                       std::mt19937_64& rng,
-                                       int selection_pressure);
+ProgramGenome tournament_selection(const std::vector<ScoredGenome>& scored,
+                                   std::mt19937_64& rng,
+                                   int selection_pressure);
 EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population = nullptr);

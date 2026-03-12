@@ -109,6 +109,9 @@ Metric semantics:
 - `compile_ms`: compile-cache lookup plus any required genome-to-bytecode compilation
 - `eval_ms`: fitness execution only; compile time is excluded
 - `repro_ms`: one-generation reproduction work after the current population has been scored
+- `selection_ms`: tournament-selection pool construction for all non-elite offspring
+- `crossover_ms`: crossover pass over the selected parent pool
+- `mutation_ms`: mutation pass over the post-crossover offspring pool
 - `one-gen-e2e total_ms`: the full one-generation benchmark wall time
 
 Mode notes:

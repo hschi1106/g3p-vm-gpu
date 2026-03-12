@@ -328,6 +328,76 @@ EvalRun evaluate_compiled_population(const std::vector<g3pvm::BytecodeProgram>& 
 #endif
 }
 
+struct ReproductionRun {
+  std::vector<ProgramGenome> next_population;
+  double selection_ms = 0.0;
+  double crossover_ms = 0.0;
+  double mutation_ms = 0.0;
+  double elite_ms = 0.0;
+};
+
+ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
+                                     const EvolutionConfig& cfg,
+                                     std::mt19937_64* rng) {
+  ReproductionRun out;
+  out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
+
+  const int elite_count = std::min<int>(cfg.elitism, static_cast<int>(scored.size()));
+  const auto elite_t0 = std::chrono::steady_clock::now();
+  for (int i = 0; i < elite_count; ++i) {
+    out.next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
+  }
+  const auto elite_t1 = std::chrono::steady_clock::now();
+  out.elite_ms = std::chrono::duration<double, std::milli>(elite_t1 - elite_t0).count();
+
+  const int offspring_count = static_cast<int>(cfg.population_size) - elite_count;
+  std::vector<ProgramGenome> selected_parents;
+  selected_parents.reserve(static_cast<std::size_t>(offspring_count));
+
+  const auto selection_t0 = std::chrono::steady_clock::now();
+  for (int i = 0; i < offspring_count; ++i) {
+    selected_parents.push_back(g3pvm::evo::tournament_selection(scored, *rng, cfg.selection_pressure));
+  }
+  const auto selection_t1 = std::chrono::steady_clock::now();
+  out.selection_ms = std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
+
+  std::vector<ProgramGenome> offspring = selected_parents;
+  std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
+  std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
+
+  const auto crossover_t0 = std::chrono::steady_clock::now();
+  if (selected_parents.size() > 1) {
+    std::uniform_int_distribution<std::size_t> mate_pick(0, selected_parents.size() - 1);
+    for (std::size_t i = 0; i < offspring.size(); ++i) {
+      if (prob_dist(*rng) >= cfg.crossover_rate) {
+        continue;
+      }
+      std::size_t mate_idx = mate_pick(*rng);
+      if (mate_idx == i) {
+        mate_idx = (mate_idx + 1) % selected_parents.size();
+      }
+      offspring[i] =
+          g3pvm::evo::crossover(selected_parents[i], selected_parents[mate_idx], seed_dist(*rng), cfg.limits);
+    }
+  }
+  const auto crossover_t1 = std::chrono::steady_clock::now();
+  out.crossover_ms = std::chrono::duration<double, std::milli>(crossover_t1 - crossover_t0).count();
+
+  const auto mutation_t0 = std::chrono::steady_clock::now();
+  for (ProgramGenome& child : offspring) {
+    if (prob_dist(*rng) < cfg.mutation_rate) {
+      child = g3pvm::evo::mutate(child, seed_dist(*rng), cfg.limits, cfg.mutation_subtree_prob);
+    }
+  }
+  const auto mutation_t1 = std::chrono::steady_clock::now();
+  out.mutation_ms = std::chrono::duration<double, std::milli>(mutation_t1 - mutation_t0).count();
+
+  out.next_population.insert(out.next_population.end(),
+                             std::make_move_iterator(offspring.begin()),
+                             std::make_move_iterator(offspring.end()));
+  return out;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -388,55 +458,13 @@ int main(int argc, char** argv) {
     }
     std::sort(scored.begin(), scored.end(), scored_genome_sorts_before);
 
-    std::vector<ProgramGenome> next_population;
-    next_population.reserve(population.size());
-
-    const auto elite_t0 = std::chrono::steady_clock::now();
-    const int elite_count = std::min<int>(cfg.elitism, static_cast<int>(scored.size()));
-    for (int i = 0; i < elite_count; ++i) {
-      next_population.push_back(scored[static_cast<std::size_t>(i)].genome);
-    }
-    const auto elite_t1 = std::chrono::steady_clock::now();
-
     std::mt19937_64 rng(cfg.seed);
-    std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
-    std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
-
-    double selection_ms = 0.0;
-    double crossover_ms = 0.0;
-    double mutation_ms = 0.0;
     const auto repro_t0 = std::chrono::steady_clock::now();
-    while (next_population.size() < population.size()) {
-      const auto s0 = std::chrono::steady_clock::now();
-      const ProgramGenome p1 = g3pvm::evo::select_parent_tournament(scored, rng, cfg.selection_pressure);
-      const auto s1 = std::chrono::steady_clock::now();
-      selection_ms += std::chrono::duration<double, std::milli>(s1 - s0).count();
-
-      ProgramGenome child = p1;
-      if (prob_dist(rng) < cfg.crossover_rate) {
-        const auto s2 = std::chrono::steady_clock::now();
-        const ProgramGenome p2 = g3pvm::evo::select_parent_tournament(scored, rng, cfg.selection_pressure);
-        const auto s3 = std::chrono::steady_clock::now();
-        selection_ms += std::chrono::duration<double, std::milli>(s3 - s2).count();
-        const auto c0 = std::chrono::steady_clock::now();
-        child = g3pvm::evo::crossover(p1, p2, seed_dist(rng), cfg.limits);
-        const auto c1 = std::chrono::steady_clock::now();
-        crossover_ms += std::chrono::duration<double, std::milli>(c1 - c0).count();
-      }
-
-      if (prob_dist(rng) < cfg.mutation_rate) {
-        const auto m0 = std::chrono::steady_clock::now();
-        child = g3pvm::evo::mutate(child, seed_dist(rng), cfg.limits, cfg.mutation_subtree_prob);
-        const auto m1 = std::chrono::steady_clock::now();
-        mutation_ms += std::chrono::duration<double, std::milli>(m1 - m0).count();
-      }
-      next_population.push_back(child);
-    }
+    const ReproductionRun reproduction = reproduce_population(scored, cfg, &rng);
     const auto repro_t1 = std::chrono::steady_clock::now();
     const auto all_t1 = std::chrono::steady_clock::now();
 
     const double repro_ms = std::chrono::duration<double, std::milli>(repro_t1 - repro_t0).count();
-    const double elite_ms = std::chrono::duration<double, std::milli>(elite_t1 - elite_t0).count();
     const double total_ms = std::chrono::duration<double, std::milli>(all_t1 - all_t0).count();
 
     std::cout << "BENCH mode=one-gen-e2e engine=" << args.engine
@@ -444,10 +472,10 @@ int main(int argc, char** argv) {
               << " compile_ms=" << std::fixed << std::setprecision(3) << compile.compile_ms
               << " eval_ms=" << eval.eval_ms
               << " repro_ms=" << repro_ms
-              << " selection_ms=" << selection_ms
-              << " crossover_ms=" << crossover_ms
-              << " mutation_ms=" << mutation_ms
-              << " elite_ms=" << elite_ms
+              << " selection_ms=" << reproduction.selection_ms
+              << " crossover_ms=" << reproduction.crossover_ms
+              << " mutation_ms=" << reproduction.mutation_ms
+              << " elite_ms=" << reproduction.elite_ms
               << " total_ms=" << total_ms
               << " pack_upload_ms=" << eval.pack_upload_ms
               << " kernel_ms=" << eval.kernel_ms
