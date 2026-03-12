@@ -148,7 +148,6 @@ Public evolution interfaces split by responsibility:
 - `evolve.cpp`: evolution loop orchestration
 
 ### `cpp/src/cli/`
-- `runtime_cli.cpp`: runtime execution CLI
 - `evolve_cli.cpp`: evolution CLI
 - `generate_population_cli.cpp`: fixed-population generator for benchmark inputs
 - `population_bench_cli.cpp`: fixed-population benchmark runner

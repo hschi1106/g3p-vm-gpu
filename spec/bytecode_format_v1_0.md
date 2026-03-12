@@ -1,6 +1,6 @@
 # Bytecode Format v1.0
 
-This document defines the current JSON wire format used by runtime-facing tools and CLIs.
+This document defines the current JSON wire format used by bytecode parity tooling and internal harnesses.
 
 ## Current Format Strings
 
@@ -11,7 +11,7 @@ The current implementation accepts these format identifiers:
 These wire strings are part of the current compatibility contract.
 The document filename is `v1_0` because it is the current repository spec set, not because the wire string changed.
 
-## Runtime Request Schema
+## Harness Request Schema
 
 Top-level object:
 
@@ -77,21 +77,20 @@ Rules:
 - `a` and `b` are optional integer operands
 - missing or `null` means the operand is not present
 
-## Runtime CLI Modes
+## Harness Modes
 
 ### Raw execution mode
 When `shared_answer` is absent:
-- CPU engine executes the programs over the shared cases and returns raw execution results
-- GPU raw execution is not exposed anymore in the current CLI; GPU requests without `shared_answer` are rejected
+- the CPU-only test harness executes the programs over the shared cases and returns raw execution results
 
 ### Fitness mode
 When `shared_answer` is present:
-- CPU engine returns one fitness value per program
-- GPU engine returns one fitness value per program
+- the historical runtime CLI used this path, but no public runtime CLI is shipped anymore
+- current repository fitness entrypoints are the dedicated C++ APIs and evolution/benchmark CLIs
 
 ## Current Output
 
-The runtime CLI uses line-oriented output.
+The CPU raw-execution harness uses line-oriented output.
 
 Raw execution success:
 - `OK <typed-value>`
@@ -100,10 +99,4 @@ Raw execution error:
 - `ERR <ErrorCodeName>`
 - optional `MSG <text>`
 
-Fitness success:
-- `OK fitness_count <N>`
-- `FIT <idx> <score>` repeated per program
-
-Fitness error:
-- `ERR <ErrorCodeName>`
-- optional `MSG <text>`
+Fitness-mode line output is retained here only as a compatibility note for older ad-hoc tooling.

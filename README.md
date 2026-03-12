@@ -26,7 +26,7 @@ Use the documents below as the source of truth.
 ### Specs
 - [grammar_v1_0.md](spec/grammar_v1_0.md): language grammar, typing rules, control flow, evaluation order
 - [bytecode_isa_v1_0.md](spec/bytecode_isa_v1_0.md): bytecode execution contract
-- [bytecode_format_v1_0.md](spec/bytecode_format_v1_0.md): JSON wire format for bytecode/runtime requests
+- [bytecode_format_v1_0.md](spec/bytecode_format_v1_0.md): internal JSON harness format used by bytecode parity tooling
 - [builtins_base_v1_0.md](spec/builtins_base_v1_0.md): scalar builtins
 - [builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md): container builtins and payload behavior
 - [fitness_v1_0.md](spec/fitness_v1_0.md): scoring rules and solved criteria
@@ -44,7 +44,7 @@ Use the documents below as the source of truth.
 - `cpp/include/g3pvm/`: public C++ headers
 - `cpp/src/runtime/`: CPU runtime, GPU fitness runtime, payload support
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
-- `cpp/src/cli/`: `runtime_cli`, `evolve_cli`
+- `cpp/src/cli/`: `evolve_cli`, benchmark/population utilities
 - `cpp/src/bench/`: benchmark binaries
 - `tools/`: conversion, orchestration, release-gate tools
 - `scripts/`: execution wrappers and convenience scripts

@@ -151,16 +151,6 @@ Output and diagnostics args:
 - `--run-tag TAG`: suffix used in generated log filenames
 - `--print-command`: print the exact subprocess command before execution
 
-### `cpp/build/g3pvm_runtime_cli`
-
-Runtime execution args:
-- `--engine {cpu|gpu}`: select CPU raw execution or GPU fitness mode
-- `--blocksize N`: CUDA block size when `--engine gpu` and `shared_answer` is present
-
-Input shape notes:
-- stdin JSON must follow `spec/bytecode_format_v1_0.md`
-- GPU raw execution without `shared_answer` is rejected in the current CLI
-
 ### `tools/fetch_psb2_datasets.py`
 
 Dataset-fetch args:
