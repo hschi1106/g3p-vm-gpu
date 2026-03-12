@@ -3,6 +3,7 @@
 
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 
@@ -21,7 +22,7 @@ bool test_random_genome_compile_rate() {
   const int n = 200;
   int compiled = 0;
   for (int i = 0; i < n; ++i) {
-    const g3pvm::evo::ProgramGenome g = g3pvm::evo::make_random_genome(static_cast<std::uint64_t>(i), limits);
+    const g3pvm::evo::ProgramGenome g = g3pvm::evo::generate_random_genome(static_cast<std::uint64_t>(i), limits);
     (void)g3pvm::evo::compile_for_eval(g);
     compiled += 1;
   }
@@ -30,8 +31,8 @@ bool test_random_genome_compile_rate() {
 
 bool test_mutation_and_crossover_invariants() {
   g3pvm::evo::Limits limits;
-  const g3pvm::evo::ProgramGenome a = g3pvm::evo::make_random_genome(1, limits);
-  const g3pvm::evo::ProgramGenome b = g3pvm::evo::make_random_genome(2, limits);
+  const g3pvm::evo::ProgramGenome a = g3pvm::evo::generate_random_genome(1, limits);
+  const g3pvm::evo::ProgramGenome b = g3pvm::evo::generate_random_genome(2, limits);
 
   for (int i = 0; i < 80; ++i) {
     const g3pvm::evo::ProgramGenome m =
@@ -48,7 +49,7 @@ bool test_mutation_and_crossover_invariants() {
 
 bool test_for_k_constraints() {
   g3pvm::evo::Limits limits{5, 6, 80, 8, 3};
-  const g3pvm::evo::ProgramGenome base = g3pvm::evo::make_random_genome(88, limits);
+  const g3pvm::evo::ProgramGenome base = g3pvm::evo::generate_random_genome(88, limits);
   for (int i = 0; i < 60; ++i) {
     const g3pvm::evo::ProgramGenome child =
         g3pvm::evo::mutate(base, static_cast<std::uint64_t>(10000 + i), limits, 0.8);

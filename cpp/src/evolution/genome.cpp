@@ -1,4 +1,4 @@
-#include "genome_meta.hpp"
+#include "g3pvm/evolution/genome.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -66,9 +66,7 @@ std::string canonical_cache_key_serialize(const AstProgram& program) {
 
 }  // namespace
 
-namespace genome_meta {
-
-GenomeMeta build_meta_fast(const AstProgram& ast) {
+GenomeMeta build_genome_meta(const AstProgram& ast) {
   GenomeMeta meta;
   meta.node_count = static_cast<int>(ast.nodes.size());
   meta.max_depth = 0;
@@ -84,8 +82,6 @@ GenomeMeta build_meta_fast(const AstProgram& ast) {
   meta.program_key = canonical_cache_key_serialize(ast);
   return meta;
 }
-
-}  // namespace genome_meta
 
 std::string ast_to_string(const AstProgram& program) { return canonical_prefix_serialize(program); }
 

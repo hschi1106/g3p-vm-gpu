@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include "genome_meta.hpp"
 #include "subtree_utils.hpp"
 #include "typed_expr_analysis.hpp"
 
@@ -31,7 +30,7 @@ ProgramGenome build_valid_child(const AstProgram& candidate,
 
   ProgramGenome out;
   out.ast = candidate;
-  out.meta = genome_meta::build_meta_fast(out.ast);
+  out.meta = build_genome_meta(out.ast);
   if (out.meta.node_count > limits.max_total_nodes) {
     return fallback_parent;
   }

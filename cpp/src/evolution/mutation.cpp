@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "genome_meta.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "subtree_utils.hpp"
 #include "typed_expr_analysis.hpp"
 
@@ -83,7 +83,7 @@ ProgramGenome mutate(const ProgramGenome& genome,
                      double mutation_subtree_prob) {
   std::mt19937_64 rng(seed);
   if (genome.ast.nodes.empty()) {
-    return make_random_genome(seed, limits);
+    return generate_random_genome(seed, limits);
   }
 
   AstProgram mutated;
@@ -100,7 +100,7 @@ ProgramGenome mutate(const ProgramGenome& genome,
 
   ProgramGenome out;
   out.ast = std::move(mutated);
-  out.meta = genome_meta::build_meta_fast(out.ast);
+  out.meta = build_genome_meta(out.ast);
   if (out.meta.node_count > limits.max_total_nodes) {
     return genome;
   }

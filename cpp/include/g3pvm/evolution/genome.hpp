@@ -87,8 +87,7 @@ struct ProgramGenome {
   GenomeMeta meta;
 };
 
-ProgramGenome make_random_genome(std::uint64_t seed, const Limits& limits = Limits{});
-
+GenomeMeta build_genome_meta(const AstProgram& ast);
 std::string ast_to_string(const AstProgram& program);
 std::string ast_cache_key(const AstProgram& program);
 

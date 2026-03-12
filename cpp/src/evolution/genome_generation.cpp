@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "genome_meta.hpp"
 #include "subtree_utils.hpp"
 
 namespace g3pvm::evo {
@@ -51,7 +50,7 @@ int append_const_id(AstProgram& program, const Value& value) {
 ProgramGenome as_genome_prefix(const AstProgram& ast) {
   ProgramGenome genome;
   genome.ast = ast;
-  genome.meta = genome_meta::build_meta_fast(genome.ast);
+  genome.meta = build_genome_meta(genome.ast);
   return genome;
 }
 
@@ -348,7 +347,7 @@ void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
 
 }  // namespace
 
-ProgramGenome make_random_genome(std::uint64_t seed, const Limits& limits) {
+ProgramGenome generate_random_genome(std::uint64_t seed, const Limits& limits) {
   std::mt19937_64 rng(seed);
   for (int i = 0; i < 128; ++i) {
     AstProgram program;

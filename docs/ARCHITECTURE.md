@@ -112,7 +112,12 @@ Public GPU host-side contracts for fitness orchestration and packed device data:
 Public payload registry interface for host-side string/list snapshots and lookup.
 
 ### `cpp/include/g3pvm/evolution/`
-Public genome, selection, mutation, crossover, compiler, and evolution interfaces.
+Public evolution interfaces split by responsibility:
+- `genome.hpp`: core AST/genome data types, metadata, and canonical AST serialization helpers
+- `genome_generation.hpp`: random genome generation
+- `compiler.hpp`: AST-to-bytecode lowering
+- `selection.hpp`: ranking and parent selection
+- `mutation.hpp`, `crossover.hpp`, `evolve.hpp`: operators and orchestration
 
 ### `cpp/src/runtime/cpu/`
 - `builtins_cpu.cpp`: builtin implementation
@@ -130,15 +135,15 @@ Public genome, selection, mutation, crossover, compiler, and evolution interface
 - payload snapshot generation for GPU
 
 ### `cpp/src/evolution/`
-- genome metadata and serialization
-- subtree traversal and rewrite
-- typed expression analysis
-- AST to bytecode compiler
-- random genome generation
-- selection
-- mutation
-- crossover
-- evolution loop
+- `genome.cpp`: genome metadata and canonical AST serialization
+- `subtree_utils.*`: subtree traversal and rewrite
+- `typed_expr_analysis.*`: typed expression root analysis
+- `compiler.cpp`: AST-to-bytecode compiler
+- `genome_generation.cpp`: random genome generation
+- `selection.cpp`: ranking and parent selection
+- `mutation.cpp`: mutation operators
+- `crossover.cpp`: typed subtree exchange
+- `evolve.cpp`: evolution loop orchestration
 
 ### `cpp/src/cli/`
 - `runtime_cli.cpp`: runtime execution CLI

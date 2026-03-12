@@ -14,6 +14,7 @@
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/evolve.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 
@@ -240,7 +241,7 @@ int main(int argc, char** argv) {
     int attempts = 0;
     while (static_cast<int>(accepted.size()) < args.population_size && attempts < args.max_attempts) {
       ++attempts;
-      const g3pvm::evo::ProgramGenome genome = g3pvm::evo::make_random_genome(candidate_seed, limits);
+      const g3pvm::evo::ProgramGenome genome = g3pvm::evo::generate_random_genome(candidate_seed, limits);
       const g3pvm::BytecodeProgram program = g3pvm::evo::compile_for_eval(genome, input_names);
 
       int successes = 0;

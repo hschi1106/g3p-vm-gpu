@@ -17,6 +17,7 @@
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/evolve.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
@@ -189,7 +190,7 @@ std::vector<ProgramGenome> make_population_from_seeds(const PopulationSeedSet& s
   std::vector<ProgramGenome> out;
   out.reserve(seed_set.seeds.size());
   for (std::uint64_t seed : seed_set.seeds) {
-    out.push_back(g3pvm::evo::make_random_genome(seed, seed_set.limits));
+    out.push_back(g3pvm::evo::generate_random_genome(seed, seed_set.limits));
   }
   return out;
 }

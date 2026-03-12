@@ -10,6 +10,7 @@
 
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 #include "g3pvm/evolution/selection.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
@@ -25,7 +26,7 @@ std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg) {
   std::vector<ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(cfg.population_size));
   for (int i = 0; i < cfg.population_size; ++i) {
-    out.push_back(make_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits));
+    out.push_back(generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits));
   }
   return out;
 }

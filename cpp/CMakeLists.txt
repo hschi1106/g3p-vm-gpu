@@ -25,11 +25,11 @@ add_library(g3pvm_cpu
   src/runtime/cpu/builtins_cpu.cpp
   src/runtime/cpu/execute_bytecode_cpu.cpp
   src/runtime/cpu/fitness_cpu.cpp
-  src/evolution/genome_meta.cpp
+  src/evolution/genome.cpp
   src/evolution/subtree_utils.cpp
   src/evolution/typed_expr_analysis.cpp
   src/evolution/compiler.cpp
-  src/evolution/random_genome.cpp
+  src/evolution/genome_generation.cpp
   src/evolution/mutation.cpp
   src/evolution/crossover.cpp
   src/evolution/selection.cpp
