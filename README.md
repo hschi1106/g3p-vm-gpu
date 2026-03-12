@@ -94,7 +94,8 @@ cpp/build/g3pvm_evolve_cli \
 python3 scripts/speedup_experiment.py
 ```
 
-This script reads [speedup_experiment.json](scripts/speedup_experiment.json),
+This script reads `scripts/speedup_experiment.json` if present, otherwise falls back to
+[speedup_experiment.example.json](scripts/speedup_experiment.example.json),
 runs all configured fixtures, and writes one report directory containing:
 - per-fixture CPU/GPU reports
 - an aggregate summary JSON/Markdown

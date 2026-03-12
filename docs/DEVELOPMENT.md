@@ -147,7 +147,11 @@ Benchmark args:
 - `--probe-cases N`: override configured probe case count
 - `--min-success-rate F`: override configured acceptance threshold
 
-Config keys in `scripts/speedup_experiment.json`:
+Default config lookup:
+- prefer local `scripts/speedup_experiment.json`
+- otherwise use tracked `scripts/speedup_experiment.example.json`
+
+Config keys in `scripts/speedup_experiment.example.json`:
 - `bench_cli`
 - `fixtures`
 - `population_sizes`

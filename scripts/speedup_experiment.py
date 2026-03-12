@@ -11,14 +11,19 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = Path(__file__).with_suffix(".json")
+LOCAL_CONFIG = Path(__file__).with_suffix(".json")
+EXAMPLE_CONFIG = Path(__file__).with_name("speedup_experiment.example.json")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run CPU/GPU one-generation benchmark for all configured fixtures."
     )
-    parser.add_argument("--config", default=str(DEFAULT_CONFIG), help="Path to benchmark config JSON")
+    parser.add_argument(
+        "--config",
+        default="",
+        help="Path to benchmark config JSON; default prefers scripts/speedup_experiment.json then falls back to scripts/speedup_experiment.example.json",
+    )
     parser.add_argument(
         "--fixtures",
         default="",
@@ -43,6 +48,12 @@ def parse_args() -> argparse.Namespace:
 
 def load_config(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def default_config_path() -> Path:
+    if LOCAL_CONFIG.exists():
+        return LOCAL_CONFIG
+    return EXAMPLE_CONFIG
 
 
 def resolve_path(raw: str) -> Path:
@@ -232,7 +243,8 @@ def write_fixture_report(outdir: Path, cpu: dict[str, Any], gpu: dict[str, Any])
 
 def main() -> int:
     args = parse_args()
-    config = load_config(resolve_path(args.config))
+    config_path = resolve_path(args.config) if args.config else default_config_path()
+    config = load_config(config_path)
 
     bench_cli = resolve_path(args.bench_cli or config["bench_cli"])
     if not bench_cli.exists():

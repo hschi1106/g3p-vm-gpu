@@ -21,19 +21,19 @@ class TestSimpleEvoFixtures(unittest.TestCase):
         return cases
 
     def test_x_plus_1_fixture(self):
-        cases = self._load_cases("data/fixtures/simple_evo_x_plus_1_1024.json")
+        cases = self._load_cases("data/fixtures/simple_x_plus_1_1024.json")
         for row in cases:
             x = int(row["inputs"]["x"]["value"])
             self.assertEqual(int(row["expected"]["value"]), x + 1)
 
     def test_affine_fixture(self):
-        cases = self._load_cases("data/fixtures/simple_evo_affine_2x_plus_3_1024.json")
+        cases = self._load_cases("data/fixtures/simple_affine_2x_plus_3_1024.json")
         for row in cases:
             x = int(row["inputs"]["x"]["value"])
             self.assertEqual(int(row["expected"]["value"]), 2 * x + 3)
 
     def test_square_fixture(self):
-        cases = self._load_cases("data/fixtures/simple_evo_square_x2_1024.json")
+        cases = self._load_cases("data/fixtures/simple_square_x2_1024.json")
         for row in cases:
             x = int(row["inputs"]["x"]["value"])
             self.assertEqual(int(row["expected"]["value"]), x * x)
