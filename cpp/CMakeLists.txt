@@ -32,6 +32,7 @@ add_library(g3pvm_cpu
   src/evolution/random_genome.cpp
   src/evolution/mutation.cpp
   src/evolution/crossover.cpp
+  src/evolution/selection.cpp
   src/evolution/evolve.cpp
 )
 target_include_directories(g3pvm_cpu PUBLIC include)

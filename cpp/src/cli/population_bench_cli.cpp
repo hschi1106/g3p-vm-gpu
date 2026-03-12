@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -117,26 +116,6 @@ std::vector<EvalCase> parse_cases_v1(const JsonValue& payload) {
     out.push_back(EvalCase{decode_inputs(inputs_it->second), decode_typed_or_raw_value(expected_it->second)});
   }
   return out;
-}
-
-double canonicalize_fitness_for_ranking(double fitness) {
-  if (!std::isfinite(fitness) || fitness == 0.0) {
-    return fitness == 0.0 ? 0.0 : fitness;
-  }
-  int exponent = 0;
-  const double mantissa = std::frexp(fitness, &exponent);
-  constexpr int kMantissaBits = 40;
-  const long long quantized_mantissa = std::llround(std::ldexp(mantissa, kMantissaBits));
-  return std::ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
-}
-
-bool scored_genome_sorts_before(const ScoredGenome& a, const ScoredGenome& b) {
-  const double fitness_a = canonicalize_fitness_for_ranking(a.fitness);
-  const double fitness_b = canonicalize_fitness_for_ranking(b.fitness);
-  if (fitness_a != fitness_b) {
-    return fitness_a > fitness_b;
-  }
-  return a.genome.meta.program_key < b.genome.meta.program_key;
 }
 
 CliOptions parse_cli(int argc, char** argv) {
@@ -283,7 +262,7 @@ void canonicalize_fitness_vector(std::vector<double>* fitness) {
     return;
   }
   for (double& value : *fitness) {
-    value = canonicalize_fitness_for_ranking(value);
+    value = g3pvm::evo::canonicalize_fitness_for_ranking(value);
   }
 }
 
@@ -443,7 +422,7 @@ int main(int argc, char** argv) {
       scored.push_back(ScoredGenome{population[i], eval.fitness[i]});
       fitness_sum += static_cast<long double>(eval.fitness[i]);
     }
-    std::sort(scored.begin(), scored.end(), scored_genome_sorts_before);
+    std::sort(scored.begin(), scored.end(), g3pvm::evo::scored_genome_sorts_before);
 
     std::mt19937_64 rng(cfg.seed);
     const auto repro_t0 = std::chrono::steady_clock::now();

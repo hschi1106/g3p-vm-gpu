@@ -75,14 +75,17 @@ bool test_determinism_seed() {
   const auto a = g3pvm::evo::evolve_population(simple_cases(), cfg);
   const auto b = g3pvm::evo::evolve_population(simple_cases(), cfg);
 
-  if (!check(a.history_best_fitness.size() == b.history_best_fitness.size(), "determinism history length mismatch")) {
+  if (!check(a.history_best_fitness.size() == b.history_best_fitness.size(),
+             "determinism history length mismatch")) {
     return false;
   }
   for (std::size_t i = 0; i < a.history_best_fitness.size(); ++i) {
-    if (!check(a.history_best_fitness[i] == b.history_best_fitness[i], "determinism best fitness mismatch")) {
+    if (!check(a.history_best_fitness[i] == b.history_best_fitness[i],
+               "determinism best fitness mismatch")) {
       return false;
     }
-    if (!check(a.history_best[i].genome.meta.program_key == b.history_best[i].genome.meta.program_key,
+    if (!check(a.history_best[i].genome.meta.program_key ==
+                   b.history_best[i].genome.meta.program_key,
                "determinism best program key mismatch")) {
       return false;
     }

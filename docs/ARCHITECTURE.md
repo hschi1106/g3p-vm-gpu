@@ -112,7 +112,7 @@ Public GPU host-side contracts for fitness orchestration and packed device data:
 Public payload registry interface for host-side string/list snapshots and lookup.
 
 ### `cpp/include/g3pvm/evolution/`
-Public genome, mutation, crossover, and evolution interfaces.
+Public genome, selection, mutation, crossover, compiler, and evolution interfaces.
 
 ### `cpp/src/runtime/cpu/`
 - `builtins_cpu.cpp`: builtin implementation
@@ -135,6 +135,7 @@ Public genome, mutation, crossover, and evolution interfaces.
 - typed expression analysis
 - AST to bytecode compiler
 - random genome generation
+- selection
 - mutation
 - crossover
 - evolution loop

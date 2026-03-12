@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/selection.hpp"
 #include "g3pvm/core/value.hpp"
 
 namespace g3pvm::evo {
@@ -38,20 +39,12 @@ struct EvolutionConfig {
   Limits limits;
 };
 
-struct ScoredGenome {
-  ProgramGenome genome;
-  double fitness = 0.0;
-};
-
 struct EvolutionResult {
   ScoredGenome best;
   std::vector<ScoredGenome> history_best;
   std::vector<double> history_best_fitness;
   std::vector<double> history_mean_fitness;
   std::vector<ScoredGenome> final_population;
-};
-
-struct EvolutionTiming {
   double init_population_ms = 0.0;
   double gpu_session_init_ms = 0.0;
   double final_eval_ms = 0.0;
@@ -77,23 +70,12 @@ struct EvolutionTiming {
   std::vector<double> generation_mutation_ms;
 };
 
-struct EvolutionRun {
-  EvolutionResult result;
-  EvolutionTiming timing;
-};
-
 std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& population,
                                               const std::vector<EvalCase>& cases,
                                               const EvolutionConfig& cfg);
-ProgramGenome tournament_selection(const std::vector<ScoredGenome>& scored,
-                                   std::mt19937_64& rng,
-                                   int selection_pressure);
 EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population = nullptr);
-EvolutionRun evolve_population_profiled(const std::vector<EvalCase>& cases,
-                                        const EvolutionConfig& cfg,
-                                        const std::vector<ProgramGenome>* initial_population = nullptr);
 
 std::string eval_engine_name(EvalEngine engine);
 
