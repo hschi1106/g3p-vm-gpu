@@ -409,7 +409,7 @@ int main() {
         std::cout << "gpu_fitness=" << gpu_fit[i] << "\n";
         std::cout << "program_key=" << population[i].meta.program_key << "\n";
         const g3pvm::BytecodeProgram bc =
-            g3pvm::evo::compile_for_eval_with_preset_locals(population[i], input_names);
+            g3pvm::evo::compile_for_eval(population[i], input_names);
         std::cout << std::setprecision(17);
         std::cout << "bytecode_consts=" << bc.consts.size() << " bytecode_code=" << bc.code.size() << "\n";
         dump_consts(bc);

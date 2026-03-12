@@ -1,12 +1,10 @@
-#include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/compiler.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
-#include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include "g3pvm/core/builtin.hpp"
 #include "subtree_utils.hpp"
@@ -277,9 +275,7 @@ class Compiler {
     }
     if (node.kind == NodeKind::FOR_RANGE) {
       if (node.i1 < 0) {
-        emit(Opcode::PushConst, add_const(Value::from_bool(true)), true);
-        emit(Opcode::Neg);
-        return compile_block_prefix(program, idx + 1);
+        throw std::runtime_error("prefix compile: FOR_RANGE requires non-negative bound");
       }
 
       const int idx_k = add_const(Value::from_int(node.i1));
@@ -327,13 +323,8 @@ class Compiler {
 
 }  // namespace
 
-BytecodeProgram compile_for_eval(const ProgramGenome& genome) {
-  Compiler compiler;
-  return compiler.build(genome.ast);
-}
-
-BytecodeProgram compile_for_eval_with_preset_locals(const ProgramGenome& genome,
-                                                    const std::vector<std::string>& preset_locals) {
+BytecodeProgram compile_for_eval(const ProgramGenome& genome,
+                                 const std::vector<std::string>& preset_locals) {
   Compiler compiler(&preset_locals);
   return compiler.build(genome.ast);
 }

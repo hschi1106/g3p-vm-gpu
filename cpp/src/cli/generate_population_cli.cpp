@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
     while (static_cast<int>(accepted.size()) < args.population_size && attempts < args.max_attempts) {
       ++attempts;
       const g3pvm::evo::ProgramGenome genome = g3pvm::evo::make_random_genome(candidate_seed, limits);
-      const g3pvm::BytecodeProgram program = g3pvm::evo::compile_for_eval_with_preset_locals(genome, input_names);
+      const g3pvm::BytecodeProgram program = g3pvm::evo::compile_for_eval(genome, input_names);
 
       int successes = 0;
       for (int i = 0; i < probe_case_count; ++i) {

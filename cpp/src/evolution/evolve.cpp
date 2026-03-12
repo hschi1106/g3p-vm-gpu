@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
@@ -120,7 +121,7 @@ CompiledPopulation compile_population(const std::vector<ProgramGenome>& populati
     }
 
     const auto t0 = std::chrono::steady_clock::now();
-    BytecodeProgram bc = compile_for_eval_with_preset_locals(genome, input_names);
+    BytecodeProgram bc = compile_for_eval(genome, input_names);
     const auto t1 = std::chrono::steady_clock::now();
     out.compile_ms += std::chrono::duration<double, std::milli>(t1 - t0).count();
     if (compile_cache != nullptr) {

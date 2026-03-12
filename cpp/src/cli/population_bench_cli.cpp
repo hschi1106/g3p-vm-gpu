@@ -264,7 +264,7 @@ CompiledPopulation compile_population(const std::vector<ProgramGenome>& populati
   out.programs.reserve(population.size());
   for (const ProgramGenome& genome : population) {
     const auto t0 = std::chrono::steady_clock::now();
-    out.programs.push_back(g3pvm::evo::compile_for_eval_with_preset_locals(genome, input_names));
+    out.programs.push_back(g3pvm::evo::compile_for_eval(genome, input_names));
     const auto t1 = std::chrono::steady_clock::now();
     out.compile_ms += std::chrono::duration<double, std::milli>(t1 - t0).count();
   }
