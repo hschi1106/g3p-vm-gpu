@@ -20,7 +20,7 @@ namespace g3pvm::evo {
 
 namespace {
 
-double canonicalize_fitness_for_order(double fitness) {
+double canonicalize_fitness_for_ranking(double fitness) {
   if (!std::isfinite(fitness) || fitness == 0.0) {
     return fitness == 0.0 ? 0.0 : fitness;
   }
@@ -32,18 +32,9 @@ double canonicalize_fitness_for_order(double fitness) {
   return std::ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
-void canonicalize_fitness_vector(std::vector<double>* fitness) {
-  if (fitness == nullptr) {
-    return;
-  }
-  for (double& value : *fitness) {
-    value = canonicalize_fitness_for_order(value);
-  }
-}
-
-bool scored_genome_better(const ScoredGenome& a, const ScoredGenome& b) {
-  const double fitness_a = canonicalize_fitness_for_order(a.fitness);
-  const double fitness_b = canonicalize_fitness_for_order(b.fitness);
+bool scored_genome_sorts_before(const ScoredGenome& a, const ScoredGenome& b) {
+  const double fitness_a = canonicalize_fitness_for_ranking(a.fitness);
+  const double fitness_b = canonicalize_fitness_for_ranking(b.fitness);
   if (fitness_a != fitness_b) {
     return fitness_a > fitness_b;
   }
@@ -146,7 +137,9 @@ std::vector<double> evaluate_population_fitness_cpu_shared_cases(
   const CompiledPopulation compiled = compile_population(population, input_names, compile_cache);
   std::vector<double> fitness =
       eval_fitness_cpu(compiled.programs, shared_cases, shared_answer, fuel, penalty, reduction_lanes);
-  canonicalize_fitness_vector(&fitness);
+  for (double& value : fitness) {
+    value = canonicalize_fitness_for_ranking(value);
+  }
   if (fitness.size() != population.size()) {
     throw std::runtime_error("cpu fitness size mismatch");
   }
@@ -187,7 +180,7 @@ std::vector<ScoredGenome> evaluate_population_cpu_shared_cases(
   for (std::size_t i = 0; i < population.size(); ++i) {
     scored.push_back(ScoredGenome{population[i], fitness[i]});
   }
-  std::sort(scored.begin(), scored.end(), scored_genome_better);
+  std::sort(scored.begin(), scored.end(), scored_genome_sorts_before);
   return scored;
 }
 
@@ -204,7 +197,9 @@ std::vector<double> evaluate_population_fitness_gpu(
   if (!fit.ok) {
     throw std::runtime_error("gpu fitness evaluation failed: " + fit.err.message);
   }
-  canonicalize_fitness_vector(&fit.fitness);
+  for (double& value : fit.fitness) {
+    value = canonicalize_fitness_for_ranking(value);
+  }
   if (fit.fitness.size() != population.size()) {
     throw std::runtime_error("gpu fitness size mismatch");
   }
@@ -246,7 +241,7 @@ std::vector<ScoredGenome> evaluate_population_gpu(
   for (std::size_t i = 0; i < population.size(); ++i) {
     scored.push_back(ScoredGenome{population[i], fitness[i]});
   }
-  std::sort(scored.begin(), scored.end(), scored_genome_better);
+  std::sort(scored.begin(), scored.end(), scored_genome_sorts_before);
   return scored;
 }
 #endif
@@ -323,7 +318,7 @@ ProgramGenome select_parent_tournament(const std::vector<ScoredGenome>& scored,
   const ScoredGenome* best = nullptr;
   for (int i = 0; i < tournament_size; ++i) {
     const ScoredGenome& cand = scored[any_pick(rng)];
-    if (best == nullptr || scored_genome_better(cand, *best)) {
+    if (best == nullptr || scored_genome_sorts_before(cand, *best)) {
       best = &cand;
     }
   }

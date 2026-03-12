@@ -120,7 +120,7 @@ std::vector<FitnessCase> parse_cases_v1(const JsonValue& payload) {
   return out;
 }
 
-double canonicalize_fitness_for_order(double fitness) {
+double canonicalize_fitness_for_ranking(double fitness) {
   if (!std::isfinite(fitness) || fitness == 0.0) {
     return fitness == 0.0 ? 0.0 : fitness;
   }
@@ -131,9 +131,9 @@ double canonicalize_fitness_for_order(double fitness) {
   return std::ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
-bool scored_genome_better(const ScoredGenome& a, const ScoredGenome& b) {
-  const double fitness_a = canonicalize_fitness_for_order(a.fitness);
-  const double fitness_b = canonicalize_fitness_for_order(b.fitness);
+bool scored_genome_sorts_before(const ScoredGenome& a, const ScoredGenome& b) {
+  const double fitness_a = canonicalize_fitness_for_ranking(a.fitness);
+  const double fitness_b = canonicalize_fitness_for_ranking(b.fitness);
   if (fitness_a != fitness_b) {
     return fitness_a > fitness_b;
   }
@@ -285,7 +285,7 @@ void canonicalize_fitness_vector(std::vector<double>* fitness) {
     return;
   }
   for (double& value : *fitness) {
-    value = canonicalize_fitness_for_order(value);
+    value = canonicalize_fitness_for_ranking(value);
   }
 }
 
@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
       scored.push_back(ScoredGenome{population[i], eval.fitness[i]});
       fitness_sum += static_cast<long double>(eval.fitness[i]);
     }
-    std::sort(scored.begin(), scored.end(), scored_genome_better);
+    std::sort(scored.begin(), scored.end(), scored_genome_sorts_before);
 
     std::vector<ProgramGenome> next_population;
     next_population.reserve(population.size());
