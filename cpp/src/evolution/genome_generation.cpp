@@ -249,38 +249,13 @@ int choose_or_new_name(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& 
   return ensure_name(program, "t" + std::to_string(ctx.tmp_idx++));
 }
 
-void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, int depth, const Limits& limits);
-
 void emit_random_block(std::mt19937_64& rng,
                        AstProgram& program,
                        PrefixGenCtx& ctx,
                        int depth,
                        const Limits& limits,
                        bool force_return,
-                       int max_stmts = -1) {
-  const int max_n = (max_stmts < 0) ? limits.max_stmts_per_block : max_stmts;
-  const int n = std::uniform_int_distribution<int>(1, std::max(1, max_n))(rng);
-  bool has_return = false;
-  for (int i = 0; i < n; ++i) {
-    program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
-    const std::size_t before = program.nodes.size();
-    emit_random_stmt(rng, program, ctx, depth, limits);
-    if (program.nodes[before].kind == NodeKind::RETURN) {
-      has_return = true;
-      break;
-    }
-  }
-  if (force_return && !has_return) {
-    program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
-    program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
-    emit_random_expr(rng,
-                     program,
-                     ctx,
-                     std::max(0, depth - 1),
-                     choose_one(rng, std::vector<RType>{RType::Num, RType::Bool}));
-  }
-  program.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
-}
+                       int max_stmts = -1);
 
 void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, int depth, const Limits& limits) {
   if (depth <= 0) {
@@ -341,6 +316,37 @@ void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
                    ctx,
                    depth - 1,
                    choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType}));
+}
+
+void emit_random_block(std::mt19937_64& rng,
+                       AstProgram& program,
+                       PrefixGenCtx& ctx,
+                       int depth,
+                       const Limits& limits,
+                       bool force_return,
+                       int max_stmts) {
+  const int max_n = (max_stmts < 0) ? limits.max_stmts_per_block : max_stmts;
+  const int n = std::uniform_int_distribution<int>(1, std::max(1, max_n))(rng);
+  bool has_return = false;
+  for (int i = 0; i < n; ++i) {
+    program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
+    const std::size_t before = program.nodes.size();
+    emit_random_stmt(rng, program, ctx, depth, limits);
+    if (program.nodes[before].kind == NodeKind::RETURN) {
+      has_return = true;
+      break;
+    }
+  }
+  if (force_return && !has_return) {
+    program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
+    program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
+    emit_random_expr(rng,
+                     program,
+                     ctx,
+                     std::max(0, depth - 1),
+                     choose_one(rng, std::vector<RType>{RType::Num, RType::Bool}));
+  }
+  program.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
 }
 
 }  // namespace
