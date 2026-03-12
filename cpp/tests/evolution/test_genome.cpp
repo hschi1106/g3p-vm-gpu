@@ -37,9 +37,9 @@ bool test_mutation_and_crossover_invariants() {
         g3pvm::evo::mutate(a, static_cast<std::uint64_t>(1000 + i), limits, 0.8);
     (void)g3pvm::evo::compile_for_eval(m);
 
-    const g3pvm::evo::ProgramGenome c =
-        g3pvm::evo::crossover(a, b, static_cast<std::uint64_t>(3000 + i), limits);
-    (void)g3pvm::evo::compile_for_eval(c);
+    const auto children = g3pvm::evo::crossover(a, b, static_cast<std::uint64_t>(3000 + i), limits);
+    (void)g3pvm::evo::compile_for_eval(children.first);
+    (void)g3pvm::evo::compile_for_eval(children.second);
   }
 
   return true;

@@ -331,17 +331,14 @@ ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
 
   const auto crossover_t0 = std::chrono::steady_clock::now();
   if (selected_parents.size() > 1) {
-    std::uniform_int_distribution<std::size_t> mate_pick(0, selected_parents.size() - 1);
-    for (std::size_t i = 0; i < offspring.size(); ++i) {
+    std::shuffle(offspring.begin(), offspring.end(), *rng);
+    for (std::size_t i = 0; i + 1 < offspring.size(); i += 2) {
       if (prob_dist(*rng) >= cfg.crossover_rate) {
         continue;
       }
-      std::size_t mate_idx = mate_pick(*rng);
-      if (mate_idx == i) {
-        mate_idx = (mate_idx + 1) % selected_parents.size();
-      }
-      offspring[i] =
-          g3pvm::evo::crossover(selected_parents[i], selected_parents[mate_idx], seed_dist(*rng), cfg.limits);
+      auto children = g3pvm::evo::crossover(offspring[i], offspring[i + 1], seed_dist(*rng), cfg.limits);
+      offspring[i] = std::move(children.first);
+      offspring[i + 1] = std::move(children.second);
     }
   }
   const auto crossover_t1 = std::chrono::steady_clock::now();
