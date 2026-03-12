@@ -326,11 +326,8 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   std::vector<ProgramGenome> next_population;
   next_population.reserve(static_cast<std::size_t>(cfg.population_size));
   const int offspring_count = cfg.population_size;
-  std::vector<ProgramGenome> selected_parents;
-  selected_parents.reserve(static_cast<std::size_t>(offspring_count));
-  for (int i = 0; i < offspring_count; ++i) {
-    selected_parents.push_back(g3pvm::evo::tournament_selection(scored, *rng, cfg.selection_pressure));
-  }
+  std::vector<ProgramGenome> selected_parents = g3pvm::evo::tournament_selection(
+      scored, *rng, cfg.selection_pressure, offspring_count);
 
   std::vector<ProgramGenome> offspring = selected_parents;
   std::uniform_real_distribution<double> prob_dist(0.0, 1.0);

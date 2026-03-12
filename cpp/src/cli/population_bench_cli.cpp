@@ -318,13 +318,10 @@ ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
   ReproductionRun out;
   out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
   const int offspring_count = static_cast<int>(cfg.population_size);
-  std::vector<ProgramGenome> selected_parents;
-  selected_parents.reserve(static_cast<std::size_t>(offspring_count));
 
   const auto selection_t0 = std::chrono::steady_clock::now();
-  for (int i = 0; i < offspring_count; ++i) {
-    selected_parents.push_back(g3pvm::evo::tournament_selection(scored, *rng, cfg.selection_pressure));
-  }
+  std::vector<ProgramGenome> selected_parents = g3pvm::evo::tournament_selection(
+      scored, *rng, cfg.selection_pressure, offspring_count);
   const auto selection_t1 = std::chrono::steady_clock::now();
   out.selection_ms = std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
 
