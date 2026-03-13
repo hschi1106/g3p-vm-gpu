@@ -77,9 +77,24 @@ __global__ void evaluate_fitness_subset(
   partial_scores[tid] = local_score;
   __syncthreads();
 
+  const int lane = tid & 31;
+  const int warp_id = tid >> 5;
+  if (lane == 0) {
+    const int warp_base = warp_id << 5;
+    const int warp_end =
+        ((warp_base + 32) < static_cast<int>(blockDim.x)) ? (warp_base + 32) : static_cast<int>(blockDim.x);
+    double warp_score = 0.0;
+    for (int i = warp_base; i < warp_end; ++i) {
+      warp_score = d_canonicalize_fitness_accumulator(warp_score + partial_scores[i]);
+    }
+    partial_scores[warp_id] = warp_score;
+  }
+  __syncthreads();
+
   if (tid == 0) {
     double total_score = 0.0;
-    for (int i = 0; i < static_cast<int>(blockDim.x); ++i) {
+    const int warp_count = (static_cast<int>(blockDim.x) + 31) >> 5;
+    for (int i = 0; i < warp_count; ++i) {
       total_score = d_canonicalize_fitness_accumulator(total_score + partial_scores[i]);
     }
     fitness_out[prog_idx] = total_score;
