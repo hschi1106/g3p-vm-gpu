@@ -29,7 +29,7 @@ using g3pvm::cli_detail::JsonValue;
 struct CliOptions {
   std::string cases_path;
   std::string engine = "cpu";
-  int blocksize = 256;
+  int blocksize = 1024;
   int population_size = 64;
   int generations = 40;
   double mutation_rate = 0.5;

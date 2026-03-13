@@ -89,7 +89,7 @@ python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --populatio
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
-  --blocksize 256 \
+  --blocksize 1024 \
   --population-size 1024 \
   --generations 20 \
   --out-json logs/simple_exp_1024.run.json

@@ -135,11 +135,12 @@ __device__ inline bool d_register_local_list(DThreadPayloadState& st, const Valu
   return true;
 }
 
+template <bool EnablePayload>
 __device__ inline bool d_builtin_call(BuiltinId bid,
                                       const Value* args,
                                       int argc,
                                       const DPayloadTables& tables,
-                                      DThreadPayloadState& payload_state,
+                                      DThreadPayloadState* payload_state,
                                       Value& out,
                                       ErrCode& err) {
   if (bid == BuiltinId::Abs) {
@@ -238,22 +239,25 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
     const Value& a = args[0];
     const Value& b = args[1];
     if (a.tag == ValueTag::String && b.tag == ValueTag::String) {
-      const char* ap = nullptr;
-      const char* bp = nullptr;
-      int al = 0;
-      int bl = 0;
-      if (d_lookup_string_payload(tables, payload_state, a, ap, al) &&
-          d_lookup_string_payload(tables, payload_state, b, bp, bl) &&
-          al >= 0 && bl >= 0 &&
-          payload_state.string_bytes_used + al + bl <= DMAX_THREAD_STRING_BYTES) {
-        const int off = payload_state.string_bytes_used;
-        for (int i = 0; i < al; ++i) payload_state.string_bytes[off + i] = ap[i];
-        for (int i = 0; i < bl; ++i) payload_state.string_bytes[off + al + i] = bp[i];
-        payload_state.string_bytes_used += al + bl;
-        const std::uint64_t h = d_hash_bytes(payload_state.string_bytes + off, al + bl);
-        out = Value::from_string_hash_len(h, static_cast<std::uint32_t>(al + bl));
-        (void)d_register_local_string(payload_state, out, off, al + bl);
-        return true;
+      if constexpr (EnablePayload) {
+        DThreadPayloadState& st = *payload_state;
+        const char* ap = nullptr;
+        const char* bp = nullptr;
+        int al = 0;
+        int bl = 0;
+        if (d_lookup_string_payload(tables, st, a, ap, al) &&
+            d_lookup_string_payload(tables, st, b, bp, bl) &&
+            al >= 0 && bl >= 0 &&
+            st.string_bytes_used + al + bl <= DMAX_THREAD_STRING_BYTES) {
+          const int off = st.string_bytes_used;
+          for (int i = 0; i < al; ++i) st.string_bytes[off + i] = ap[i];
+          for (int i = 0; i < bl; ++i) st.string_bytes[off + al + i] = bp[i];
+          st.string_bytes_used += al + bl;
+          const std::uint64_t h = d_hash_bytes(st.string_bytes + off, al + bl);
+          out = Value::from_string_hash_len(h, static_cast<std::uint32_t>(al + bl));
+          (void)d_register_local_string(st, out, off, al + bl);
+          return true;
+        }
       }
       const std::uint32_t len = Value::saturating_len_add(Value::container_len(a), Value::container_len(b));
       const std::uint64_t h = Value::combine_container_hash48(1U, a, b);
@@ -261,22 +265,25 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       return true;
     }
     if (a.tag == ValueTag::List && b.tag == ValueTag::List) {
-      const Value* ap = nullptr;
-      const Value* bp = nullptr;
-      int al = 0;
-      int bl = 0;
-      if (d_lookup_list_payload(tables, payload_state, a, ap, al) &&
-          d_lookup_list_payload(tables, payload_state, b, bp, bl) &&
-          al >= 0 && bl >= 0 &&
-          payload_state.list_values_used + al + bl <= DMAX_THREAD_LIST_VALUES) {
-        const int off = payload_state.list_values_used;
-        for (int i = 0; i < al; ++i) payload_state.list_values[off + i] = ap[i];
-        for (int i = 0; i < bl; ++i) payload_state.list_values[off + al + i] = bp[i];
-        payload_state.list_values_used += al + bl;
-        const std::uint64_t h = d_hash_list_payload(payload_state.list_values + off, al + bl);
-        out = Value::from_list_hash_len(h, static_cast<std::uint32_t>(al + bl));
-        (void)d_register_local_list(payload_state, out, off, al + bl);
-        return true;
+      if constexpr (EnablePayload) {
+        DThreadPayloadState& st = *payload_state;
+        const Value* ap = nullptr;
+        const Value* bp = nullptr;
+        int al = 0;
+        int bl = 0;
+        if (d_lookup_list_payload(tables, st, a, ap, al) &&
+            d_lookup_list_payload(tables, st, b, bp, bl) &&
+            al >= 0 && bl >= 0 &&
+            st.list_values_used + al + bl <= DMAX_THREAD_LIST_VALUES) {
+          const int off = st.list_values_used;
+          for (int i = 0; i < al; ++i) st.list_values[off + i] = ap[i];
+          for (int i = 0; i < bl; ++i) st.list_values[off + al + i] = bp[i];
+          st.list_values_used += al + bl;
+          const std::uint64_t h = d_hash_list_payload(st.list_values + off, al + bl);
+          out = Value::from_list_hash_len(h, static_cast<std::uint32_t>(al + bl));
+          (void)d_register_local_list(st, out, off, al + bl);
+          return true;
+        }
       }
       const std::uint32_t len = Value::saturating_len_add(Value::container_len(a), Value::container_len(b));
       const std::uint64_t h = Value::combine_container_hash48(2U, a, b);
@@ -312,39 +319,45 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
                                        ? Value::k_container_len_max
                                        : out_len_ll);
     if (x.tag == ValueTag::String) {
-      const char* xp = nullptr;
-      int xl = 0;
-      if (d_lookup_string_payload(tables, payload_state, x, xp, xl) &&
-          l >= 0 && l <= xl && h >= 0 && h <= xl &&
-          payload_state.string_bytes_used + static_cast<int>(out_len) <= DMAX_THREAD_STRING_BYTES) {
-        const int off = payload_state.string_bytes_used;
-        for (int i = 0; i < static_cast<int>(out_len); ++i) {
-          payload_state.string_bytes[off + i] = xp[static_cast<int>(l) + i];
+      if constexpr (EnablePayload) {
+        DThreadPayloadState& st = *payload_state;
+        const char* xp = nullptr;
+        int xl = 0;
+        if (d_lookup_string_payload(tables, st, x, xp, xl) &&
+            l >= 0 && l <= xl && h >= 0 && h <= xl &&
+            st.string_bytes_used + static_cast<int>(out_len) <= DMAX_THREAD_STRING_BYTES) {
+          const int off = st.string_bytes_used;
+          for (int i = 0; i < static_cast<int>(out_len); ++i) {
+            st.string_bytes[off + i] = xp[static_cast<int>(l) + i];
+          }
+          st.string_bytes_used += static_cast<int>(out_len);
+          const std::uint64_t out_h_exact = d_hash_bytes(st.string_bytes + off, static_cast<int>(out_len));
+          out = Value::from_string_hash_len(out_h_exact, out_len);
+          (void)d_register_local_string(st, out, off, static_cast<int>(out_len));
+          return true;
         }
-        payload_state.string_bytes_used += static_cast<int>(out_len);
-        const std::uint64_t out_h_exact = d_hash_bytes(payload_state.string_bytes + off, static_cast<int>(out_len));
-        out = Value::from_string_hash_len(out_h_exact, out_len);
-        (void)d_register_local_string(payload_state, out, off, static_cast<int>(out_len));
-        return true;
       }
       const std::uint64_t out_h = Value::slice_container_hash48(3U, x, lo.i, hi.i);
       out = Value::from_string_hash_len(out_h, out_len);
       return true;
     }
-    const Value* xp = nullptr;
-    int xl = 0;
-    if (d_lookup_list_payload(tables, payload_state, x, xp, xl) &&
-        l >= 0 && l <= xl && h >= 0 && h <= xl &&
-        payload_state.list_values_used + static_cast<int>(out_len) <= DMAX_THREAD_LIST_VALUES) {
-      const int off = payload_state.list_values_used;
-      for (int i = 0; i < static_cast<int>(out_len); ++i) {
-        payload_state.list_values[off + i] = xp[static_cast<int>(l) + i];
+    if constexpr (EnablePayload) {
+      DThreadPayloadState& st = *payload_state;
+      const Value* xp = nullptr;
+      int xl = 0;
+      if (d_lookup_list_payload(tables, st, x, xp, xl) &&
+          l >= 0 && l <= xl && h >= 0 && h <= xl &&
+          st.list_values_used + static_cast<int>(out_len) <= DMAX_THREAD_LIST_VALUES) {
+        const int off = st.list_values_used;
+        for (int i = 0; i < static_cast<int>(out_len); ++i) {
+          st.list_values[off + i] = xp[static_cast<int>(l) + i];
+        }
+        st.list_values_used += static_cast<int>(out_len);
+        const std::uint64_t out_h_exact = d_hash_list_payload(st.list_values + off, static_cast<int>(out_len));
+        out = Value::from_list_hash_len(out_h_exact, out_len);
+        (void)d_register_local_list(st, out, off, static_cast<int>(out_len));
+        return true;
       }
-      payload_state.list_values_used += static_cast<int>(out_len);
-      const std::uint64_t out_h_exact = d_hash_list_payload(payload_state.list_values + off, static_cast<int>(out_len));
-      out = Value::from_list_hash_len(out_h_exact, out_len);
-      (void)d_register_local_list(payload_state, out, off, static_cast<int>(out_len));
-      return true;
     }
     const std::uint64_t out_h = Value::slice_container_hash48(4U, x, lo.i, hi.i);
     out = Value::from_list_hash_len(out_h, out_len);
@@ -373,26 +386,32 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       return false;
     }
     if (x.tag == ValueTag::String) {
-      const char* xp = nullptr;
-      int xl = 0;
-      if (d_lookup_string_payload(tables, payload_state, x, xp, xl) && j < xl &&
-          payload_state.string_bytes_used + 1 <= DMAX_THREAD_STRING_BYTES) {
-        const int off = payload_state.string_bytes_used;
-        payload_state.string_bytes[off] = xp[static_cast<int>(j)];
-        payload_state.string_bytes_used += 1;
-        const std::uint64_t h1 = d_hash_bytes(payload_state.string_bytes + off, 1);
-        out = Value::from_string_hash_len(h1, 1U);
-        (void)d_register_local_string(payload_state, out, off, 1);
-        return true;
+      if constexpr (EnablePayload) {
+        DThreadPayloadState& st = *payload_state;
+        const char* xp = nullptr;
+        int xl = 0;
+        if (d_lookup_string_payload(tables, st, x, xp, xl) && j < xl &&
+            st.string_bytes_used + 1 <= DMAX_THREAD_STRING_BYTES) {
+          const int off = st.string_bytes_used;
+          st.string_bytes[off] = xp[static_cast<int>(j)];
+          st.string_bytes_used += 1;
+          const std::uint64_t h1 = d_hash_bytes(st.string_bytes + off, 1);
+          out = Value::from_string_hash_len(h1, 1U);
+          (void)d_register_local_string(st, out, off, 1);
+          return true;
+        }
       }
       out = Value::from_int(Value::index_container_token64(5U, x, j));
       return true;
     }
-    const Value* xp = nullptr;
-    int xl = 0;
-    if (d_lookup_list_payload(tables, payload_state, x, xp, xl) && j < xl) {
-      out = xp[static_cast<int>(j)];
-      return true;
+    if constexpr (EnablePayload) {
+      DThreadPayloadState& st = *payload_state;
+      const Value* xp = nullptr;
+      int xl = 0;
+      if (d_lookup_list_payload(tables, st, x, xp, xl) && j < xl) {
+        out = xp[static_cast<int>(j)];
+        return true;
+      }
     }
     out = Value::from_int(Value::index_container_token64(6U, x, j));
     return true;

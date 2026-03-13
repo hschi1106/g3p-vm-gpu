@@ -50,7 +50,7 @@ struct CliOptions {
   std::string cases_path;
   std::string out_population_json;
   std::string engine = "cpu";
-  int blocksize = 256;
+  int blocksize = 1024;
   int fuel = 20000;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;

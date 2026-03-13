@@ -34,7 +34,7 @@ class FitnessSessionGpu {
   FitnessEvalResult init(const std::vector<CaseBindings>& shared_cases,
                             const std::vector<Value>& shared_answer,
                             int fuel = 10000,
-                            int blocksize = 256,
+                            int blocksize = 1024,
                             double penalty = 1.0);
   FitnessEvalResult eval_programs(const std::vector<BytecodeProgram>& programs) const;
   bool is_ready() const;

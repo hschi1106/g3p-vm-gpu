@@ -17,12 +17,17 @@ struct PackResult {
   std::vector<Value> all_consts;
   std::vector<Value> packed_case_local_vals;
   std::vector<unsigned char> packed_case_local_set;
+  std::vector<int> no_payload_program_indices;
+  std::vector<int> payload_program_indices;
   std::size_t total_cases = 0;
   std::size_t max_code_len = 0;
+  std::size_t max_code_len_no_payload = 0;
+  std::size_t max_code_len_payload = 0;
 };
 
 PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
-                                                int shared_case_count);
+                                                int shared_case_count,
+                                                bool shared_inputs_have_payload);
 void pack_shared_cases_only(const std::vector<CaseBindings>& shared_cases,
                             std::vector<Value>* packed_case_local_vals,
                             std::vector<unsigned char>* packed_case_local_set);
@@ -36,6 +41,8 @@ struct DeviceArena {
   DResult* d_out = nullptr;
   Value* d_expected = nullptr;
   double* d_fitness = nullptr;
+  int* d_no_payload_program_indices = nullptr;
+  int* d_payload_program_indices = nullptr;
   DStringPayloadEntry* d_string_payload_entries = nullptr;
   char* d_string_payload_bytes = nullptr;
   DListPayloadEntry* d_list_payload_entries = nullptr;

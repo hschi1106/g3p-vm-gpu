@@ -32,7 +32,7 @@ struct EvolutionConfig {
   double crossover_rate = 0.9;
   double penalty = 1.0;
   EvalEngine eval_engine = EvalEngine::CPU;
-  int gpu_blocksize = 256;
+  int gpu_blocksize = 1024;
   int selection_pressure = 3;
   std::uint64_t seed = 0;
   int fuel = 20000;

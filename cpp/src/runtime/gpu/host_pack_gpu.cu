@@ -2,13 +2,55 @@
 
 #include <cstdint>
 
+#include "g3pvm/core/builtin.hpp"
 #include "g3pvm/runtime/gpu/constants_gpu.hpp"
 #include "opcode_map_gpu.hpp"
 
 namespace g3pvm::gpu_detail {
 
+namespace {
+
+bool value_has_payload(const Value& v) {
+  return v.tag == ValueTag::String || v.tag == ValueTag::List;
+}
+
+bool program_has_payload_const(const BytecodeProgram& prog) {
+  for (const Value& v : prog.consts) {
+    if (value_has_payload(v)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool program_has_exact_payload_builtin(const BytecodeProgram& prog) {
+  for (const Instr& ins : prog.code) {
+    if (ins.op != Opcode::CallBuiltin || !ins.has_a) {
+      continue;
+    }
+    BuiltinId bid = BuiltinId::Abs;
+    if (!builtin_id_from_int(ins.a, bid)) {
+      continue;
+    }
+    if (bid == BuiltinId::Concat || bid == BuiltinId::Slice || bid == BuiltinId::Index) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool program_needs_payload_fast_path(const BytecodeProgram& prog, bool shared_inputs_have_payload) {
+  if (!program_has_exact_payload_builtin(prog)) {
+    return false;
+  }
+  return shared_inputs_have_payload || program_has_payload_const(prog);
+}
+
+}  // namespace
+
 PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
-                                                int shared_case_count) {
+                                                int shared_case_count,
+                                                bool shared_inputs_have_payload) {
   PackResult out;
   out.metas.resize(programs.size());
 
@@ -46,6 +88,17 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
     meta.code_len = static_cast<int>(out.all_code.size()) - meta.code_offset;
     if (static_cast<std::size_t>(meta.code_len) > out.max_code_len) {
       out.max_code_len = static_cast<std::size_t>(meta.code_len);
+    }
+    if (program_needs_payload_fast_path(prog, shared_inputs_have_payload)) {
+      out.payload_program_indices.push_back(static_cast<int>(p));
+      if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_payload) {
+        out.max_code_len_payload = static_cast<std::size_t>(meta.code_len);
+      }
+    } else {
+      out.no_payload_program_indices.push_back(static_cast<int>(p));
+      if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_no_payload) {
+        out.max_code_len_no_payload = static_cast<std::size_t>(meta.code_len);
+      }
     }
 
     if (prog.n_locals < 0 || prog.n_locals > MAX_LOCALS) {
@@ -85,6 +138,8 @@ DeviceArena::~DeviceArena() {
   if (d_out) cudaFree(d_out);
   if (d_expected) cudaFree(d_expected);
   if (d_fitness) cudaFree(d_fitness);
+  if (d_no_payload_program_indices) cudaFree(d_no_payload_program_indices);
+  if (d_payload_program_indices) cudaFree(d_payload_program_indices);
   if (d_string_payload_entries) cudaFree(d_string_payload_entries);
   if (d_string_payload_bytes) cudaFree(d_string_payload_bytes);
   if (d_list_payload_entries) cudaFree(d_list_payload_entries);

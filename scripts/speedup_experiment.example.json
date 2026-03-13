@@ -11,7 +11,7 @@
     "data/fixtures/solve_boolean_1024.json"
   ],
   "population_sizes": [1024],
-  "blocksize": 256,
+  "blocksize": 1024,
   "seed_start": 0,
   "probe_cases": 32,
   "min_success_rate": 0.1,

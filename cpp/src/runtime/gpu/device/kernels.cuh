@@ -16,7 +16,9 @@ __device__ inline double d_canonicalize_fitness_accumulator(double value) {
   return ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
-__global__ void evaluate_fitness(
+template <bool EnablePayload>
+__global__ void evaluate_fitness_subset(
+    const int* program_indices, int n_program_indices,
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
     const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
     const Value* shared_answer,
@@ -24,10 +26,12 @@ __global__ void evaluate_fitness(
     const char* string_payload_bytes,
     const DListPayloadEntry* list_payload_entries, int list_payload_entry_count,
     const Value* list_payload_values,
-    int n_programs, int fuel, double penalty, double* fitness_out) {
-  const int prog_idx = static_cast<int>(blockIdx.x);
+    int fuel, double penalty, double* fitness_out) {
+  const int program_slot = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
-  if (prog_idx < 0 || prog_idx >= n_programs) return;
+  if (program_slot < 0 || program_slot >= n_program_indices) return;
+
+  const int prog_idx = program_indices[program_slot];
 
   const DProgramMeta meta = metas[prog_idx];
   const DPayloadTables payload_tables{
@@ -57,7 +61,7 @@ __global__ void evaluate_fitness(
   const int chunk_start = (meta.case_count * tid) / static_cast<int>(blockDim.x);
   const int chunk_end = (meta.case_count * (tid + 1)) / static_cast<int>(blockDim.x);
   for (int local_case = chunk_start; local_case < chunk_end; ++local_case) {
-    const DResult result = d_execute_bytecode(
+    const DResult result = d_execute_bytecode<EnablePayload>(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
     if (result.is_error) {
       local_score = d_canonicalize_fitness_accumulator(local_score - fabs(penalty));

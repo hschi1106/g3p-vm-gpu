@@ -6,7 +6,7 @@ namespace g3pvm::cli_detail {
 
 struct CliOptions {
   std::string engine;
-  int blocksize = 256;
+  int blocksize = 1024;
 };
 
 CliOptions parse_cli_options(int argc, char** argv);

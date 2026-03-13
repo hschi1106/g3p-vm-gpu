@@ -27,3 +27,36 @@
 - [ ] Reduce per-thread local state and stack pressure enough to eliminate the current large device stack footprint.
 - [ ] Revisit kernel mapping and specialization for deep programs; current `1 block = 1 program` mapping is likely too divergence-prone for depth-7 populations.
 - [ ] After each change, rerun `fixture_speedup` and CPU/GPU parity checks, with `bouncing_balls_1024` and `simple_x_plus_1_1024` as the primary regression gates.
+
+### 2026-03-13 optimization pass result
+
+- [x] Rebuilt default CUDA target for `sm_89` and verified the binary is no longer built for `sm_70`.
+- [x] Restored exact CPU/GPU parity for the known payload-slice drift cases before landing performance work.
+- [x] Split GPU evaluation into two internal paths:
+  one kernel specialization for programs that do not need exact payload handling, and one for programs that do.
+- [x] Raised the native GPU blocksize default from `256` to `1024` for the current `1024-case` benchmark shape.
+
+### 2026-03-13 measured outcome
+
+- [x] Baseline: `logs/opt_baseline_head_58b84c4/summary.md`
+- [x] Final: `logs/opt_final_head_defaults1024/summary.md`
+- [x] Average `eval_cpu_over_gpu` improved from `1.770x` to `4.715x` (`2.66x` relative improvement).
+- [x] Average `total_cpu_over_gpu` improved from `1.665x` to `3.979x` (`2.39x` relative improvement).
+- [x] Numeric fixtures recovered from GPU-losses to clear GPU wins:
+  `simple_x_plus_1_1024 0.381x -> 1.440x`,
+  `simple_affine_2x_plus_3_1024 0.383x -> 1.436x`,
+  `simple_square_x2_1024 0.378x -> 1.439x`,
+  `simple_exp_1024 0.395x -> 1.440x`,
+  `bouncing_balls_1024 0.380x -> 1.378x`.
+
+### 2026-03-13 design changes and tradeoffs
+
+- [x] Semantics were kept unchanged; parity tests still pass after the optimization pass.
+- [x] GPU evaluation is no longer a single monolithic kernel launch for all programs.
+  It now partitions programs on the host and launches up to two subset kernels.
+- [x] The no-payload specialization is materially lighter than the payload specialization.
+  Current `cuobjdump` resource usage is `REG:48 STACK:2160` for no-payload and `REG:64 STACK:5808` for payload.
+- [x] The new `1024` default is deliberately tuned for the current benchmark shape and this machine class.
+  It may not be the best default for smaller GPUs or different case counts, so callers may still need to override `--blocksize`.
+- [x] The subset split adds some host-side classification work and an extra kernel launch in mixed populations.
+  This slightly increases pack/upload and launch overhead, but the kernel-time reduction is much larger on the current workloads.

@@ -48,7 +48,7 @@ This section documents the adjustable arguments that affect public workflows.
 Core execution args:
 - `--cases PATH`: input `fitness-cases-v1` file
 - `--engine {cpu|gpu}`: evaluation backend
-- `--blocksize N`: CUDA block size for GPU evaluation
+- `--blocksize N`: CUDA block size for GPU evaluation; current native CLI default is `1024`
 - `--out-json PATH`: write evolution history JSON
 - `--timing {none|summary|per_gen|all}`: timing verbosity from the native CLI
 - `--show-program {none|ast|bytecode|both}`: include final-program dumps in output
@@ -79,7 +79,7 @@ Fixed-population benchmark args:
 - `--cases PATH`: input `fitness-cases-v1` file
 - `--out-population-json PATH`: optional output path for the generated `population-seeds-v1` JSON
 - `--engine {cpu|gpu}`: evaluation backend
-- `--blocksize N`: GPU block size when `--engine gpu`
+- `--blocksize N`: GPU block size when `--engine gpu`; current native CLI default is `1024`
 - `--fuel N`: per-program execution budget
 - `--population-size N`: number of accepted genomes in the generated fixed population
 - `--seed-start N`: first RNG seed considered during generation
@@ -229,7 +229,7 @@ Primary metrics to track:
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
-  --blocksize 256 \
+  --blocksize 1024 \
   --population-size 1024 \
   --generations 20 \
   --out-json logs/simple_exp_1024.run.json

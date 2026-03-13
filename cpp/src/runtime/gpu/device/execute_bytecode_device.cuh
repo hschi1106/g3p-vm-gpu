@@ -14,14 +14,30 @@ __device__ inline void d_fail(DResult& out, ErrCode code) {
   out.err_code = code;
 }
 
-__device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
-                                             const DInstr* shared_code,
-                                             const Value* all_consts,
-                                             const Value* shared_case_local_vals,
-                                             const unsigned char* shared_case_local_set,
-                                             const DPayloadTables& payload_tables,
-                                             int local_case,
-                                             int fuel) {
+template <bool EnablePayload>
+struct DPayloadStateStorage {};
+
+template <>
+struct DPayloadStateStorage<true> {
+  DThreadPayloadState state{};
+
+  __device__ DThreadPayloadState* ptr() { return &state; }
+};
+
+template <>
+struct DPayloadStateStorage<false> {
+  __device__ DThreadPayloadState* ptr() { return nullptr; }
+};
+
+template <bool EnablePayload>
+__device__ __noinline__ DResult d_execute_bytecode(const DProgramMeta& meta,
+                                                   const DInstr* shared_code,
+                                                   const Value* all_consts,
+                                                   const Value* shared_case_local_vals,
+                                                   const unsigned char* shared_case_local_set,
+                                                   const DPayloadTables& payload_tables,
+                                                   int local_case,
+                                                   int fuel) {
   DResult result;
   result.is_error = 0;
   result.err_code = ErrCode::Value;
@@ -49,8 +65,7 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
   int ip = 0;
   int fuel_left = fuel;
   bool returned = false;
-  // Local exact payload scratch must start empty for every thread/case.
-  DThreadPayloadState payload_state{};
+  DPayloadStateStorage<EnablePayload> payload_state_storage;
 
   while (ip < meta.code_len) {
     if (fuel_left <= 0) {
@@ -232,7 +247,8 @@ __device__ inline DResult d_execute_bytecode(const DProgramMeta& meta,
       sp -= argc;
       ErrCode derr = ErrCode::Type;
       Value ret = Value::none();
-      if (!d_builtin_call(bid, args_buf, argc, payload_tables, payload_state, ret, derr)) {
+      if (!d_builtin_call<EnablePayload>(
+              bid, args_buf, argc, payload_tables, payload_state_storage.ptr(), ret, derr)) {
         d_fail(result, derr);
         break;
       }
