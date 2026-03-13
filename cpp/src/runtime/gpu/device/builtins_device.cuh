@@ -14,15 +14,61 @@ struct DPayloadTables {
   const Value* list_values = nullptr;
 };
 
-struct DThreadPayloadState {
-  DStringPayloadEntry string_entries[DMAX_THREAD_PAYLOAD_ENTRIES];
-  DListPayloadEntry list_entries[DMAX_THREAD_PAYLOAD_ENTRIES];
+template <int MaxStringEntries, int MaxListEntries, int MaxStringBytes, int MaxListValues>
+struct DThreadPayloadStateT {
+  static constexpr int kMaxStringEntries = MaxStringEntries;
+  static constexpr int kMaxListEntries = MaxListEntries;
+  static constexpr int kMaxStringBytes = MaxStringBytes;
+  static constexpr int kMaxListValues = MaxListValues;
+
+  DStringPayloadEntry string_entries[(MaxStringEntries > 0) ? MaxStringEntries : 1];
+  DListPayloadEntry list_entries[(MaxListEntries > 0) ? MaxListEntries : 1];
   int string_entry_count = 0;
   int list_entry_count = 0;
   int string_bytes_used = 0;
   int list_values_used = 0;
-  char string_bytes[DMAX_THREAD_STRING_BYTES];
-  Value list_values[DMAX_THREAD_LIST_VALUES];
+  char string_bytes[(MaxStringBytes > 0) ? MaxStringBytes : 1];
+  Value list_values[(MaxListValues > 0) ? MaxListValues : 1];
+};
+
+using DNoPayloadState = DThreadPayloadStateT<0, 0, 0, 0>;
+using DStringPayloadState = DThreadPayloadStateT<DMAX_THREAD_PAYLOAD_ENTRIES, 0, DMAX_THREAD_STRING_BYTES, 0>;
+using DListPayloadState = DThreadPayloadStateT<0, DMAX_THREAD_PAYLOAD_ENTRIES, 0, DMAX_THREAD_LIST_VALUES>;
+using DMixedPayloadState =
+    DThreadPayloadStateT<DMAX_THREAD_PAYLOAD_ENTRIES,
+                         DMAX_THREAD_PAYLOAD_ENTRIES,
+                         DMAX_THREAD_STRING_BYTES,
+                         DMAX_THREAD_LIST_VALUES>;
+
+template <DPayloadFlavor Flavor>
+struct DPayloadFlavorTraits;
+
+template <>
+struct DPayloadFlavorTraits<DPayloadFlavor::None> {
+  using State = DNoPayloadState;
+  static constexpr bool kHasString = false;
+  static constexpr bool kHasList = false;
+};
+
+template <>
+struct DPayloadFlavorTraits<DPayloadFlavor::StringOnly> {
+  using State = DStringPayloadState;
+  static constexpr bool kHasString = true;
+  static constexpr bool kHasList = false;
+};
+
+template <>
+struct DPayloadFlavorTraits<DPayloadFlavor::ListOnly> {
+  using State = DListPayloadState;
+  static constexpr bool kHasString = false;
+  static constexpr bool kHasList = true;
+};
+
+template <>
+struct DPayloadFlavorTraits<DPayloadFlavor::Mixed> {
+  using State = DMixedPayloadState;
+  static constexpr bool kHasString = true;
+  static constexpr bool kHasList = true;
 };
 
 __device__ inline long long d_norm_slice_idx(long long idx, long long n) {
@@ -77,72 +123,130 @@ __device__ inline std::uint64_t d_hash_list_payload(const Value* elems, int n) {
   return h;
 }
 
+__device__ inline int d_find_string_payload_entry(const DPayloadTables& tables, std::int64_t packed) {
+  int lo = 0;
+  int hi = tables.string_entry_count;
+  while (lo < hi) {
+    const int mid = lo + ((hi - lo) >> 1);
+    const std::int64_t mid_packed = tables.string_entries[mid].packed;
+    if (mid_packed < packed) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  if (lo >= tables.string_entry_count || tables.string_entries[lo].packed != packed) {
+    return -1;
+  }
+  return lo;
+}
+
+__device__ inline int d_find_list_payload_entry(const DPayloadTables& tables, std::int64_t packed) {
+  int lo = 0;
+  int hi = tables.list_entry_count;
+  while (lo < hi) {
+    const int mid = lo + ((hi - lo) >> 1);
+    const std::int64_t mid_packed = tables.list_entries[mid].packed;
+    if (mid_packed < packed) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  if (lo >= tables.list_entry_count || tables.list_entries[lo].packed != packed) {
+    return -1;
+  }
+  return lo;
+}
+
+template <typename State>
 __device__ inline bool d_lookup_string_payload(const DPayloadTables& tables,
-                                               const DThreadPayloadState& st,
+                                               const State& st,
                                                const Value& v,
                                                const char*& ptr,
                                                int& len) {
   if (v.tag != ValueTag::String) return false;
-  for (int i = 0; i < st.string_entry_count; ++i) {
-    if (st.string_entries[i].packed == v.i) {
-      ptr = st.string_bytes + st.string_entries[i].offset;
-      len = st.string_entries[i].len;
-      return true;
+  if constexpr (State::kMaxStringEntries > 0) {
+    for (int i = 0; i < st.string_entry_count; ++i) {
+      if (st.string_entries[i].packed == v.i) {
+        ptr = st.string_bytes + st.string_entries[i].offset;
+        len = st.string_entries[i].len;
+        return true;
+      }
     }
   }
-  for (int i = 0; i < tables.string_entry_count; ++i) {
-    if (tables.string_entries[i].packed == v.i) {
-      ptr = tables.string_bytes + tables.string_entries[i].offset;
-      len = tables.string_entries[i].len;
-      return true;
-    }
+  const int idx = d_find_string_payload_entry(tables, v.i);
+  if (idx >= 0) {
+    ptr = tables.string_bytes + tables.string_entries[idx].offset;
+    len = tables.string_entries[idx].len;
+    return true;
   }
   return false;
 }
 
+template <typename State>
 __device__ inline bool d_lookup_list_payload(const DPayloadTables& tables,
-                                             const DThreadPayloadState& st,
+                                             const State& st,
                                              const Value& v,
                                              const Value*& ptr,
                                              int& len) {
   if (v.tag != ValueTag::List) return false;
-  for (int i = 0; i < st.list_entry_count; ++i) {
-    if (st.list_entries[i].packed == v.i) {
-      ptr = st.list_values + st.list_entries[i].offset;
-      len = st.list_entries[i].len;
-      return true;
+  if constexpr (State::kMaxListEntries > 0) {
+    for (int i = 0; i < st.list_entry_count; ++i) {
+      if (st.list_entries[i].packed == v.i) {
+        ptr = st.list_values + st.list_entries[i].offset;
+        len = st.list_entries[i].len;
+        return true;
+      }
     }
   }
-  for (int i = 0; i < tables.list_entry_count; ++i) {
-    if (tables.list_entries[i].packed == v.i) {
-      ptr = tables.list_values + tables.list_entries[i].offset;
-      len = tables.list_entries[i].len;
-      return true;
-    }
+  const int idx = d_find_list_payload_entry(tables, v.i);
+  if (idx >= 0) {
+    ptr = tables.list_values + tables.list_entries[idx].offset;
+    len = tables.list_entries[idx].len;
+    return true;
   }
   return false;
 }
 
-__device__ inline bool d_register_local_string(DThreadPayloadState& st, const Value& v, int offset, int len) {
-  if (st.string_entry_count >= DMAX_THREAD_PAYLOAD_ENTRIES) return false;
+template <typename State>
+__device__ inline bool d_register_local_string(State& st, const Value& v, int offset, int len) {
+  if constexpr (State::kMaxStringEntries <= 0) {
+    (void)st;
+    (void)v;
+    (void)offset;
+    (void)len;
+    return false;
+  }
+  if (st.string_entry_count >= State::kMaxStringEntries) return false;
   st.string_entries[st.string_entry_count++] = DStringPayloadEntry{v.i, offset, len};
   return true;
 }
 
-__device__ inline bool d_register_local_list(DThreadPayloadState& st, const Value& v, int offset, int len) {
-  if (st.list_entry_count >= DMAX_THREAD_PAYLOAD_ENTRIES) return false;
+template <typename State>
+__device__ inline bool d_register_local_list(State& st, const Value& v, int offset, int len) {
+  if constexpr (State::kMaxListEntries <= 0) {
+    (void)st;
+    (void)v;
+    (void)offset;
+    (void)len;
+    return false;
+  }
+  if (st.list_entry_count >= State::kMaxListEntries) return false;
   st.list_entries[st.list_entry_count++] = DListPayloadEntry{v.i, offset, len};
   return true;
 }
 
-template <bool EnablePayload>
+template <DPayloadFlavor Flavor>
 __device__ inline bool d_builtin_call(BuiltinId bid,
                                       const Value* args,
                                       int argc,
                                       const DPayloadTables& tables,
-                                      DThreadPayloadState* payload_state,
+                                      typename DPayloadFlavorTraits<Flavor>::State& payload_state,
                                       Value& out,
                                       ErrCode& err) {
+  using PayloadTraits = DPayloadFlavorTraits<Flavor>;
+
   if (bid == BuiltinId::Abs) {
     if (argc != 1) {
       err = ErrCode::Type;
@@ -239,8 +343,8 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
     const Value& a = args[0];
     const Value& b = args[1];
     if (a.tag == ValueTag::String && b.tag == ValueTag::String) {
-      if constexpr (EnablePayload) {
-        DThreadPayloadState& st = *payload_state;
+      if constexpr (PayloadTraits::kHasString) {
+        auto& st = payload_state;
         const char* ap = nullptr;
         const char* bp = nullptr;
         int al = 0;
@@ -248,7 +352,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         if (d_lookup_string_payload(tables, st, a, ap, al) &&
             d_lookup_string_payload(tables, st, b, bp, bl) &&
             al >= 0 && bl >= 0 &&
-            st.string_bytes_used + al + bl <= DMAX_THREAD_STRING_BYTES) {
+            st.string_bytes_used + al + bl <= st.kMaxStringBytes) {
           const int off = st.string_bytes_used;
           for (int i = 0; i < al; ++i) st.string_bytes[off + i] = ap[i];
           for (int i = 0; i < bl; ++i) st.string_bytes[off + al + i] = bp[i];
@@ -265,8 +369,8 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       return true;
     }
     if (a.tag == ValueTag::List && b.tag == ValueTag::List) {
-      if constexpr (EnablePayload) {
-        DThreadPayloadState& st = *payload_state;
+      if constexpr (PayloadTraits::kHasList) {
+        auto& st = payload_state;
         const Value* ap = nullptr;
         const Value* bp = nullptr;
         int al = 0;
@@ -274,7 +378,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         if (d_lookup_list_payload(tables, st, a, ap, al) &&
             d_lookup_list_payload(tables, st, b, bp, bl) &&
             al >= 0 && bl >= 0 &&
-            st.list_values_used + al + bl <= DMAX_THREAD_LIST_VALUES) {
+            st.list_values_used + al + bl <= st.kMaxListValues) {
           const int off = st.list_values_used;
           for (int i = 0; i < al; ++i) st.list_values[off + i] = ap[i];
           for (int i = 0; i < bl; ++i) st.list_values[off + al + i] = bp[i];
@@ -319,13 +423,13 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
                                        ? Value::k_container_len_max
                                        : out_len_ll);
     if (x.tag == ValueTag::String) {
-      if constexpr (EnablePayload) {
-        DThreadPayloadState& st = *payload_state;
+      if constexpr (PayloadTraits::kHasString) {
+        auto& st = payload_state;
         const char* xp = nullptr;
         int xl = 0;
         if (d_lookup_string_payload(tables, st, x, xp, xl) &&
             l >= 0 && l <= xl && h >= 0 && h <= xl &&
-            st.string_bytes_used + static_cast<int>(out_len) <= DMAX_THREAD_STRING_BYTES) {
+            st.string_bytes_used + static_cast<int>(out_len) <= st.kMaxStringBytes) {
           const int off = st.string_bytes_used;
           for (int i = 0; i < static_cast<int>(out_len); ++i) {
             st.string_bytes[off + i] = xp[static_cast<int>(l) + i];
@@ -341,13 +445,13 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       out = Value::from_string_hash_len(out_h, out_len);
       return true;
     }
-    if constexpr (EnablePayload) {
-      DThreadPayloadState& st = *payload_state;
+    if constexpr (PayloadTraits::kHasList) {
+      auto& st = payload_state;
       const Value* xp = nullptr;
       int xl = 0;
       if (d_lookup_list_payload(tables, st, x, xp, xl) &&
           l >= 0 && l <= xl && h >= 0 && h <= xl &&
-          st.list_values_used + static_cast<int>(out_len) <= DMAX_THREAD_LIST_VALUES) {
+          st.list_values_used + static_cast<int>(out_len) <= st.kMaxListValues) {
         const int off = st.list_values_used;
         for (int i = 0; i < static_cast<int>(out_len); ++i) {
           st.list_values[off + i] = xp[static_cast<int>(l) + i];
@@ -386,12 +490,12 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       return false;
     }
     if (x.tag == ValueTag::String) {
-      if constexpr (EnablePayload) {
-        DThreadPayloadState& st = *payload_state;
+      if constexpr (PayloadTraits::kHasString) {
+        auto& st = payload_state;
         const char* xp = nullptr;
         int xl = 0;
         if (d_lookup_string_payload(tables, st, x, xp, xl) && j < xl &&
-            st.string_bytes_used + 1 <= DMAX_THREAD_STRING_BYTES) {
+            st.string_bytes_used + 1 <= st.kMaxStringBytes) {
           const int off = st.string_bytes_used;
           st.string_bytes[off] = xp[static_cast<int>(j)];
           st.string_bytes_used += 1;
@@ -404,8 +508,8 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       out = Value::from_int(Value::index_container_token64(5U, x, j));
       return true;
     }
-    if constexpr (EnablePayload) {
-      DThreadPayloadState& st = *payload_state;
+    if constexpr (PayloadTraits::kHasList) {
+      auto& st = payload_state;
       const Value* xp = nullptr;
       int xl = 0;
       if (d_lookup_list_payload(tables, st, x, xp, xl) && j < xl) {

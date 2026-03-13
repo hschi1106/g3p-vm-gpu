@@ -16,7 +16,7 @@ __device__ inline double d_canonicalize_fitness_accumulator(double value) {
   return ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
-template <bool EnablePayload>
+template <DPayloadFlavor Flavor>
 __global__ void evaluate_fitness_subset(
     const int* program_indices, int n_program_indices,
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
@@ -61,7 +61,7 @@ __global__ void evaluate_fitness_subset(
   const int chunk_start = (meta.case_count * tid) / static_cast<int>(blockDim.x);
   const int chunk_end = (meta.case_count * (tid + 1)) / static_cast<int>(blockDim.x);
   for (int local_case = chunk_start; local_case < chunk_end; ++local_case) {
-    const DResult result = d_execute_bytecode<EnablePayload>(
+    const DResult result = d_execute_bytecode<Flavor>(
         meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
     if (result.is_error) {
       local_score = d_canonicalize_fitness_accumulator(local_score - fabs(penalty));

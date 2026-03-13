@@ -14,22 +14,14 @@ __device__ inline void d_fail(DResult& out, ErrCode code) {
   out.err_code = code;
 }
 
-template <bool EnablePayload>
-struct DPayloadStateStorage {};
+template <DPayloadFlavor Flavor>
+struct DPayloadStateStorage {
+  typename DPayloadFlavorTraits<Flavor>::State state{};
 
-template <>
-struct DPayloadStateStorage<true> {
-  DThreadPayloadState state{};
-
-  __device__ DThreadPayloadState* ptr() { return &state; }
+  __device__ typename DPayloadFlavorTraits<Flavor>::State& ref() { return state; }
 };
 
-template <>
-struct DPayloadStateStorage<false> {
-  __device__ DThreadPayloadState* ptr() { return nullptr; }
-};
-
-template <bool EnablePayload>
+template <DPayloadFlavor Flavor>
 __device__ __noinline__ DResult d_execute_bytecode(const DProgramMeta& meta,
                                                    const DInstr* shared_code,
                                                    const Value* all_consts,
@@ -65,7 +57,7 @@ __device__ __noinline__ DResult d_execute_bytecode(const DProgramMeta& meta,
   int ip = 0;
   int fuel_left = fuel;
   bool returned = false;
-  DPayloadStateStorage<EnablePayload> payload_state_storage;
+  DPayloadStateStorage<Flavor> payload_state_storage;
 
   while (ip < meta.code_len) {
     if (fuel_left <= 0) {
@@ -247,8 +239,8 @@ __device__ __noinline__ DResult d_execute_bytecode(const DProgramMeta& meta,
       sp -= argc;
       ErrCode derr = ErrCode::Type;
       Value ret = Value::none();
-      if (!d_builtin_call<EnablePayload>(
-              bid, args_buf, argc, payload_tables, payload_state_storage.ptr(), ret, derr)) {
+      if (!d_builtin_call<Flavor>(
+              bid, args_buf, argc, payload_tables, payload_state_storage.ref(), ret, derr)) {
         d_fail(result, derr);
         break;
       }

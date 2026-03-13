@@ -8,6 +8,13 @@
 
 namespace g3pvm::gpu_detail {
 
+enum class DPayloadFlavor : std::uint8_t {
+  None = 0,
+  StringOnly = 1,
+  ListOnly = 2,
+  Mixed = 3,
+};
+
 struct DInstr {
   std::uint8_t op = 0;
   std::uint8_t flags = 0;
@@ -31,6 +38,7 @@ struct DProgramMeta {
   int case_count = 0;
   int case_local_offset = 0;
   int is_valid = 0;
+  DPayloadFlavor payload_flavor = DPayloadFlavor::None;
   ErrCode err_code = ErrCode::Value;
 };
 

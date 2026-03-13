@@ -84,7 +84,7 @@ Use these when exact container behavior should be available later.
 - `snapshot_strings()`
 - `snapshot_lists()`
 
-These export registry contents into flat vectors so the GPU path can upload them into device memory.
+These export registry contents into flat vectors so the GPU path can build compact device packs from them.
 
 ## GPU Session Handoff
 
@@ -93,16 +93,40 @@ The GPU runtime does not read the host registry directly.
 Instead:
 
 1. `payload::snapshot_strings()` and `payload::snapshot_lists()` take a host-side snapshot
-2. `build_payload_pack()` in `cpp/src/runtime/gpu/fitness_gpu.cu` flattens those snapshots into:
+2. `FitnessSessionGpu::init()` caches those host-side snapshots plus the shared-case payload tokens for the current session
+3. `FitnessSessionGpu::eval_programs()` gathers the payload tokens actually needed by the accepted program subset
+4. `build_payload_pack()` in `cpp/src/runtime/gpu/fitness_gpu.cu` flattens only that needed-token closure into:
    - `DStringPayloadEntry` plus one contiguous byte buffer
    - `DListPayloadEntry` plus one contiguous `Value` buffer
-3. `FitnessSessionGpu::init()` uploads those flat tables once for the current shared-case session
+5. the compact pack is uploaded for the current evaluation run
 
 This separation is important:
 
 - the host registry is convenient for CPU exact behavior and test setup
-- the GPU runtime consumes compact, read-only snapshot tables
+- the GPU runtime consumes compact, read-only per-eval payload tables instead of the full registry snapshot
 - shared case locals and expected answers are packed separately from payload snapshots
+- device lookup for global payload entries is done against compact sorted tables
+
+## GPU Payload Flavors
+
+The device path does not use one monolithic payload kernel anymore.
+
+Programs are classified into four payload flavors in `cpp/src/runtime/gpu/host_pack_gpu.cu`:
+
+- `None`
+- `StringOnly`
+- `ListOnly`
+- `Mixed`
+
+The GPU fitness launch then dispatches up to four specialized kernels.
+
+This keeps:
+
+- string-only programs from carrying list scratch state
+- list-only programs from carrying string scratch state
+- non-payload programs on the lightest path
+
+Exact string/list builtins still use bounded per-thread scratch and still fall back to compact transport when exact materialization does not fit.
 
 ## Exact Path vs Fallback Path
 

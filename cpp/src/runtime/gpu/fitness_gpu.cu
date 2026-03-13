@@ -2,12 +2,14 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <limits>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -35,29 +37,81 @@ struct HostPayloadPack {
   std::vector<Value> list_values;
 };
 
-HostPayloadPack build_payload_pack() {
-  HostPayloadPack out;
-  const auto strings = payload::snapshot_strings();
-  const auto lists = payload::snapshot_lists();
+using HostStringPayloadLookup = std::unordered_map<std::int64_t, std::string>;
+using HostListPayloadLookup = std::unordered_map<std::int64_t, std::vector<Value>>;
 
-  out.string_entries.reserve(strings.size());
-  for (const auto& s : strings) {
+constexpr unsigned kPayloadMaskString = 1U << 0;
+constexpr unsigned kPayloadMaskList = 1U << 1;
+
+unsigned value_payload_mask(const Value& v) {
+  if (v.tag == ValueTag::String) return kPayloadMaskString;
+  if (v.tag == ValueTag::List) return kPayloadMaskList;
+  return 0U;
+}
+
+void sort_and_unique_tokens(std::vector<std::int64_t>* tokens) {
+  std::sort(tokens->begin(), tokens->end());
+  tokens->erase(std::unique(tokens->begin(), tokens->end()), tokens->end());
+}
+
+void append_payload_tokens_from_values(const std::vector<Value>& values,
+                                       std::vector<std::int64_t>* string_tokens,
+                                       std::vector<std::int64_t>* list_tokens) {
+  for (const Value& v : values) {
+    if (v.tag == ValueTag::String) {
+      string_tokens->push_back(v.i);
+    } else if (v.tag == ValueTag::List) {
+      list_tokens->push_back(v.i);
+    }
+  }
+}
+
+void append_payload_tokens_from_programs(const std::vector<BytecodeProgram>& programs,
+                                         const std::vector<int>& indices,
+                                         std::vector<std::int64_t>* string_tokens,
+                                         std::vector<std::int64_t>* list_tokens) {
+  for (int idx : indices) {
+    if (idx < 0 || idx >= static_cast<int>(programs.size())) {
+      continue;
+    }
+    append_payload_tokens_from_values(programs[static_cast<std::size_t>(idx)].consts, string_tokens, list_tokens);
+  }
+}
+
+HostPayloadPack build_payload_pack(const HostStringPayloadLookup& string_lookup,
+                                   const HostListPayloadLookup& list_lookup,
+                                   std::vector<std::int64_t> string_tokens,
+                                   std::vector<std::int64_t> list_tokens) {
+  HostPayloadPack out;
+  sort_and_unique_tokens(&string_tokens);
+  sort_and_unique_tokens(&list_tokens);
+
+  out.string_entries.reserve(string_tokens.size());
+  for (const std::int64_t packed : string_tokens) {
+    const auto it = string_lookup.find(packed);
+    if (it == string_lookup.end()) {
+      continue;
+    }
     DStringPayloadEntry e;
-    e.packed = s.key.i;
+    e.packed = packed;
     e.offset = static_cast<int>(out.string_bytes.size());
-    e.len = static_cast<int>(s.data.size());
+    e.len = static_cast<int>(it->second.size());
     out.string_entries.push_back(e);
-    out.string_bytes.insert(out.string_bytes.end(), s.data.begin(), s.data.end());
+    out.string_bytes.insert(out.string_bytes.end(), it->second.begin(), it->second.end());
   }
 
-  out.list_entries.reserve(lists.size());
-  for (const auto& l : lists) {
+  out.list_entries.reserve(list_tokens.size());
+  for (const std::int64_t packed : list_tokens) {
+    const auto it = list_lookup.find(packed);
+    if (it == list_lookup.end()) {
+      continue;
+    }
     DListPayloadEntry e;
-    e.packed = l.key.i;
+    e.packed = packed;
     e.offset = static_cast<int>(out.list_values.size());
-    e.len = static_cast<int>(l.elems.size());
+    e.len = static_cast<int>(it->second.size());
     out.list_entries.push_back(e);
-    out.list_values.insert(out.list_values.end(), l.elems.begin(), l.elems.end());
+    out.list_values.insert(out.list_values.end(), it->second.begin(), it->second.end());
   }
   return out;
 }
@@ -157,15 +211,14 @@ bool select_gpu_device(cudaDeviceProp& props_out, std::string& message_out) {
   return query_device(best_dev, props_out, message_out);
 }
 
-bool shared_cases_have_payload_inputs(const std::vector<CaseBindings>& shared_cases) {
+unsigned shared_cases_payload_mask(const std::vector<CaseBindings>& shared_cases) {
+  unsigned mask = 0U;
   for (const CaseBindings& case_bindings : shared_cases) {
     for (const g3pvm::InputBinding& binding : case_bindings) {
-      if (binding.value.tag == ValueTag::String || binding.value.tag == ValueTag::List) {
-        return true;
-      }
+      mask |= value_payload_mask(binding.value);
     }
   }
-  return false;
+  return mask;
 }
 
 std::size_t kernel_shared_bytes(std::size_t max_code_len, int blocksize) {
@@ -182,17 +235,15 @@ struct FitnessSessionGpu::Impl {
   int blocksize = 1024;
   double penalty = 1.0;
   int shared_case_count = 0;
-  bool shared_inputs_have_payload = false;
+  unsigned shared_input_payload_mask = 0U;
   std::size_t shared_bytes = 0;
   Value* d_shared_case_local_vals = nullptr;
   unsigned char* d_shared_case_local_set = nullptr;
   Value* d_expected = nullptr;
-  DStringPayloadEntry* d_string_payload_entries = nullptr;
-  char* d_string_payload_bytes = nullptr;
-  DListPayloadEntry* d_list_payload_entries = nullptr;
-  Value* d_list_payload_values = nullptr;
-  int string_payload_entry_count = 0;
-  int list_payload_entry_count = 0;
+  HostStringPayloadLookup host_string_payloads;
+  HostListPayloadLookup host_list_payloads;
+  std::vector<std::int64_t> shared_string_tokens;
+  std::vector<std::int64_t> shared_list_tokens;
   cudaDeviceProp props{};
   Err last_err{ErrCode::Value, ""};
 
@@ -200,10 +251,6 @@ struct FitnessSessionGpu::Impl {
     if (d_shared_case_local_vals) cudaFree(d_shared_case_local_vals);
     if (d_shared_case_local_set) cudaFree(d_shared_case_local_set);
     if (d_expected) cudaFree(d_expected);
-    if (d_string_payload_entries) cudaFree(d_string_payload_entries);
-    if (d_string_payload_bytes) cudaFree(d_string_payload_bytes);
-    if (d_list_payload_entries) cudaFree(d_list_payload_entries);
-    if (d_list_payload_values) cudaFree(d_list_payload_values);
   }
 };
 
@@ -245,15 +292,27 @@ FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseBindings>& share
   std::vector<Value> packed_case_local_vals;
   std::vector<unsigned char> packed_case_local_set;
   gpu_detail::pack_shared_cases_only(shared_cases, &packed_case_local_vals, &packed_case_local_set);
-  const HostPayloadPack payload_pack = build_payload_pack();
+  const auto string_snapshots = payload::snapshot_strings();
+  const auto list_snapshots = payload::snapshot_lists();
+  impl_->host_string_payloads.clear();
+  impl_->host_list_payloads.clear();
+  impl_->host_string_payloads.reserve(string_snapshots.size());
+  impl_->host_list_payloads.reserve(list_snapshots.size());
+  for (const auto& s : string_snapshots) {
+    impl_->host_string_payloads[s.key.i] = s.data;
+  }
+  for (const auto& l : list_snapshots) {
+    impl_->host_list_payloads[l.key.i] = l.elems;
+  }
+  impl_->shared_string_tokens.clear();
+  impl_->shared_list_tokens.clear();
+  append_payload_tokens_from_values(packed_case_local_vals, &impl_->shared_string_tokens, &impl_->shared_list_tokens);
+  sort_and_unique_tokens(&impl_->shared_string_tokens);
+  sort_and_unique_tokens(&impl_->shared_list_tokens);
 
   if (!gpu_detail::cuda_alloc_and_copy_in(packed_case_local_vals, &impl_->d_shared_case_local_vals) ||
       !gpu_detail::cuda_alloc_and_copy_in(packed_case_local_set, &impl_->d_shared_case_local_set) ||
-      !gpu_detail::cuda_alloc_and_copy_in(shared_answer, &impl_->d_expected) ||
-      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_entries, &impl_->d_string_payload_entries) ||
-      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_bytes, &impl_->d_string_payload_bytes) ||
-      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.list_entries, &impl_->d_list_payload_entries) ||
-      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.list_values, &impl_->d_list_payload_values)) {
+      !gpu_detail::cuda_alloc_and_copy_in(shared_answer, &impl_->d_expected)) {
     return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
 
@@ -263,9 +322,7 @@ FitnessEvalResult FitnessSessionGpu::init(const std::vector<CaseBindings>& share
   impl_->blocksize = blocksize;
   impl_->penalty = penalty;
   impl_->shared_case_count = static_cast<int>(shared_cases.size());
-  impl_->shared_inputs_have_payload = shared_cases_have_payload_inputs(shared_cases);
-  impl_->string_payload_entry_count = static_cast<int>(payload_pack.string_entries.size());
-  impl_->list_payload_entry_count = static_cast<int>(payload_pack.list_entries.size());
+  impl_->shared_input_payload_mask = shared_cases_payload_mask(shared_cases);
   impl_->shared_bytes = 0;
   impl_->last_err = Err{ErrCode::Value, ""};
   return FitnessEvalResult{true, {}, 0.0, 0.0, 0.0, 0.0, 0.0, Err{ErrCode::Value, ""}};
@@ -286,21 +343,36 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   const auto pack_t0 = std::chrono::steady_clock::now();
   const gpu_detail::PackResult packed =
       gpu_detail::pack_programs_with_shared_case_count(
-          programs, impl_->shared_case_count, impl_->shared_inputs_have_payload);
-  const auto pack_t1 = std::chrono::steady_clock::now();
+          programs, impl_->shared_case_count, impl_->shared_input_payload_mask);
   if (packed.total_cases == 0) {
     return fitness_single_error(ErrCode::Value, "cases must not be empty");
   }
+
+  std::vector<std::int64_t> needed_string_tokens = impl_->shared_string_tokens;
+  std::vector<std::int64_t> needed_list_tokens = impl_->shared_list_tokens;
+  append_payload_tokens_from_programs(programs, packed.string_payload_program_indices, &needed_string_tokens, &needed_list_tokens);
+  append_payload_tokens_from_programs(programs, packed.list_payload_program_indices, &needed_string_tokens, &needed_list_tokens);
+  append_payload_tokens_from_programs(programs, packed.mixed_payload_program_indices, &needed_string_tokens, &needed_list_tokens);
+  const HostPayloadPack payload_pack =
+      build_payload_pack(impl_->host_string_payloads, impl_->host_list_payloads, std::move(needed_string_tokens),
+                         std::move(needed_list_tokens));
+  const auto pack_t1 = std::chrono::steady_clock::now();
 
   const std::size_t shared_bytes =
       kernel_shared_bytes(packed.max_code_len, impl_->blocksize);
   const std::size_t shared_bytes_no_payload =
       kernel_shared_bytes(packed.max_code_len_no_payload, impl_->blocksize);
-  const std::size_t shared_bytes_payload =
-      kernel_shared_bytes(packed.max_code_len_payload, impl_->blocksize);
+  const std::size_t shared_bytes_string_payload =
+      kernel_shared_bytes(packed.max_code_len_string_payload, impl_->blocksize);
+  const std::size_t shared_bytes_list_payload =
+      kernel_shared_bytes(packed.max_code_len_list_payload, impl_->blocksize);
+  const std::size_t shared_bytes_mixed_payload =
+      kernel_shared_bytes(packed.max_code_len_mixed_payload, impl_->blocksize);
   if (shared_bytes > static_cast<std::size_t>(impl_->props.sharedMemPerBlock) ||
       shared_bytes_no_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock) ||
-      shared_bytes_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock)) {
+      shared_bytes_string_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock) ||
+      shared_bytes_list_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock) ||
+      shared_bytes_mixed_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock)) {
     return fitness_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }
 
@@ -310,7 +382,13 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
       !gpu_detail::cuda_alloc_and_copy_in(packed.all_code, &dev.d_code) ||
       !gpu_detail::cuda_alloc_and_copy_in(packed.metas, &dev.d_metas) ||
       !gpu_detail::cuda_alloc_and_copy_in(packed.no_payload_program_indices, &dev.d_no_payload_program_indices) ||
-      !gpu_detail::cuda_alloc_and_copy_in(packed.payload_program_indices, &dev.d_payload_program_indices)) {
+      !gpu_detail::cuda_alloc_and_copy_in(packed.string_payload_program_indices, &dev.d_string_payload_program_indices) ||
+      !gpu_detail::cuda_alloc_and_copy_in(packed.list_payload_program_indices, &dev.d_list_payload_program_indices) ||
+      !gpu_detail::cuda_alloc_and_copy_in(packed.mixed_payload_program_indices, &dev.d_mixed_payload_program_indices) ||
+      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_entries, &dev.d_string_payload_entries) ||
+      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_bytes, &dev.d_string_payload_bytes) ||
+      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.list_entries, &dev.d_list_payload_entries) ||
+      !gpu_detail::cuda_alloc_and_copy_in(payload_pack.list_values, &dev.d_list_payload_values)) {
     return fitness_single_error(ErrCode::Value, "cuda allocation failure");
   }
   if (cudaMalloc(reinterpret_cast<void**>(&dev.d_fitness), sizeof(double) * programs.size()) != cudaSuccess) {
@@ -324,26 +402,50 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   const auto kernel_t0 = std::chrono::steady_clock::now();
   cudaError_t launch_err = cudaSuccess;
   if (!packed.no_payload_program_indices.empty()) {
-    gpu_detail::evaluate_fitness_subset<false>
+    gpu_detail::evaluate_fitness_subset<gpu_detail::DPayloadFlavor::None>
         <<<static_cast<unsigned int>(packed.no_payload_program_indices.size()), impl_->blocksize,
            shared_bytes_no_payload>>>(
             dev.d_no_payload_program_indices, static_cast<int>(packed.no_payload_program_indices.size()),
             dev.d_consts, dev.d_code, dev.d_metas,
             impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
-            impl_->d_string_payload_entries, impl_->string_payload_entry_count, impl_->d_string_payload_bytes,
-            impl_->d_list_payload_entries, impl_->list_payload_entry_count, impl_->d_list_payload_values,
+            dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+            dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
             impl_->fuel, impl_->penalty, dev.d_fitness);
     launch_err = cudaGetLastError();
   }
-  if (launch_err == cudaSuccess && !packed.payload_program_indices.empty()) {
-    gpu_detail::evaluate_fitness_subset<true>
-        <<<static_cast<unsigned int>(packed.payload_program_indices.size()), impl_->blocksize,
-           shared_bytes_payload>>>(
-            dev.d_payload_program_indices, static_cast<int>(packed.payload_program_indices.size()),
+  if (launch_err == cudaSuccess && !packed.string_payload_program_indices.empty()) {
+    gpu_detail::evaluate_fitness_subset<gpu_detail::DPayloadFlavor::StringOnly>
+        <<<static_cast<unsigned int>(packed.string_payload_program_indices.size()), impl_->blocksize,
+           shared_bytes_string_payload>>>(
+            dev.d_string_payload_program_indices, static_cast<int>(packed.string_payload_program_indices.size()),
             dev.d_consts, dev.d_code, dev.d_metas,
             impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
-            impl_->d_string_payload_entries, impl_->string_payload_entry_count, impl_->d_string_payload_bytes,
-            impl_->d_list_payload_entries, impl_->list_payload_entry_count, impl_->d_list_payload_values,
+            dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+            dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
+            impl_->fuel, impl_->penalty, dev.d_fitness);
+    launch_err = cudaGetLastError();
+  }
+  if (launch_err == cudaSuccess && !packed.list_payload_program_indices.empty()) {
+    gpu_detail::evaluate_fitness_subset<gpu_detail::DPayloadFlavor::ListOnly>
+        <<<static_cast<unsigned int>(packed.list_payload_program_indices.size()), impl_->blocksize,
+           shared_bytes_list_payload>>>(
+            dev.d_list_payload_program_indices, static_cast<int>(packed.list_payload_program_indices.size()),
+            dev.d_consts, dev.d_code, dev.d_metas,
+            impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
+            dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+            dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
+            impl_->fuel, impl_->penalty, dev.d_fitness);
+    launch_err = cudaGetLastError();
+  }
+  if (launch_err == cudaSuccess && !packed.mixed_payload_program_indices.empty()) {
+    gpu_detail::evaluate_fitness_subset<gpu_detail::DPayloadFlavor::Mixed>
+        <<<static_cast<unsigned int>(packed.mixed_payload_program_indices.size()), impl_->blocksize,
+           shared_bytes_mixed_payload>>>(
+            dev.d_mixed_payload_program_indices, static_cast<int>(packed.mixed_payload_program_indices.size()),
+            dev.d_consts, dev.d_code, dev.d_metas,
+            impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
+            dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+            dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
             impl_->fuel, impl_->penalty, dev.d_fitness);
     launch_err = cudaGetLastError();
   }

@@ -10,17 +10,21 @@ namespace g3pvm::gpu_detail {
 
 namespace {
 
-bool value_has_payload(const Value& v) {
-  return v.tag == ValueTag::String || v.tag == ValueTag::List;
+constexpr unsigned kPayloadMaskString = 1U << 0;
+constexpr unsigned kPayloadMaskList = 1U << 1;
+
+unsigned value_payload_mask(const Value& v) {
+  if (v.tag == ValueTag::String) return kPayloadMaskString;
+  if (v.tag == ValueTag::List) return kPayloadMaskList;
+  return 0U;
 }
 
-bool program_has_payload_const(const BytecodeProgram& prog) {
+unsigned program_payload_const_mask(const BytecodeProgram& prog) {
+  unsigned mask = 0U;
   for (const Value& v : prog.consts) {
-    if (value_has_payload(v)) {
-      return true;
-    }
+    mask |= value_payload_mask(v);
   }
-  return false;
+  return mask;
 }
 
 bool program_has_exact_payload_builtin(const BytecodeProgram& prog) {
@@ -39,18 +43,28 @@ bool program_has_exact_payload_builtin(const BytecodeProgram& prog) {
   return false;
 }
 
-bool program_needs_payload_fast_path(const BytecodeProgram& prog, bool shared_inputs_have_payload) {
+DPayloadFlavor classify_payload_flavor(const BytecodeProgram& prog, unsigned shared_input_payload_mask) {
   if (!program_has_exact_payload_builtin(prog)) {
-    return false;
+    return DPayloadFlavor::None;
   }
-  return shared_inputs_have_payload || program_has_payload_const(prog);
+  const unsigned payload_mask = shared_input_payload_mask | program_payload_const_mask(prog);
+  if (payload_mask == 0U) {
+    return DPayloadFlavor::None;
+  }
+  if (payload_mask == kPayloadMaskString) {
+    return DPayloadFlavor::StringOnly;
+  }
+  if (payload_mask == kPayloadMaskList) {
+    return DPayloadFlavor::ListOnly;
+  }
+  return DPayloadFlavor::Mixed;
 }
 
 }  // namespace
 
 PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
                                                 int shared_case_count,
-                                                bool shared_inputs_have_payload) {
+                                                unsigned shared_input_payload_mask) {
   PackResult out;
   out.metas.resize(programs.size());
 
@@ -65,6 +79,7 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
     meta.case_count = shared_case_count;
     meta.case_local_offset = 0;
     meta.is_valid = 1;
+    meta.payload_flavor = classify_payload_flavor(prog, shared_input_payload_mask);
     meta.err_code = ErrCode::Value;
 
     out.all_consts.insert(out.all_consts.end(), prog.consts.begin(), prog.consts.end());
@@ -89,16 +104,31 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
     if (static_cast<std::size_t>(meta.code_len) > out.max_code_len) {
       out.max_code_len = static_cast<std::size_t>(meta.code_len);
     }
-    if (program_needs_payload_fast_path(prog, shared_inputs_have_payload)) {
-      out.payload_program_indices.push_back(static_cast<int>(p));
-      if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_payload) {
-        out.max_code_len_payload = static_cast<std::size_t>(meta.code_len);
-      }
-    } else {
-      out.no_payload_program_indices.push_back(static_cast<int>(p));
-      if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_no_payload) {
-        out.max_code_len_no_payload = static_cast<std::size_t>(meta.code_len);
-      }
+    switch (meta.payload_flavor) {
+      case DPayloadFlavor::None:
+        out.no_payload_program_indices.push_back(static_cast<int>(p));
+        if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_no_payload) {
+          out.max_code_len_no_payload = static_cast<std::size_t>(meta.code_len);
+        }
+        break;
+      case DPayloadFlavor::StringOnly:
+        out.string_payload_program_indices.push_back(static_cast<int>(p));
+        if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_string_payload) {
+          out.max_code_len_string_payload = static_cast<std::size_t>(meta.code_len);
+        }
+        break;
+      case DPayloadFlavor::ListOnly:
+        out.list_payload_program_indices.push_back(static_cast<int>(p));
+        if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_list_payload) {
+          out.max_code_len_list_payload = static_cast<std::size_t>(meta.code_len);
+        }
+        break;
+      case DPayloadFlavor::Mixed:
+        out.mixed_payload_program_indices.push_back(static_cast<int>(p));
+        if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_mixed_payload) {
+          out.max_code_len_mixed_payload = static_cast<std::size_t>(meta.code_len);
+        }
+        break;
     }
 
     if (prog.n_locals < 0 || prog.n_locals > MAX_LOCALS) {
@@ -139,7 +169,9 @@ DeviceArena::~DeviceArena() {
   if (d_expected) cudaFree(d_expected);
   if (d_fitness) cudaFree(d_fitness);
   if (d_no_payload_program_indices) cudaFree(d_no_payload_program_indices);
-  if (d_payload_program_indices) cudaFree(d_payload_program_indices);
+  if (d_string_payload_program_indices) cudaFree(d_string_payload_program_indices);
+  if (d_list_payload_program_indices) cudaFree(d_list_payload_program_indices);
+  if (d_mixed_payload_program_indices) cudaFree(d_mixed_payload_program_indices);
   if (d_string_payload_entries) cudaFree(d_string_payload_entries);
   if (d_string_payload_bytes) cudaFree(d_string_payload_bytes);
   if (d_list_payload_entries) cudaFree(d_list_payload_entries);
