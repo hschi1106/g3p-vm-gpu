@@ -33,7 +33,9 @@ Use the documents below as the source of truth.
 
 ### Docs
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md): system structure, module map, invariants
+- [CPP_RUNTIME_PAYLOAD.md](docs/CPP_RUNTIME_PAYLOAD.md): host/device container payload model and fallback behavior
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
+- [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
 - [structure.md](structure.md): terse repository directory map
 
 ## Repository Layout
@@ -46,8 +48,13 @@ Use the documents below as the source of truth.
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
 - `cpp/src/cli/`: `evolve_cli`, benchmark/population utilities
 - `cpp/src/bench/`: benchmark binaries
+- `cpp/tests/`: native runtime, GPU smoke, parity, and evolution tests
+- `data/fixtures/`: canonical benchmark and evolution fixtures
+- `data/psb2_datasets/`: mirrored PSB2 datasets
 - `tools/`: dataset conversion and audit utilities
 - `scripts/`: execution wrappers and convenience scripts
+- `exp/`: ad hoc experiments and scratch artifacts
+- `meeting/`: meeting notes and discussion artifacts
 
 ## Quick Start
 

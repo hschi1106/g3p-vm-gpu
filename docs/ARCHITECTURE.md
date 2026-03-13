@@ -9,6 +9,16 @@ The execution stack has three layers:
 - C++ CPU path: native execution and native evolution
 - C++ GPU path: CUDA fitness evaluation over batched cases
 
+## Documentation Layers
+
+Use the repo documents in this order:
+- `spec/`: normative semantics and wire formats
+- `README.md`: entrypoint and common workflows
+- `docs/DEVELOPMENT.md`: commands, CLIs, and benchmark procedure
+- `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
+- `structure.md`: terse directory map
+- `AGENTS.md`: repo-local contributor guidance for coding agents
+
 ## Core Invariants
 
 These are the current 1.0 invariants.
@@ -155,6 +165,24 @@ Public evolution interfaces split by responsibility:
 ### `cpp/src/bench/`
 Benchmark binaries for runtime-focused measurement.
 
+### `cpp/tests/`
+- `runtime/`: CPU VM smoke, edge, and CLI-harness tests
+- `gpu/`: direct GPU smoke coverage
+- `parity/`: CPU/GPU fitness and evolution parity regression tests
+- `evolution/`: native evolution and genome tests
+
+## Tooling And Script Map
+
+### `tools/`
+- `fetch_psb2_datasets.py`: download PSB2 datasets into `data/psb2_datasets/`
+- `audit_psb2_tasks.py`: inspect local PSB2 dataset coverage and shape
+- `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1`
+
+### `scripts/`
+- `speedup_experiment.py`: fixed-population CPU/GPU sweep driver
+- `speedup_experiment.example.json`: tracked benchmark config template
+- local `speedup_experiment.json`: optional untracked machine-local override
+
 ## Data and Tooling Layout
 
 - `data/fixtures/`: canonical benchmark fixtures
@@ -162,6 +190,8 @@ Benchmark binaries for runtime-focused measurement.
 - `tools/`: dataset fetch, conversion, and audit utilities
 - `scripts/`: benchmark and experiment entry scripts
 - `logs/`: generated run artifacts, benchmark reports, gate outputs
+- `exp/`: ad hoc experiment notes and scratch assets
+- `meeting/`: meeting notes and non-normative discussion artifacts
 
 ## What To Update When Code Changes
 

@@ -2,6 +2,10 @@
 
 ```text
 g3p-vm-gpu/
+├── AGENTS.md
+├── README.md
+├── TODO.md
+├── compile_optimize.md
 ├── python/
 │   ├── src/g3p_vm_gpu/
 │   │   ├── core/
@@ -29,25 +33,43 @@ g3p-vm-gpu/
 │   │   ├── cli/
 │   │   └── bench/
 │   ├── tests/
+│   │   ├── evolution/
+│   │   ├── gpu/
+│   │   ├── parity/
+│   │   └── runtime/
 │   └── CMakeLists.txt
-├── spec/
 ├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── CPP_RUNTIME_PAYLOAD.md
+│   └── DEVELOPMENT.md
+├── spec/
+├── data/
+│   ├── fixtures/
+│   └── psb2_datasets/
+├── exp/
+├── meeting/
 ├── tools/
 ├── scripts/
-├── data/
 └── logs/
 ```
 
 ## Directory Roles
 
+- `AGENTS.md`: repo-local working conventions for coding agents
+- `README.md`: entrypoint and quick workflow
+- `TODO.md`: active engineering notes and current follow-ups
+- `compile_optimize.md`: local optimization notes and experiments
 - `python/`: reference semantics and Python-side tests
-- `cpp/`: native runtime, GPU fitness backend, evolution engine, native tests
+- `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests
 - `spec/`: normative behavior contracts
-- `docs/`: operational and architectural documentation
+- `docs/`: operational, architectural, and payload-model documentation
+- `data/fixtures/`: canonical benchmark and evolution fixtures
+- `data/psb2_datasets/`: mirrored PSB2 source datasets
+- `exp/`: ad hoc experiments and exploratory notes
+- `meeting/`: meeting notes and discussion artifacts
 - `tools/`: dataset fetch, conversion, and audit utilities
 - `scripts/`: benchmark and experiment entry scripts
-- `data/`: fixtures and datasets
-- `logs/`: generated artifacts
+- `logs/`: generated artifacts, benchmark reports, and run outputs
 
 ## Spec Roles
 

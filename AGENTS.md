@@ -6,7 +6,15 @@
   - `core/`: AST, error types, shared value semantics
   - `runtime/`: builtins, compiler, interpreter, Python VM
   - `evolution/`: genome, random generation, mutation, crossover, evolution loop
+- Native implementation lives under `cpp/`.
+  Current structure:
+  - `include/g3pvm/`: public C++ headers
+  - `src/runtime/`: CPU runtime, GPU runtime, payload support
+  - `src/evolution/`: compiler, genome generation, operators, evolution loop
+  - `src/cli/`: native CLIs such as `g3pvm_evolve_cli` and `g3pvm_population_bench_cli`
+  - `tests/`: runtime, GPU smoke, parity, and evolution tests
 - Tests live in `python/tests/`.
+- Native tests live in `cpp/tests/`.
 - Normative behavior is documented in `spec/`:
   - `grammar_v1_0.md`
   - `bytecode_isa_v1_0.md`
@@ -15,8 +23,18 @@
   - `builtins_runtime_v1_0.md`
   - `fitness_v1_0.md`
   Treat these files as the behavioral source of truth.
+- Operational and structural docs live in:
+  - `docs/ARCHITECTURE.md`
+  - `docs/DEVELOPMENT.md`
+  - `docs/CPP_RUNTIME_PAYLOAD.md`
+  - `structure.md`
 
 ## Build, Test, and Development Commands
+- Build native binaries:
+  ```bash
+  cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
+  cmake --build cpp/build -j
+  ```
 - Run all Python tests:
   ```bash
   PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
@@ -29,6 +47,18 @@
   ```bash
   PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
   ```
+- Run all native tests:
+  ```bash
+  ctest --test-dir cpp/build --output-on-failure
+  ```
+- Run the main native GPU/parity regression set:
+  ```bash
+  ctest --test-dir cpp/build -R 'g3pvm_test_vm_gpu_smoke|g3pvm_test_fitness_cpu_gpu_parity|g3pvm_test_evolution_cpu_gpu_parity' --output-on-failure
+  ```
+- Run the fixed-population CPU/GPU benchmark sweep:
+  ```bash
+  python3 scripts/speedup_experiment.py
+  ```
 - If imports fail, verify you are running from repo root and using the matching `PYTHONPATH` shown above.
 
 ## Coding Style & Naming Conventions
@@ -40,9 +70,11 @@
 ## Testing Guidelines
 - Framework: `unittest`.
 - Test files use `test_*.py`; test classes use `Test*`; test methods use `test_*`.
+- Native tests are built with CMake and run through `ctest`.
 - Add or update tests with every behavior change, especially for:
   - error code behavior (`ErrCode` paths),
   - interpreter vs VM parity,
+  - CPU vs GPU fitness parity when touching runtime, payload, or GPU execution,
   - edge cases around fuel/timeouts and numeric/type operations.
 
 ## Profiling Guidelines
@@ -58,6 +90,7 @@
   ```bash
   ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
   cpp/build/g3pvm_evolve_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --blocksize 256 --population-size 64 --generations 2 --out-json logs/bouncing_balls_1024.run.json
+  cpp/build/g3pvm_population_bench_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --blocksize 256 --population-size 1024 --probe-cases 32 --min-success-rate 0.10 --out-population-json logs/bouncing_balls_1024.population.json
   python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --population-sizes 1024
   ```
 
@@ -71,14 +104,12 @@
   - spec updates in `spec/` when semantics change.
 
 ## Skills
-A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.
-### Available skills
-- g3p-vm-gpu-repo: Repository-specific guidance for working in the g3p-vm-gpu codebase. Use when Codex needs to understand this repo's architecture, GP/VM theory, CPU/GPU parity constraints, performance goals, benchmark workflow, change impact, or where to edit for AST, bytecode, VM, payload, fitness, PSB2, and evolution tasks. (file: /home/hschi1106/.codex/skills/g3p-vm-gpu-repo/SKILL.md)
-- skill-creator: Guide for creating effective skills. Use when users want to create or update a skill. (file: /home/hschi1106/.codex/skills/.system/skill-creator/SKILL.md)
-- skill-installer: Install Codex skills into `$CODEX_HOME/skills` from a curated list or a GitHub repo path. (file: /home/hschi1106/.codex/skills/.system/skill-installer/SKILL.md)
-- slides: Build, edit, render, import, and export presentation decks. (file: /home/hschi1106/.codex/skills/.system/slides/SKILL.md)
-- spreadsheets: Build, edit, recalculate, import, and export spreadsheet workbooks. (file: /home/hschi1106/.codex/skills/.system/spreadsheets/SKILL.md)
-### How to use skills
-- If the user names a skill or the task clearly matches a skill's description, you must use that skill for that turn.
-- Read only the skill files needed for the task.
-- Keep context small and avoid bulk-loading unrelated references.
+A skill is a set of local instructions stored in a `SKILL.md` file.
+
+Repo-stable skill:
+- `g3p-vm-gpu-repo`: repository-specific guidance for architecture, parity constraints, benchmark workflow, payload behavior, and change impact
+
+Use repo skills this way:
+- If the task clearly matches the repo skill, open `/home/hschi1106/.codex/skills/g3p-vm-gpu-repo/SKILL.md` and read only the referenced material you need.
+- Keep context small; avoid bulk-loading unrelated references.
+- System-provided skills may vary by session, so treat the live session skill list as the source of truth for non-repo skills.

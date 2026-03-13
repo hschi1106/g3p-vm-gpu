@@ -86,6 +86,24 @@ Use these when exact container behavior should be available later.
 
 These export registry contents into flat vectors so the GPU path can upload them into device memory.
 
+## GPU Session Handoff
+
+The GPU runtime does not read the host registry directly.
+
+Instead:
+
+1. `payload::snapshot_strings()` and `payload::snapshot_lists()` take a host-side snapshot
+2. `build_payload_pack()` in `cpp/src/runtime/gpu/fitness_gpu.cu` flattens those snapshots into:
+   - `DStringPayloadEntry` plus one contiguous byte buffer
+   - `DListPayloadEntry` plus one contiguous `Value` buffer
+3. `FitnessSessionGpu::init()` uploads those flat tables once for the current shared-case session
+
+This separation is important:
+
+- the host registry is convenient for CPU exact behavior and test setup
+- the GPU runtime consumes compact, read-only snapshot tables
+- shared case locals and expected answers are packed separately from payload snapshots
+
 ## Exact Path vs Fallback Path
 
 Container builtins in the CPU and GPU runtimes follow the same high-level policy:
@@ -107,6 +125,10 @@ Fallback path:
 - `index` returns an `Int` token from `index_container_token64()`
 
 This fallback is deterministic and parity-friendly, but not fully semantics-preserving.
+The design target is:
+
+- exact CPU/GPU parity when both sides have exact payload access
+- deterministic fallback parity when exact payload access or materialization is unavailable
 
 ## When Exact Payload Can Be Missing
 
