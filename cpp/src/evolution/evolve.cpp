@@ -215,7 +215,7 @@ ReproductionResult reproduce_population(const std::vector<ScoredGenome>& scored,
 
   const auto selection_t0 = std::chrono::steady_clock::now();
   std::vector<ProgramGenome> selected_parents =
-      tournament_selection(scored, rng, cfg.selection_pressure, offspring_count);
+      tournament_selection_without_replacement(scored, rng, cfg.selection_pressure, offspring_count);
   const auto selection_t1 = std::chrono::steady_clock::now();
   out.selection_ms = std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
 

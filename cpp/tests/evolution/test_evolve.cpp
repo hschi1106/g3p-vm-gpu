@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <random>
 #include <vector>
 
 #include "g3pvm/evolution/evolve.hpp"
+#include "g3pvm/evolution/selection.hpp"
 
 namespace {
 
@@ -93,11 +95,43 @@ bool test_determinism_seed() {
   return true;
 }
 
+g3pvm::evo::ProgramGenome make_dummy_genome(const std::string& key) {
+  g3pvm::evo::ProgramGenome genome;
+  genome.meta.program_key = key;
+  return genome;
+}
+
+bool test_round_based_tournament_selection_without_replacement_repeats_winners() {
+  using g3pvm::evo::ScoredGenome;
+
+  std::vector<ScoredGenome> scored;
+  scored.push_back(ScoredGenome{make_dummy_genome("best"), 10.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("mid_a"), 7.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("mid_b"), 5.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("worst"), 1.0});
+
+  std::mt19937_64 rng(123);
+  const std::vector<g3pvm::evo::ProgramGenome> selected =
+      g3pvm::evo::tournament_selection_without_replacement(scored, rng, 4, 4);
+
+  if (!check(selected.size() == 4, "selection_count size mismatch")) {
+    return false;
+  }
+  for (const auto& genome : selected) {
+    if (!check(genome.meta.program_key == "best",
+               "full-pressure round-based tournament should repeatedly select the best genome")) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 int main() {
   if (!test_selection_pressure_variants()) return 1;
   if (!test_determinism_seed()) return 1;
+  if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
   std::cout << "g3pvm_test_evolve: OK\n";
   return 0;
 }

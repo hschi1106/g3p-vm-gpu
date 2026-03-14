@@ -59,7 +59,7 @@ Evolution args:
 - `--mutation-rate F`: probability that a selected child is mutated
 - `--mutation-subtree-prob F`: internal mutation operator mix; probability of typed-subtree mutation instead of constant perturbation
 - `--crossover-rate F`: probability that a selected child is rebuilt via crossover
-- `--selection-pressure N`: tournament size; larger values increase selection pressure
+- `--selection-pressure N`: tournament size for each round-based without-replacement pass; larger values increase selection pressure
 - `--seed N`: RNG seed for deterministic replay
 
 Fitness args:
@@ -101,7 +101,7 @@ Metric semantics:
 - `compile_ms`: compile-cache lookup plus any required genome-to-bytecode compilation
 - `eval_ms`: fitness execution only; compile time is excluded
 - `repro_ms`: one-generation reproduction work after the current population has been scored
-- `selection_ms`: tournament-selection pool construction for the full offspring pool
+- `selection_ms`: round-based without-replacement tournament selection to fill the offspring pool
 - `crossover_ms`: crossover pass over the selected parent pool
 - `mutation_ms`: mutation pass over the post-crossover offspring pool
 - `total_ms`: the full one-generation benchmark wall time

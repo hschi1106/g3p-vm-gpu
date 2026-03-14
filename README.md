@@ -11,7 +11,7 @@ The current public contract is:
 - program representation: prefix `AstProgram`
 - fixture schema: `fitness-cases-v1`
 - crossover: `typed_subtree`
-- selection: tournament only, controlled by `selection_pressure`
+- selection: round-based tournament only, controlled by `selection_pressure`
 - mutation: one public mutation path, internal mix controlled by `mutation_subtree_prob`
 - fitness:
   - numeric expected + numeric actual => `-abs(actual - expected)`

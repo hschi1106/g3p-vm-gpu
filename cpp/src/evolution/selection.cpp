@@ -30,35 +30,23 @@ bool scored_genome_sorts_before(const ScoredGenome& a, const ScoredGenome& b) {
 
 namespace {
 
-ProgramGenome tournament_select_once(const std::vector<ScoredGenome>& scored,
-                                     std::mt19937_64& rng,
-                                     int selection_pressure) {
-  if (scored.empty()) {
-    throw std::invalid_argument("scored population is empty");
-  }
-
-  const int tournament_size = std::max(1, std::min(selection_pressure, static_cast<int>(scored.size())));
-  std::vector<std::size_t> candidate_indices(scored.size());
-  std::iota(candidate_indices.begin(), candidate_indices.end(), std::size_t{0});
-  for (int i = 0; i < tournament_size; ++i) {
-    std::uniform_int_distribution<std::size_t> pick(i, candidate_indices.size() - 1);
-    const std::size_t chosen = pick(rng);
-    std::swap(candidate_indices[static_cast<std::size_t>(i)], candidate_indices[chosen]);
-  }
-
-  const ScoredGenome* best = nullptr;
-  for (int i = 0; i < tournament_size; ++i) {
-    const ScoredGenome& cand = scored[candidate_indices[static_cast<std::size_t>(i)]];
-    if (best == nullptr || scored_genome_sorts_before(cand, *best)) {
-      best = &cand;
+std::size_t best_index_in_chunk(const std::vector<ScoredGenome>& scored,
+                                const std::vector<std::size_t>& shuffled_indices,
+                                std::size_t begin,
+                                std::size_t end) {
+  std::size_t best = shuffled_indices[begin];
+  for (std::size_t i = begin + 1; i < end; ++i) {
+    const std::size_t candidate = shuffled_indices[i];
+    if (scored_genome_sorts_before(scored[candidate], scored[best])) {
+      best = candidate;
     }
   }
-  return best->genome;
+  return best;
 }
 
 }  // namespace
 
-std::vector<ProgramGenome> tournament_selection(
+std::vector<ProgramGenome> tournament_selection_without_replacement(
     const std::vector<ScoredGenome>& scored,
     std::mt19937_64& rng,
     int selection_pressure,
@@ -69,21 +57,28 @@ std::vector<ProgramGenome> tournament_selection(
   if (selection_count > static_cast<int>(scored.size())) {
     throw std::invalid_argument("selection_count must be <= scored population size");
   }
+  if (scored.empty()) {
+    if (selection_count == 0) return {};
+    throw std::invalid_argument("scored population is empty");
+  }
 
   std::vector<ProgramGenome> selected;
   selected.reserve(static_cast<std::size_t>(selection_count));
-  std::vector<ScoredGenome> available = scored;
-  for (int i = 0; i < selection_count; ++i) {
-    const ProgramGenome winner = tournament_select_once(available, rng, selection_pressure);
-    selected.push_back(winner);
-    const auto it = std::find_if(
-        available.begin(), available.end(), [&](const ScoredGenome& candidate) {
-          return candidate.genome.meta.program_key == winner.meta.program_key;
-        });
-    if (it == available.end()) {
-      throw std::runtime_error("selected winner not found in available pool");
+  const std::size_t tournament_size =
+      static_cast<std::size_t>(std::max(1, std::min(selection_pressure, static_cast<int>(scored.size()))));
+
+  std::vector<std::size_t> shuffled_indices(scored.size());
+  std::iota(shuffled_indices.begin(), shuffled_indices.end(), std::size_t{0});
+
+  while (selected.size() < static_cast<std::size_t>(selection_count)) {
+    std::shuffle(shuffled_indices.begin(), shuffled_indices.end(), rng);
+    for (std::size_t base = 0;
+         base < shuffled_indices.size() && selected.size() < static_cast<std::size_t>(selection_count);
+         base += tournament_size) {
+      const std::size_t end = std::min(base + tournament_size, shuffled_indices.size());
+      const std::size_t winner_index = best_index_in_chunk(scored, shuffled_indices, base, end);
+      selected.push_back(scored[winner_index].genome);
     }
-    available.erase(it);
   }
   return selected;
 }
