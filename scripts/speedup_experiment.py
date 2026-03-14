@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,10 +13,27 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG = Path(__file__).with_suffix(".json")
 EXAMPLE_CONFIG = Path(__file__).with_name("speedup_experiment.example.json")
 
+BENCH_MODE_ALIASES = {
+    "cpu": "cpu",
+    "gpu_eval": "gpu_eval",
+    "gpu_repro": "gpu_repro",
+    "gpu_repro_overlap": "gpu_repro_overlap",
+    "gpu": "gpu_repro",
+    "gpu_overlap": "gpu_repro_overlap",
+    "gpu_eval_repro_seq": "gpu_repro",
+    "gpu_eval_repro_overlap": "gpu_repro_overlap",
+}
+
+BENCH_MODES = {
+    "cpu": {"engine": "cpu", "repro_backend": "cpu", "repro_overlap": False},
+    "gpu_eval": {"engine": "gpu", "repro_backend": "cpu", "repro_overlap": False},
+    "gpu_repro": {"engine": "gpu", "repro_backend": "gpu", "repro_overlap": False},
+    "gpu_repro_overlap": {"engine": "gpu", "repro_backend": "gpu", "repro_overlap": True},
+}
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run CPU/GPU one-generation benchmark for all configured fixtures."
+        description="Run fixed-population benchmark sweeps for CPU, GPU eval, and GPU reproduction modes."
     )
     parser.add_argument(
         "--config",
@@ -35,6 +51,11 @@ def parse_args() -> argparse.Namespace:
         "--population-sizes",
         default="",
         help="Comma-separated population sizes to run; default uses configured population_sizes",
+    )
+    parser.add_argument(
+        "--modes",
+        default="",
+        help="Comma-separated benchmark modes: cpu,gpu_eval,gpu_repro,gpu_repro_overlap",
     )
     parser.add_argument("--probe-cases", type=int, default=0, help="Override probe case count")
     parser.add_argument(
@@ -78,6 +99,25 @@ def select_fixtures(config_fixtures: list[str], fixture_filter: str) -> list[Pat
     return selected
 
 
+def parse_modes(config: dict[str, Any], raw_override: str) -> list[str]:
+    raw_modes = [item.strip() for item in raw_override.split(",") if item.strip()] if raw_override else config.get(
+        "modes",
+        ["cpu", "gpu_eval", "gpu_repro", "gpu_repro_overlap"],
+    )
+    modes: list[str] = []
+    for raw_mode in raw_modes:
+        canonical = BENCH_MODE_ALIASES.get(raw_mode)
+        if canonical is None:
+            raise SystemExit(f"unknown benchmark mode: {raw_mode}")
+        if canonical not in modes:
+            modes.append(canonical)
+    if not modes:
+        raise SystemExit("no benchmark modes configured")
+    if modes[0] != "cpu":
+        raise SystemExit("benchmark modes must include cpu as the first baseline mode")
+    return modes
+
+
 def parse_value(raw: str) -> Any:
     try:
         if any(ch in raw for ch in ".eE"):
@@ -117,10 +157,10 @@ def parse_population_sizes(config: dict[str, Any], raw_override: str) -> list[in
     return out
 
 
-def speedup(cpu_ms: Any, gpu_ms: Any) -> float | None:
-    if cpu_ms is None or gpu_ms in (None, 0):
+def speedup(cpu_ms: Any, other_ms: Any) -> float | None:
+    if cpu_ms is None or other_ms in (None, 0):
         return None
-    return float(cpu_ms) / float(gpu_ms)
+    return float(cpu_ms) / float(other_ms)
 
 
 def fmt_speed(value: float | None) -> str:
@@ -133,7 +173,7 @@ def fmt_ms(value: Any) -> str:
 
 def run_one(
     fixture: Path,
-    engine: str,
+    mode_name: str,
     outdir: Path,
     *,
     bench_cli: Path,
@@ -154,12 +194,17 @@ def run_one(
     max_for_k: int,
     max_call_args: int,
 ) -> dict[str, Any]:
+    mode = BENCH_MODES[mode_name]
     cmd = [
         str(bench_cli),
         "--cases",
         str(fixture),
         "--engine",
-        engine,
+        mode["engine"],
+        "--repro-backend",
+        mode["repro_backend"],
+        "--repro-overlap",
+        "on" if mode["repro_overlap"] else "off",
         "--blocksize",
         str(blocksize),
         "--fuel",
@@ -196,49 +241,82 @@ def run_one(
         str(outdir / "fixed_population.seeds.json"),
     ]
     proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
-    console_path = outdir / f"one_gen_{engine}.console.log"
+    console_path = outdir / f"one_gen_{mode_name}.console.log"
     console_path.write_text(proc.stdout + proc.stderr, encoding="utf-8")
     if proc.returncode != 0:
-        raise RuntimeError(f"{engine} benchmark failed for {fixture.name}; see {console_path}")
+        raise RuntimeError(f"{mode_name} benchmark failed for {fixture.name}; see {console_path}")
     return parse_bench(proc.stdout)
 
 
-def write_fixture_report(outdir: Path, cpu: dict[str, Any], gpu: dict[str, Any]) -> dict[str, Any]:
+def build_speedup_report(modes: dict[str, dict[str, Any]]) -> dict[str, dict[str, float | None]]:
+    cpu = modes["cpu"]
+    out: dict[str, dict[str, float | None]] = {}
+    for mode_name, result in modes.items():
+        if mode_name == "cpu":
+            continue
+        out[mode_name] = {
+            "compile_cpu_over_mode": speedup(cpu.get("compile_ms"), result.get("compile_ms")),
+            "eval_cpu_over_mode": speedup(cpu.get("eval_ms"), result.get("eval_ms")),
+            "repro_cpu_over_mode": speedup(cpu.get("repro_ms"), result.get("repro_ms")),
+            "selection_cpu_over_mode": speedup(cpu.get("selection_ms"), result.get("selection_ms")),
+            "crossover_cpu_over_mode": speedup(cpu.get("crossover_ms"), result.get("crossover_ms")),
+            "mutation_cpu_over_mode": speedup(cpu.get("mutation_ms"), result.get("mutation_ms")),
+            "total_cpu_over_mode": speedup(cpu.get("total_ms"), result.get("total_ms")),
+        }
+    return out
+
+
+def write_fixture_report(outdir: Path, modes: dict[str, dict[str, Any]]) -> dict[str, Any]:
     report = {
-        "benchmark_type": "fixed_population_compare_v3",
+        "benchmark_type": "fixed_population_compare_v4",
         "population_json": str(outdir / "fixed_population.seeds.json"),
-        "cpu": cpu,
-        "gpu": gpu,
-        "speedup": {
-            "compile_cpu_over_gpu": speedup(cpu.get("compile_ms"), gpu.get("compile_ms")),
-            "eval_cpu_over_gpu": speedup(cpu.get("eval_ms"), gpu.get("eval_ms")),
-            "repro_cpu_over_gpu": speedup(cpu.get("repro_ms"), gpu.get("repro_ms")),
-            "selection_cpu_over_gpu": speedup(cpu.get("selection_ms"), gpu.get("selection_ms")),
-            "crossover_cpu_over_gpu": speedup(cpu.get("crossover_ms"), gpu.get("crossover_ms")),
-            "mutation_cpu_over_gpu": speedup(cpu.get("mutation_ms"), gpu.get("mutation_ms")),
-            "total_cpu_over_gpu": speedup(cpu.get("total_ms"), gpu.get("total_ms")),
-        },
+        "modes": modes,
+        "speedup_vs_cpu": build_speedup_report(modes),
     }
-    (outdir / "cpu_gpu_compare.report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+    (outdir / "mode_compare.report.json").write_text(
+        json.dumps(report, ensure_ascii=True, indent=2),
+        encoding="utf-8",
+    )
     lines = [
-        "# CPU vs GPU Fixed-Population Benchmark",
+        "# Fixed-Population Mode Benchmark",
         "",
         f"- population_json: `{report['population_json']}`",
         f"- benchmark_type: `{report['benchmark_type']}`",
         "",
-        "## Speedup",
+        "## Speedup Vs CPU",
         "",
     ]
-    for key, value in report["speedup"].items():
-        lines.append(f"- {key}: {fmt_speed(value)}")
-    lines.extend(["", "## CPU", ""])
-    for key, value in report["cpu"].items():
-        lines.append(f"- {key}: {value if not isinstance(value, float) else fmt_ms(value)}")
-    lines.extend(["", "## GPU", ""])
-    for key, value in report["gpu"].items():
-        lines.append(f"- {key}: {value if not isinstance(value, float) else fmt_ms(value)}")
-    (outdir / "cpu_gpu_compare.report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    for mode_name, speedup_map in report["speedup_vs_cpu"].items():
+        lines.append(f"### `{mode_name}`")
+        lines.append("")
+        for key, value in speedup_map.items():
+            lines.append(f"- {key}: {fmt_speed(value)}")
+        lines.append("")
+    lines.append("## Raw Mode Timings")
+    lines.append("")
+    for mode_name, raw in report["modes"].items():
+        lines.append(f"### `{mode_name}`")
+        lines.append("")
+        for key, value in raw.items():
+            lines.append(f"- {key}: {value if not isinstance(value, float) else fmt_ms(value)}")
+        lines.append("")
+    (outdir / "mode_compare.report.md").write_text("\n".join(lines), encoding="utf-8")
     return report
+
+
+def average_speedup(
+    aggregate: list[dict[str, Any]],
+    mode_name: str,
+    key: str,
+) -> float | None:
+    values = [
+        item["speedup_vs_cpu"].get(mode_name, {}).get(key)
+        for item in aggregate
+        if item["speedup_vs_cpu"].get(mode_name, {}).get(key) is not None
+    ]
+    if not values:
+        return None
+    return sum(values) / len(values)
 
 
 def main() -> int:
@@ -254,6 +332,7 @@ def main() -> int:
     if not fixtures:
         raise SystemExit("no fixtures selected")
 
+    modes = parse_modes(config, args.modes)
     population_sizes = parse_population_sizes(config, args.population_sizes)
     probe_cases = args.probe_cases or int(config["probe_cases"])
     min_success_rate = args.min_success_rate if args.min_success_rate >= 0.0 else float(config["min_success_rate"])
@@ -284,48 +363,66 @@ def main() -> int:
         for fixture in fixtures:
             fixture_outdir = outdir / f"{fixture.stem}_pop{population_size}"
             fixture_outdir.mkdir(parents=True, exist_ok=True)
-            print(f"[fixture-bench] cpu fixture={fixture.stem} pop={population_size}", flush=True)
-            cpu = run_one(fixture, "cpu", fixture_outdir, population_size=population_size, **common)
-            print(f"[fixture-bench] gpu fixture={fixture.stem} pop={population_size}", flush=True)
-            gpu = run_one(fixture, "gpu", fixture_outdir, population_size=population_size, **common)
-            report = write_fixture_report(fixture_outdir, cpu, gpu)
+            mode_results: dict[str, dict[str, Any]] = {}
+            for mode_name in modes:
+                print(f"[fixture-bench] {mode_name} fixture={fixture.stem} pop={population_size}", flush=True)
+                mode_results[mode_name] = run_one(
+                    fixture,
+                    mode_name,
+                    fixture_outdir,
+                    population_size=population_size,
+                    **common,
+                )
+            report = write_fixture_report(fixture_outdir, mode_results)
             aggregate.append(
                 {
                     "fixture": fixture.stem,
                     "population_size": population_size,
-                    "report_json": str(fixture_outdir / "cpu_gpu_compare.report.json"),
-                    "speedup": report["speedup"],
+                    "report_json": str(fixture_outdir / "mode_compare.report.json"),
+                    "speedup_vs_cpu": report["speedup_vs_cpu"],
                 }
             )
 
-    def average(key: str) -> float | None:
-        values = [item["speedup"][key] for item in aggregate if item["speedup"][key] is not None]
-        if not values:
-            return None
-        return sum(values) / len(values)
-
     summary = {
-        "benchmark_type": "fixture_speedup_batch_v1",
+        "benchmark_type": "fixture_speedup_modes_v1",
+        "modes": modes,
         "fixtures": aggregate,
-        "average_speedup": {
-            "compile_cpu_over_gpu": average("compile_cpu_over_gpu"),
-            "eval_cpu_over_gpu": average("eval_cpu_over_gpu"),
-            "repro_cpu_over_gpu": average("repro_cpu_over_gpu"),
-            "selection_cpu_over_gpu": average("selection_cpu_over_gpu"),
-            "crossover_cpu_over_gpu": average("crossover_cpu_over_gpu"),
-            "mutation_cpu_over_gpu": average("mutation_cpu_over_gpu"),
-            "total_cpu_over_gpu": average("total_cpu_over_gpu"),
+        "average_speedup_vs_cpu": {
+            mode_name: {
+                key: average_speedup(aggregate, mode_name, key)
+                for key in (
+                    "compile_cpu_over_mode",
+                    "eval_cpu_over_mode",
+                    "repro_cpu_over_mode",
+                    "selection_cpu_over_mode",
+                    "crossover_cpu_over_mode",
+                    "mutation_cpu_over_mode",
+                    "total_cpu_over_mode",
+                )
+            }
+            for mode_name in modes
+            if mode_name != "cpu"
         },
     }
     (outdir / "summary.json").write_text(json.dumps(summary, ensure_ascii=True, indent=2), encoding="utf-8")
-    lines = ["# Fixture Speedup Summary", "", f"- outdir: `{outdir}`", "", "## Average Speedup", ""]
-    for key, value in summary["average_speedup"].items():
-        lines.append(f"- {key}: {fmt_speed(value)}")
-    lines.extend(["", "## Fixtures", ""])
+    lines = ["# Fixture Speedup Summary", "", f"- outdir: `{outdir}`", "", "## Average Speedup Vs CPU", ""]
+    for mode_name, speedup_map in summary["average_speedup_vs_cpu"].items():
+        lines.append(f"### `{mode_name}`")
+        lines.append("")
+        for key, value in speedup_map.items():
+            lines.append(f"- {key}: {fmt_speed(value)}")
+        lines.append("")
+    lines.extend(["## Fixtures", ""])
     for item in aggregate:
-        lines.append(
-            f"- {item['fixture']} pop={item['population_size']}: total={fmt_speed(item['speedup']['total_cpu_over_gpu'])}, eval={fmt_speed(item['speedup']['eval_cpu_over_gpu'])}"
-        )
+        parts = []
+        for mode_name in modes:
+            if mode_name == "cpu":
+                continue
+            speed_map = item["speedup_vs_cpu"].get(mode_name, {})
+            parts.append(
+                f"{mode_name}: total={fmt_speed(speed_map.get('total_cpu_over_mode'))}, eval={fmt_speed(speed_map.get('eval_cpu_over_mode'))}"
+            )
+        lines.append(f"- {item['fixture']} pop={item['population_size']}: " + "; ".join(parts))
     (outdir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[fixture-bench] summary json: {outdir / 'summary.json'}")
     print(f"[fixture-bench] summary md: {outdir / 'summary.md'}")

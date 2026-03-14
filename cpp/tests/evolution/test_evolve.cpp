@@ -126,12 +126,88 @@ bool test_round_based_tournament_selection_without_replacement_repeats_winners()
   return true;
 }
 
+bool test_gpu_backend_smoke() {
+#ifdef G3PVM_HAS_CUDA
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 8;
+  cfg.generations = 2;
+  cfg.seed = 7;
+  cfg.eval_engine = g3pvm::evo::EvalEngine::CPU;
+  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+
+  try {
+    const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    if (!check(static_cast<int>(result.final_population.size()) == cfg.population_size,
+               "gpu reproduction final_population length mismatch")) {
+      return false;
+    }
+    if (!check(result.generations_repro_kernel_ms_total >= 0.0, "gpu reproduction kernel timing missing")) {
+      return false;
+    }
+    if (!check(result.generations_repro_decode_ms_total >= 0.0, "gpu reproduction decode timing missing")) {
+      return false;
+    }
+    if (!check(result.generations_repro_teardown_ms_total >= 0.0, "gpu reproduction teardown timing missing")) {
+      return false;
+    }
+  } catch (const std::runtime_error& err) {
+    const std::string message = err.what();
+    if (message.find("cuda device unavailable") != std::string::npos) {
+      std::cout << "g3pvm_test_evolve: SKIP gpu (" << message << ")\n";
+      return true;
+    }
+    std::cerr << "FAIL: gpu reproduction backend failed: " << message << "\n";
+    return false;
+  }
+#endif
+  return true;
+}
+
+bool test_repro_overlap_smoke() {
+#ifdef G3PVM_HAS_CUDA
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 8;
+  cfg.generations = 2;
+  cfg.seed = 9;
+  cfg.eval_engine = g3pvm::evo::EvalEngine::GPU;
+  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.repro_overlap = true;
+
+  try {
+    const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    if (!check(static_cast<int>(result.final_population.size()) == cfg.population_size,
+               "gpu reproduction overlap final_population length mismatch")) {
+      return false;
+    }
+    if (!check(result.generations_repro_prepare_inputs_ms_total >= 0.0,
+               "gpu reproduction overlap prepare timings missing")) {
+      return false;
+    }
+    if (!check(result.generations_repro_decode_ms_total >= 0.0,
+               "gpu reproduction overlap decode timings missing")) {
+      return false;
+    }
+  } catch (const std::runtime_error& err) {
+    const std::string message = err.what();
+    if (message.find("cuda device unavailable") != std::string::npos) {
+      std::cout << "g3pvm_test_evolve: SKIP gpu overlap (" << message << ")\n";
+      return true;
+    }
+    std::cerr << "FAIL: gpu reproduction overlap failed: " << message << "\n";
+    return false;
+  }
+#endif
+  return true;
+}
+
 }  // namespace
 
 int main() {
   if (!test_selection_pressure_variants()) return 1;
   if (!test_determinism_seed()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
+  if (!test_gpu_backend_smoke()) return 1;
+  if (!test_repro_overlap_smoke()) return 1;
   std::cout << "g3pvm_test_evolve: OK\n";
   return 0;
 }

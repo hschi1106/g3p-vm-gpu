@@ -34,6 +34,10 @@ add_library(g3pvm_cpu
   src/evolution/mutation.cpp
   src/evolution/crossover.cpp
   src/evolution/selection.cpp
+  src/evolution/repro/prep.cpp
+  src/evolution/repro/pack.cpp
+  src/evolution/repro/backend.cpp
+  src/evolution/repro/gpu.cpp
   src/evolution/evolve.cpp
 )
 target_include_directories(g3pvm_cpu PUBLIC include)
@@ -58,6 +62,9 @@ if(G3PVM_HAS_CUDA)
     src/runtime/gpu/opcode_map_gpu.cpp
     src/runtime/gpu/host_pack_gpu.cu
     src/runtime/payload/payload.cpp
+    src/evolution/repro/gpu/arena.cu
+    src/evolution/repro/gpu/launch.cu
+    src/evolution/repro/gpu/copyback.cu
   )
   target_include_directories(g3pvm_gpu PUBLIC include)
   target_compile_definitions(g3pvm_cpu PUBLIC G3PVM_HAS_CUDA=1)
@@ -113,3 +120,9 @@ add_executable(g3pvm_test_evolve
 )
 target_link_libraries(g3pvm_test_evolve PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_evolve COMMAND g3pvm_test_evolve)
+
+add_executable(g3pvm_test_repro_prep
+  tests/evolution/test_repro_prep.cpp
+)
+target_link_libraries(g3pvm_test_repro_prep PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_repro_prep COMMAND g3pvm_test_repro_prep)

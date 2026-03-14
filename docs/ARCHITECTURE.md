@@ -7,7 +7,7 @@ The system evolves prefix `AstProgram` programs, compiles them to bytecode, exec
 The execution stack has three layers:
 - Python reference path: semantics reference for AST, interpreter, compiler, and VM behavior
 - C++ CPU path: native execution and native evolution
-- C++ GPU path: CUDA fitness evaluation over batched cases
+- C++ GPU path: CUDA fitness evaluation plus an optional GPU reproduction backend
 
 ## Documentation Layers
 
@@ -16,6 +16,7 @@ Use the repo documents in this order:
 - `README.md`: entrypoint and common workflows
 - `docs/DEVELOPMENT.md`: commands, CLIs, and benchmark procedure
 - `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
+- `docs/GPU_REPRODUCTION.md`: GPU reproduction backend design, overlap model, and current bottlenecks
 - `structure.md`: terse directory map
 - `AGENTS.md`: repo-local contributor guidance for coding agents
 
@@ -24,7 +25,8 @@ Use the repo documents in this order:
 These are the current 1.0 invariants.
 - Public program representation is prefix `AstProgram`
 - Public crossover is `typed_subtree`
-- Public selection is round-based tournament only, controlled by `selection_pressure`
+- Default public reproduction backend is `cpu`
+- Default public selection is round-based tournament only, controlled by `selection_pressure`
 - Public mutation API is single-path, with internal operator mix controlled by `mutation_subtree_prob`
 - Public fixture schema is `fitness-cases-v1`
 - Public runners do not expose heavyweight validate modes
@@ -130,6 +132,7 @@ Public evolution interfaces split by responsibility:
 - `compiler.hpp`: AST-to-bytecode lowering
 - `selection.hpp`: ranking and parent selection
 - `mutation.hpp`, `crossover.hpp`, `evolve.hpp`: operators and orchestration
+- `repro/`: reproduction backend contracts, preprocess/pack schema, and GPU reproduction backend entrypoints
 
 ### `cpp/src/runtime/cpu/`
 - `builtins_cpu.cpp`: builtin implementation
@@ -156,6 +159,7 @@ Public evolution interfaces split by responsibility:
 - `selection.cpp`: ranking and parent selection
 - `mutation.cpp`: mutation operators
 - `crossover.cpp`: typed subtree exchange
+- `repro/`: reproduction backend dispatch, preprocess/pack extraction, `gpu` arena/copyback logic, and sequential/overlap orchestration
 - `evolve.cpp`: evolution loop orchestration
 
 ### `cpp/src/cli/`
@@ -180,7 +184,7 @@ Benchmark binaries for runtime-focused measurement.
 - `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1`
 
 ### `scripts/`
-- `speedup_experiment.py`: fixed-population CPU/GPU sweep driver
+- `speedup_experiment.py`: fixed-population multi-mode sweep driver for `cpu`, `gpu_eval`, `gpu_repro`, and `gpu_repro_overlap`
 - `speedup_experiment.example.json`: tracked benchmark config template
 - local `speedup_experiment.json`: optional untracked machine-local override
 
@@ -191,7 +195,6 @@ Benchmark binaries for runtime-focused measurement.
 - `tools/`: dataset fetch, conversion, and audit utilities
 - `scripts/`: benchmark and experiment entry scripts
 - `logs/`: generated run artifacts, benchmark reports, gate outputs
-- `exp/`: ad hoc experiment notes and scratch assets
 - `meeting/`: meeting notes and non-normative discussion artifacts
 
 ## What To Update When Code Changes

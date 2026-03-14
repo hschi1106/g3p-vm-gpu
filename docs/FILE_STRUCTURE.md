@@ -22,6 +22,7 @@ g3p-vm-gpu/
 │   │   │   ├── gpu/
 │   │   │   └── payload/
 │   │   ├── evolution/
+│   │   │   └── repro/
 │   │   └── cli/
 │   ├── src/
 │   │   ├── runtime/
@@ -30,6 +31,7 @@ g3p-vm-gpu/
 │   │   │   │   └── device/
 │   │   │   └── payload/
 │   │   ├── evolution/
+│   │   │   └── repro/
 │   │   ├── cli/
 │   │   └── bench/
 │   ├── tests/
@@ -41,12 +43,12 @@ g3p-vm-gpu/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── CPP_RUNTIME_PAYLOAD.md
+│   ├── GPU_REPRODUCTION.md
 │   └── DEVELOPMENT.md
 ├── spec/
 ├── data/
 │   ├── fixtures/
 │   └── psb2_datasets/
-├── exp/
 ├── meeting/
 ├── tools/
 ├── scripts/
@@ -63,9 +65,9 @@ g3p-vm-gpu/
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
+- `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
 - `data/fixtures/`: canonical benchmark and evolution fixtures
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
-- `exp/`: ad hoc experiments and exploratory notes
 - `meeting/`: meeting notes and discussion artifacts
 - `tools/`: dataset fetch, conversion, and audit utilities
 - `scripts/`: benchmark and experiment entry scripts

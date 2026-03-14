@@ -29,6 +29,8 @@ using g3pvm::cli_detail::JsonValue;
 struct CliOptions {
   std::string cases_path;
   std::string engine = "cpu";
+  std::string repro_backend = "cpu";
+  bool repro_overlap = false;
   int blocksize = 1024;
   int population_size = 64;
   int generations = 40;
@@ -177,6 +179,11 @@ std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
 
 CliOptions parse_cli(int argc, char** argv) {
   CliOptions opts;
+  auto parse_on_off = [](const std::string& raw, const char* flag) -> bool {
+    if (raw == "on") return true;
+    if (raw == "off") return false;
+    throw std::runtime_error(std::string(flag) + " must be on or off");
+  };
 
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -191,6 +198,10 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.cases_path = need_value("--cases");
     } else if (arg == "--engine") {
       opts.engine = need_value("--engine");
+    } else if (arg == "--repro-backend") {
+      opts.repro_backend = need_value("--repro-backend");
+    } else if (arg == "--repro-overlap") {
+      opts.repro_overlap = parse_on_off(need_value("--repro-overlap"), "--repro-overlap");
     } else if (arg == "--blocksize") {
       opts.blocksize = std::stoi(need_value("--blocksize"));
     } else if (arg == "--population-size") {
@@ -237,6 +248,9 @@ CliOptions parse_cli(int argc, char** argv) {
   }
   if (opts.engine != "cpu" && opts.engine != "gpu") {
     throw std::runtime_error("--engine must be cpu or gpu");
+  }
+  if (opts.repro_backend != "cpu" && opts.repro_backend != "gpu") {
+    throw std::runtime_error("--repro-backend must be cpu or gpu");
   }
   if (opts.blocksize <= 0) {
     throw std::runtime_error("--blocksize must be > 0");
@@ -286,6 +300,8 @@ int main(int argc, char** argv) {
     cfg.crossover_rate = args.crossover_rate;
     cfg.penalty = args.penalty;
     cfg.eval_engine = (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
+    cfg.reproduction_backend = g3pvm::evo::repro::parse_reproduction_backend_name(args.repro_backend);
+    cfg.repro_overlap = args.repro_overlap;
     cfg.gpu_blocksize = args.blocksize;
     cfg.selection_pressure = args.selection_pressure;
     cfg.seed = args.seed;
@@ -297,6 +313,14 @@ int main(int argc, char** argv) {
                                     args.max_call_args};
 
     const g3pvm::evo::EvolutionResult result = g3pvm::evo::evolve_population(cases, cfg);
+    const char* selection_label =
+        (cfg.reproduction_backend == g3pvm::evo::repro::ReproductionBackend::Gpu)
+            ? "gpu_tournament"
+            : "round_based_tournament";
+    const char* crossover_label =
+        (cfg.reproduction_backend == g3pvm::evo::repro::ReproductionBackend::Gpu)
+            ? "gpu_expr_splice"
+            : "typed_subtree";
 
     struct HistoryRow {
       int generation = 0;
@@ -339,8 +363,10 @@ int main(int argc, char** argv) {
 
     std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << canonicalize_metric(result.best.fitness)
               << " program_key=" << result.best.genome.meta.program_key
-              << " selection=tournament"
-              << " crossover=typed_subtree" << "\n";
+              << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+              << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
+              << " selection=" << selection_label
+              << " crossover=" << crossover_label << "\n";
 
     if (args.timing == "summary" || args.timing == "all") {
       double gen_eval_sum = 0.0;
@@ -359,6 +385,28 @@ int main(int argc, char** argv) {
                 << result.generations_crossover_ms_total << "\n";
       std::cout << "TIMING phase=generations_mutation_total ms=" << std::fixed << std::setprecision(3)
                 << result.generations_mutation_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_prepare_inputs_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_prepare_inputs_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_setup_total ms=" << std::fixed << std::setprecision(3)
+                << result.generations_repro_setup_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_preprocess_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_preprocess_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_pack_total ms=" << std::fixed << std::setprecision(3)
+                << result.generations_repro_pack_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_upload_total ms=" << std::fixed << std::setprecision(3)
+                << result.generations_repro_upload_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_kernel_total ms=" << std::fixed << std::setprecision(3)
+                << result.generations_repro_kernel_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_copyback_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_copyback_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_decode_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_decode_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_teardown_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_teardown_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_selection_kernel_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_selection_kernel_ms_total << "\n";
+      std::cout << "TIMING phase=generations_repro_variation_kernel_total ms=" << std::fixed
+                << std::setprecision(3) << result.generations_repro_variation_kernel_ms_total << "\n";
       std::cout << "TIMING phase=cpu_generations_program_compile_total ms=" << std::fixed << std::setprecision(3)
                 << result.cpu_generations_program_compile_ms_total << "\n";
       std::cout << "TIMING phase=final_eval ms=" << std::fixed << std::setprecision(3)
@@ -388,6 +436,17 @@ int main(int argc, char** argv) {
                   << " selection_ms=" << result.generation_selection_ms[i]
                   << " crossover_ms=" << result.generation_crossover_ms[i]
                   << " mutation_ms=" << result.generation_mutation_ms[i]
+                  << " repro_prepare_inputs_ms=" << result.generation_repro_prepare_inputs_ms[i]
+                  << " repro_setup_ms=" << result.generation_repro_setup_ms[i]
+                  << " repro_preprocess_ms=" << result.generation_repro_preprocess_ms[i]
+                  << " repro_pack_ms=" << result.generation_repro_pack_ms[i]
+                  << " repro_upload_ms=" << result.generation_repro_upload_ms[i]
+                  << " repro_kernel_ms=" << result.generation_repro_kernel_ms[i]
+                  << " repro_copyback_ms=" << result.generation_repro_copyback_ms[i]
+                  << " repro_decode_ms=" << result.generation_repro_decode_ms[i]
+                  << " repro_teardown_ms=" << result.generation_repro_teardown_ms[i]
+                  << " repro_selection_kernel_ms=" << result.generation_repro_selection_kernel_ms[i]
+                  << " repro_variation_kernel_ms=" << result.generation_repro_variation_kernel_ms[i]
                   << " cpu_compile_ms=" << result.generation_cpu_program_compile_ms[i] << "\n";
         if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
           std::cout << "TIMING gpu_gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
@@ -411,9 +470,12 @@ int main(int argc, char** argv) {
       out << "    \"cases_path\": \"" << json_escape(args.cases_path) << "\",\n";
       out << "    \"population_size\": " << cfg.population_size << ",\n";
       out << "    \"generations\": " << cfg.generations << ",\n";
-      out << "    \"selection\": \"tournament\",\n";
-      out << "    \"crossover_method\": \"typed_subtree\",\n";
+      out << "    \"selection\": \"" << selection_label << "\",\n";
+      out << "    \"crossover_method\": \"" << crossover_label << "\",\n";
       out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
+      out << "    \"reproduction_backend\": \""
+          << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend) << "\",\n";
+      out << "    \"repro_overlap\": " << (cfg.repro_overlap ? "true" : "false") << ",\n";
       out << "    \"gpu_blocksize\": " << cfg.gpu_blocksize << ",\n";
       out << "    \"seed\": " << cfg.seed << ",\n";
       out << "    \"timing\": {\n";
@@ -432,6 +494,24 @@ int main(int argc, char** argv) {
       out << "      \"generations_selection_ms_total\": " << result.generations_selection_ms_total << ",\n";
       out << "      \"generations_crossover_ms_total\": " << result.generations_crossover_ms_total << ",\n";
       out << "      \"generations_mutation_ms_total\": " << result.generations_mutation_ms_total << ",\n";
+      out << "      \"generations_repro_prepare_inputs_ms_total\": "
+          << result.generations_repro_prepare_inputs_ms_total << ",\n";
+      out << "      \"generations_repro_setup_ms_total\": " << result.generations_repro_setup_ms_total << ",\n";
+      out << "      \"generations_repro_preprocess_ms_total\": " << result.generations_repro_preprocess_ms_total
+          << ",\n";
+      out << "      \"generations_repro_pack_ms_total\": " << result.generations_repro_pack_ms_total << ",\n";
+      out << "      \"generations_repro_upload_ms_total\": " << result.generations_repro_upload_ms_total << ",\n";
+      out << "      \"generations_repro_kernel_ms_total\": " << result.generations_repro_kernel_ms_total << ",\n";
+      out << "      \"generations_repro_copyback_ms_total\": " << result.generations_repro_copyback_ms_total
+          << ",\n";
+      out << "      \"generations_repro_decode_ms_total\": " << result.generations_repro_decode_ms_total
+          << ",\n";
+      out << "      \"generations_repro_teardown_ms_total\": " << result.generations_repro_teardown_ms_total
+          << ",\n";
+      out << "      \"generations_repro_selection_kernel_ms_total\": "
+          << result.generations_repro_selection_kernel_ms_total << ",\n";
+      out << "      \"generations_repro_variation_kernel_ms_total\": "
+          << result.generations_repro_variation_kernel_ms_total << ",\n";
       out << "      \"total_ms\": " << result.total_ms << "\n";
       out << "    }\n";
       out << "  },\n";
@@ -471,6 +551,17 @@ int main(int argc, char** argv) {
       dump_vec("generation_selection_ms", result.generation_selection_ms, false);
       dump_vec("generation_crossover_ms", result.generation_crossover_ms, false);
       dump_vec("generation_mutation_ms", result.generation_mutation_ms, false);
+      dump_vec("generation_repro_prepare_inputs_ms", result.generation_repro_prepare_inputs_ms, false);
+      dump_vec("generation_repro_setup_ms", result.generation_repro_setup_ms, false);
+      dump_vec("generation_repro_preprocess_ms", result.generation_repro_preprocess_ms, false);
+      dump_vec("generation_repro_pack_ms", result.generation_repro_pack_ms, false);
+      dump_vec("generation_repro_upload_ms", result.generation_repro_upload_ms, false);
+      dump_vec("generation_repro_kernel_ms", result.generation_repro_kernel_ms, false);
+      dump_vec("generation_repro_copyback_ms", result.generation_repro_copyback_ms, false);
+      dump_vec("generation_repro_decode_ms", result.generation_repro_decode_ms, false);
+      dump_vec("generation_repro_teardown_ms", result.generation_repro_teardown_ms, false);
+      dump_vec("generation_repro_selection_kernel_ms", result.generation_repro_selection_kernel_ms, false);
+      dump_vec("generation_repro_variation_kernel_ms", result.generation_repro_variation_kernel_ms, false);
       dump_vec("generation_total_ms", result.generation_total_ms, true);
       out << "  },\n";
 

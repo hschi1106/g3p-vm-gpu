@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <future>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -22,6 +23,7 @@
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/mutation.hpp"
+#include "g3pvm/evolution/repro/gpu.hpp"
 #include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #ifdef G3PVM_HAS_CUDA
@@ -50,6 +52,8 @@ struct CliOptions {
   std::string cases_path;
   std::string out_population_json;
   std::string engine = "cpu";
+  std::string repro_backend = "cpu";
+  bool repro_overlap = false;
   int blocksize = 1024;
   int fuel = 20000;
   double mutation_rate = 0.5;
@@ -99,12 +103,7 @@ struct EvalRun {
   double copyback_ms = 0.0;
 };
 
-struct ReproductionRun {
-  std::vector<ProgramGenome> next_population;
-  double selection_ms = 0.0;
-  double crossover_ms = 0.0;
-  double mutation_ms = 0.0;
-};
+using ReproductionRun = g3pvm::evo::repro::ReproductionResult;
 
 std::string read_text_file(const std::string& path) {
   std::ifstream in(path);
@@ -176,6 +175,11 @@ std::vector<EvalCase> parse_cases_v1(const JsonValue& payload) {
 
 CliOptions parse_cli(int argc, char** argv) {
   CliOptions opts;
+  auto parse_on_off = [](const std::string& raw, const char* flag) -> bool {
+    if (raw == "on") return true;
+    if (raw == "off") return false;
+    throw std::runtime_error(std::string(flag) + " must be on or off");
+  };
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     auto need_value = [&](const char* key) -> std::string {
@@ -185,6 +189,8 @@ CliOptions parse_cli(int argc, char** argv) {
     if (arg == "--cases") opts.cases_path = need_value("--cases");
     else if (arg == "--out-population-json") opts.out_population_json = need_value("--out-population-json");
     else if (arg == "--engine") opts.engine = need_value("--engine");
+    else if (arg == "--repro-backend") opts.repro_backend = need_value("--repro-backend");
+    else if (arg == "--repro-overlap") opts.repro_overlap = parse_on_off(need_value("--repro-overlap"), "--repro-overlap");
     else if (arg == "--blocksize") opts.blocksize = std::stoi(need_value("--blocksize"));
     else if (arg == "--fuel") opts.fuel = std::stoi(need_value("--fuel"));
     else if (arg == "--mutation-rate") opts.mutation_rate = std::stod(need_value("--mutation-rate"));
@@ -207,6 +213,9 @@ CliOptions parse_cli(int argc, char** argv) {
   if (opts.cases_path.empty()) throw std::runtime_error("--cases is required");
   if (opts.engine != "cpu" && opts.engine != "gpu") {
     throw std::runtime_error("--engine must be cpu or gpu");
+  }
+  if (opts.repro_backend != "cpu" && opts.repro_backend != "gpu") {
+    throw std::runtime_error("--repro-backend must be cpu or gpu");
   }
   if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
   if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
@@ -469,48 +478,7 @@ EvalRun evaluate_compiled_population(const std::vector<BytecodeProgram>& program
 ReproductionRun reproduce_population(const std::vector<ScoredGenome>& scored,
                                      const EvolutionConfig& cfg,
                                      std::mt19937_64* rng) {
-  ReproductionRun out;
-  out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-  const int offspring_count = static_cast<int>(cfg.population_size);
-
-  const auto selection_t0 = std::chrono::steady_clock::now();
-  std::vector<ProgramGenome> selected_parents =
-      g3pvm::evo::tournament_selection_without_replacement(
-          scored, *rng, cfg.selection_pressure, offspring_count);
-  const auto selection_t1 = std::chrono::steady_clock::now();
-  out.selection_ms = std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
-
-  std::vector<ProgramGenome> offspring = selected_parents;
-  std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
-  std::uniform_int_distribution<std::uint64_t> seed_dist(0, 2000000000ULL);
-
-  const auto crossover_t0 = std::chrono::steady_clock::now();
-  if (selected_parents.size() > 1) {
-    std::shuffle(offspring.begin(), offspring.end(), *rng);
-    for (std::size_t i = 0; i + 1 < offspring.size(); i += 2) {
-      if (prob_dist(*rng) >= cfg.crossover_rate) {
-        continue;
-      }
-      auto children = g3pvm::evo::crossover(offspring[i], offspring[i + 1], seed_dist(*rng), cfg.limits);
-      offspring[i] = std::move(children.first);
-      offspring[i + 1] = std::move(children.second);
-    }
-  }
-  const auto crossover_t1 = std::chrono::steady_clock::now();
-  out.crossover_ms = std::chrono::duration<double, std::milli>(crossover_t1 - crossover_t0).count();
-
-  const auto mutation_t0 = std::chrono::steady_clock::now();
-  for (ProgramGenome& child : offspring) {
-    if (prob_dist(*rng) < cfg.mutation_rate) {
-      child = g3pvm::evo::mutate(child, seed_dist(*rng), cfg.limits, cfg.mutation_subtree_prob);
-    }
-  }
-  const auto mutation_t1 = std::chrono::steady_clock::now();
-  out.mutation_ms = std::chrono::duration<double, std::milli>(mutation_t1 - mutation_t0).count();
-
-  out.next_population.insert(
-      out.next_population.end(), std::make_move_iterator(offspring.begin()), std::make_move_iterator(offspring.end()));
-  return out;
+  return g3pvm::evo::repro::run_reproduction_backend(scored, cfg, *rng);
 }
 
 }  // namespace
@@ -535,28 +503,58 @@ int main(int argc, char** argv) {
     cfg.crossover_rate = args.crossover_rate;
     cfg.penalty = args.penalty;
     cfg.eval_engine = (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
+    cfg.reproduction_backend = g3pvm::evo::repro::parse_reproduction_backend_name(args.repro_backend);
+    cfg.repro_overlap = args.repro_overlap;
     cfg.gpu_blocksize = args.blocksize;
     cfg.selection_pressure = args.selection_pressure;
     cfg.seed = 0;
     cfg.fuel = args.fuel;
     cfg.limits = generated.limits;
 
+    const bool overlap_gpu =
+        args.engine == "gpu" &&
+        cfg.reproduction_backend == g3pvm::evo::repro::ReproductionBackend::Gpu &&
+        args.repro_overlap;
+    struct OverlapPrepared {
+      g3pvm::evo::repro::GpuReproPreparedData prepared;
+      g3pvm::evo::repro::ReproductionStats stats;
+    };
+    std::future<OverlapPrepared> overlap_future;
+
     const auto all_t0 = std::chrono::steady_clock::now();
     const auto compile = compile_population(population, input_names);
+    if (overlap_gpu) {
+      std::mt19937_64 overlap_rng(cfg.seed);
+      const std::uint64_t repro_seed = overlap_rng();
+      overlap_future = std::async(std::launch::async, [population, cfg, repro_seed]() {
+        OverlapPrepared out;
+        out.prepared =
+            g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, repro_seed, &out.stats);
+        return out;
+      });
+    }
     const EvalRun eval = evaluate_compiled_population(compile.programs, shared_case_bindings, expected_values, args);
 
-    std::vector<ScoredGenome> scored;
-    scored.reserve(population.size());
+    std::vector<ScoredGenome> scored_unsorted;
+    scored_unsorted.reserve(population.size());
     long double fitness_sum = 0.0L;
     for (std::size_t i = 0; i < population.size(); ++i) {
-      scored.push_back(ScoredGenome{population[i], eval.fitness[i]});
+      scored_unsorted.push_back(ScoredGenome{population[i], eval.fitness[i]});
       fitness_sum += static_cast<long double>(eval.fitness[i]);
     }
+    std::vector<ScoredGenome> scored = scored_unsorted;
     std::sort(scored.begin(), scored.end(), g3pvm::evo::scored_genome_sorts_before);
 
     std::mt19937_64 rng(cfg.seed);
     const auto repro_t0 = std::chrono::steady_clock::now();
-    const ReproductionRun reproduction = reproduce_population(scored, cfg, &rng);
+    ReproductionRun reproduction;
+    if (overlap_gpu) {
+      OverlapPrepared overlap = overlap_future.get();
+      reproduction = g3pvm::evo::repro::run_gpu_repro_backend_prepared(
+          scored_unsorted, cfg, overlap.prepared, &overlap.stats);
+    } else {
+      reproduction = reproduce_population(scored, cfg, &rng);
+    }
     const auto repro_t1 = std::chrono::steady_clock::now();
     const auto all_t1 = std::chrono::steady_clock::now();
 
@@ -564,13 +562,26 @@ int main(int argc, char** argv) {
     const double total_ms = std::chrono::duration<double, std::milli>(all_t1 - all_t0).count();
 
     std::cout << "BENCH engine=" << args.engine
+              << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+              << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
               << " population_size=" << population.size()
               << " compile_ms=" << std::fixed << std::setprecision(3) << compile.compile_ms
               << " eval_ms=" << eval.eval_ms
               << " repro_ms=" << repro_ms
-              << " selection_ms=" << reproduction.selection_ms
-              << " crossover_ms=" << reproduction.crossover_ms
-              << " mutation_ms=" << reproduction.mutation_ms
+              << " selection_ms=" << reproduction.stats.selection_ms
+              << " crossover_ms=" << reproduction.stats.crossover_ms
+              << " mutation_ms=" << reproduction.stats.mutation_ms
+              << " repro_prepare_inputs_ms=" << reproduction.stats.prepare_inputs_ms
+              << " repro_setup_ms=" << reproduction.stats.setup_ms
+              << " repro_preprocess_ms=" << reproduction.stats.preprocess_ms
+              << " repro_pack_ms=" << reproduction.stats.pack_ms
+              << " repro_upload_ms=" << reproduction.stats.upload_ms
+              << " repro_kernel_ms=" << reproduction.stats.kernel_ms
+              << " repro_copyback_ms=" << reproduction.stats.copyback_ms
+              << " repro_decode_ms=" << reproduction.stats.decode_ms
+              << " repro_teardown_ms=" << reproduction.stats.teardown_ms
+              << " repro_selection_kernel_ms=" << reproduction.stats.selection_kernel_ms
+              << " repro_variation_kernel_ms=" << reproduction.stats.variation_kernel_ms
               << " total_ms=" << total_ms
               << " pack_upload_ms=" << eval.pack_upload_ms
               << " kernel_ms=" << eval.kernel_ms

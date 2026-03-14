@@ -10,6 +10,7 @@
     "data/fixtures/simple_x_plus_1_1024.json",
     "data/fixtures/solve_boolean_1024.json"
   ],
+  "modes": ["cpu", "gpu_eval", "gpu_repro", "gpu_repro_overlap"],
   "population_sizes": [1024],
   "blocksize": 1024,
   "seed_start": 0,

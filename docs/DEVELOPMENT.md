@@ -48,6 +48,8 @@ This section documents the adjustable arguments that affect public workflows.
 Core execution args:
 - `--cases PATH`: input `fitness-cases-v1` file
 - `--engine {cpu|gpu}`: evaluation backend
+- `--repro-backend {cpu|gpu}`: reproduction backend; `gpu` is the formal GPU reproduction path and does not promise CPU child identity
+- `--repro-overlap {on|off}`: when `--engine gpu --repro-backend gpu`, overlap reproduction input prep with GPU evaluation
 - `--blocksize N`: CUDA block size for GPU evaluation; current native CLI default is `1024`
 - `--out-json PATH`: write evolution history JSON
 - `--timing {none|summary|per_gen|all}`: timing verbosity from the native CLI
@@ -79,6 +81,8 @@ Fixed-population benchmark args:
 - `--cases PATH`: input `fitness-cases-v1` file
 - `--out-population-json PATH`: optional output path for the generated `population-seeds-v1` JSON
 - `--engine {cpu|gpu}`: evaluation backend
+- `--repro-backend {cpu|gpu}`: reproduction backend for the one-generation reproduction phase
+- `--repro-overlap {on|off}`: overlap `gpu` prepare/pack work with GPU eval; ignored by the CPU backend
 - `--blocksize N`: GPU block size when `--engine gpu`; current native CLI default is `1024`
 - `--fuel N`: per-program execution budget
 - `--population-size N`: number of accepted genomes in the generated fixed population
@@ -104,6 +108,19 @@ Metric semantics:
 - `selection_ms`: round-based without-replacement tournament selection to fill the offspring pool
 - `crossover_ms`: crossover pass over the selected parent pool
 - `mutation_ms`: mutation pass over the post-crossover offspring pool
+- `repro_prepare_inputs_ms`: host-side extraction of genomes and fitness into the internal `gpu` input vectors plus config synthesis
+- `repro_setup_ms`: CUDA device selection, context warmup, and reproduction arena allocation for `gpu`
+- `repro_preprocess_ms`: extracted host-side subtree/candidate/donor preprocessing for `gpu`
+- `repro_pack_ms`: host flattening into the internal packed upload schema for `gpu`
+- `repro_upload_ms`: H2D upload time for packed reproduction buffers plus the per-generation fitness upload
+- `repro_kernel_ms`: total GPU reproduction kernel time
+- `repro_copyback_ms`: host buffer preparation plus D2H child copyback for `gpu`
+- `repro_decode_ms`: host-side reconstruction of `ProgramGenome` children from copied-back packed data
+- `repro_teardown_ms`: GPU arena teardown for `gpu`
+- `repro_selection_kernel_ms`: GPU selection kernel subset of `repro_kernel_ms`
+- `repro_variation_kernel_ms`: GPU variation kernel subset of `repro_kernel_ms`
+- `gpu` now reuses its device arena and pinned host staging within a process, so `repro_setup_ms` is typically a first-use cost and `repro_teardown_ms` may remain `0` during steady-state generations
+- with `--repro-overlap on`, `repro_prepare_inputs_ms` / `repro_preprocess_ms` / `repro_pack_ms` may be partially hidden by `eval_ms`; steady-state generation timing is the relevant comparison
 - `total_ms`: the full one-generation benchmark wall time
 - GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
 
@@ -144,6 +161,7 @@ Benchmark args:
 - `--outdir PATH`: output directory for reports
 - `--bench-cli PATH`: override the benchmark CLI executable
 - `--population-sizes LIST`: override configured population sizes
+- `--modes LIST`: comma-separated benchmark modes chosen from `cpu,gpu_eval,gpu_repro,gpu_repro_overlap`
 - `--probe-cases N`: override configured probe case count
 - `--min-success-rate F`: override configured acceptance threshold
 
@@ -154,6 +172,7 @@ Default config lookup:
 Config keys in `scripts/speedup_experiment.example.json`:
 - `bench_cli`
 - `fixtures`
+- `modes`
 - `population_sizes`
 - `blocksize`
 - `seed_start`
@@ -173,14 +192,11 @@ Config keys in `scripts/speedup_experiment.example.json`:
 - `outdir_prefix`
 
 Report shape:
-- `cpu.compile_ms`, `gpu.compile_ms`
-- `cpu.eval_ms`, `gpu.eval_ms`
-- `cpu.repro_ms`, `gpu.repro_ms`
-- `cpu.total_ms`, `gpu.total_ms`
-- `speedup.compile_cpu_over_gpu`
-- `speedup.eval_cpu_over_gpu`
-- `speedup.repro_cpu_over_gpu`
-- `speedup.total_cpu_over_gpu`
+- per fixture, `mode_compare.report.json` / `.md`
+- `modes.cpu`, `modes.gpu_eval`, `modes.gpu_repro`, `modes.gpu_repro_overlap`
+- `speedup_vs_cpu.gpu_eval.*`
+- `speedup_vs_cpu.gpu_repro.*`
+- `speedup_vs_cpu.gpu_repro_overlap.*`
 
 ## Benchmark Workflow
 
@@ -190,7 +206,7 @@ Report shape:
 python3 scripts/speedup_experiment.py
 ```
 
-This benchmark sweep generates one fixed population per fixture run and uses that same generation configuration for both CPU and GPU runs.
+This benchmark sweep generates one fixed population per fixture run and uses that same generation configuration for every selected mode.
 The canonical interpretation is:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only
@@ -198,30 +214,45 @@ The canonical interpretation is:
 - `total`: the full one-generation benchmark cost
 
 `eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
+The canonical public modes are:
+- `cpu`
+- `gpu_eval`
+- `gpu_repro`
+- `gpu_repro_overlap`
 
 ### Run one small benchmark smoke
 
 ```bash
 python3 scripts/speedup_experiment.py \
   --fixtures bouncing_balls_1024 \
+  --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap \
   --population-sizes 64 \
   --probe-cases 8 \
   --min-success-rate 0.0
 ```
 
 Primary metrics to track:
-- `cpu.compile_ms`
-- `gpu.compile_ms`
-- `cpu.eval_ms`
-- `gpu.eval_ms`
-- `cpu.repro_ms`
-- `gpu.repro_ms`
-- `cpu.total_ms`
-- `gpu.total_ms`
-- `speedup.compile_cpu_over_gpu`
-- `speedup.eval_cpu_over_gpu`
-- `speedup.repro_cpu_over_gpu`
-- `speedup.total_cpu_over_gpu`
+- `modes.cpu.*`
+- `modes.gpu_eval.*`
+- `modes.gpu_repro.*`
+- `modes.gpu_repro_overlap.*`
+- `speedup_vs_cpu.gpu_eval.*`
+- `speedup_vs_cpu.gpu_repro.*`
+- `speedup_vs_cpu.gpu_repro_overlap.*`
+
+### Canonical evolution-progress run
+
+```bash
+cpp/build/g3pvm_evolve_cli \
+  --cases data/fixtures/simple_exp_1024.json \
+  --engine gpu \
+  --repro-backend gpu \
+  --repro-overlap on \
+  --blocksize 1024 \
+  --population-size 1024 \
+  --generations 20 \
+  --out-json logs/simple_exp_1024.run.json
+```
 
 ### Canonical evolution-progress run
 

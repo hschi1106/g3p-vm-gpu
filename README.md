@@ -11,7 +11,8 @@ The current public contract is:
 - program representation: prefix `AstProgram`
 - fixture schema: `fitness-cases-v1`
 - crossover: `typed_subtree`
-- selection: round-based tournament only, controlled by `selection_pressure`
+- default reproduction backend: `cpu`
+- default selection: round-based tournament only, controlled by `selection_pressure`
 - mutation: one public mutation path, internal mix controlled by `mutation_subtree_prob`
 - fitness:
   - numeric expected + numeric actual => `-abs(actual - expected)`
@@ -34,6 +35,7 @@ Use the documents below as the source of truth.
 ### Docs
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md): system structure, module map, invariants
 - [CPP_RUNTIME_PAYLOAD.md](docs/CPP_RUNTIME_PAYLOAD.md): host/device container payload model and fallback behavior
+- [GPU_REPRODUCTION.md](docs/GPU_REPRODUCTION.md): GPU reproduction backend pipeline, overlap model, and bottlenecks
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
 - [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
 - [structure.md](structure.md): terse repository directory map
@@ -46,6 +48,7 @@ Use the documents below as the source of truth.
 - `cpp/include/g3pvm/`: public C++ headers
 - `cpp/src/runtime/`: CPU runtime, GPU fitness runtime, payload support
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
+- `cpp/src/evolution/repro/`: reproduction backends, preprocess/pack, GPU reproduction backend
 - `cpp/src/cli/`: `evolve_cli`, benchmark/population utilities
 - `cpp/src/bench/`: benchmark binaries
 - `cpp/tests/`: native runtime, GPU smoke, parity, and evolution tests
@@ -53,7 +56,6 @@ Use the documents below as the source of truth.
 - `data/psb2_datasets/`: mirrored PSB2 datasets
 - `tools/`: dataset conversion and audit utilities
 - `scripts/`: execution wrappers and convenience scripts
-- `exp/`: ad hoc experiments and scratch artifacts
 - `meeting/`: meeting notes and discussion artifacts
 
 ## Quick Start
@@ -89,13 +91,15 @@ python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --populatio
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
+  --repro-backend gpu \
+  --repro-overlap on \
   --blocksize 1024 \
   --population-size 1024 \
   --generations 20 \
   --out-json logs/simple_exp_1024.run.json
 ```
 
-### Run CPU vs GPU benchmark sweep
+### Run speed benchmark sweep
 
 ```bash
 python3 scripts/speedup_experiment.py
@@ -104,22 +108,34 @@ python3 scripts/speedup_experiment.py
 This script reads `scripts/speedup_experiment.json` if present, otherwise falls back to
 [speedup_experiment.example.json](scripts/speedup_experiment.example.json),
 runs all configured fixtures, and writes one report directory containing:
-- per-fixture CPU/GPU reports
+- per-fixture multi-mode reports
 - an aggregate summary JSON/Markdown
 
 Each fixture benchmark generates one fixed population per run instead of using a multi-generation evolution run.
-It always executes one complete generation and reports a phase breakdown:
+It can compare four formal benchmark modes:
+- `cpu`: CPU eval + CPU reproduction
+- `gpu_eval`: GPU eval + CPU reproduction
+- `gpu_repro`: GPU eval + GPU reproduction
+- `gpu_repro_overlap`: GPU eval + GPU reproduction with overlapped preparation
+
+Each mode executes one complete generation and reports a phase breakdown:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
 - `eval`: fitness execution only; `compile` is intentionally excluded
 - `repro`: one-generation host-side selection, crossover, and mutation work
 - `selection`, `crossover`, `mutation`: the internal reproduction phases
+- `repro_prepare_inputs`, `repro_setup`, `repro_preprocess`, `repro_pack`, `repro_upload`, `repro_kernel`, `repro_copyback`, `repro_decode`: GPU reproduction phases
 - `total`: the full one-generation benchmark wall time
+
+When `gpu_repro_overlap` is enabled, `repro_prepare_inputs` / `repro_preprocess` / `repro_pack`
+may be partially hidden behind GPU fitness evaluation. Compare `total` first, then inspect the
+reproduction subphases to see whether overlap reduced critical-path work or merely shifted it.
 
 ### Run one small benchmark smoke
 
 ```bash
 python3 scripts/speedup_experiment.py \
   --fixtures bouncing_balls_1024 \
+  --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap \
   --population-sizes 64 \
   --probe-cases 8 \
   --min-success-rate 0.0

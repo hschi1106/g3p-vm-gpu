@@ -113,9 +113,9 @@ Flow:  current pop ----eval----> ranked pop ----GPU child generation----> cheap-
 
 ---
 
-## 7. Why we think this can help: evidence from `exp/`
+## 7. Why we think this can help: evidence from the earlier prototype work
 
-The `exp/` prototype already tested the main pieces of this idea.
+The earlier prototype already tested the main pieces of this idea.
 
 The important result is not that the whole pipeline is solved already.  
 The important result is that the experiments show **where GPU helps** and **where the new bottleneck appears**.
@@ -222,4 +222,4 @@ The experiments support three claims:
 3. The next meaningful gain comes from reducing full validation / fallback work.
 
 So this new structure is not just a theoretical design.  
-It is a direct response to the bottlenecks already observed in `exp/`.
+It is a direct response to the bottlenecks already observed in the earlier prototype work.

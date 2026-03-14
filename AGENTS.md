@@ -27,6 +27,7 @@
   - `docs/ARCHITECTURE.md`
   - `docs/DEVELOPMENT.md`
   - `docs/CPP_RUNTIME_PAYLOAD.md`
+  - `docs/GPU_REPRODUCTION.md`
   - `structure.md`
 
 ## Build, Test, and Development Commands
@@ -55,7 +56,7 @@
   ```bash
   ctest --test-dir cpp/build -R 'g3pvm_test_vm_gpu_smoke|g3pvm_test_fitness_cpu_gpu_parity|g3pvm_test_evolution_cpu_gpu_parity' --output-on-failure
   ```
-- Run the fixed-population CPU/GPU benchmark sweep:
+- Run the fixed-population speed benchmark sweep:
   ```bash
   python3 scripts/speedup_experiment.py
   ```
@@ -89,9 +90,9 @@
 - Recommended examples:
   ```bash
   ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
-  cpp/build/g3pvm_evolve_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --blocksize 256 --population-size 64 --generations 2 --out-json logs/bouncing_balls_1024.run.json
-  cpp/build/g3pvm_population_bench_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --blocksize 256 --population-size 1024 --probe-cases 32 --min-success-rate 0.10 --out-population-json logs/bouncing_balls_1024.population.json
-  python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --population-sizes 1024
+  cpp/build/g3pvm_evolve_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --repro-backend gpu --repro-overlap on --blocksize 1024 --population-size 64 --generations 2 --out-json logs/bouncing_balls_1024.run.json
+  cpp/build/g3pvm_population_bench_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --repro-backend gpu --repro-overlap off --blocksize 1024 --population-size 1024 --probe-cases 32 --min-success-rate 0.10 --out-population-json logs/bouncing_balls_1024.population.json
+  python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap --population-sizes 1024
   ```
 
 ## Commit & Pull Request Guidelines
