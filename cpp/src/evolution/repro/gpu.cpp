@@ -50,8 +50,9 @@ GpuReproPreparedData prepare_gpu_repro_backend_inputs(const std::vector<ProgramG
   const auto prepare_t0 = std::chrono::steady_clock::now();
   out.config = make_gpu_repro_config(population, cfg);
   out.config.seed = seed;
-  if (out.config.max_names > kGpuReproMaxNames || out.config.max_consts > kGpuReproMaxConsts) {
-    throw std::runtime_error("gpu reproduction unsupported: names/consts exceed kernel limits");
+  if (out.config.max_names > kGpuReproMaxNames || out.config.max_consts > kGpuReproMaxConsts ||
+      out.config.max_nodes > kGpuReproKernelMaxNodes) {
+    throw std::runtime_error("gpu reproduction unsupported: kernel scratch limits exceeded");
   }
   const auto prepare_t1 = std::chrono::steady_clock::now();
   if (stats != nullptr) {

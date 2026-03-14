@@ -10,6 +10,28 @@ namespace g3pvm::evo::repro {
 
 __device__ inline int dmin_int(int a, int b) { return (a < b) ? a : b; }
 __device__ inline int dmax_int(int a, int b) { return (a > b) ? a : b; }
+__device__ inline int dmax3_int(int a, int b, int c) { return dmax_int(a, dmax_int(b, c)); }
+
+constexpr int kGpuReproMetaStackCapacity = 4 * kGpuReproKernelMaxNodes;
+
+enum class DParseTaskKind : unsigned char {
+  Program,
+  Block,
+  Stmt,
+  Expr,
+  ReduceUnary,
+  ReduceBinary,
+  ReduceTernary,
+  ReduceBlock,
+  ReduceIfStmt,
+};
+
+struct DSharedValueSlot {
+  alignas(Value) unsigned char bytes[sizeof(Value)];
+};
+
+static_assert(sizeof(DSharedValueSlot) == sizeof(Value), "shared Value storage must preserve size");
+static_assert(alignof(DSharedValueSlot) == alignof(Value), "shared Value storage must preserve alignment");
 
 __device__ inline bool d_is_builtin_kind(NodeKind kind) {
   return kind == NodeKind::CALL_ABS || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
@@ -17,109 +39,39 @@ __device__ inline bool d_is_builtin_kind(NodeKind kind) {
          kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX;
 }
 
-struct DDepthResult {
-  int next = 0;
-  int max_expr_depth = 0;
-  bool ok = true;
-};
-
-DDepthResult d_compute_expr_depth_prefix(const DPlainNode* nodes, int used_len, int idx);
-DDepthResult d_compute_block_depth_prefix(const DPlainNode* nodes, int used_len, int idx, int max_for_k);
-
-__device__ inline DDepthResult d_compute_stmt_depth_prefix(const DPlainNode* nodes,
-                                                           int used_len,
-                                                           int idx,
-                                                           int max_for_k) {
-  if (idx >= used_len) return {idx, 0, false};
-  const NodeKind kind = static_cast<NodeKind>(nodes[idx].kind);
-  if (kind == NodeKind::ASSIGN || kind == NodeKind::RETURN) {
-    return d_compute_expr_depth_prefix(nodes, used_len, idx + 1);
-  }
-  if (kind == NodeKind::IF_STMT) {
-    const DDepthResult cond = d_compute_expr_depth_prefix(nodes, used_len, idx + 1);
-    if (!cond.ok) return cond;
-    const DDepthResult then_block = d_compute_block_depth_prefix(nodes, used_len, cond.next, max_for_k);
-    if (!then_block.ok) return then_block;
-    const DDepthResult else_block = d_compute_block_depth_prefix(nodes, used_len, then_block.next, max_for_k);
-    if (!else_block.ok) return else_block;
-    return {else_block.next,
-            dmax_int(cond.max_expr_depth, dmax_int(then_block.max_expr_depth, else_block.max_expr_depth)),
-            true};
-  }
-  if (kind == NodeKind::FOR_RANGE) {
-    if (nodes[idx].i1 < 0 || nodes[idx].i1 > max_for_k) {
-      return {idx + 1, 0, false};
-    }
-    return d_compute_block_depth_prefix(nodes, used_len, idx + 1, max_for_k);
-  }
-  return {idx + 1, 0, false};
+__device__ inline bool d_push_parse_task(unsigned char* task_stack, int* task_size, DParseTaskKind task) {
+  if (*task_size >= kGpuReproMetaStackCapacity) return false;
+  task_stack[*task_size] = static_cast<unsigned char>(task);
+  *task_size += 1;
+  return true;
 }
 
-__device__ inline DDepthResult d_compute_block_depth_prefix(const DPlainNode* nodes,
-                                                            int used_len,
-                                                            int idx,
-                                                            int max_for_k) {
-  if (idx >= used_len) return {idx, 0, false};
-  const NodeKind kind = static_cast<NodeKind>(nodes[idx].kind);
-  if (kind == NodeKind::BLOCK_NIL) {
-    return {idx + 1, 0, true};
-  }
-  if (kind != NodeKind::BLOCK_CONS) {
-    return {idx, 0, false};
-  }
-  const DDepthResult stmt = d_compute_stmt_depth_prefix(nodes, used_len, idx + 1, max_for_k);
-  if (!stmt.ok) return stmt;
-  const DDepthResult rest = d_compute_block_depth_prefix(nodes, used_len, stmt.next, max_for_k);
-  if (!rest.ok) return rest;
-  return {rest.next, dmax_int(stmt.max_expr_depth, rest.max_expr_depth), true};
+__device__ inline bool d_push_depth_value(int* depth_stack, int* depth_size, int depth) {
+  if (*depth_size >= kGpuReproMetaStackCapacity) return false;
+  depth_stack[*depth_size] = depth;
+  *depth_size += 1;
+  return true;
 }
 
-__device__ inline DDepthResult d_compute_expr_depth_prefix(const DPlainNode* nodes, int used_len, int idx) {
-  if (idx >= used_len) return {idx, 0, false};
-  const NodeKind kind = static_cast<NodeKind>(nodes[idx].kind);
-  if (kind == NodeKind::CONST || kind == NodeKind::VAR) {
-    return {idx + 1, 1, true};
-  }
-  if (kind == NodeKind::NEG || kind == NodeKind::NOT || kind == NodeKind::CALL_ABS ||
-      kind == NodeKind::CALL_LEN) {
-    const DDepthResult child = d_compute_expr_depth_prefix(nodes, used_len, idx + 1);
-    if (!child.ok) return child;
-    return {child.next, 1 + child.max_expr_depth, true};
-  }
-  if (kind == NodeKind::ADD || kind == NodeKind::SUB || kind == NodeKind::MUL || kind == NodeKind::DIV ||
-      kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
-      kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
-      kind == NodeKind::OR || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
-      kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX) {
-    const DDepthResult lhs = d_compute_expr_depth_prefix(nodes, used_len, idx + 1);
-    if (!lhs.ok) return lhs;
-    const DDepthResult rhs = d_compute_expr_depth_prefix(nodes, used_len, lhs.next);
-    if (!rhs.ok) return rhs;
-    return {rhs.next, 1 + dmax_int(lhs.max_expr_depth, rhs.max_expr_depth), true};
-  }
-  if (kind == NodeKind::IF_EXPR || kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_SLICE) {
-    const DDepthResult first = d_compute_expr_depth_prefix(nodes, used_len, idx + 1);
-    if (!first.ok) return first;
-    const DDepthResult second = d_compute_expr_depth_prefix(nodes, used_len, first.next);
-    if (!second.ok) return second;
-    const DDepthResult third = d_compute_expr_depth_prefix(nodes, used_len, second.next);
-    if (!third.ok) return third;
-    return {third.next, 1 + dmax_int(first.max_expr_depth, dmax_int(second.max_expr_depth, third.max_expr_depth)),
-            true};
-  }
-  return {idx + 1, 0, false};
+__device__ inline bool d_pop_depth_value(int* depth_stack, int* depth_size, int* out) {
+  if (*depth_size <= 0) return false;
+  *depth_size -= 1;
+  *out = depth_stack[*depth_size];
+  return true;
 }
 
 __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
                                                        int used_len,
                                                        int max_expr_depth_limit,
-                                                       int max_for_k) {
+                                                       int max_for_k,
+                                                       unsigned char* task_stack,
+                                                       int* depth_stack) {
   PackedChildMeta out;
   out.node_count = used_len;
   out.max_depth = 0;
   out.uses_builtins = 0;
   out.valid = 0;
-  if (used_len <= 0) {
+  if (used_len <= 0 || used_len > kGpuReproKernelMaxNodes) {
     return out;
   }
   for (int i = 0; i < used_len; ++i) {
@@ -128,14 +80,163 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
       break;
     }
   }
-  if (static_cast<NodeKind>(nodes[0].kind) != NodeKind::PROGRAM) {
+  int idx = 0;
+  int task_size = 0;
+  int depth_size = 0;
+  if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::Program)) {
     return out;
   }
-  const DDepthResult body = d_compute_block_depth_prefix(nodes, used_len, 1, max_for_k);
-  if (!body.ok || body.next != used_len) {
+  while (task_size > 0) {
+    const DParseTaskKind task = static_cast<DParseTaskKind>(task_stack[task_size - 1]);
+    task_size -= 1;
+    int first = 0;
+    int second = 0;
+    int third = 0;
+    switch (task) {
+      case DParseTaskKind::Program:
+        if (idx >= used_len || static_cast<NodeKind>(nodes[idx].kind) != NodeKind::PROGRAM) {
+          return out;
+        }
+        idx += 1;
+        if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block)) {
+          return out;
+        }
+        break;
+      case DParseTaskKind::Block: {
+        if (idx >= used_len) return out;
+        const NodeKind kind = static_cast<NodeKind>(nodes[idx].kind);
+        if (kind == NodeKind::BLOCK_NIL) {
+          idx += 1;
+          if (!d_push_depth_value(depth_stack, &depth_size, 0)) {
+            return out;
+          }
+          break;
+        }
+        if (kind != NodeKind::BLOCK_CONS) {
+          return out;
+        }
+        idx += 1;
+        if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBlock) ||
+            !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block) ||
+            !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Stmt)) {
+          return out;
+        }
+        break;
+      }
+      case DParseTaskKind::Stmt: {
+        if (idx >= used_len) return out;
+        const DPlainNode node = nodes[idx];
+        const NodeKind kind = static_cast<NodeKind>(node.kind);
+        idx += 1;
+        if (kind == NodeKind::ASSIGN || kind == NodeKind::RETURN) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::IF_STMT) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceIfStmt) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::FOR_RANGE) {
+          if (node.i1 < 0 || node.i1 > max_for_k) {
+            return out;
+          }
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block)) {
+            return out;
+          }
+          break;
+        }
+        return out;
+      }
+      case DParseTaskKind::Expr: {
+        if (idx >= used_len) return out;
+        const NodeKind kind = static_cast<NodeKind>(nodes[idx].kind);
+        idx += 1;
+        if (kind == NodeKind::CONST || kind == NodeKind::VAR) {
+          if (!d_push_depth_value(depth_stack, &depth_size, 1)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::NEG || kind == NodeKind::NOT || kind == NodeKind::CALL_ABS ||
+            kind == NodeKind::CALL_LEN) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceUnary) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::ADD || kind == NodeKind::SUB || kind == NodeKind::MUL || kind == NodeKind::DIV ||
+            kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
+            kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
+            kind == NodeKind::OR || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
+            kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBinary) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::IF_EXPR || kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_SLICE) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceTernary) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        return out;
+      }
+      case DParseTaskKind::ReduceUnary:
+        if (!d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size, 1 + first)) {
+          return out;
+        }
+        break;
+      case DParseTaskKind::ReduceBinary:
+        if (!d_pop_depth_value(depth_stack, &depth_size, &second) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size, 1 + dmax_int(first, second))) {
+          return out;
+        }
+        break;
+      case DParseTaskKind::ReduceTernary:
+        if (!d_pop_depth_value(depth_stack, &depth_size, &third) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &second) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size, 1 + dmax3_int(first, second, third))) {
+          return out;
+        }
+        break;
+      case DParseTaskKind::ReduceBlock:
+        if (!d_pop_depth_value(depth_stack, &depth_size, &second) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size, dmax_int(first, second))) {
+          return out;
+        }
+        break;
+      case DParseTaskKind::ReduceIfStmt:
+        if (!d_pop_depth_value(depth_stack, &depth_size, &third) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &second) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size, dmax3_int(first, second, third))) {
+          return out;
+        }
+        break;
+    }
+  }
+  if (idx != used_len || depth_size != 1) {
     return out;
   }
-  out.max_depth = body.max_expr_depth;
+  out.max_depth = depth_stack[0];
   out.valid = static_cast<unsigned char>(out.max_depth <= max_expr_depth_limit ? 1 : 0);
   return out;
 }
@@ -203,38 +304,38 @@ __device__ inline DPlainNode remap_node_for_child(const DPlainNode& in,
   return out;
 }
 
-__global__ inline void variation_kernel(const DPlainNode* program_nodes,
-                                        const DPackedProgramMeta* metas,
-                                        const DCandidateRange* candidates,
-                                        const std::uint64_t* program_name_ids,
-                                        const Value* program_consts,
-                                        const DPlainNode* donor_nodes,
-                                        const int* donor_lens,
-                                        const std::uint64_t* donor_name_ids,
-                                        const int* donor_name_counts,
-                                        const Value* donor_consts,
-                                        const int* donor_const_counts,
-                                        int max_nodes,
-                                        int candidates_per_program,
-                                        int max_donor_nodes,
-                                        int max_names,
-                                        int max_consts,
-                                        int max_expr_depth,
-                                        int max_for_k,
-                                        int pair_count,
-                                        const int* parent_a,
-                                        const int* parent_b,
-                                        const int* cand_a,
-                                        const int* cand_b,
-                                        const int* donor_idx,
-                                        const unsigned char* is_mutation,
-                                        DPlainNode* child_nodes,
-                                        int* child_used_len_out,
-                                        std::uint64_t* child_name_ids_out,
-                                        int* child_name_counts_out,
-                                        Value* child_consts_out,
-                                        int* child_const_counts_out,
-                                        PackedChildMeta* child_meta_out) {
+__global__ void variation_kernel(const DPlainNode* program_nodes,
+                                 const DPackedProgramMeta* metas,
+                                 const DCandidateRange* candidates,
+                                 const std::uint64_t* program_name_ids,
+                                 const Value* program_consts,
+                                 const DPlainNode* donor_nodes,
+                                 const int* donor_lens,
+                                 const std::uint64_t* donor_name_ids,
+                                 const int* donor_name_counts,
+                                 const Value* donor_consts,
+                                 const int* donor_const_counts,
+                                 int max_nodes,
+                                 int candidates_per_program,
+                                 int max_donor_nodes,
+                                 int max_names,
+                                 int max_consts,
+                                 int max_expr_depth,
+                                 int max_for_k,
+                                 int pair_count,
+                                 const int* parent_a,
+                                 const int* parent_b,
+                                 const int* cand_a,
+                                 const int* cand_b,
+                                 const int* donor_idx,
+                                 const unsigned char* is_mutation,
+                                 DPlainNode* child_nodes,
+                                 int* child_used_len_out,
+                                 std::uint64_t* child_name_ids_out,
+                                 int* child_name_counts_out,
+                                 Value* child_consts_out,
+                                 int* child_const_counts_out,
+                                 PackedChildMeta* child_meta_out) {
   const int pair_idx = static_cast<int>(blockIdx.x);
   if (pair_idx >= pair_count) {
     return;
@@ -290,12 +391,16 @@ __global__ inline void variation_kernel(const DPlainNode* program_nodes,
 
   __shared__ std::uint64_t child_a_names[kGpuReproMaxNames];
   __shared__ std::uint64_t child_b_names[kGpuReproMaxNames];
-  __shared__ Value child_a_consts[kGpuReproMaxConsts];
-  __shared__ Value child_b_consts[kGpuReproMaxConsts];
+  __shared__ DSharedValueSlot child_a_const_storage[kGpuReproMaxConsts];
+  __shared__ DSharedValueSlot child_b_const_storage[kGpuReproMaxConsts];
+  __shared__ unsigned char meta_task_stack[kGpuReproMetaStackCapacity];
+  __shared__ int meta_depth_stack[kGpuReproMetaStackCapacity];
   __shared__ int child_a_name_count;
   __shared__ int child_b_name_count;
   __shared__ int child_a_const_count;
   __shared__ int child_b_const_count;
+  Value* child_a_consts = reinterpret_cast<Value*>(child_a_const_storage);
+  Value* child_b_consts = reinterpret_cast<Value*>(child_b_const_storage);
   if (tid == 0) {
     child_a_name_count = dmin_int(name_count_a, max_names);
     child_a_const_count = dmin_int(const_count_a, max_consts);
@@ -398,9 +503,11 @@ __global__ inline void variation_kernel(const DPlainNode* program_nodes,
       child_consts_out[out_idx_b * max_consts + i] = child_b_consts[i];
     }
     PackedChildMeta child_a_meta =
-        d_compute_child_meta(child_nodes + child_base_ab, child_used_len_out[out_idx_a], max_expr_depth, max_for_k);
+        d_compute_child_meta(child_nodes + child_base_ab, child_used_len_out[out_idx_a], max_expr_depth, max_for_k,
+                             meta_task_stack, meta_depth_stack);
     PackedChildMeta child_b_meta =
-        d_compute_child_meta(child_nodes + child_base_ba, child_used_len_out[out_idx_b], max_expr_depth, max_for_k);
+        d_compute_child_meta(child_nodes + child_base_ba, child_used_len_out[out_idx_b], max_expr_depth, max_for_k,
+                             meta_task_stack, meta_depth_stack);
     if (child_a_fallback) child_a_meta.valid = 0;
     if (child_b_fallback) child_b_meta.valid = 0;
     child_meta_out[out_idx_a] = child_a_meta;

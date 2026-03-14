@@ -6,20 +6,20 @@
 
 namespace g3pvm::evo::repro {
 
-__global__ inline void tournament_select_kernel(const double* fitness,
-                                                int population_size,
-                                                int pair_count,
-                                                int candidates_per_program,
-                                                int donor_pool_size,
-                                                int tournament_k,
-                                                double mutation_ratio,
-                                                std::uint64_t seed,
-                                                int* parent_a,
-                                                int* parent_b,
-                                                int* cand_a,
-                                                int* cand_b,
-                                                int* donor_idx,
-                                                unsigned char* is_mutation) {
+__global__ void tournament_select_kernel(const double* fitness,
+                                         int population_size,
+                                         int pair_count,
+                                         int candidates_per_program,
+                                         int donor_pool_size,
+                                         int tournament_k,
+                                         double mutation_ratio,
+                                         std::uint64_t seed,
+                                         int* parent_a,
+                                         int* parent_b,
+                                         int* cand_a,
+                                         int* cand_b,
+                                         int* donor_idx,
+                                         unsigned char* is_mutation) {
   const int idx = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
   if (idx >= pair_count) {
     return;

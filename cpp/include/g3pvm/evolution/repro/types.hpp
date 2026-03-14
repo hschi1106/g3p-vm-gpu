@@ -12,6 +12,7 @@ namespace g3pvm::evo::repro {
 
 constexpr int kGpuReproMaxNames = 64;
 constexpr int kGpuReproMaxConsts = 64;
+constexpr int kGpuReproKernelMaxNodes = 512;
 
 enum class CandidateTag {
   Expr = 0,
