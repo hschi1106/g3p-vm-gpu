@@ -111,6 +111,9 @@ runs all configured fixtures, and writes one report directory containing:
 - per-fixture multi-mode reports
 - an aggregate summary JSON/Markdown
 
+It accepts either a single `max_expr_depth` or a list of `max_expr_depths`.
+When multiple depths are configured, it runs one full sweep per depth and groups the reports under depth-specific subdirectories.
+
 Each fixture benchmark generates one fixed population per run instead of using a multi-generation evolution run.
 It can compare four formal benchmark modes:
 - `cpu`: CPU eval + CPU reproduction
@@ -136,6 +139,7 @@ reproduction subphases to see whether overlap reduced critical-path work or mere
 python3 scripts/speedup_experiment.py \
   --fixtures bouncing_balls_1024 \
   --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap \
+  --max-expr-depths 5,7 \
   --population-sizes 64 \
   --probe-cases 8 \
   --min-success-rate 0.0

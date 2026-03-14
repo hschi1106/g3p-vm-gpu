@@ -161,6 +161,7 @@ Benchmark args:
 - `--outdir PATH`: output directory for reports
 - `--bench-cli PATH`: override the benchmark CLI executable
 - `--population-sizes LIST`: override configured population sizes
+- `--max-expr-depths LIST`: override configured `max_expr_depths` or `max_expr_depth`; runs one full sweep per listed depth
 - `--modes LIST`: comma-separated benchmark modes chosen from `cpu,gpu_eval,gpu_repro,gpu_repro_overlap`
 - `--probe-cases N`: override configured probe case count
 - `--min-success-rate F`: override configured acceptance threshold
@@ -179,7 +180,7 @@ Config keys in `scripts/speedup_experiment.example.json`:
 - `probe_cases`
 - `min_success_rate`
 - `fuel`
-- `max_expr_depth`
+- `max_expr_depths` or `max_expr_depth`
 - `max_stmts_per_block`
 - `max_total_nodes`
 - `max_for_k`
@@ -226,6 +227,7 @@ The canonical public modes are:
 python3 scripts/speedup_experiment.py \
   --fixtures bouncing_balls_1024 \
   --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap \
+  --max-expr-depths 5,7 \
   --population-sizes 64 \
   --probe-cases 8 \
   --min-success-rate 0.0

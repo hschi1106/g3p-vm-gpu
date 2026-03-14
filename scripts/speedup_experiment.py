@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated population sizes to run; default uses configured population_sizes",
     )
     parser.add_argument(
+        "--max-expr-depths",
+        default="",
+        help="Comma-separated max_expr_depth values to run; default uses configured max_expr_depths or max_expr_depth",
+    )
+    parser.add_argument(
         "--modes",
         default="",
         help="Comma-separated benchmark modes: cpu,gpu_eval,gpu_repro,gpu_repro_overlap",
@@ -155,6 +160,28 @@ def parse_population_sizes(config: dict[str, Any], raw_override: str) -> list[in
     if any(value <= 0 for value in out):
         raise SystemExit("population sizes must be positive")
     return out
+
+
+def parse_max_expr_depths(config: dict[str, Any], raw_override: str) -> list[int]:
+    if raw_override:
+        values = [item.strip() for item in raw_override.split(",") if item.strip()]
+        out = [int(item) for item in values]
+    else:
+        configured = config.get("max_expr_depths")
+        if configured is None:
+            configured = [config["max_expr_depth"]]
+        elif isinstance(configured, int):
+            configured = [configured]
+        out = [int(item) for item in configured]
+    if not out:
+        raise SystemExit("no max_expr_depth values configured")
+    if any(value <= 0 for value in out):
+        raise SystemExit("max_expr_depth values must be positive")
+    deduped: list[int] = []
+    for value in out:
+        if value not in deduped:
+            deduped.append(value)
+    return deduped
 
 
 def speedup(cpu_ms: Any, other_ms: Any) -> float | None:
@@ -308,11 +335,14 @@ def average_speedup(
     aggregate: list[dict[str, Any]],
     mode_name: str,
     key: str,
+    *,
+    max_expr_depth: int | None = None,
 ) -> float | None:
     values = [
         item["speedup_vs_cpu"].get(mode_name, {}).get(key)
         for item in aggregate
         if item["speedup_vs_cpu"].get(mode_name, {}).get(key) is not None
+        and (max_expr_depth is None or item["max_expr_depth"] == max_expr_depth)
     ]
     if not values:
         return None
@@ -334,6 +364,7 @@ def main() -> int:
 
     modes = parse_modes(config, args.modes)
     population_sizes = parse_population_sizes(config, args.population_sizes)
+    max_expr_depths = parse_max_expr_depths(config, args.max_expr_depths)
     probe_cases = args.probe_cases or int(config["probe_cases"])
     min_success_rate = args.min_success_rate if args.min_success_rate >= 0.0 else float(config["min_success_rate"])
 
@@ -353,39 +384,46 @@ def main() -> int:
         seed_start=int(config["seed_start"]),
         probe_cases=probe_cases,
         min_success_rate=min_success_rate,
-        max_expr_depth=int(config["max_expr_depth"]),
         max_stmts_per_block=int(config["max_stmts_per_block"]),
         max_total_nodes=int(config["max_total_nodes"]),
         max_for_k=int(config["max_for_k"]),
         max_call_args=int(config["max_call_args"]),
     )
-    for population_size in population_sizes:
-        for fixture in fixtures:
-            fixture_outdir = outdir / f"{fixture.stem}_pop{population_size}"
-            fixture_outdir.mkdir(parents=True, exist_ok=True)
-            mode_results: dict[str, dict[str, Any]] = {}
-            for mode_name in modes:
-                print(f"[fixture-bench] {mode_name} fixture={fixture.stem} pop={population_size}", flush=True)
-                mode_results[mode_name] = run_one(
-                    fixture,
-                    mode_name,
-                    fixture_outdir,
-                    population_size=population_size,
-                    **common,
+    for max_expr_depth in max_expr_depths:
+        depth_root = outdir if len(max_expr_depths) == 1 else outdir / f"depth{max_expr_depth}"
+        for population_size in population_sizes:
+            for fixture in fixtures:
+                fixture_outdir = depth_root / f"{fixture.stem}_pop{population_size}"
+                fixture_outdir.mkdir(parents=True, exist_ok=True)
+                mode_results: dict[str, dict[str, Any]] = {}
+                for mode_name in modes:
+                    print(
+                        f"[fixture-bench] {mode_name} fixture={fixture.stem} pop={population_size} depth={max_expr_depth}",
+                        flush=True,
+                    )
+                    mode_results[mode_name] = run_one(
+                        fixture,
+                        mode_name,
+                        fixture_outdir,
+                        population_size=population_size,
+                        max_expr_depth=max_expr_depth,
+                        **common,
+                    )
+                report = write_fixture_report(fixture_outdir, mode_results)
+                aggregate.append(
+                    {
+                        "fixture": fixture.stem,
+                        "population_size": population_size,
+                        "max_expr_depth": max_expr_depth,
+                        "report_json": str(fixture_outdir / "mode_compare.report.json"),
+                        "speedup_vs_cpu": report["speedup_vs_cpu"],
+                    }
                 )
-            report = write_fixture_report(fixture_outdir, mode_results)
-            aggregate.append(
-                {
-                    "fixture": fixture.stem,
-                    "population_size": population_size,
-                    "report_json": str(fixture_outdir / "mode_compare.report.json"),
-                    "speedup_vs_cpu": report["speedup_vs_cpu"],
-                }
-            )
 
     summary = {
         "benchmark_type": "fixture_speedup_modes_v1",
         "modes": modes,
+        "max_expr_depths": max_expr_depths,
         "fixtures": aggregate,
         "average_speedup_vs_cpu": {
             mode_name: {
@@ -403,6 +441,25 @@ def main() -> int:
             for mode_name in modes
             if mode_name != "cpu"
         },
+        "average_speedup_vs_cpu_by_max_expr_depth": {
+            str(max_expr_depth): {
+                mode_name: {
+                    key: average_speedup(aggregate, mode_name, key, max_expr_depth=max_expr_depth)
+                    for key in (
+                        "compile_cpu_over_mode",
+                        "eval_cpu_over_mode",
+                        "repro_cpu_over_mode",
+                        "selection_cpu_over_mode",
+                        "crossover_cpu_over_mode",
+                        "mutation_cpu_over_mode",
+                        "total_cpu_over_mode",
+                    )
+                }
+                for mode_name in modes
+                if mode_name != "cpu"
+            }
+            for max_expr_depth in max_expr_depths
+        },
     }
     (outdir / "summary.json").write_text(json.dumps(summary, ensure_ascii=True, indent=2), encoding="utf-8")
     lines = ["# Fixture Speedup Summary", "", f"- outdir: `{outdir}`", "", "## Average Speedup Vs CPU", ""]
@@ -412,6 +469,17 @@ def main() -> int:
         for key, value in speedup_map.items():
             lines.append(f"- {key}: {fmt_speed(value)}")
         lines.append("")
+    if len(max_expr_depths) > 1:
+        lines.extend(["## Average Speedup Vs CPU By max_expr_depth", ""])
+        for max_expr_depth in max_expr_depths:
+            lines.append(f"### depth={max_expr_depth}")
+            lines.append("")
+            for mode_name, speedup_map in summary["average_speedup_vs_cpu_by_max_expr_depth"][str(max_expr_depth)].items():
+                lines.append(f"#### `{mode_name}`")
+                lines.append("")
+                for key, value in speedup_map.items():
+                    lines.append(f"- {key}: {fmt_speed(value)}")
+                lines.append("")
     lines.extend(["## Fixtures", ""])
     for item in aggregate:
         parts = []
@@ -422,7 +490,9 @@ def main() -> int:
             parts.append(
                 f"{mode_name}: total={fmt_speed(speed_map.get('total_cpu_over_mode'))}, eval={fmt_speed(speed_map.get('eval_cpu_over_mode'))}"
             )
-        lines.append(f"- {item['fixture']} pop={item['population_size']}: " + "; ".join(parts))
+        lines.append(
+            f"- {item['fixture']} pop={item['population_size']} depth={item['max_expr_depth']}: " + "; ".join(parts)
+        )
     (outdir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[fixture-bench] summary json: {outdir / 'summary.json'}")
     print(f"[fixture-bench] summary md: {outdir / 'summary.md'}")
