@@ -62,6 +62,10 @@ DPayloadFlavor classify_payload_flavor(const BytecodeProgram& prog, unsigned sha
 
 }  // namespace
 
+DPayloadFlavor classify_payload_flavor_for_program(const BytecodeProgram& prog, unsigned shared_input_payload_mask) {
+  return classify_payload_flavor(prog, shared_input_payload_mask);
+}
+
 PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgram>& programs,
                                                 int shared_case_count,
                                                 unsigned shared_input_payload_mask) {

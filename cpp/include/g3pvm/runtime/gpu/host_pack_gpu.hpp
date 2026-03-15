@@ -8,6 +8,7 @@
 #include "g3pvm/core/bytecode.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
 #include "g3pvm/runtime/gpu/device_types_gpu.hpp"
+#include "g3pvm/runtime/gpu/payload_flavor_gpu.hpp"
 
 namespace g3pvm::gpu_detail {
 

@@ -342,11 +342,18 @@ void emit_random_block(std::mt19937_64& rng,
                        int depth,
                        const Limits& limits,
                        bool force_return,
-                       int max_stmts = -1);
+                       int max_stmts = -1,
+                       bool allow_return_stmt = true,
+                       RType forced_return_type = RType::Invalid);
 
-void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, int depth, const Limits& limits) {
+void emit_random_stmt(std::mt19937_64& rng,
+                      AstProgram& program,
+                      PrefixGenCtx& ctx,
+                      int depth,
+                      const Limits& limits,
+                      bool allow_return_stmt) {
   if (depth <= 0) {
-    if (std::bernoulli_distribution(0.75)(rng)) {
+    if (!allow_return_stmt || std::bernoulli_distribution(0.75)(rng)) {
       const int name_id = choose_or_new_name(rng, program, ctx);
       const RType type = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::List});
       program.nodes.push_back(AstNode{NodeKind::ASSIGN, name_id, 0});
@@ -359,7 +366,8 @@ void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
     return;
   }
 
-  const int choice = std::uniform_int_distribution<int>(0, 3)(rng);
+  const int max_choice = allow_return_stmt ? 3 : 2;
+  const int choice = std::uniform_int_distribution<int>(0, max_choice)(rng);
   if (choice == 0) {
     const int name_id = choose_or_new_name(rng, program, ctx);
     const RType type = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::List});
@@ -373,8 +381,22 @@ void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
     emit_random_expr(rng, program, ctx, depth - 1, RType::Bool);
     PrefixGenCtx then_ctx = ctx;
     PrefixGenCtx else_ctx = ctx;
-    emit_random_block(rng, program, then_ctx, depth - 1, limits, false, std::max(1, std::min(2, limits.max_stmts_per_block)));
-    emit_random_block(rng, program, else_ctx, depth - 1, limits, false, std::max(1, std::min(2, limits.max_stmts_per_block)));
+    emit_random_block(rng,
+                      program,
+                      then_ctx,
+                      depth - 1,
+                      limits,
+                      false,
+                      std::max(1, std::min(2, limits.max_stmts_per_block)),
+                      allow_return_stmt);
+    emit_random_block(rng,
+                      program,
+                      else_ctx,
+                      depth - 1,
+                      limits,
+                      false,
+                      std::max(1, std::min(2, limits.max_stmts_per_block)),
+                      allow_return_stmt);
     return;
   }
   if (choice == 2) {
@@ -384,7 +406,14 @@ void emit_random_stmt(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
         AstNode{NodeKind::FOR_RANGE, name_id, std::uniform_int_distribution<int>(0, std::max(0, limits.max_for_k))(rng)});
     PrefixGenCtx body_ctx = ctx;
     body_ctx.num_names.insert(name_id);
-    emit_random_block(rng, program, body_ctx, depth - 1, limits, false, std::max(1, std::min(2, limits.max_stmts_per_block)));
+    emit_random_block(rng,
+                      program,
+                      body_ctx,
+                      depth - 1,
+                      limits,
+                      false,
+                      std::max(1, std::min(2, limits.max_stmts_per_block)),
+                      allow_return_stmt);
     return;
   }
   program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
@@ -401,14 +430,16 @@ void emit_random_block(std::mt19937_64& rng,
                        int depth,
                        const Limits& limits,
                        bool force_return,
-                       int max_stmts) {
+                       int max_stmts,
+                       bool allow_return_stmt,
+                       RType forced_return_type) {
   const int max_n = (max_stmts < 0) ? limits.max_stmts_per_block : max_stmts;
   const int n = std::uniform_int_distribution<int>(1, std::max(1, max_n))(rng);
   bool has_return = false;
   for (int i = 0; i < n; ++i) {
     program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
     const std::size_t before = program.nodes.size();
-    emit_random_stmt(rng, program, ctx, depth, limits);
+    emit_random_stmt(rng, program, ctx, depth, limits, allow_return_stmt);
     if (program.nodes[before].kind == NodeKind::RETURN) {
       has_return = true;
       break;
@@ -417,11 +448,14 @@ void emit_random_block(std::mt19937_64& rng,
   if (force_return && !has_return) {
     program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
     program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
+    const std::vector<RType> forced_choices{RType::Num, RType::Bool, RType::String, RType::List};
+    const RType return_type = forced_return_type != RType::Invalid ? forced_return_type
+                                                                   : choose_one(rng, forced_choices);
     emit_random_expr(rng,
                      program,
                      ctx,
                      std::max(0, depth - 1),
-                     choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::String, RType::List}));
+                     return_type);
   }
   program.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
 }
@@ -449,6 +483,51 @@ ProgramGenome generate_random_genome(std::uint64_t seed, const Limits& limits) {
   fallback.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
   fallback.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
   fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::from_int(0)), 0});
+  fallback.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
+  return as_genome_prefix(fallback);
+}
+
+ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed, RType return_type, const Limits& limits) {
+  std::mt19937_64 rng(seed);
+  for (int i = 0; i < 128; ++i) {
+    AstProgram program;
+    program.version = "ast-prefix-v1";
+    program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
+    PrefixGenCtx ctx;
+    ctx.num_names.insert(ensure_name(program, "x"));
+    emit_random_block(rng,
+                      program,
+                      ctx,
+                      limits.max_expr_depth,
+                      limits,
+                      true,
+                      -1,
+                      false,
+                      return_type);
+    ProgramGenome genome = as_genome_prefix(program);
+    if (genome.meta.node_count <= limits.max_total_nodes && genome.meta.max_depth <= limits.max_expr_depth) {
+      return genome;
+    }
+  }
+
+  AstProgram fallback;
+  fallback.version = "ast-prefix-v1";
+  fallback.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
+  fallback.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
+  fallback.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
+  if (return_type == RType::Bool) {
+    fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::from_bool(false)), 0});
+  } else if (return_type == RType::NoneType) {
+    fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::none()), 0});
+  } else if (return_type == RType::String) {
+    fallback.nodes.push_back(
+        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_string_value("")), 0});
+  } else if (return_type == RType::List) {
+    fallback.nodes.push_back(
+        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_list_value({})), 0});
+  } else {
+    fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::from_int(0)), 0});
+  }
   fallback.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
   return as_genome_prefix(fallback);
 }

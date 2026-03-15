@@ -79,6 +79,7 @@ Genome-shape args:
 
 Fixed-population benchmark args:
 - `--cases PATH`: input `fitness-cases-v1` file
+- `--population-json PATH`: load a pre-generated `population-seeds-v1` JSON instead of generating a fresh population
 - `--out-population-json PATH`: optional output path for the generated `population-seeds-v1` JSON
 - `--engine {cpu|gpu}`: evaluation backend
 - `--repro-backend {cpu|gpu}`: reproduction backend for the one-generation reproduction phase
@@ -123,6 +124,28 @@ Metric semantics:
 - with `--repro-overlap on`, `repro_prepare_inputs_ms` / `repro_preprocess_ms` / `repro_pack_ms` may be partially hidden by `eval_ms`; steady-state generation timing is the relevant comparison
 - `total_ms`: the full one-generation benchmark wall time
 - GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
+
+### `cpp/build/g3pvm_population_bucket_cli`
+
+Exact-bucket population generation args:
+- `--cases PATH`: input `fitness-cases-v1` file used for probe filtering and payload classification
+- `--out-population-json PATH`: output `population-seeds-v1` JSON
+- `--out-metadata-json PATH`: output per-program metadata summary
+- `--target-depth N`: require `genome.meta.max_depth == N`
+- `--target-payload-flavor {none|string|list|mixed}`: require the runtime GPU payload classifier to match this flavor
+- `--generator-mode {native|synthetic}`: use the standard GP generator with rejection sampling or a synthetic exact-depth generator
+- `--generator-root-type {any|num|bool|none|string|list}`: optional root-type hint for generation
+- `--population-size N`
+- `--seed-start N`
+- `--probe-cases N`
+- `--min-success-rate F`
+- `--max-attempts N`
+- `--fuel N`
+- `--max-expr-depth N`
+- `--max-stmts-per-block N`
+- `--max-total-nodes N`
+- `--max-for-k N`
+- `--max-call-args N`
 
 ### `tools/fetch_psb2_datasets.py`
 
@@ -191,6 +214,30 @@ Config keys in `scripts/speedup_experiment.example.json`:
 - `penalty`
 - `selection_pressure`
 - `outdir_prefix`
+
+### `scripts/kernel_bucket_experiment.py`
+
+Experiment args:
+- `--cases PATH`: fixture used for payload classification and evaluation
+- `--bucket-cli PATH`: override `g3pvm_population_bucket_cli`
+- `--bench-cli PATH`: override `g3pvm_population_bench_cli`
+- `--population-size N`
+- `--replicates N`: number of fixed populations per grid cell
+- `--bench-repeats N`: benchmark repetitions per fixed population
+- `--depths LIST`: comma-separated exact depths
+- `--payload-flavors LIST`: comma-separated payload flavors
+- `--probe-cases N`
+- `--min-success-rate F`
+- `--fuel N`
+- `--blocksize N`
+- `--max-stmts-per-block N`
+- `--max-total-nodes N`
+- `--max-for-k N`
+- `--max-call-args N`
+- `--max-attempts N`
+- `--seed-base N`
+- `--population-outdir PATH`
+- `--outdir PATH`
 
 Report shape:
 - per fixture, `mode_compare.report.json` / `.md`

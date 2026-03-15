@@ -5,15 +5,9 @@
 #include "g3pvm/core/errors.hpp"
 #include "g3pvm/core/value.hpp"
 #include "g3pvm/runtime/gpu/constants_gpu.hpp"
+#include "g3pvm/runtime/gpu/payload_flavor_types.hpp"
 
 namespace g3pvm::gpu_detail {
-
-enum class DPayloadFlavor : std::uint8_t {
-  None = 0,
-  StringOnly = 1,
-  ListOnly = 2,
-  Mixed = 3,
-};
 
 struct DInstr {
   std::uint8_t op = 0;

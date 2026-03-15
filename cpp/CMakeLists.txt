@@ -57,6 +57,12 @@ add_executable(g3pvm_population_bench_cli
 )
 target_link_libraries(g3pvm_population_bench_cli PRIVATE g3pvm_cpu)
 if(G3PVM_HAS_CUDA)
+  add_executable(g3pvm_population_bucket_cli
+    src/cli/population_bucket_cli.cpp
+  )
+  target_link_libraries(g3pvm_population_bucket_cli PRIVATE g3pvm_cpu)
+  target_compile_definitions(g3pvm_population_bucket_cli PRIVATE G3PVM_HAS_CUDA=1)
+
   add_library(g3pvm_gpu
     src/runtime/gpu/fitness_gpu.cu
     src/runtime/gpu/opcode_map_gpu.cpp

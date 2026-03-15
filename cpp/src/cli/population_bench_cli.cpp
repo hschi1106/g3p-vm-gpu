@@ -51,6 +51,7 @@ using g3pvm::evo::ScoredGenome;
 struct CliOptions {
   std::string cases_path;
   std::string out_population_json;
+  std::string population_json;
   std::string engine = "cpu";
   std::string repro_backend = "cpu";
   bool repro_overlap = false;
@@ -87,6 +88,8 @@ struct GeneratedPopulation {
   int attempts = 0;
   int probe_case_count = 0;
   int min_successes = 0;
+  bool loaded = false;
+  std::string population_json_path;
 };
 
 struct CompiledPopulation {
@@ -188,6 +191,7 @@ CliOptions parse_cli(int argc, char** argv) {
     };
     if (arg == "--cases") opts.cases_path = need_value("--cases");
     else if (arg == "--out-population-json") opts.out_population_json = need_value("--out-population-json");
+    else if (arg == "--population-json") opts.population_json = need_value("--population-json");
     else if (arg == "--engine") opts.engine = need_value("--engine");
     else if (arg == "--repro-backend") opts.repro_backend = need_value("--repro-backend");
     else if (arg == "--repro-overlap") opts.repro_overlap = parse_on_off(need_value("--repro-overlap"), "--repro-overlap");
@@ -216,6 +220,9 @@ CliOptions parse_cli(int argc, char** argv) {
   }
   if (opts.repro_backend != "cpu" && opts.repro_backend != "gpu") {
     throw std::runtime_error("--repro-backend must be cpu or gpu");
+  }
+  if (!opts.population_json.empty() && !opts.out_population_json.empty()) {
+    throw std::runtime_error("--population-json and --out-population-json cannot be used together");
   }
   if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
   if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
@@ -336,6 +343,101 @@ void write_population_seed_set(const std::string& path,
   out << "}\n";
 }
 
+g3pvm::evo::Limits parse_limits_object(const JsonValue& raw) {
+  if (raw.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("population seed set limits must be an object");
+  }
+  auto read_int = [&](const char* key) -> int {
+    auto it = raw.object_v.find(key);
+    if (it == raw.object_v.end() || it->second.kind != JsonValue::Kind::Number) {
+      throw std::runtime_error(std::string("population seed set missing numeric limits.") + key);
+    }
+    return static_cast<int>(it->second.number_v);
+  };
+  return g3pvm::evo::Limits{
+      read_int("max_expr_depth"),
+      read_int("max_stmts_per_block"),
+      read_int("max_total_nodes"),
+      read_int("max_for_k"),
+      read_int("max_call_args"),
+  };
+}
+
+GeneratedPopulation load_population_from_seed_set(const CliOptions& args) {
+  const JsonValue payload = g3pvm::cli_detail::JsonParser(read_text_file(args.population_json)).parse();
+  if (payload.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("population seed set must be a JSON object");
+  }
+
+  auto fv_it = payload.object_v.find("format_version");
+  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
+      fv_it->second.string_v != "population-seeds-v1") {
+    throw std::runtime_error("population seed set must include format_version=population-seeds-v1");
+  }
+
+  auto cases_it = payload.object_v.find("cases_path");
+  if (cases_it != payload.object_v.end() && cases_it->second.kind == JsonValue::Kind::String &&
+      !cases_it->second.string_v.empty() && cases_it->second.string_v != args.cases_path) {
+    throw std::runtime_error("population seed set cases_path does not match --cases");
+  }
+
+  auto limits_it = payload.object_v.find("limits");
+  if (limits_it == payload.object_v.end()) {
+    throw std::runtime_error("population seed set missing limits");
+  }
+  auto seeds_it = payload.object_v.find("seeds");
+  if (seeds_it == payload.object_v.end() || seeds_it->second.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("population seed set missing seeds array");
+  }
+
+  GeneratedPopulation out;
+  out.loaded = true;
+  out.population_json_path = args.population_json;
+  out.limits = parse_limits_object(limits_it->second);
+
+  auto read_optional_int = [&](const char* key, int fallback) -> int {
+    auto it = payload.object_v.find(key);
+    if (it == payload.object_v.end()) return fallback;
+    if (it->second.kind != JsonValue::Kind::Number) {
+      throw std::runtime_error(std::string("population seed set field must be numeric: ") + key);
+    }
+    return static_cast<int>(it->second.number_v);
+  };
+  auto read_optional_double = [&](const char* key, double fallback) -> double {
+    auto it = payload.object_v.find(key);
+    if (it == payload.object_v.end()) return fallback;
+    if (it->second.kind != JsonValue::Kind::Number) {
+      throw std::runtime_error(std::string("population seed set field must be numeric: ") + key);
+    }
+    return it->second.number_v;
+  };
+
+  out.attempts = read_optional_int("attempts", 0);
+  out.probe_case_count = read_optional_int("probe_cases", args.probe_cases);
+  const double min_success_rate = read_optional_double("min_success_rate", args.min_success_rate);
+  out.min_successes = std::max(1, static_cast<int>(std::ceil(min_success_rate * static_cast<double>(out.probe_case_count))));
+
+  out.seeds.reserve(seeds_it->second.array_v.size());
+  out.population.reserve(seeds_it->second.array_v.size());
+  for (const JsonValue& row : seeds_it->second.array_v) {
+    if (row.kind != JsonValue::Kind::Object) {
+      throw std::runtime_error("population seed set seeds[i] must be object");
+    }
+    auto seed_it = row.object_v.find("seed");
+    if (seed_it == row.object_v.end() || seed_it->second.kind != JsonValue::Kind::Number) {
+      throw std::runtime_error("population seed set seeds[i] missing numeric seed");
+    }
+    const std::uint64_t seed = static_cast<std::uint64_t>(seed_it->second.number_v);
+    out.seeds.push_back(seed);
+    out.population.push_back(g3pvm::evo::generate_random_genome(seed, out.limits));
+  }
+
+  if (out.population.empty()) {
+    throw std::runtime_error("population seed set must contain at least one seed");
+  }
+  return out;
+}
+
 GeneratedPopulation generate_population(const CliOptions& args,
                                         const std::vector<EvalCase>& cases,
                                         const std::vector<std::string>& input_names) {
@@ -397,6 +499,7 @@ GeneratedPopulation generate_population(const CliOptions& args,
   out.attempts = attempts;
   out.probe_case_count = probe_case_count;
   out.min_successes = min_successes;
+  out.population_json_path = args.out_population_json;
 
   if (!args.out_population_json.empty()) {
     write_population_seed_set(args.out_population_json,
@@ -489,7 +592,8 @@ int main(int argc, char** argv) {
     const JsonValue cases_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.cases_path)).parse();
     const std::vector<EvalCase> cases = parse_cases_v1(cases_payload);
     const std::vector<std::string> input_names = build_canonical_input_names(cases);
-    const GeneratedPopulation generated = generate_population(args, cases, input_names);
+    const GeneratedPopulation generated =
+        args.population_json.empty() ? generate_population(args, cases, input_names) : load_population_from_seed_set(args);
     const std::vector<ProgramGenome>& population = generated.population;
 
     const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, input_names);
@@ -590,10 +694,13 @@ int main(int argc, char** argv) {
               << static_cast<double>(fitness_sum / static_cast<long double>(eval.fitness.size()))
               << " best_fitness=" << scored.front().fitness
               << " best_program_key=" << scored.front().genome.meta.program_key
-              << " population_source=generated"
+              << " population_source=" << (generated.loaded ? "loaded" : "generated")
               << " generation_attempts=" << generated.attempts
               << " probe_cases=" << generated.probe_case_count
               << " min_successes=" << generated.min_successes;
+    if (generated.loaded) {
+      std::cout << " population_json=" << generated.population_json_path;
+    }
     if (!args.out_population_json.empty()) {
       std::cout << " out_population_json=" << args.out_population_json;
     }

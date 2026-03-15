@@ -164,7 +164,8 @@ Public evolution interfaces split by responsibility:
 
 ### `cpp/src/cli/`
 - `evolve_cli.cpp`: evolution CLI
-- `population_bench_cli.cpp`: fixed-population benchmark runner; can also generate and optionally save benchmark populations
+- `population_bench_cli.cpp`: fixed-population benchmark runner; can generate, save, and reload `population-seeds-v1` populations
+- `population_bucket_cli.cpp`: exact-depth / exact-payload population generator for eval-kernel bucketing experiments
 - codec / json / options helpers
 
 ### `cpp/src/bench/`
@@ -185,6 +186,7 @@ Benchmark binaries for runtime-focused measurement.
 
 ### `scripts/`
 - `speedup_experiment.py`: fixed-population multi-mode sweep driver for `cpu`, `gpu_eval`, `gpu_repro`, and `gpu_repro_overlap`
+- `kernel_bucket_experiment.py`: exact-depth / exact-payload GPU eval experiment driver for bucketing studies
 - `speedup_experiment.example.json`: tracked benchmark config template
 - local `speedup_experiment.json`: optional untracked machine-local override
 
