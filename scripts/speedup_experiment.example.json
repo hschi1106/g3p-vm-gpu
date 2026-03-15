@@ -15,7 +15,7 @@
   "blocksize": 1024,
   "seed_start": 0,
   "probe_cases": 32,
-  "min_success_rate": 0.1,
+  "min_success_rate": 0.5,
   "fuel": 20000,
   "max_expr_depth": 5,
   "max_stmts_per_block": 6,
