@@ -111,20 +111,24 @@ This separation is important:
 
 The device path does not use one monolithic payload kernel anymore.
 
-Programs are classified into four payload flavors in `cpp/src/runtime/gpu/host_pack_gpu.cu`:
+Programs are still classifiable into four fine-grained payload flavors in `cpp/src/runtime/gpu/host_pack_gpu.cu`:
 
 - `None`
 - `StringOnly`
 - `ListOnly`
 - `Mixed`
 
-The GPU fitness launch then dispatches up to four specialized kernels.
+But the current production GPU fitness path only dispatches two runtime kernel families:
+
+- `None`
+- `Mixed`
+
+The finer `StringOnly` / `ListOnly` labels are kept for experiment tooling and offline bucket studies rather than the production eval dispatch tree.
 
 This keeps:
 
-- string-only programs from carrying list scratch state
-- list-only programs from carrying string scratch state
 - non-payload programs on the lightest path
+- payload-bearing programs on a single shared exact-payload path
 
 Exact string/list builtins still use bounded per-thread scratch and still fall back to compact transport when exact materialization does not fit.
 
