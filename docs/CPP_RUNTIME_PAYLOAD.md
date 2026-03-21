@@ -84,17 +84,25 @@ Use these when exact container behavior should be available later.
 - `snapshot_strings()`
 - `snapshot_lists()`
 
-These export registry contents into flat vectors so the GPU path can build compact device packs from them.
+These export registry contents into flat vectors.
+They remain useful for diagnostics and offline tooling, but the production GPU fitness path no longer snapshots the full registry at session start.
+
+### By-token lookup
+
+- `lookup_string_packed()`
+- `lookup_list_packed()`
+
+These let the GPU fitness session lazily fetch only the payload tokens it actually needs for the current accepted population.
 
 ## GPU Session Handoff
 
-The GPU runtime does not read the host registry directly.
+The GPU runtime does not read the host registry directly from device code.
 
 Instead:
 
-1. `payload::snapshot_strings()` and `payload::snapshot_lists()` take a host-side snapshot
-2. `FitnessSessionGpu::init()` caches those host-side snapshots plus the shared-case payload tokens for the current session
-3. `FitnessSessionGpu::eval_programs()` gathers the payload tokens actually needed by the accepted program subset
+1. `FitnessSessionGpu::init()` caches shared-case payload tokens for the current session and lazily preloads only those shared tokens
+2. `FitnessSessionGpu::eval_programs()` gathers the payload tokens actually needed by the accepted program subset
+3. missing tokens are fetched from the process-global payload registry by packed token and inserted into a session-local host cache
 4. `build_payload_pack()` in `cpp/src/runtime/gpu/fitness_gpu.cu` flattens only that needed-token closure into:
    - `DStringPayloadEntry` plus one contiguous byte buffer
    - `DListPayloadEntry` plus one contiguous `Value` buffer
@@ -103,7 +111,7 @@ Instead:
 This separation is important:
 
 - the host registry is convenient for CPU exact behavior and test setup
-- the GPU runtime consumes compact, read-only per-eval payload tables instead of the full registry snapshot
+- the GPU runtime consumes compact, read-only per-eval payload tables instead of the full registry
 - shared case locals and expected answers are packed separately from payload snapshots
 - device lookup for global payload entries is done against compact sorted tables
 

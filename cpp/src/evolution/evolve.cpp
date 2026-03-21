@@ -147,9 +147,18 @@ std::vector<ScoredGenome> score_population_cpu(
     throw std::runtime_error("cpu fitness size mismatch");
   }
 
-  result->cpu_generations_program_compile_ms_total += compiled.compile_ms;
+  result->cpu_compile_ms_total += compiled.compile_ms;
   if (record_per_gen) {
-    result->generation_cpu_program_compile_ms.push_back(compiled.compile_ms);
+    result->generation_cpu_compile_ms.push_back(compiled.compile_ms);
+    result->generation_gpu_compile_ms.push_back(0.0);
+    result->generation_gpu_eval_call_ms.push_back(0.0);
+    result->generation_gpu_eval_pack_ms.push_back(0.0);
+    result->generation_gpu_eval_launch_prep_ms.push_back(0.0);
+    result->generation_gpu_eval_upload_ms.push_back(0.0);
+    result->generation_gpu_eval_pack_upload_ms.push_back(0.0);
+    result->generation_gpu_eval_kernel_ms.push_back(0.0);
+    result->generation_gpu_eval_copyback_ms.push_back(0.0);
+    result->generation_gpu_eval_teardown_ms.push_back(0.0);
   }
 
   if (fitness_sum_out != nullptr) {
@@ -187,15 +196,26 @@ std::vector<ScoredGenome> score_population_gpu(
     throw std::runtime_error("gpu fitness size mismatch");
   }
 
-  result->gpu_generations_program_compile_ms_total += compiled.compile_ms;
-  result->gpu_generations_pack_upload_ms_total += fit.upload_programs_ms + fit.pack_programs_ms;
-  result->gpu_generations_kernel_ms_total += fit.kernel_exec_ms;
-  result->gpu_generations_copyback_ms_total += fit.copyback_ms;
+  result->gpu_compile_ms_total += compiled.compile_ms;
+  result->gpu_eval_call_ms_total += fit.timing.total_ms;
+  result->gpu_eval_pack_ms_total += fit.timing.pack_ms;
+  result->gpu_eval_launch_prep_ms_total += fit.timing.launch_prep_ms;
+  result->gpu_eval_upload_ms_total += fit.timing.upload_ms;
+  result->gpu_eval_pack_upload_ms_total += fit.timing.pack_ms + fit.timing.upload_ms;
+  result->gpu_eval_kernel_ms_total += fit.timing.kernel_ms;
+  result->gpu_eval_copyback_ms_total += fit.timing.copyback_ms;
+  result->gpu_eval_teardown_ms_total += fit.timing.teardown_ms;
   if (record_per_gen) {
-    result->generation_gpu_program_compile_ms.push_back(compiled.compile_ms);
-    result->generation_gpu_pack_upload_ms.push_back(fit.upload_programs_ms + fit.pack_programs_ms);
-    result->generation_gpu_kernel_ms.push_back(fit.kernel_exec_ms);
-    result->generation_gpu_copyback_ms.push_back(fit.copyback_ms);
+    result->generation_cpu_compile_ms.push_back(0.0);
+    result->generation_gpu_compile_ms.push_back(compiled.compile_ms);
+    result->generation_gpu_eval_call_ms.push_back(fit.timing.total_ms);
+    result->generation_gpu_eval_pack_ms.push_back(fit.timing.pack_ms);
+    result->generation_gpu_eval_launch_prep_ms.push_back(fit.timing.launch_prep_ms);
+    result->generation_gpu_eval_upload_ms.push_back(fit.timing.upload_ms);
+    result->generation_gpu_eval_pack_upload_ms.push_back(fit.timing.pack_ms + fit.timing.upload_ms);
+    result->generation_gpu_eval_kernel_ms.push_back(fit.timing.kernel_ms);
+    result->generation_gpu_eval_copyback_ms.push_back(fit.timing.copyback_ms);
+    result->generation_gpu_eval_teardown_ms.push_back(fit.timing.teardown_ms);
   }
 
   const std::vector<double>& fitness = fit.fitness;
@@ -268,11 +288,16 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   result.generation_eval_ms.reserve(static_cast<std::size_t>(cfg.generations));
   result.generation_repro_ms.reserve(static_cast<std::size_t>(cfg.generations));
   result.generation_total_ms.reserve(static_cast<std::size_t>(cfg.generations));
-  result.generation_cpu_program_compile_ms.reserve(static_cast<std::size_t>(cfg.generations));
-  result.generation_gpu_program_compile_ms.reserve(static_cast<std::size_t>(cfg.generations));
-  result.generation_gpu_pack_upload_ms.reserve(static_cast<std::size_t>(cfg.generations));
-  result.generation_gpu_kernel_ms.reserve(static_cast<std::size_t>(cfg.generations));
-  result.generation_gpu_copyback_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_cpu_compile_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_compile_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_call_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_pack_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_launch_prep_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_upload_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_pack_upload_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_kernel_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_copyback_ms.reserve(static_cast<std::size_t>(cfg.generations));
+  result.generation_gpu_eval_teardown_ms.reserve(static_cast<std::size_t>(cfg.generations));
   result.generation_selection_ms.reserve(static_cast<std::size_t>(cfg.generations));
   result.generation_crossover_ms.reserve(static_cast<std::size_t>(cfg.generations));
   result.generation_mutation_ms.reserve(static_cast<std::size_t>(cfg.generations));
@@ -294,15 +319,12 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
 #endif
   if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-    const auto gpu_init_t0 = std::chrono::steady_clock::now();
-    const FitnessEvalResult init_result =
+    const FitnessSessionInitResult init_result =
         gpu_session.init(shared_case_bindings, expected_values, cfg.fuel, cfg.gpu_blocksize, cfg.penalty);
     if (!init_result.ok) {
       throw std::runtime_error("gpu fitness session init failed: " + init_result.err.message);
     }
-    const auto gpu_init_t1 = std::chrono::steady_clock::now();
-    result.gpu_session_init_ms =
-        std::chrono::duration<double, std::milli>(gpu_init_t1 - gpu_init_t0).count();
+    result.gpu_eval_init_ms = init_result.timing.total_ms;
 #else
     throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif

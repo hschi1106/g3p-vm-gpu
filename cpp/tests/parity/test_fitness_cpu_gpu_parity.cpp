@@ -120,6 +120,18 @@ BytecodeProgram make_nested_exact_string_payload_program() {
   return p;
 }
 
+BytecodeProgram make_exact_string_index_program(const Value& s, int idx) {
+  BytecodeProgram p;
+  p.consts = {s, Value::from_int(idx)};
+  p.code = {
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
+      ins(Opcode::Return),
+  };
+  return p;
+}
+
 bool approx(double a, double b) {
   return std::fabs(a - b) <= 1e-9;
 }
@@ -135,9 +147,12 @@ g3pvm::FitnessEvalResult eval_gpu_via_session(const std::vector<BytecodeProgram>
                                               int blocksize,
                                               double penalty) {
   g3pvm::FitnessSessionGpu session;
-  g3pvm::FitnessEvalResult init = session.init(shared_cases, shared_answer, fuel, blocksize, penalty);
+  g3pvm::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, fuel, blocksize, penalty);
   if (!init.ok) {
-    return init;
+    g3pvm::FitnessEvalResult out;
+    out.ok = false;
+    out.err = init.err;
+    return out;
   }
   return session.eval_programs(programs);
 }
@@ -362,6 +377,51 @@ int main() {
         std::cerr << "FAIL: cpu/gpu fitness mismatch on nested exact payload case at " << i << "\n";
         return 1;
       }
+    }
+  }
+
+  {
+    g3pvm::payload::clear();
+    const Value expected_char = g3pvm::payload::make_string_value("x");
+    std::vector<CaseBindings> shared_cases(8);
+    std::vector<Value> shared_answer(8, expected_char);
+
+    g3pvm::FitnessSessionGpu session;
+    const g3pvm::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, 64, kParityBlocksize, penalty);
+    if (!init.ok) {
+      if (init.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << init.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu session init failed on late payload case: " << init.err.message << "\n";
+      return 1;
+    }
+
+    const Value late_string = g3pvm::payload::make_string_value("xy");
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_exact_string_index_program(late_string, 0));
+
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const g3pvm::FitnessEvalResult gpu_fit = session.eval_programs(programs);
+
+    if (!gpu_fit.ok) {
+      std::cerr << "FAIL: gpu fitness run failed on late payload case: " << gpu_fit.err.message << "\n";
+      return 1;
+    }
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on late payload case\n";
+      return 1;
+    }
+    for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
+      if (!exact(cpu_fit[i], gpu_fit.fitness[i])) {
+        std::cerr << "FAIL: cpu/gpu fitness mismatch on late payload case at " << i << "\n";
+        return 1;
+      }
+    }
+    if (!approx(cpu_fit[0], 1.0 * static_cast<double>(shared_cases.size()))) {
+      std::cerr << "FAIL: late payload exact string index should score exact-match fitness\n";
+      return 1;
     }
   }
 

@@ -107,6 +107,24 @@ bool lookup_list(const Value& key, std::vector<Value>* out) {
   return true;
 }
 
+bool lookup_string_packed(std::int64_t packed, std::string* out) {
+  if (out == nullptr) return false;
+  std::lock_guard<std::mutex> lock(g_mu);
+  auto it = g_strings.find(PayloadKey{ValueTag::String, packed});
+  if (it == g_strings.end()) return false;
+  *out = it->second;
+  return true;
+}
+
+bool lookup_list_packed(std::int64_t packed, std::vector<Value>* out) {
+  if (out == nullptr) return false;
+  std::lock_guard<std::mutex> lock(g_mu);
+  auto it = g_lists.find(PayloadKey{ValueTag::List, packed});
+  if (it == g_lists.end()) return false;
+  *out = it->second;
+  return true;
+}
+
 Value make_string_value(const std::string& s) {
   const std::uint64_t h = hash_bytes(reinterpret_cast<const unsigned char*>(s.data()), s.size());
   const std::uint32_t len =

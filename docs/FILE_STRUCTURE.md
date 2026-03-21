@@ -43,8 +43,10 @@ g3p-vm-gpu/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── CPP_RUNTIME_PAYLOAD.md
+│   ├── DEVELOPMENT.md
 │   ├── GPU_REPRODUCTION.md
-│   └── DEVELOPMENT.md
+│   ├── TIMING.md
+│   └── FILE_STRUCTURE.md
 ├── spec/
 ├── data/
 │   ├── fixtures/
@@ -65,6 +67,7 @@ g3p-vm-gpu/
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
+- `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
 - `data/fixtures/`: canonical benchmark and evolution fixtures
 - `data/psb2_datasets/`: mirrored PSB2 source datasets

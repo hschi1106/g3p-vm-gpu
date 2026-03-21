@@ -11,6 +11,8 @@ The GPU reproduction backend moves one full generation of selection and variatio
 
 The backend is designed to reduce one-generation benchmark cost and to support overlap with GPU fitness evaluation. It is a performance implementation detail, not a new public GP dialect.
 
+Canonical timing names and CLI/JSON output mapping are documented in [TIMING.md](TIMING.md).
+
 ## Public Controls
 
 The public control plane is:

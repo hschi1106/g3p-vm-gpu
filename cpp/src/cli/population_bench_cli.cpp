@@ -100,10 +100,15 @@ struct CompiledPopulation {
 struct EvalRun {
   std::vector<double> fitness;
   double eval_ms = 0.0;
-  double session_init_ms = 0.0;
-  double pack_upload_ms = 0.0;
-  double kernel_ms = 0.0;
-  double copyback_ms = 0.0;
+  double gpu_eval_init_ms = 0.0;
+  double gpu_eval_call_ms = 0.0;
+  double gpu_eval_pack_ms = 0.0;
+  double gpu_eval_launch_prep_ms = 0.0;
+  double gpu_eval_upload_ms = 0.0;
+  double gpu_eval_pack_upload_ms = 0.0;
+  double gpu_eval_kernel_ms = 0.0;
+  double gpu_eval_copyback_ms = 0.0;
+  double gpu_eval_teardown_ms = 0.0;
 };
 
 using ReproductionRun = g3pvm::evo::repro::ReproductionResult;
@@ -553,25 +558,28 @@ EvalRun evaluate_compiled_population(const std::vector<BytecodeProgram>& program
   }
 #ifdef G3PVM_HAS_CUDA
   g3pvm::FitnessSessionGpu session;
-  const auto t0 = std::chrono::steady_clock::now();
   const auto init_result =
       session.init(shared_case_bindings, expected_values, args.fuel, args.blocksize, args.penalty);
-  const auto t1 = std::chrono::steady_clock::now();
   if (!init_result.ok) {
     throw std::runtime_error("gpu session init failed: " + init_result.err.message);
   }
   const auto fit = session.eval_programs(programs);
-  const auto t2 = std::chrono::steady_clock::now();
   if (!fit.ok) {
     throw std::runtime_error("gpu eval failed: " + fit.err.message);
   }
+  const double eval_wall_ms = init_result.timing.total_ms + fit.timing.total_ms;
   out.fitness = fit.fitness;
   canonicalize_fitness_vector(&out.fitness);
-  out.session_init_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-  out.eval_ms = std::chrono::duration<double, std::milli>(t2 - t0).count();
-  out.pack_upload_ms = fit.pack_programs_ms + fit.upload_programs_ms;
-  out.kernel_ms = fit.kernel_exec_ms;
-  out.copyback_ms = fit.copyback_ms;
+  out.gpu_eval_init_ms = init_result.timing.total_ms;
+  out.gpu_eval_call_ms = fit.timing.total_ms;
+  out.eval_ms = eval_wall_ms;
+  out.gpu_eval_pack_ms = fit.timing.pack_ms;
+  out.gpu_eval_launch_prep_ms = fit.timing.launch_prep_ms;
+  out.gpu_eval_upload_ms = fit.timing.upload_ms;
+  out.gpu_eval_pack_upload_ms = fit.timing.pack_ms + fit.timing.upload_ms;
+  out.gpu_eval_kernel_ms = fit.timing.kernel_ms;
+  out.gpu_eval_copyback_ms = fit.timing.copyback_ms;
+  out.gpu_eval_teardown_ms = fit.timing.teardown_ms;
   return out;
 #else
   throw std::runtime_error("gpu benchmark requested but CUDA support is not built");
@@ -671,6 +679,15 @@ int main(int argc, char** argv) {
               << " population_size=" << population.size()
               << " compile_ms=" << std::fixed << std::setprecision(3) << compile.compile_ms
               << " eval_ms=" << eval.eval_ms
+              << " gpu_eval_init_ms=" << eval.gpu_eval_init_ms
+              << " gpu_eval_call_ms=" << eval.gpu_eval_call_ms
+              << " gpu_eval_pack_ms=" << eval.gpu_eval_pack_ms
+              << " gpu_eval_launch_prep_ms=" << eval.gpu_eval_launch_prep_ms
+              << " gpu_eval_upload_ms=" << eval.gpu_eval_upload_ms
+              << " gpu_eval_pack_upload_ms=" << eval.gpu_eval_pack_upload_ms
+              << " gpu_eval_kernel_ms=" << eval.gpu_eval_kernel_ms
+              << " gpu_eval_copyback_ms=" << eval.gpu_eval_copyback_ms
+              << " gpu_eval_teardown_ms=" << eval.gpu_eval_teardown_ms
               << " repro_ms=" << repro_ms
               << " selection_ms=" << reproduction.stats.selection_ms
               << " crossover_ms=" << reproduction.stats.crossover_ms
@@ -687,9 +704,6 @@ int main(int argc, char** argv) {
               << " repro_selection_kernel_ms=" << reproduction.stats.selection_kernel_ms
               << " repro_variation_kernel_ms=" << reproduction.stats.variation_kernel_ms
               << " total_ms=" << total_ms
-              << " pack_upload_ms=" << eval.pack_upload_ms
-              << " kernel_ms=" << eval.kernel_ms
-              << " copyback_ms=" << eval.copyback_ms
               << " mean_fitness=" << std::setprecision(17)
               << static_cast<double>(fitness_sum / static_cast<long double>(eval.fitness.size()))
               << " best_fitness=" << scored.front().fitness

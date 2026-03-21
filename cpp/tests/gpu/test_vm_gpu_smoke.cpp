@@ -34,7 +34,7 @@ int main() {
   std::vector<g3pvm::CaseBindings> shared_cases(1);
   std::vector<Value> shared_answer = {Value::from_int(5)};
   g3pvm::FitnessSessionGpu session;
-  const g3pvm::FitnessEvalResult init = session.init(shared_cases, shared_answer, 100, 1);
+  const g3pvm::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, 100, 1);
   if (!init.ok) {
     std::cout << "g3pvm_test_vm_gpu_smoke: SKIP (" << init.err.message << ")\n";
     return 0;

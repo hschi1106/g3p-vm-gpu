@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,8 @@ void register_list(const Value& key, const std::vector<Value>& elems);
 
 bool lookup_string(const Value& key, std::string* out);
 bool lookup_list(const Value& key, std::vector<Value>* out);
+bool lookup_string_packed(std::int64_t packed, std::string* out);
+bool lookup_list_packed(std::int64_t packed, std::vector<Value>* out);
 
 Value make_string_value(const std::string& s);
 Value make_list_value(const std::vector<Value>& elems);

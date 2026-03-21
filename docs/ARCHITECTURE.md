@@ -15,6 +15,7 @@ Use the repo documents in this order:
 - `spec/`: normative semantics and wire formats
 - `README.md`: entrypoint and common workflows
 - `docs/DEVELOPMENT.md`: commands, CLIs, and benchmark procedure
+- `docs/TIMING.md`: canonical timing names, scope boundaries, and output mapping
 - `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend design, overlap model, and current bottlenecks
 - `docs/FILE_STRUCTURE.md`: terse directory map

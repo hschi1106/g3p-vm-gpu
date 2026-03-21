@@ -102,28 +102,12 @@ Fixed-population benchmark args:
 - `--penalty F`
 - `--selection-pressure N`
 
-Metric semantics:
-- `compile_ms`: compile-cache lookup plus any required genome-to-bytecode compilation
-- `eval_ms`: fitness execution only; compile time is excluded
-- `repro_ms`: one-generation reproduction work after the current population has been scored
-- `selection_ms`: round-based without-replacement tournament selection to fill the offspring pool
-- `crossover_ms`: crossover pass over the selected parent pool
-- `mutation_ms`: mutation pass over the post-crossover offspring pool
-- `repro_prepare_inputs_ms`: host-side extraction of genomes and fitness into the internal `gpu` input vectors plus config synthesis
-- `repro_setup_ms`: CUDA device selection, context warmup, and reproduction arena allocation for `gpu`
-- `repro_preprocess_ms`: extracted host-side subtree/candidate/donor preprocessing for `gpu`
-- `repro_pack_ms`: host flattening into the internal packed upload schema for `gpu`
-- `repro_upload_ms`: H2D upload time for packed reproduction buffers plus the per-generation fitness upload
-- `repro_kernel_ms`: total GPU reproduction kernel time
-- `repro_copyback_ms`: host buffer preparation plus D2H child copyback for `gpu`
-- `repro_decode_ms`: host-side reconstruction of `ProgramGenome` children from copied-back packed data
-- `repro_teardown_ms`: GPU arena teardown for `gpu`
-- `repro_selection_kernel_ms`: GPU selection kernel subset of `repro_kernel_ms`
-- `repro_variation_kernel_ms`: GPU variation kernel subset of `repro_kernel_ms`
-- `gpu` now reuses its device arena and pinned host staging within a process, so `repro_setup_ms` is typically a first-use cost and `repro_teardown_ms` may remain `0` during steady-state generations
-- with `--repro-overlap on`, `repro_prepare_inputs_ms` / `repro_preprocess_ms` / `repro_pack_ms` may be partially hidden by `eval_ms`; steady-state generation timing is the relevant comparison
-- `total_ms`: the full one-generation benchmark wall time
-- GPU runs also report `pack_upload_ms`, `kernel_ms`, and `copyback_ms`
+Timing semantics:
+- Canonical timing names, scope boundaries, and CLI/JSON mappings are defined in [TIMING.md](TIMING.md).
+- `compile_ms`, `eval_ms`, `repro_ms`, and `total_ms` are the coarse benchmark rollups used by scripts such as `speedup_experiment.py`.
+- GPU evaluation detail is reported with the `gpu_eval_*` family, including `gpu_eval_init_ms`, `gpu_eval_call_ms`, `gpu_eval_pack_ms`, `gpu_eval_launch_prep_ms`, `gpu_eval_upload_ms`, `gpu_eval_pack_upload_ms`, `gpu_eval_kernel_ms`, `gpu_eval_copyback_ms`, and `gpu_eval_teardown_ms`.
+- Reproduction detail is reported with the existing `repro_*` family, including selection/crossover/mutation plus the GPU backend phases `repro_prepare_inputs_ms`, `repro_setup_ms`, `repro_preprocess_ms`, `repro_pack_ms`, `repro_upload_ms`, `repro_kernel_ms`, `repro_copyback_ms`, `repro_decode_ms`, `repro_teardown_ms`, `repro_selection_kernel_ms`, and `repro_variation_kernel_ms`.
+- With `--repro-overlap on`, `repro_prepare_inputs_ms`, `repro_preprocess_ms`, and `repro_pack_ms` may be partially hidden behind GPU evaluation wall time; compare steady-state generation metrics rather than only the coarse `repro_ms`.
 
 ### `cpp/build/g3pvm_population_bucket_cli`
 
