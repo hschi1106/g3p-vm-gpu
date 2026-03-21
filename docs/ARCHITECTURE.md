@@ -17,7 +17,7 @@ Use the repo documents in this order:
 - `docs/DEVELOPMENT.md`: commands, CLIs, and benchmark procedure
 - `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend design, overlap model, and current bottlenecks
-- `structure.md`: terse directory map
+- `docs/FILE_STRUCTURE.md`: terse directory map
 - `AGENTS.md`: repo-local contributor guidance for coding agents
 
 ## Core Invariants
@@ -60,7 +60,7 @@ Container builtins:
 ### Payload execution
 Container values use payload-backed execution.
 - CPU runtime keeps decoded `String` and `List` payloads in a registry.
-- GPU runtime snapshots the host registry once per session, then builds compact per-eval payload packs for only the tokens needed by the current accepted population plus shared cases.
+- GPU runtime keeps a session-local host payload cache, lazily fills it by packed token from the process-global registry, and then builds compact per-eval payload packs for only the tokens needed by the current accepted population plus shared cases.
 - GPU payload evaluation is split into two runtime kernel families:
   - `None` for programs that never need exact payload execution
   - `Mixed` for all payload-bearing programs
@@ -226,5 +226,5 @@ Update:
 ### Repo structure or entrypoint changes
 Update:
 - this file
-- `structure.md`
+- `docs/FILE_STRUCTURE.md`
 - repo skill references under `/home/hschi1106/.codex/skills/g3p-vm-gpu-repo/references/`

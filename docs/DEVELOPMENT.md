@@ -351,5 +351,5 @@ Update the following documents whenever the matching code changes.
   - `README.md` if the quick-start command or default workflow changed
 - repo layout or module ownership:
   - `docs/ARCHITECTURE.md`
-  - `structure.md`
+  - `docs/FILE_STRUCTURE.md`
   - repo skill references

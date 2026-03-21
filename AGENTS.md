@@ -28,7 +28,7 @@
   - `docs/DEVELOPMENT.md`
   - `docs/CPP_RUNTIME_PAYLOAD.md`
   - `docs/GPU_REPRODUCTION.md`
-  - `structure.md`
+  - `docs/FILE_STRUCTURE.md`
 
 ## Build, Test, and Development Commands
 - Build native binaries:

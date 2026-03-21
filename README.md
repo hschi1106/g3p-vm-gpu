@@ -38,7 +38,7 @@ Use the documents below as the source of truth.
 - [GPU_REPRODUCTION.md](docs/GPU_REPRODUCTION.md): GPU reproduction backend pipeline, overlap model, and bottlenecks
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
 - [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
-- [structure.md](structure.md): terse repository directory map
+- [FILE_STRUCTURE.md](docs/FILE_STRUCTURE.md): terse repository directory map
 
 ## Repository Layout
 
@@ -170,4 +170,4 @@ If you change code, update the matching documents in the same change:
 - builtin or payload semantics => `spec/builtins_base_v1_0.md` or `spec/builtins_runtime_v1_0.md`, plus `docs/ARCHITECTURE.md`
 - fitness semantics or adjustable scoring args => `spec/fitness_v1_0.md`, `docs/DEVELOPMENT.md`, `README.md`
 - public CLI/tool args => `docs/DEVELOPMENT.md`, `README.md` if it changes the main workflow
-- repo structure or module ownership => `docs/ARCHITECTURE.md`, `structure.md`, repo skill references
+- repo structure or module ownership => `docs/ARCHITECTURE.md`, `docs/FILE_STRUCTURE.md`, repo skill references
