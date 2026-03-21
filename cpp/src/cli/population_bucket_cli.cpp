@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -57,6 +58,7 @@ struct CliOptions {
   int max_for_k = 16;
   int max_call_args = 3;
   int target_depth = 5;
+  int target_node_count = 0;
 };
 
 struct AcceptedProgram {
@@ -217,12 +219,23 @@ std::string payload_flavor_name(DPayloadFlavor flavor) {
   return "unknown";
 }
 
+int payload_flavor_index(DPayloadFlavor flavor) {
+  switch (flavor) {
+    case DPayloadFlavor::None: return 0;
+    case DPayloadFlavor::StringOnly: return 1;
+    case DPayloadFlavor::ListOnly: return 2;
+    case DPayloadFlavor::Mixed: return 3;
+  }
+  return 0;
+}
+
 DPayloadFlavor parse_payload_flavor(const std::string& raw) {
+  if (raw == "any") return DPayloadFlavor::None;
   if (raw == "none") return DPayloadFlavor::None;
   if (raw == "string") return DPayloadFlavor::StringOnly;
   if (raw == "list") return DPayloadFlavor::ListOnly;
   if (raw == "mixed") return DPayloadFlavor::Mixed;
-  throw std::runtime_error("--target-payload-flavor must be one of: none,string,list,mixed");
+  throw std::runtime_error("--target-payload-flavor must be one of: any,none,string,list,mixed");
 }
 
 g3pvm::evo::RType parse_root_type(const std::string& raw) {
@@ -278,6 +291,9 @@ void emit_num_leaf(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, bool a
 
 void emit_string_expr(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int depth);
 void emit_list_expr(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int depth);
+void emit_num_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes);
+void emit_string_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes);
+void emit_list_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes);
 
 void emit_num_expr(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int depth) {
   using namespace g3pvm::evo;
@@ -381,9 +397,250 @@ void emit_mixed_num_expr(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, 
   emit_list_num_expr(rng, program, std::max(1, depth - 2));
 }
 
+int random_split_two(std::mt19937_64& rng, int total) {
+  return std::uniform_int_distribution<int>(1, total - 1)(rng);
+}
+
+bool string_like_expr_size_possible(int nodes) {
+  return nodes == 1 || nodes >= 3;
+}
+
+std::vector<std::pair<int, int>> string_like_concat_splits(int remaining) {
+  std::vector<std::pair<int, int>> out;
+  for (int left = 1; left < remaining; ++left) {
+    const int right = remaining - left;
+    if (string_like_expr_size_possible(left) && string_like_expr_size_possible(right)) {
+      out.push_back({left, right});
+    }
+  }
+  return out;
+}
+
+void emit_string_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes == 1) {
+    program.nodes.push_back(
+        AstNode{NodeKind::CONST,
+                append_const_id(program, g3pvm::payload::make_string_value(random_string_literal(rng))),
+                0});
+    return;
+  }
+  if (!string_like_expr_size_possible(nodes)) {
+    throw std::runtime_error("invalid exact string node count");
+  }
+
+  const auto concat_splits = string_like_concat_splits(nodes - 1);
+  const bool can_concat = !concat_splits.empty();
+  const bool can_slice = nodes >= 4 && string_like_expr_size_possible(nodes - 3);
+
+  if (!can_slice || (can_concat && std::bernoulli_distribution(0.6)(rng))) {
+    program.nodes.push_back(AstNode{NodeKind::CALL_CONCAT, 0, 0});
+    const auto& split = concat_splits[static_cast<std::size_t>(
+        std::uniform_int_distribution<int>(0, static_cast<int>(concat_splits.size()) - 1)(rng))];
+    emit_string_expr_exact_nodes(rng, program, split.first);
+    emit_string_expr_exact_nodes(rng, program, split.second);
+    return;
+  }
+
+  program.nodes.push_back(AstNode{NodeKind::CALL_SLICE, 0, 0});
+  emit_string_expr_exact_nodes(rng, program, nodes - 3);
+  emit_int_leaf(rng, program);
+  emit_int_leaf(rng, program);
+}
+
+void emit_list_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes == 1) {
+    const int len = std::uniform_int_distribution<int>(0, 4)(rng);
+    std::vector<Value> elems;
+    elems.reserve(static_cast<std::size_t>(len));
+    for (int i = 0; i < len; ++i) {
+      const int kind = std::uniform_int_distribution<int>(0, 2)(rng);
+      if (kind == 0) elems.push_back(Value::from_int(std::uniform_int_distribution<int>(-8, 8)(rng)));
+      else if (kind == 1) elems.push_back(Value::from_bool(std::bernoulli_distribution(0.5)(rng)));
+      else elems.push_back(Value::none());
+    }
+    program.nodes.push_back(
+        AstNode{NodeKind::CONST, append_const_id(program, g3pvm::payload::make_list_value(elems)), 0});
+    return;
+  }
+  if (!string_like_expr_size_possible(nodes)) {
+    throw std::runtime_error("invalid exact list node count");
+  }
+
+  const auto concat_splits = string_like_concat_splits(nodes - 1);
+  const bool can_concat = !concat_splits.empty();
+  const bool can_slice = nodes >= 4 && string_like_expr_size_possible(nodes - 3);
+
+  if (!can_slice || (can_concat && std::bernoulli_distribution(0.6)(rng))) {
+    program.nodes.push_back(AstNode{NodeKind::CALL_CONCAT, 0, 0});
+    const auto& split = concat_splits[static_cast<std::size_t>(
+        std::uniform_int_distribution<int>(0, static_cast<int>(concat_splits.size()) - 1)(rng))];
+    emit_list_expr_exact_nodes(rng, program, split.first);
+    emit_list_expr_exact_nodes(rng, program, split.second);
+    return;
+  }
+
+  program.nodes.push_back(AstNode{NodeKind::CALL_SLICE, 0, 0});
+  emit_list_expr_exact_nodes(rng, program, nodes - 3);
+  emit_int_leaf(rng, program);
+  emit_int_leaf(rng, program);
+}
+
+void emit_num_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes <= 1) {
+    emit_num_leaf(rng, program, true);
+    return;
+  }
+
+  const bool payload_len_size_possible = string_like_expr_size_possible(nodes - 1);
+  if (payload_len_size_possible && std::bernoulli_distribution(0.28)(rng)) {
+    program.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
+    if (std::bernoulli_distribution(0.5)(rng)) {
+      emit_string_expr_exact_nodes(rng, program, nodes - 1);
+    } else {
+      emit_list_expr_exact_nodes(rng, program, nodes - 1);
+    }
+    return;
+  }
+
+  if (nodes == 2 || std::bernoulli_distribution(0.25)(rng)) {
+    program.nodes.push_back(AstNode{std::bernoulli_distribution(0.5)(rng) ? NodeKind::NEG : NodeKind::CALL_ABS, 0, 0});
+    emit_num_expr_exact_nodes(rng, program, nodes - 1);
+    return;
+  }
+
+  if (nodes >= 4 && std::bernoulli_distribution(0.15)(rng)) {
+    program.nodes.push_back(AstNode{NodeKind::CALL_CLIP, 0, 0});
+    const int remaining = nodes - 1;
+    const int first = std::uniform_int_distribution<int>(1, remaining - 2)(rng);
+    const int remaining_after_first = remaining - first;
+    const int second = std::uniform_int_distribution<int>(1, remaining_after_first - 1)(rng);
+    const int third = remaining_after_first - second;
+    emit_num_expr_exact_nodes(rng, program, first);
+    emit_num_expr_exact_nodes(rng, program, second);
+    emit_num_expr_exact_nodes(rng, program, third);
+    return;
+  }
+
+  program.nodes.push_back(
+      AstNode{std::bernoulli_distribution(0.5)(rng) ? NodeKind::ADD : NodeKind::MUL, 0, 0});
+  const int remaining = nodes - 1;
+  const int left_nodes = random_split_two(rng, remaining);
+  const int right_nodes = remaining - left_nodes;
+  emit_num_expr_exact_nodes(rng, program, left_nodes);
+  emit_num_expr_exact_nodes(rng, program, right_nodes);
+}
+
+void emit_num_expr_exact_nodes_no_payload(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes <= 1) {
+    emit_num_leaf(rng, program, true);
+    return;
+  }
+  if (nodes == 2 || std::bernoulli_distribution(0.25)(rng)) {
+    program.nodes.push_back(
+        AstNode{std::bernoulli_distribution(0.5)(rng) ? NodeKind::NEG : NodeKind::CALL_ABS, 0, 0});
+    emit_num_expr_exact_nodes_no_payload(rng, program, nodes - 1);
+    return;
+  }
+  if (nodes >= 4 && std::bernoulli_distribution(0.15)(rng)) {
+    program.nodes.push_back(AstNode{NodeKind::CALL_CLIP, 0, 0});
+    const int remaining = nodes - 1;
+    const int first = std::uniform_int_distribution<int>(1, remaining - 2)(rng);
+    const int remaining_after_first = remaining - first;
+    const int second = std::uniform_int_distribution<int>(1, remaining_after_first - 1)(rng);
+    const int third = remaining_after_first - second;
+    emit_num_expr_exact_nodes_no_payload(rng, program, first);
+    emit_num_expr_exact_nodes_no_payload(rng, program, second);
+    emit_num_expr_exact_nodes_no_payload(rng, program, third);
+    return;
+  }
+  program.nodes.push_back(
+      AstNode{std::bernoulli_distribution(0.5)(rng) ? NodeKind::ADD : NodeKind::MUL, 0, 0});
+  const int remaining = nodes - 1;
+  const int left_nodes = random_split_two(rng, remaining);
+  const int right_nodes = remaining - left_nodes;
+  emit_num_expr_exact_nodes_no_payload(rng, program, left_nodes);
+  emit_num_expr_exact_nodes_no_payload(rng, program, right_nodes);
+}
+
+void emit_string_num_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes < 2) throw std::runtime_error("invalid exact string-num node count");
+  program.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
+  emit_string_expr_exact_nodes(rng, program, nodes - 1);
+}
+
+void emit_list_num_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes < 2) throw std::runtime_error("invalid exact list-num node count");
+  program.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
+  emit_list_expr_exact_nodes(rng, program, nodes - 1);
+}
+
+bool payload_num_expr_size_possible(int nodes) {
+  return nodes == 2 || nodes >= 4;
+}
+
+void emit_mixed_num_expr_exact_nodes(std::mt19937_64& rng, g3pvm::evo::AstProgram& program, int nodes) {
+  using namespace g3pvm::evo;
+  if (nodes < 5) throw std::runtime_error("invalid exact mixed-num node count");
+  if ((nodes % 2) == 0) {
+    program.nodes.push_back(
+        AstNode{std::bernoulli_distribution(0.5)(rng) ? NodeKind::NEG : NodeKind::CALL_ABS, 0, 0});
+    emit_mixed_num_expr_exact_nodes(rng, program, nodes - 1);
+    return;
+  }
+  program.nodes.push_back(AstNode{NodeKind::ADD, 0, 0});
+  const int remaining = nodes - 1;
+  std::vector<std::pair<int, int>> splits;
+  for (int left = 2; left <= remaining - 2; ++left) {
+    const int right = nodes - 1 - left;
+    if (payload_num_expr_size_possible(left) && payload_num_expr_size_possible(right)) {
+      splits.push_back({left, right});
+    }
+  }
+  const auto& split =
+      splits[static_cast<std::size_t>(std::uniform_int_distribution<int>(0, static_cast<int>(splits.size()) - 1)(rng))];
+  emit_string_num_expr_exact_nodes(rng, program, split.first);
+  emit_list_num_expr_exact_nodes(rng, program, split.second);
+}
+
+std::vector<DPayloadFlavor> feasible_exact_node_flavors(int target_node_count) {
+  const int expr_nodes = target_node_count - 4;
+  std::vector<DPayloadFlavor> out;
+  if (expr_nodes >= 1) out.push_back(DPayloadFlavor::None);
+  if (expr_nodes >= 2) out.push_back(DPayloadFlavor::StringOnly);
+  if (expr_nodes >= 2) out.push_back(DPayloadFlavor::ListOnly);
+  if (expr_nodes >= 7) out.push_back(DPayloadFlavor::Mixed);
+  return out;
+}
+
+DPayloadFlavor choose_balanced_any_flavor(std::uint64_t seed,
+                                          int target_node_count,
+                                          const std::array<int, 4>& accepted_counts) {
+  const auto feasible = feasible_exact_node_flavors(target_node_count);
+  int best = std::numeric_limits<int>::max();
+  std::vector<DPayloadFlavor> choices;
+  for (DPayloadFlavor flavor : feasible) {
+    const int count = accepted_counts[static_cast<std::size_t>(payload_flavor_index(flavor))];
+    if (count < best) {
+      best = count;
+      choices.clear();
+      choices.push_back(flavor);
+    } else if (count == best) {
+      choices.push_back(flavor);
+    }
+  }
+  return choices[static_cast<std::size_t>(seed % choices.size())];
+}
+
 ProgramGenome build_synthetic_bucket_genome(std::uint64_t seed,
                                             DPayloadFlavor flavor,
                                             int target_depth,
+                                            int target_node_count,
                                             const g3pvm::evo::Limits& limits) {
   using namespace g3pvm::evo;
   std::mt19937_64 rng(seed);
@@ -393,19 +650,37 @@ ProgramGenome build_synthetic_bucket_genome(std::uint64_t seed,
   program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
   program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
   program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
-  switch (flavor) {
-    case DPayloadFlavor::None:
-      emit_num_expr(rng, program, target_depth);
-      break;
-    case DPayloadFlavor::StringOnly:
-      emit_string_expr(rng, program, target_depth);
-      break;
-    case DPayloadFlavor::ListOnly:
-      emit_list_expr(rng, program, target_depth);
-      break;
-    case DPayloadFlavor::Mixed:
-      emit_mixed_num_expr(rng, program, target_depth);
-      break;
+  if (target_node_count > 0) {
+    const int expr_nodes = std::max(1, target_node_count - 4);
+    switch (flavor) {
+      case DPayloadFlavor::None:
+        emit_num_expr_exact_nodes_no_payload(rng, program, expr_nodes);
+        break;
+      case DPayloadFlavor::StringOnly:
+        emit_string_num_expr_exact_nodes(rng, program, expr_nodes);
+        break;
+      case DPayloadFlavor::ListOnly:
+        emit_list_num_expr_exact_nodes(rng, program, expr_nodes);
+        break;
+      case DPayloadFlavor::Mixed:
+        emit_mixed_num_expr_exact_nodes(rng, program, expr_nodes);
+        break;
+    }
+  } else {
+    switch (flavor) {
+      case DPayloadFlavor::None:
+        emit_num_expr(rng, program, target_depth);
+        break;
+      case DPayloadFlavor::StringOnly:
+        emit_string_expr(rng, program, target_depth);
+        break;
+      case DPayloadFlavor::ListOnly:
+        emit_list_expr(rng, program, target_depth);
+        break;
+      case DPayloadFlavor::Mixed:
+        emit_mixed_num_expr(rng, program, target_depth);
+        break;
+    }
   }
   program.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
 
@@ -433,6 +708,7 @@ CliOptions parse_cli(int argc, char** argv) {
     else if (arg == "--generator-root-type") opts.generator_root_type = need_value("--generator-root-type");
     else if (arg == "--generator-mode") opts.generator_mode = need_value("--generator-mode");
     else if (arg == "--target-depth") opts.target_depth = std::stoi(need_value("--target-depth"));
+    else if (arg == "--target-node-count") opts.target_node_count = std::stoi(need_value("--target-node-count"));
     else if (arg == "--population-size") opts.population_size = std::stoi(need_value("--population-size"));
     else if (arg == "--seed-start") opts.seed_start = static_cast<std::uint64_t>(std::stoull(need_value("--seed-start")));
     else if (arg == "--probe-cases") opts.probe_cases = std::stoi(need_value("--probe-cases"));
@@ -454,13 +730,14 @@ CliOptions parse_cli(int argc, char** argv) {
     throw std::runtime_error("--generator-mode must be native or synthetic");
   }
   if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
-  if (opts.target_depth <= 0) throw std::runtime_error("--target-depth must be > 0");
+  if (opts.target_node_count < 0) throw std::runtime_error("--target-node-count must be >= 0");
+  if (opts.target_node_count == 0 && opts.target_depth <= 0) throw std::runtime_error("--target-depth must be > 0");
   if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
   if (opts.min_success_rate < 0.0 || opts.min_success_rate > 1.0) {
     throw std::runtime_error("--min-success-rate must be in [0, 1]");
   }
   if (opts.max_attempts <= 0) throw std::runtime_error("--max-attempts must be > 0");
-  if (opts.max_expr_depth < opts.target_depth) {
+  if (opts.target_node_count == 0 && opts.max_expr_depth < opts.target_depth) {
     throw std::runtime_error("--max-expr-depth must be >= --target-depth");
   }
   return opts;
@@ -475,6 +752,7 @@ void write_population_seed_set(const std::string& path,
                                int fuel,
                                int attempts,
                                int target_depth,
+                               int target_node_count,
                                const std::string& target_payload_flavor) {
   std::ofstream out(path);
   if (!out) {
@@ -489,6 +767,7 @@ void write_population_seed_set(const std::string& path,
   out << "  \"fuel\": " << fuel << ",\n";
   out << "  \"attempts\": " << attempts << ",\n";
   out << "  \"target_depth\": " << target_depth << ",\n";
+  out << "  \"target_node_count\": " << target_node_count << ",\n";
   out << "  \"target_payload_flavor\": \"" << target_payload_flavor << "\",\n";
   out << "  \"limits\": {\n";
   out << "    \"max_expr_depth\": " << limits.max_expr_depth << ",\n";
@@ -525,6 +804,7 @@ void write_metadata_json(const std::string& path,
                          int fuel,
                          int attempts,
                          int target_depth,
+                         int target_node_count,
                          const std::string& target_payload_flavor) {
   std::ofstream out(path);
   if (!out) {
@@ -539,6 +819,7 @@ void write_metadata_json(const std::string& path,
   out << "  \"fuel\": " << fuel << ",\n";
   out << "  \"attempts\": " << attempts << ",\n";
   out << "  \"target_depth\": " << target_depth << ",\n";
+  out << "  \"target_node_count\": " << target_node_count << ",\n";
   out << "  \"target_payload_flavor\": \"" << target_payload_flavor << "\",\n";
   out << "  \"limits\": {\n";
   out << "    \"max_expr_depth\": " << limits.max_expr_depth << ",\n";
@@ -571,6 +852,7 @@ void write_metadata_json(const std::string& path,
 int main(int argc, char** argv) {
   try {
     const CliOptions args = parse_cli(argc, argv);
+    const bool match_any_payload_flavor = args.target_payload_flavor == "any";
     const DPayloadFlavor target_flavor = parse_payload_flavor(args.target_payload_flavor);
     const g3pvm::evo::RType generator_root_type = parse_root_type(args.generator_root_type);
     const JsonValue cases_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.cases_path)).parse();
@@ -595,16 +877,26 @@ int main(int argc, char** argv) {
     accepted.reserve(static_cast<std::size_t>(args.population_size));
     std::uint64_t candidate_seed = args.seed_start;
     int attempts = 0;
+    std::array<int, 4> accepted_flavor_counts{0, 0, 0, 0};
 
     while (static_cast<int>(accepted.size()) < args.population_size && attempts < args.max_attempts) {
       ++attempts;
+      const DPayloadFlavor generation_flavor =
+          (match_any_payload_flavor && args.generator_mode == "synthetic" && args.target_node_count > 0)
+              ? choose_balanced_any_flavor(candidate_seed, args.target_node_count, accepted_flavor_counts)
+              : target_flavor;
       const ProgramGenome genome =
           args.generator_mode == "synthetic"
-              ? build_synthetic_bucket_genome(candidate_seed, target_flavor, args.target_depth, limits)
+              ? build_synthetic_bucket_genome(
+                    candidate_seed, generation_flavor, args.target_depth, args.target_node_count, limits)
               : (generator_root_type == g3pvm::evo::RType::Any
                      ? g3pvm::evo::generate_random_genome(candidate_seed, limits)
                      : g3pvm::evo::generate_random_genome_for_return_type(candidate_seed, generator_root_type, limits));
-      if (genome.meta.max_depth != args.target_depth) {
+      if (args.target_depth > 0 && genome.meta.max_depth != args.target_depth) {
+        ++candidate_seed;
+        continue;
+      }
+      if (args.target_node_count > 0 && genome.meta.node_count != args.target_node_count) {
         ++candidate_seed;
         continue;
       }
@@ -612,7 +904,7 @@ int main(int argc, char** argv) {
       const BytecodeProgram program = g3pvm::evo::compile_for_eval(genome, input_names);
       const DPayloadFlavor flavor =
           g3pvm::gpu_detail::classify_payload_flavor_for_program(program, shared_input_payload_mask);
-      if (flavor != target_flavor) {
+      if (!match_any_payload_flavor && flavor != target_flavor) {
         ++candidate_seed;
         continue;
       }
@@ -626,6 +918,7 @@ int main(int argc, char** argv) {
         }
       }
       if (successes >= min_successes) {
+        accepted_flavor_counts[static_cast<std::size_t>(payload_flavor_index(flavor))] += 1;
         accepted.push_back(AcceptedProgram{
             candidate_seed,
             successes,
@@ -652,6 +945,7 @@ int main(int argc, char** argv) {
                               args.fuel,
                               attempts,
                               args.target_depth,
+                              args.target_node_count,
                               args.target_payload_flavor);
     write_metadata_json(args.out_metadata_json,
                         args.cases_path,
@@ -662,12 +956,14 @@ int main(int argc, char** argv) {
                         args.fuel,
                         attempts,
                         args.target_depth,
+                        args.target_node_count,
                         args.target_payload_flavor);
 
     std::cout << "BUCKET"
               << " cases=" << args.cases_path
               << " population_size=" << accepted.size()
               << " target_depth=" << args.target_depth
+              << " target_node_count=" << args.target_node_count
               << " target_payload_flavor=" << args.target_payload_flavor
               << " generator_mode=" << args.generator_mode
               << " generator_root_type=" << args.generator_root_type

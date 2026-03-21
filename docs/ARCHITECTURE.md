@@ -168,7 +168,7 @@ Public evolution interfaces split by responsibility:
 ### `cpp/src/cli/`
 - `evolve_cli.cpp`: evolution CLI
 - `population_bench_cli.cpp`: fixed-population benchmark runner; can generate, save, and reload `population-seeds-v1` populations
-- `population_bucket_cli.cpp`: exact-depth / exact-payload population generator for eval-kernel bucketing experiments
+- `population_bucket_cli.cpp`: exact-depth and exact-node population generator for eval-kernel bucketing experiments; supports runtime payload-flavor filtering and balanced synthetic exact-node buckets
 - codec / json / options helpers
 
 ### `cpp/src/bench/`

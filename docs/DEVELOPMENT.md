@@ -132,8 +132,9 @@ Exact-bucket population generation args:
 - `--out-population-json PATH`: output `population-seeds-v1` JSON
 - `--out-metadata-json PATH`: output per-program metadata summary
 - `--target-depth N`: require `genome.meta.max_depth == N`
-- `--target-payload-flavor {none|string|list|mixed}`: require the runtime GPU payload classifier to match this flavor
-- `--generator-mode {native|synthetic}`: use the standard GP generator with rejection sampling or a synthetic exact-depth generator
+- `--target-node-count N`: require `genome.meta.node_count == N`; when set, `--target-depth` becomes optional
+- `--target-payload-flavor {any|none|string|list|mixed}`: require the runtime GPU payload classifier to match this flavor; `any` accepts all flavors
+- `--generator-mode {native|synthetic}`: use the standard GP generator with rejection sampling or a synthetic exact-depth / exact-node generator
 - `--generator-root-type {any|num|bool|none|string|list}`: optional root-type hint for generation
 - `--population-size N`
 - `--seed-start N`
@@ -146,6 +147,45 @@ Exact-bucket population generation args:
 - `--max-total-nodes N`
 - `--max-for-k N`
 - `--max-call-args N`
+
+Typical exact-depth bucket generation:
+
+```bash
+cpp/build/g3pvm_population_bucket_cli \
+  --cases data/fixtures/simple_x_plus_1_1024.json \
+  --target-depth 9 \
+  --target-payload-flavor mixed \
+  --generator-mode synthetic \
+  --population-size 1024 \
+  --probe-cases 32 \
+  --min-success-rate 0.5 \
+  --max-attempts 500000 \
+  --out-population-json data/exp/depth09_mixed.population.json \
+  --out-metadata-json data/exp/depth09_mixed.metadata.json
+```
+
+Typical exact-node bucket generation:
+
+```bash
+cpp/build/g3pvm_population_bucket_cli \
+  --cases data/fixtures/simple_x_plus_1_1024.json \
+  --target-node-count 40 \
+  --target-payload-flavor any \
+  --generator-mode synthetic \
+  --population-size 1024 \
+  --probe-cases 32 \
+  --min-success-rate 0.5 \
+  --max-attempts 500000 \
+  --max-expr-depth 13 \
+  --max-total-nodes 80 \
+  --out-population-json data/exp/node40.population.json \
+  --out-metadata-json data/exp/node40.metadata.json
+```
+
+Notes:
+- `synthetic + --target-node-count` builds exact-size trees directly instead of relying on rejection sampling alone.
+- `--target-payload-flavor any` is only meaningful with synthetic exact-node generation; it uses round-robin underfilled-flavor scheduling to keep `none/string/list/mixed` buckets as balanced as feasibility allows.
+- generated metadata includes per-program `node_count`, `actual_depth`, `code_len`, and classified `payload_flavor`.
 
 ### `tools/fetch_psb2_datasets.py`
 
