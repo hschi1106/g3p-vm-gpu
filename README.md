@@ -80,7 +80,7 @@ ctest --test-dir cpp/build --output-on-failure
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure
-python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --population-sizes 64 --probe-cases 8 --min-success-rate 0.0
+python3 scripts/speedup_experiment.py
 ```
 
 ## Main Entrypoints
@@ -105,14 +105,15 @@ cpp/build/g3pvm_evolve_cli \
 python3 scripts/speedup_experiment.py
 ```
 
-This script reads `scripts/speedup_experiment.json` if present, otherwise falls back to
+This script reads all benchmark settings from
 [speedup_experiment.example.json](scripts/speedup_experiment.example.json),
-runs all configured fixtures, and writes one report directory containing:
+runs the configured sweep, and writes one report directory containing:
 - per-fixture multi-mode reports
 - an aggregate summary JSON/Markdown
 
-It accepts either a single `max_expr_depth` or a list of `max_expr_depths`.
+It accepts either a single `max_expr_depth` or a list of `max_expr_depths` through the config file.
 When multiple depths are configured, it runs one full sweep per depth and groups the reports under depth-specific subdirectories.
+It can also benchmark existing fixed populations directly via the config key `population_jsons`, which is useful for exact-depth or exact-node experiment datasets. In that mode, keep `fixtures`, `population_sizes`, and `max_expr_depths` as empty arrays, and set generation-only controls such as `seed_start`, `probe_cases`, `min_success_rate`, and the AST-shape limits to `null`, so the inactive inputs are explicit.
 
 Each fixture benchmark generates one fixed population per run instead of using a multi-generation evolution run.
 It can compare four formal benchmark modes:
@@ -133,16 +134,12 @@ When `gpu_repro_overlap` is enabled, `repro_prepare_inputs` / `repro_preprocess`
 may be partially hidden behind GPU fitness evaluation. Compare `total` first, then inspect the
 reproduction subphases to see whether overlap reduced critical-path work or merely shifted it.
 
-### Run one small benchmark smoke
+### Run one fixed-population sweep
+
+Edit `scripts/speedup_experiment.example.json` and set `population_jsons`, then run:
 
 ```bash
-python3 scripts/speedup_experiment.py \
-  --fixtures bouncing_balls_1024 \
-  --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap \
-  --max-expr-depths 5,7 \
-  --population-sizes 64 \
-  --probe-cases 8 \
-  --min-success-rate 0.0
+python3 scripts/speedup_experiment.py
 ```
 
 ### Convert PSB2 task into `fitness-cases-v1`

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCAL_CONFIG = Path(__file__).with_suffix(".json")
 EXAMPLE_CONFIG = Path(__file__).with_name("speedup_experiment.example.json")
 
 BENCH_MODE_ALIASES = {
@@ -31,55 +30,164 @@ BENCH_MODES = {
     "gpu_repro_overlap": {"engine": "gpu", "repro_backend": "gpu", "repro_overlap": True},
 }
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run fixed-population benchmark sweeps for CPU, GPU eval, and GPU reproduction modes."
-    )
-    parser.add_argument(
-        "--config",
-        default="",
-        help="Path to benchmark config JSON; default prefers scripts/speedup_experiment.json then falls back to scripts/speedup_experiment.example.json",
-    )
-    parser.add_argument(
-        "--fixtures",
-        default="",
-        help="Comma-separated fixture stems or paths to run; default runs all configured fixtures",
-    )
-    parser.add_argument("--outdir", default="", help="Output directory; default uses config prefix + timestamp")
-    parser.add_argument("--bench-cli", default="", help="Override benchmark CLI path")
-    parser.add_argument(
-        "--population-sizes",
-        default="",
-        help="Comma-separated population sizes to run; default uses configured population_sizes",
-    )
-    parser.add_argument(
-        "--max-expr-depths",
-        default="",
-        help="Comma-separated max_expr_depth values to run; default uses configured max_expr_depths or max_expr_depth",
-    )
-    parser.add_argument(
-        "--modes",
-        default="",
-        help="Comma-separated benchmark modes: cpu,gpu_eval,gpu_repro,gpu_repro_overlap",
-    )
-    parser.add_argument("--probe-cases", type=int, default=0, help="Override probe case count")
-    parser.add_argument(
-        "--min-success-rate",
-        type=float,
-        default=-1.0,
-        help="Override minimum accepted non-error probe success ratio",
-    )
-    return parser.parse_args()
+COARSE_TIMING_KEYS = (
+    "compile_ms",
+    "eval_ms",
+    "repro_ms",
+    "total_ms",
+)
+
+CPU_REPRO_TIMING_KEYS = (
+    "selection_ms",
+    "crossover_ms",
+    "mutation_ms",
+)
+
+GPU_EVAL_TIMING_KEYS = (
+    "gpu_eval_init_ms",
+    "gpu_eval_call_ms",
+    "gpu_eval_pack_ms",
+    "gpu_eval_launch_prep_ms",
+    "gpu_eval_upload_ms",
+    "gpu_eval_pack_upload_ms",
+    "gpu_eval_kernel_ms",
+    "gpu_eval_copyback_ms",
+    "gpu_eval_teardown_ms",
+)
+
+GPU_EVAL_CALL_PHASE_KEYS = (
+    "gpu_eval_pack_ms",
+    "gpu_eval_launch_prep_ms",
+    "gpu_eval_upload_ms",
+    "gpu_eval_kernel_ms",
+    "gpu_eval_copyback_ms",
+    "gpu_eval_teardown_ms",
+)
+
+GPU_REPRO_PRIMARY_TIMING_KEYS = (
+    "repro_prepare_inputs_ms",
+    "repro_setup_ms",
+    "repro_preprocess_ms",
+    "repro_pack_ms",
+    "repro_upload_ms",
+    "repro_kernel_ms",
+    "repro_copyback_ms",
+    "repro_decode_ms",
+    "repro_teardown_ms",
+)
+
+GPU_REPRO_KERNEL_SUBPHASE_KEYS = (
+    "repro_selection_kernel_ms",
+    "repro_variation_kernel_ms",
+)
+
+SUMMARY_TIMING_KEYS = (
+    "compile_ms",
+    "eval_ms",
+    "repro_ms",
+    "selection_ms",
+    "crossover_ms",
+    "mutation_ms",
+    "gpu_eval_init_ms",
+    "gpu_eval_call_ms",
+    "gpu_eval_pack_ms",
+    "gpu_eval_launch_prep_ms",
+    "gpu_eval_upload_ms",
+    "gpu_eval_pack_upload_ms",
+    "gpu_eval_kernel_ms",
+    "gpu_eval_copyback_ms",
+    "gpu_eval_teardown_ms",
+    "repro_prepare_inputs_ms",
+    "repro_setup_ms",
+    "repro_preprocess_ms",
+    "repro_pack_ms",
+    "repro_upload_ms",
+    "repro_kernel_ms",
+    "repro_copyback_ms",
+    "repro_decode_ms",
+    "repro_teardown_ms",
+    "repro_selection_kernel_ms",
+    "repro_variation_kernel_ms",
+    "total_ms",
+)
+
+SUMMARY_TIMING_ANALYSIS_PATHS = {
+    "gpu_eval": {
+        "gpu_eval_init_share_of_eval": ("mode_breakdown", "gpu_eval", "gpu_eval", "phase_share_of_eval", "gpu_eval_init_ms"),
+        "gpu_eval_kernel_share_of_call": ("mode_breakdown", "gpu_eval", "gpu_eval", "call_phase_share_of_call", "gpu_eval_kernel_ms"),
+        "gpu_eval_pack_upload_share_of_call": ("mode_breakdown", "gpu_eval", "gpu_eval", "derived_share_of_call", "gpu_eval_pack_upload_ms"),
+        "gpu_eval_teardown_share_of_call": ("mode_breakdown", "gpu_eval", "gpu_eval", "call_phase_share_of_call", "gpu_eval_teardown_ms"),
+        "steady_state_eval_speedup_vs_cpu": ("mode_breakdown", "gpu_eval", "gpu_eval", "steady_state_eval_speedup_vs_cpu"),
+    },
+    "gpu_repro": {
+        "gpu_eval_init_share_of_eval": ("mode_breakdown", "gpu_repro", "gpu_eval", "phase_share_of_eval", "gpu_eval_init_ms"),
+        "gpu_eval_kernel_share_of_call": ("mode_breakdown", "gpu_repro", "gpu_eval", "call_phase_share_of_call", "gpu_eval_kernel_ms"),
+        "repro_decode_share_of_primary": ("mode_breakdown", "gpu_repro", "reproduction", "primary_share_of_repro_primary", "repro_decode_ms"),
+        "repro_kernel_share_of_primary": ("mode_breakdown", "gpu_repro", "reproduction", "primary_share_of_repro_primary", "repro_kernel_ms"),
+        "repro_wall_minus_primary_ms": ("mode_breakdown", "gpu_repro", "reproduction", "wall_minus_primary_sum_ms"),
+    },
+    "gpu_repro_overlap": {
+        "gpu_eval_init_share_of_eval": ("mode_breakdown", "gpu_repro_overlap", "gpu_eval", "phase_share_of_eval", "gpu_eval_init_ms"),
+        "gpu_eval_kernel_share_of_call": ("mode_breakdown", "gpu_repro_overlap", "gpu_eval", "call_phase_share_of_call", "gpu_eval_kernel_ms"),
+        "repro_decode_share_of_primary": ("mode_breakdown", "gpu_repro_overlap", "reproduction", "primary_share_of_repro_primary", "repro_decode_ms"),
+        "repro_kernel_share_of_primary": ("mode_breakdown", "gpu_repro_overlap", "reproduction", "primary_share_of_repro_primary", "repro_kernel_ms"),
+        "repro_hidden_overlap_ms": ("mode_breakdown", "gpu_repro_overlap", "reproduction", "hidden_overlap_ms"),
+        "repro_hidden_overlap_share": ("mode_breakdown", "gpu_repro_overlap", "reproduction", "hidden_overlap_share_of_primary"),
+    },
+}
+
+SUMMARY_COMPARISON_PATHS = {
+    "gpu_eval_vs_cpu": {
+        "cold_eval_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "cold_eval_speedup"),
+        "steady_state_eval_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "steady_state_eval_speedup"),
+        "total_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "total_speedup"),
+        "gpu_init_tax_ms": ("mode_comparisons", "gpu_eval_vs_cpu", "gpu_init_tax_ms"),
+    },
+    "gpu_repro_vs_gpu_eval": {
+        "repro_speedup": ("mode_comparisons", "gpu_repro_vs_gpu_eval", "repro_speedup"),
+        "repro_ms_saved": ("mode_comparisons", "gpu_repro_vs_gpu_eval", "repro_ms_saved"),
+        "total_speedup": ("mode_comparisons", "gpu_repro_vs_gpu_eval", "total_speedup"),
+        "total_ms_saved": ("mode_comparisons", "gpu_repro_vs_gpu_eval", "total_ms_saved"),
+    },
+    "gpu_repro_overlap_vs_gpu_repro": {
+        "repro_speedup": ("mode_comparisons", "gpu_repro_overlap_vs_gpu_repro", "repro_speedup"),
+        "repro_wall_ms_saved": ("mode_comparisons", "gpu_repro_overlap_vs_gpu_repro", "repro_wall_ms_saved"),
+        "total_speedup": ("mode_comparisons", "gpu_repro_overlap_vs_gpu_repro", "total_speedup"),
+        "total_ms_saved": ("mode_comparisons", "gpu_repro_overlap_vs_gpu_repro", "total_ms_saved"),
+        "hidden_overlap_ms": ("mode_comparisons", "gpu_repro_overlap_vs_gpu_repro", "hidden_overlap_ms"),
+    },
+}
 
 
+@dataclass(frozen=True)
+class FixedPopulationSpec:
+    label: str
+    population_json: Path
+    cases_arg: str
+    cases_path: Path
+    population_size: int | None
+    target_depth: int | None
+    target_node_count: int | None
+
+
+FIXED_POP_EMPTY_LIST_KEYS = (
+    "fixtures",
+    "population_sizes",
+    "max_expr_depths",
+)
+
+FIXED_POP_NULL_KEYS = (
+    "seed_start",
+    "probe_cases",
+    "min_success_rate",
+    "max_expr_depth",
+    "max_stmts_per_block",
+    "max_total_nodes",
+    "max_for_k",
+    "max_call_args",
+)
 def load_config(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def default_config_path() -> Path:
-    if LOCAL_CONFIG.exists():
-        return LOCAL_CONFIG
-    return EXAMPLE_CONFIG
 
 
 def resolve_path(raw: str) -> Path:
@@ -102,6 +210,79 @@ def select_fixtures(config_fixtures: list[str], fixture_filter: str) -> list[Pat
     if missing:
         raise SystemExit(f"unknown fixtures requested: {sorted(missing)}")
     return selected
+
+
+def normalize_population_label(path: Path) -> str:
+    label = path.stem
+    if label.endswith(".population"):
+        label = label[: -len(".population")]
+    return label
+
+
+def parse_fixed_populations(config: dict[str, Any], raw_override: str) -> list[FixedPopulationSpec]:
+    if raw_override:
+        raw_specs: list[Any] = [item.strip() for item in raw_override.split(",") if item.strip()]
+    else:
+        raw_specs = list(config.get("population_jsons", []))
+    if not raw_specs:
+        return []
+
+    specs: list[FixedPopulationSpec] = []
+    seen_labels: set[str] = set()
+    for raw in raw_specs:
+        if isinstance(raw, str):
+            population_json = resolve_path(raw)
+            label = normalize_population_label(population_json)
+            cases_override_raw: str | None = None
+        elif isinstance(raw, dict):
+            if "population_json" not in raw:
+                raise SystemExit("population_jsons items must include population_json")
+            population_json = resolve_path(str(raw["population_json"]))
+            label = str(raw.get("label") or normalize_population_label(population_json))
+            cases_override_raw = str(raw["cases"]) if raw.get("cases") else None
+        else:
+            raise SystemExit("population_jsons must be a list of paths or objects")
+
+        if not population_json.exists():
+            raise SystemExit(f"missing population json: {population_json}")
+        payload = json.loads(population_json.read_text(encoding="utf-8"))
+        cases_raw = payload.get("cases_path")
+        if cases_override_raw is not None:
+            cases_arg = cases_override_raw
+            cases_path = resolve_path(cases_override_raw)
+        elif isinstance(cases_raw, str) and cases_raw:
+            cases_arg = cases_raw
+            cases_path = resolve_path(cases_raw)
+        else:
+            raise SystemExit(f"population json missing cases_path: {population_json}")
+        if not cases_path.exists():
+            raise SystemExit(f"missing cases path for population json {population_json}: {cases_path}")
+        if label in seen_labels:
+            raise SystemExit(f"duplicate fixed population label: {label}")
+        seen_labels.add(label)
+        specs.append(
+            FixedPopulationSpec(
+                label=label,
+                population_json=population_json,
+                cases_arg=cases_arg,
+                cases_path=cases_path,
+                population_size=int(payload["population_size"]) if payload.get("population_size") is not None else None,
+                target_depth=int(payload["target_depth"]) if payload.get("target_depth") not in (None, "") else None,
+                target_node_count=(
+                    int(payload["target_node_count"]) if payload.get("target_node_count") not in (None, "", 0) else None
+                ),
+            )
+        )
+    return specs
+
+
+def validate_fixed_population_config(config: dict[str, Any]) -> None:
+    for key in FIXED_POP_EMPTY_LIST_KEYS:
+        if config.get(key) != []:
+            raise SystemExit(f"when population_jsons is non-empty, {key} must be []")
+    for key in FIXED_POP_NULL_KEYS:
+        if config.get(key) is not None:
+            raise SystemExit(f"when population_jsons is non-empty, {key} must be null or omitted")
 
 
 def parse_modes(config: dict[str, Any], raw_override: str) -> list[str]:
@@ -198,6 +379,264 @@ def fmt_ms(value: Any) -> str:
     return "n/a" if value is None else f"{float(value):.3f}"
 
 
+def fmt_pct(value: float | None) -> str:
+    return "n/a" if value is None else f"{100.0 * value:.1f}%"
+
+
+def fmt_delta_ms(value: Any) -> str:
+    return "n/a" if value is None else f"{float(value):+.3f}"
+
+
+def as_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+def ratio(numerator: Any, denominator: Any) -> float | None:
+    if numerator is None or denominator in (None, 0):
+        return None
+    return float(numerator) / float(denominator)
+
+
+def sum_timing(raw: dict[str, Any], keys: tuple[str, ...]) -> float:
+    return sum(float(raw.get(key, 0.0)) for key in keys)
+
+
+def nested_get(payload: dict[str, Any], path: tuple[str, ...]) -> Any:
+    node: Any = payload
+    for key in path:
+        if not isinstance(node, dict) or key not in node:
+            return None
+        node = node[key]
+    return node
+
+
+def average_mode_metric(
+    aggregate: list[dict[str, Any]],
+    mode_name: str,
+    key: str,
+    *,
+    max_expr_depth: int | None = None,
+) -> float | None:
+    values: list[float] = []
+    for item in aggregate:
+        if max_expr_depth is not None and item["max_expr_depth"] != max_expr_depth:
+            continue
+        raw = item["modes"].get(mode_name)
+        if raw is None or key not in raw or not supports_metric(raw, key):
+            continue
+        values.append(float(raw[key]))
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def average_nested_metric(
+    aggregate: list[dict[str, Any]],
+    path: tuple[str, ...],
+    *,
+    max_expr_depth: int | None = None,
+) -> float | None:
+    values: list[float] = []
+    for item in aggregate:
+        if max_expr_depth is not None and item["max_expr_depth"] != max_expr_depth:
+            continue
+        value = nested_get(item["timing_analysis"], path)
+        if value is None:
+            continue
+        values.append(float(value))
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def metric_map(raw: dict[str, Any], keys: tuple[str, ...]) -> dict[str, float]:
+    return {key: float(raw.get(key, 0.0)) for key in keys}
+
+
+def share_map(values: dict[str, float], total: float | None) -> dict[str, float | None]:
+    return {key: ratio(value, total) for key, value in values.items()}
+
+
+def supports_metric(raw: dict[str, Any], key: str) -> bool:
+    engine = str(raw.get("engine", "cpu"))
+    repro_backend = str(raw.get("repro_backend", "cpu"))
+    if key in GPU_EVAL_TIMING_KEYS:
+        return engine == "gpu"
+    if key in GPU_REPRO_PRIMARY_TIMING_KEYS or key in GPU_REPRO_KERNEL_SUBPHASE_KEYS:
+        return repro_backend == "gpu"
+    if key in CPU_REPRO_TIMING_KEYS:
+        return repro_backend == "cpu"
+    return True
+
+
+def is_speed_metric(key: str) -> bool:
+    return "speedup" in key
+
+
+def is_share_metric(key: str) -> bool:
+    return "_share_" in key or key.endswith("_share")
+
+
+def is_delta_metric(key: str) -> bool:
+    return key.endswith("_saved") or key.endswith("_saved_ms") or "residual" in key or "wall_minus" in key
+
+
+def build_mode_timing_analysis(
+    mode_name: str,
+    raw: dict[str, Any],
+    cpu_raw: dict[str, Any] | None,
+) -> dict[str, Any]:
+    total_ms = as_float(raw.get("total_ms"))
+    eval_ms = as_float(raw.get("eval_ms"))
+    repro_ms = as_float(raw.get("repro_ms"))
+    coarse_ms = metric_map(raw, COARSE_TIMING_KEYS)
+    out: dict[str, Any] = {
+        "coarse_ms": coarse_ms,
+        "coarse_share_of_total": share_map(coarse_ms, total_ms),
+    }
+
+    if str(raw.get("engine", "cpu")) == "gpu":
+        phase_ms = {
+            "gpu_eval_init_ms": float(raw.get("gpu_eval_init_ms", 0.0)),
+            "gpu_eval_call_ms": float(raw.get("gpu_eval_call_ms", 0.0)),
+        }
+        call_phase_ms = metric_map(raw, GPU_EVAL_CALL_PHASE_KEYS)
+        call_ms = phase_ms["gpu_eval_call_ms"]
+        derived_ms = {
+            "gpu_eval_pack_upload_ms": float(raw.get("gpu_eval_pack_upload_ms", 0.0)),
+        }
+        out["gpu_eval"] = {
+            "phase_ms": phase_ms,
+            "phase_share_of_eval": share_map(phase_ms, eval_ms),
+            "call_phase_ms": call_phase_ms,
+            "call_phase_share_of_call": share_map(call_phase_ms, call_ms),
+            "derived_ms": derived_ms,
+            "derived_share_of_call": share_map(derived_ms, call_ms),
+            "call_accounted_ms": sum(call_phase_ms.values()),
+            "call_residual_ms": call_ms - sum(call_phase_ms.values()),
+            "cold_start_tax_ms": phase_ms["gpu_eval_init_ms"],
+            "cold_start_tax_share_of_eval": ratio(phase_ms["gpu_eval_init_ms"], eval_ms),
+            "steady_state_eval_ms": call_ms,
+            "cold_eval_speedup_vs_cpu": speedup(cpu_raw.get("eval_ms") if cpu_raw else None, eval_ms),
+            "steady_state_eval_speedup_vs_cpu": speedup(cpu_raw.get("eval_ms") if cpu_raw else None, call_ms),
+        }
+
+    repro_backend = str(raw.get("repro_backend", "cpu"))
+    if repro_backend == "gpu":
+        primary_ms = metric_map(raw, GPU_REPRO_PRIMARY_TIMING_KEYS)
+        primary_sum_ms = sum(primary_ms.values())
+        kernel_subphase_ms = metric_map(raw, GPU_REPRO_KERNEL_SUBPHASE_KEYS)
+        hidden_overlap_ms = 0.0
+        if str(raw.get("repro_overlap", "off")) == "on":
+            hidden_overlap_ms = max(0.0, primary_sum_ms - float(raw.get("repro_ms", 0.0)))
+        out["reproduction"] = {
+            "backend": "gpu",
+            "reported_repro_ms": repro_ms,
+            "primary_ms": primary_ms,
+            "primary_share_of_repro_wall": share_map(primary_ms, repro_ms),
+            "primary_share_of_repro_primary": share_map(primary_ms, primary_sum_ms),
+            "primary_sum_ms": primary_sum_ms,
+            "wall_minus_primary_sum_ms": (repro_ms - primary_sum_ms) if repro_ms is not None else None,
+            "primary_minus_wall_ms": (primary_sum_ms - repro_ms) if repro_ms is not None else None,
+            "hidden_overlap_ms": hidden_overlap_ms,
+            "hidden_overlap_share_of_primary": ratio(hidden_overlap_ms, primary_sum_ms),
+            "kernel_subphase_ms": kernel_subphase_ms,
+            "kernel_subphase_share_of_kernel": share_map(kernel_subphase_ms, float(raw.get("repro_kernel_ms", 0.0))),
+        }
+    else:
+        primary_ms = metric_map(raw, CPU_REPRO_TIMING_KEYS)
+        primary_sum_ms = sum(primary_ms.values())
+        out["reproduction"] = {
+            "backend": "cpu",
+            "reported_repro_ms": repro_ms,
+            "primary_ms": primary_ms,
+            "primary_share_of_repro_wall": share_map(primary_ms, repro_ms),
+            "primary_share_of_repro_primary": share_map(primary_ms, primary_sum_ms),
+            "primary_sum_ms": primary_sum_ms,
+            "wall_minus_primary_sum_ms": (repro_ms - primary_sum_ms) if repro_ms is not None else None,
+        }
+
+    return out
+
+
+def build_timing_analysis(modes: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    cpu_raw = modes.get("cpu")
+    mode_breakdown = {
+        mode_name: build_mode_timing_analysis(mode_name, raw, cpu_raw)
+        for mode_name, raw in modes.items()
+    }
+    comparisons: dict[str, dict[str, float | None]] = {}
+    if "cpu" in modes and "gpu_eval" in modes:
+        cpu = modes["cpu"]
+        gpu_eval = modes["gpu_eval"]
+        comparisons["gpu_eval_vs_cpu"] = {
+            "cold_eval_speedup": speedup(cpu.get("eval_ms"), gpu_eval.get("eval_ms")),
+            "steady_state_eval_speedup": speedup(cpu.get("eval_ms"), gpu_eval.get("gpu_eval_call_ms")),
+            "total_speedup": speedup(cpu.get("total_ms"), gpu_eval.get("total_ms")),
+            "gpu_init_tax_ms": as_float(gpu_eval.get("gpu_eval_init_ms")),
+            "gpu_init_tax_share_of_eval": ratio(gpu_eval.get("gpu_eval_init_ms"), gpu_eval.get("eval_ms")),
+        }
+    if "gpu_eval" in modes and "gpu_repro" in modes:
+        gpu_eval = modes["gpu_eval"]
+        gpu_repro = modes["gpu_repro"]
+        comparisons["gpu_repro_vs_gpu_eval"] = {
+            "repro_speedup": speedup(gpu_eval.get("repro_ms"), gpu_repro.get("repro_ms")),
+            "repro_ms_saved": as_float(gpu_eval.get("repro_ms")) - as_float(gpu_repro.get("repro_ms")),
+            "total_speedup": speedup(gpu_eval.get("total_ms"), gpu_repro.get("total_ms")),
+            "total_ms_saved": as_float(gpu_eval.get("total_ms")) - as_float(gpu_repro.get("total_ms")),
+        }
+    if "gpu_repro" in modes and "gpu_repro_overlap" in modes:
+        gpu_repro = modes["gpu_repro"]
+        gpu_overlap = modes["gpu_repro_overlap"]
+        overlap_breakdown = mode_breakdown["gpu_repro_overlap"]["reproduction"]
+        comparisons["gpu_repro_overlap_vs_gpu_repro"] = {
+            "repro_speedup": speedup(gpu_repro.get("repro_ms"), gpu_overlap.get("repro_ms")),
+            "repro_wall_ms_saved": as_float(gpu_repro.get("repro_ms")) - as_float(gpu_overlap.get("repro_ms")),
+            "total_speedup": speedup(gpu_repro.get("total_ms"), gpu_overlap.get("total_ms")),
+            "total_ms_saved": as_float(gpu_repro.get("total_ms")) - as_float(gpu_overlap.get("total_ms")),
+            "hidden_overlap_ms": as_float(overlap_breakdown.get("hidden_overlap_ms")),
+        }
+    return {
+        "mode_breakdown": mode_breakdown,
+        "mode_comparisons": comparisons,
+    }
+
+
+def ordered_raw_items(raw: dict[str, Any]) -> list[tuple[str, Any]]:
+    ordered_keys = (
+        "engine",
+        "repro_backend",
+        "repro_overlap",
+        "population_size",
+        *COARSE_TIMING_KEYS,
+        *CPU_REPRO_TIMING_KEYS,
+        *GPU_EVAL_TIMING_KEYS,
+        *GPU_REPRO_PRIMARY_TIMING_KEYS,
+        *GPU_REPRO_KERNEL_SUBPHASE_KEYS,
+        "mean_fitness",
+        "best_fitness",
+        "best_program_key",
+        "population_source",
+        "generation_attempts",
+        "probe_cases",
+        "min_successes",
+        "population_json",
+        "out_population_json",
+    )
+    seen: set[str] = set()
+    out: list[tuple[str, Any]] = []
+    for key in ordered_keys:
+        if key in raw:
+            out.append((key, raw[key]))
+            seen.add(key)
+    for key, value in raw.items():
+        if key not in seen:
+            out.append((key, value))
+    return out
+
+
 def run_one(
     fixture: Path,
     mode_name: str,
@@ -220,6 +659,7 @@ def run_one(
     max_total_nodes: int,
     max_for_k: int,
     max_call_args: int,
+    population_json: Path | None = None,
 ) -> dict[str, Any]:
     mode = BENCH_MODES[mode_name]
     cmd = [
@@ -246,27 +686,34 @@ def run_one(
         str(penalty),
         "--selection-pressure",
         str(selection_pressure),
-        "--population-size",
-        str(population_size),
-        "--seed-start",
-        str(seed_start),
-        "--probe-cases",
-        str(probe_cases),
-        "--min-success-rate",
-        str(min_success_rate),
-        "--max-expr-depth",
-        str(max_expr_depth),
-        "--max-stmts-per-block",
-        str(max_stmts_per_block),
-        "--max-total-nodes",
-        str(max_total_nodes),
-        "--max-for-k",
-        str(max_for_k),
-        "--max-call-args",
-        str(max_call_args),
-        "--out-population-json",
-        str(outdir / "fixed_population.seeds.json"),
     ]
+    if population_json is None:
+        cmd.extend(
+            [
+                "--population-size",
+                str(population_size),
+                "--seed-start",
+                str(seed_start),
+                "--probe-cases",
+                str(probe_cases),
+                "--min-success-rate",
+                str(min_success_rate),
+                "--max-expr-depth",
+                str(max_expr_depth),
+                "--max-stmts-per-block",
+                str(max_stmts_per_block),
+                "--max-total-nodes",
+                str(max_total_nodes),
+                "--max-for-k",
+                str(max_for_k),
+                "--max-call-args",
+                str(max_call_args),
+                "--out-population-json",
+                str(outdir / "fixed_population.seeds.json"),
+            ]
+        )
+    else:
+        cmd.extend(["--population-json", str(population_json)])
     proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
     console_path = outdir / f"one_gen_{mode_name}.console.log"
     console_path.write_text(proc.stdout + proc.stderr, encoding="utf-8")
@@ -293,12 +740,16 @@ def build_speedup_report(modes: dict[str, dict[str, Any]]) -> dict[str, dict[str
     return out
 
 
-def write_fixture_report(outdir: Path, modes: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def write_fixture_report(outdir: Path, modes: dict[str, dict[str, Any]], population_json_path: Path | None = None) -> dict[str, Any]:
+    timing_analysis = build_timing_analysis(modes)
+    if population_json_path is None:
+        population_json_path = outdir / "fixed_population.seeds.json"
     report = {
-        "benchmark_type": "fixed_population_compare_v4",
-        "population_json": str(outdir / "fixed_population.seeds.json"),
+        "benchmark_type": "fixed_population_compare_v5",
+        "population_json": str(population_json_path),
         "modes": modes,
         "speedup_vs_cpu": build_speedup_report(modes),
+        "timing_analysis": timing_analysis,
     }
     (outdir / "mode_compare.report.json").write_text(
         json.dumps(report, ensure_ascii=True, indent=2),
@@ -319,12 +770,88 @@ def write_fixture_report(outdir: Path, modes: dict[str, dict[str, Any]]) -> dict
         for key, value in speedup_map.items():
             lines.append(f"- {key}: {fmt_speed(value)}")
         lines.append("")
+    lines.append("## Timing Analysis")
+    lines.append("")
+    for mode_name, analysis in report["timing_analysis"]["mode_breakdown"].items():
+        lines.append(f"### `{mode_name}`")
+        lines.append("")
+        lines.append("#### Coarse Timing")
+        lines.append("")
+        for key in COARSE_TIMING_KEYS:
+            lines.append(
+                f"- {key}: {fmt_ms(analysis['coarse_ms'].get(key))} ({fmt_pct(analysis['coarse_share_of_total'].get(key))} of total)"
+            )
+        lines.append("")
+        if "gpu_eval" in analysis:
+            gpu_eval = analysis["gpu_eval"]
+            lines.append("#### GPU Eval Breakdown")
+            lines.append("")
+            lines.append(
+                f"- cold_eval_speedup_vs_cpu: {fmt_speed(gpu_eval.get('cold_eval_speedup_vs_cpu'))}"
+            )
+            lines.append(
+                f"- steady_state_eval_speedup_vs_cpu: {fmt_speed(gpu_eval.get('steady_state_eval_speedup_vs_cpu'))}"
+            )
+            lines.append(
+                f"- gpu_eval_init_ms: {fmt_ms(gpu_eval['phase_ms'].get('gpu_eval_init_ms'))} ({fmt_pct(gpu_eval['phase_share_of_eval'].get('gpu_eval_init_ms'))} of eval)"
+            )
+            lines.append(
+                f"- gpu_eval_call_ms: {fmt_ms(gpu_eval['phase_ms'].get('gpu_eval_call_ms'))} ({fmt_pct(gpu_eval['phase_share_of_eval'].get('gpu_eval_call_ms'))} of eval)"
+            )
+            lines.append(
+                f"- gpu_eval_pack_upload_ms: {fmt_ms(gpu_eval['derived_ms'].get('gpu_eval_pack_upload_ms'))} ({fmt_pct(gpu_eval['derived_share_of_call'].get('gpu_eval_pack_upload_ms'))} of call)"
+            )
+            for key in GPU_EVAL_CALL_PHASE_KEYS:
+                lines.append(
+                    f"- {key}: {fmt_ms(gpu_eval['call_phase_ms'].get(key))} ({fmt_pct(gpu_eval['call_phase_share_of_call'].get(key))} of call)"
+                )
+            lines.append(f"- gpu_eval_call_residual_ms: {fmt_delta_ms(gpu_eval.get('call_residual_ms'))}")
+            lines.append("")
+        repro = analysis["reproduction"]
+        lines.append("#### Reproduction Breakdown")
+        lines.append("")
+        lines.append(f"- backend: `{repro['backend']}`")
+        lines.append(f"- reported_repro_ms: {fmt_ms(repro.get('reported_repro_ms'))}")
+        lines.append(f"- primary_sum_ms: {fmt_ms(repro.get('primary_sum_ms'))}")
+        lines.append(f"- wall_minus_primary_sum_ms: {fmt_delta_ms(repro.get('wall_minus_primary_sum_ms'))}")
+        if repro["backend"] == "gpu":
+            lines.append(f"- hidden_overlap_ms: {fmt_ms(repro.get('hidden_overlap_ms'))}")
+            lines.append(f"- hidden_overlap_share_of_primary: {fmt_pct(repro.get('hidden_overlap_share_of_primary'))}")
+        for key, value in repro["primary_ms"].items():
+            lines.append(
+                f"- {key}: {fmt_ms(value)} ({fmt_pct(repro['primary_share_of_repro_wall'].get(key))} of repro wall, {fmt_pct(repro['primary_share_of_repro_primary'].get(key))} of repro primary)"
+            )
+        if repro["backend"] == "gpu":
+            lines.append("")
+            lines.append("#### GPU Repro Kernel Subphases")
+            lines.append("")
+            for key, value in repro["kernel_subphase_ms"].items():
+                lines.append(
+                    f"- {key}: {fmt_ms(value)} ({fmt_pct(repro['kernel_subphase_share_of_kernel'].get(key))} of repro_kernel_ms)"
+                )
+        lines.append("")
+    if report["timing_analysis"]["mode_comparisons"]:
+        lines.append("## Timing Comparisons")
+        lines.append("")
+        for comp_name, comp in report["timing_analysis"]["mode_comparisons"].items():
+            lines.append(f"### `{comp_name}`")
+            lines.append("")
+            for key, value in comp.items():
+                if is_speed_metric(key):
+                    lines.append(f"- {key}: {fmt_speed(value)}")
+                elif is_share_metric(key):
+                    lines.append(f"- {key}: {fmt_pct(value)}")
+                elif is_delta_metric(key):
+                    lines.append(f"- {key}: {fmt_delta_ms(value)}")
+                else:
+                    lines.append(f"- {key}: {fmt_ms(value)}")
+            lines.append("")
     lines.append("## Raw Mode Timings")
     lines.append("")
     for mode_name, raw in report["modes"].items():
         lines.append(f"### `{mode_name}`")
         lines.append("")
-        for key, value in raw.items():
+        for key, value in ordered_raw_items(raw):
             lines.append(f"- {key}: {value if not isinstance(value, float) else fmt_ms(value)}")
         lines.append("")
     (outdir / "mode_compare.report.md").write_text("\n".join(lines), encoding="utf-8")
@@ -349,26 +876,71 @@ def average_speedup(
     return sum(values) / len(values)
 
 
-def main() -> int:
-    args = parse_args()
-    config_path = resolve_path(args.config) if args.config else default_config_path()
-    config = load_config(config_path)
+def build_average_mode_timings(
+    aggregate: list[dict[str, Any]],
+    modes: list[str],
+    *,
+    max_expr_depth: int | None = None,
+) -> dict[str, dict[str, float | None]]:
+    return {
+        mode_name: {
+            key: average_mode_metric(aggregate, mode_name, key, max_expr_depth=max_expr_depth)
+            for key in SUMMARY_TIMING_KEYS
+        }
+        for mode_name in modes
+    }
 
-    bench_cli = resolve_path(args.bench_cli or config["bench_cli"])
+
+def build_average_timing_analysis(
+    aggregate: list[dict[str, Any]],
+    *,
+    max_expr_depth: int | None = None,
+) -> dict[str, dict[str, float | None]]:
+    return {
+        mode_name: {
+            metric_name: average_nested_metric(aggregate, path, max_expr_depth=max_expr_depth)
+            for metric_name, path in metric_paths.items()
+        }
+        for mode_name, metric_paths in SUMMARY_TIMING_ANALYSIS_PATHS.items()
+    }
+
+
+def build_average_timing_comparisons(
+    aggregate: list[dict[str, Any]],
+    *,
+    max_expr_depth: int | None = None,
+) -> dict[str, dict[str, float | None]]:
+    return {
+        comp_name: {
+            metric_name: average_nested_metric(aggregate, path, max_expr_depth=max_expr_depth)
+            for metric_name, path in metric_paths.items()
+        }
+        for comp_name, metric_paths in SUMMARY_COMPARISON_PATHS.items()
+    }
+
+
+def main() -> int:
+    config = load_config(EXAMPLE_CONFIG)
+
+    bench_cli = resolve_path(config["bench_cli"])
     if not bench_cli.exists():
         raise SystemExit(f"missing bench cli: {bench_cli}")
 
-    fixtures = select_fixtures(config["fixtures"], args.fixtures)
-    if not fixtures:
+    fixtures = select_fixtures(config["fixtures"], "")
+    fixed_populations = parse_fixed_populations(config, "")
+    if fixed_populations:
+        validate_fixed_population_config(config)
+        fixtures = []
+    if not fixtures and not fixed_populations:
         raise SystemExit("no fixtures selected")
 
-    modes = parse_modes(config, args.modes)
-    population_sizes = parse_population_sizes(config, args.population_sizes)
-    max_expr_depths = parse_max_expr_depths(config, args.max_expr_depths)
-    probe_cases = args.probe_cases or int(config["probe_cases"])
-    min_success_rate = args.min_success_rate if args.min_success_rate >= 0.0 else float(config["min_success_rate"])
+    modes = parse_modes(config, "")
+    population_sizes = [] if fixed_populations else parse_population_sizes(config, "")
+    max_expr_depths = [] if fixed_populations else parse_max_expr_depths(config, "")
+    probe_cases = 0 if fixed_populations else int(config["probe_cases"])
+    min_success_rate = 0.0 if fixed_populations else float(config["min_success_rate"])
 
-    outdir = Path(args.outdir) if args.outdir else ROOT / f"{config['outdir_prefix']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    outdir = ROOT / f"{config['outdir_prefix']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     outdir.mkdir(parents=True, exist_ok=True)
 
     aggregate: list[dict[str, Any]] = []
@@ -381,49 +953,90 @@ def main() -> int:
         crossover_rate=float(config["crossover_rate"]),
         penalty=float(config["penalty"]),
         selection_pressure=int(config["selection_pressure"]),
-        seed_start=int(config["seed_start"]),
+        seed_start=0 if fixed_populations else int(config["seed_start"]),
         probe_cases=probe_cases,
         min_success_rate=min_success_rate,
-        max_stmts_per_block=int(config["max_stmts_per_block"]),
-        max_total_nodes=int(config["max_total_nodes"]),
-        max_for_k=int(config["max_for_k"]),
-        max_call_args=int(config["max_call_args"]),
+        max_stmts_per_block=0 if fixed_populations else int(config["max_stmts_per_block"]),
+        max_total_nodes=0 if fixed_populations else int(config["max_total_nodes"]),
+        max_for_k=0 if fixed_populations else int(config["max_for_k"]),
+        max_call_args=0 if fixed_populations else int(config["max_call_args"]),
     )
-    for max_expr_depth in max_expr_depths:
-        depth_root = outdir if len(max_expr_depths) == 1 else outdir / f"depth{max_expr_depth}"
-        for population_size in population_sizes:
-            for fixture in fixtures:
-                fixture_outdir = depth_root / f"{fixture.stem}_pop{population_size}"
-                fixture_outdir.mkdir(parents=True, exist_ok=True)
-                mode_results: dict[str, dict[str, Any]] = {}
-                for mode_name in modes:
-                    print(
-                        f"[fixture-bench] {mode_name} fixture={fixture.stem} pop={population_size} depth={max_expr_depth}",
-                        flush=True,
-                    )
-                    mode_results[mode_name] = run_one(
-                        fixture,
-                        mode_name,
-                        fixture_outdir,
-                        population_size=population_size,
-                        max_expr_depth=max_expr_depth,
-                        **common,
-                    )
-                report = write_fixture_report(fixture_outdir, mode_results)
-                aggregate.append(
-                    {
-                        "fixture": fixture.stem,
-                        "population_size": population_size,
-                        "max_expr_depth": max_expr_depth,
-                        "report_json": str(fixture_outdir / "mode_compare.report.json"),
-                        "speedup_vs_cpu": report["speedup_vs_cpu"],
-                    }
+    if fixed_populations:
+        for spec in fixed_populations:
+            fixture_outdir = outdir / spec.label
+            fixture_outdir.mkdir(parents=True, exist_ok=True)
+            mode_results: dict[str, dict[str, Any]] = {}
+            for mode_name in modes:
+                print(
+                    f"[fixture-bench] {mode_name} population={spec.label} cases={spec.cases_path.stem}",
+                    flush=True,
                 )
+                mode_results[mode_name] = run_one(
+                    Path(spec.cases_arg),
+                    mode_name,
+                    fixture_outdir,
+                    population_size=spec.population_size or 0,
+                    max_expr_depth=spec.target_depth or 1,
+                    population_json=spec.population_json,
+                    **common,
+                )
+            report = write_fixture_report(fixture_outdir, mode_results, spec.population_json)
+            aggregate.append(
+                {
+                    "fixture": spec.cases_path.stem,
+                    "population_label": spec.label,
+                    "population_json": str(spec.population_json),
+                    "population_size": spec.population_size,
+                    "max_expr_depth": spec.target_depth,
+                    "target_node_count": spec.target_node_count,
+                    "report_json": str(fixture_outdir / "mode_compare.report.json"),
+                    "modes": report["modes"],
+                    "speedup_vs_cpu": report["speedup_vs_cpu"],
+                    "timing_analysis": report["timing_analysis"],
+                }
+            )
+    else:
+        for max_expr_depth in max_expr_depths:
+            depth_root = outdir if len(max_expr_depths) == 1 else outdir / f"depth{max_expr_depth}"
+            for population_size in population_sizes:
+                for fixture in fixtures:
+                    fixture_outdir = depth_root / f"{fixture.stem}_pop{population_size}"
+                    fixture_outdir.mkdir(parents=True, exist_ok=True)
+                    mode_results: dict[str, dict[str, Any]] = {}
+                    for mode_name in modes:
+                        print(
+                            f"[fixture-bench] {mode_name} fixture={fixture.stem} pop={population_size} depth={max_expr_depth}",
+                            flush=True,
+                        )
+                        mode_results[mode_name] = run_one(
+                            fixture,
+                            mode_name,
+                            fixture_outdir,
+                            population_size=population_size,
+                            max_expr_depth=max_expr_depth,
+                            **common,
+                        )
+                    report = write_fixture_report(fixture_outdir, mode_results)
+                    aggregate.append(
+                        {
+                            "fixture": fixture.stem,
+                            "population_label": None,
+                            "population_json": report["population_json"],
+                            "population_size": population_size,
+                            "max_expr_depth": max_expr_depth,
+                            "target_node_count": None,
+                            "report_json": str(fixture_outdir / "mode_compare.report.json"),
+                            "modes": report["modes"],
+                            "speedup_vs_cpu": report["speedup_vs_cpu"],
+                            "timing_analysis": report["timing_analysis"],
+                        }
+                    )
 
     summary = {
-        "benchmark_type": "fixture_speedup_modes_v1",
+        "benchmark_type": "fixed_population_file_sweep_v1" if fixed_populations else "fixture_speedup_modes_v2",
         "modes": modes,
         "max_expr_depths": max_expr_depths,
+        "population_jsons": [str(spec.population_json) for spec in fixed_populations] if fixed_populations else [],
         "fixtures": aggregate,
         "average_speedup_vs_cpu": {
             mode_name: {
@@ -441,7 +1054,7 @@ def main() -> int:
             for mode_name in modes
             if mode_name != "cpu"
         },
-        "average_speedup_vs_cpu_by_max_expr_depth": {
+        "average_speedup_vs_cpu_by_max_expr_depth": ({
             str(max_expr_depth): {
                 mode_name: {
                     key: average_speedup(aggregate, mode_name, key, max_expr_depth=max_expr_depth)
@@ -459,7 +1072,23 @@ def main() -> int:
                 if mode_name != "cpu"
             }
             for max_expr_depth in max_expr_depths
+        } if max_expr_depths else {}),
+        "average_mode_timings": build_average_mode_timings(aggregate, modes),
+        "average_mode_timings_by_max_expr_depth": ({
+            str(max_expr_depth): build_average_mode_timings(aggregate, modes, max_expr_depth=max_expr_depth)
+            for max_expr_depth in max_expr_depths
+        } if max_expr_depths else {}),
+        "average_timing_analysis": {
+            "mode_breakdown": build_average_timing_analysis(aggregate),
+            "mode_comparisons": build_average_timing_comparisons(aggregate),
         },
+        "average_timing_analysis_by_max_expr_depth": ({
+            str(max_expr_depth): {
+                "mode_breakdown": build_average_timing_analysis(aggregate, max_expr_depth=max_expr_depth),
+                "mode_comparisons": build_average_timing_comparisons(aggregate, max_expr_depth=max_expr_depth),
+            }
+            for max_expr_depth in max_expr_depths
+        } if max_expr_depths else {}),
     }
     (outdir / "summary.json").write_text(json.dumps(summary, ensure_ascii=True, indent=2), encoding="utf-8")
     lines = ["# Fixture Speedup Summary", "", f"- outdir: `{outdir}`", "", "## Average Speedup Vs CPU", ""]
@@ -468,6 +1097,40 @@ def main() -> int:
         lines.append("")
         for key, value in speedup_map.items():
             lines.append(f"- {key}: {fmt_speed(value)}")
+        lines.append("")
+    lines.extend(["## Average Mode Timings", ""])
+    for mode_name, timing_map in summary["average_mode_timings"].items():
+        lines.append(f"### `{mode_name}`")
+        lines.append("")
+        for key, value in timing_map.items():
+            lines.append(f"- {key}: {fmt_ms(value)}")
+        lines.append("")
+    lines.extend(["## Average Timing Analysis", ""])
+    for mode_name, analysis_map in summary["average_timing_analysis"]["mode_breakdown"].items():
+        lines.append(f"### `{mode_name}`")
+        lines.append("")
+        for key, value in analysis_map.items():
+            if is_speed_metric(key):
+                lines.append(f"- {key}: {fmt_speed(value)}")
+            elif is_share_metric(key):
+                lines.append(f"- {key}: {fmt_pct(value)}")
+            elif is_delta_metric(key):
+                lines.append(f"- {key}: {fmt_delta_ms(value)}")
+            else:
+                lines.append(f"- {key}: {fmt_ms(value)}")
+        lines.append("")
+    for comp_name, comp_map in summary["average_timing_analysis"]["mode_comparisons"].items():
+        lines.append(f"### comparison `{comp_name}`")
+        lines.append("")
+        for key, value in comp_map.items():
+            if is_speed_metric(key):
+                lines.append(f"- {key}: {fmt_speed(value)}")
+            elif is_share_metric(key):
+                lines.append(f"- {key}: {fmt_pct(value)}")
+            elif is_delta_metric(key):
+                lines.append(f"- {key}: {fmt_delta_ms(value)}")
+            else:
+                lines.append(f"- {key}: {fmt_ms(value)}")
         lines.append("")
     if len(max_expr_depths) > 1:
         lines.extend(["## Average Speedup Vs CPU By max_expr_depth", ""])
@@ -480,6 +1143,33 @@ def main() -> int:
                 for key, value in speedup_map.items():
                     lines.append(f"- {key}: {fmt_speed(value)}")
                 lines.append("")
+        lines.extend(["## Average Mode Timings By max_expr_depth", ""])
+        for max_expr_depth in max_expr_depths:
+            lines.append(f"### depth={max_expr_depth}")
+            lines.append("")
+            for mode_name, timing_map in summary["average_mode_timings_by_max_expr_depth"][str(max_expr_depth)].items():
+                lines.append(f"#### `{mode_name}`")
+                lines.append("")
+                for key, value in timing_map.items():
+                    lines.append(f"- {key}: {fmt_ms(value)}")
+                lines.append("")
+        lines.extend(["## Average Timing Analysis By max_expr_depth", ""])
+        for max_expr_depth in max_expr_depths:
+            lines.append(f"### depth={max_expr_depth}")
+            lines.append("")
+            for mode_name, analysis_map in summary["average_timing_analysis_by_max_expr_depth"][str(max_expr_depth)]["mode_breakdown"].items():
+                lines.append(f"#### `{mode_name}`")
+                lines.append("")
+                for key, value in analysis_map.items():
+                    if is_speed_metric(key):
+                        lines.append(f"- {key}: {fmt_speed(value)}")
+                    elif is_share_metric(key):
+                        lines.append(f"- {key}: {fmt_pct(value)}")
+                    elif is_delta_metric(key):
+                        lines.append(f"- {key}: {fmt_delta_ms(value)}")
+                    else:
+                        lines.append(f"- {key}: {fmt_ms(value)}")
+                lines.append("")
     lines.extend(["## Fixtures", ""])
     for item in aggregate:
         parts = []
@@ -490,9 +1180,16 @@ def main() -> int:
             parts.append(
                 f"{mode_name}: total={fmt_speed(speed_map.get('total_cpu_over_mode'))}, eval={fmt_speed(speed_map.get('eval_cpu_over_mode'))}"
             )
-        lines.append(
-            f"- {item['fixture']} pop={item['population_size']} depth={item['max_expr_depth']}: " + "; ".join(parts)
-        )
+        prefix = f"{item['fixture']}"
+        if item.get("population_label"):
+            prefix += f" label={item['population_label']}"
+        if item.get("population_size") is not None:
+            prefix += f" pop={item['population_size']}"
+        if item.get("max_expr_depth") is not None:
+            prefix += f" depth={item['max_expr_depth']}"
+        if item.get("target_node_count") is not None:
+            prefix += f" node={item['target_node_count']}"
+        lines.append(f"- {prefix}: " + "; ".join(parts))
     (outdir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[fixture-bench] summary json: {outdir / 'summary.json'}")
     print(f"[fixture-bench] summary md: {outdir / 'summary.md'}")

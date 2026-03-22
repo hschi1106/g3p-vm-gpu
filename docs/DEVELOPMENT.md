@@ -27,7 +27,7 @@ ctest --test-dir cpp/build --output-on-failure
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure
-python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --population-sizes 64 --probe-cases 8 --min-success-rate 0.0
+python3 scripts/speedup_experiment.py
 ```
 
 ## GPU Run Policy
@@ -203,23 +203,21 @@ Dataset-conversion args:
 ### `scripts/speedup_experiment.py`
 
 Benchmark args:
-- `--config PATH`: override the default JSON config in `scripts/`
-- `--fixtures LIST`: comma-separated fixture stems or paths to run; default runs all configured fixtures
-- `--outdir PATH`: output directory for reports
-- `--bench-cli PATH`: override the benchmark CLI executable
-- `--population-sizes LIST`: override configured population sizes
-- `--max-expr-depths LIST`: override configured `max_expr_depths` or `max_expr_depth`; runs one full sweep per listed depth
-- `--modes LIST`: comma-separated benchmark modes chosen from `cpu,gpu_eval,gpu_repro,gpu_repro_overlap`
-- `--probe-cases N`: override configured probe case count
-- `--min-success-rate F`: override configured acceptance threshold
+This script no longer accepts command-line benchmark overrides.
+It always reads its full configuration from:
 
-Default config lookup:
-- prefer local `scripts/speedup_experiment.json`
-- otherwise use tracked `scripts/speedup_experiment.example.json`
+- `scripts/speedup_experiment.example.json`
+
+Run it as:
+
+```bash
+python3 scripts/speedup_experiment.py
+```
 
 Config keys in `scripts/speedup_experiment.example.json`:
 - `bench_cli`
 - `fixtures`
+- `population_jsons`
 - `modes`
 - `population_sizes`
 - `blocksize`
@@ -238,6 +236,91 @@ Config keys in `scripts/speedup_experiment.example.json`:
 - `penalty`
 - `selection_pressure`
 - `outdir_prefix`
+
+Fixed-population mode:
+- each `population_jsons` entry may be either a string path or an object with:
+  - `population_json`
+  - optional `label`
+  - optional `cases`
+- when `population_jsons` is used, set these generation axes to empty lists:
+  - `fixtures`
+  - `population_sizes`
+  - `max_expr_depths`
+- and set these generation-time controls to `null`:
+  - `seed_start`
+  - `probe_cases`
+  - `min_success_rate`
+  - `max_expr_depth`
+  - `max_stmts_per_block`
+  - `max_total_nodes`
+  - `max_for_k`
+  - `max_call_args`
+- the script validates this so the config clearly shows which controls are inactive under fixed-population benchmarking
+- each population JSON must be `population-seeds-v1`; `cases_path` is loaded from the file unless overridden by `cases`
+
+Example node-bucket sweep:
+
+Edit `scripts/speedup_experiment.example.json` to:
+
+```json
+{
+  "bench_cli": "cpp/build/g3pvm_population_bench_cli",
+  "population_jsons": [
+    "data/exp/node_simple_x_plus_1_1024/node20.population.json",
+    "data/exp/node_simple_x_plus_1_1024/node30.population.json",
+    "data/exp/node_simple_x_plus_1_1024/node40.population.json",
+    "data/exp/node_simple_x_plus_1_1024/node50.population.json",
+    "data/exp/node_simple_x_plus_1_1024/node60.population.json",
+    "data/exp/node_simple_x_plus_1_1024/node70.population.json"
+  ],
+  "modes": ["cpu", "gpu_eval", "gpu_repro", "gpu_repro_overlap"],
+  "fixtures": [],
+  "population_sizes": [],
+  "seed_start": null,
+  "probe_cases": null,
+  "min_success_rate": null,
+  "fuel": 20000,
+  "blocksize": 1024,
+  "max_expr_depths": [],
+  "max_expr_depth": null,
+  "max_stmts_per_block": null,
+  "max_total_nodes": null,
+  "max_for_k": null,
+  "max_call_args": null,
+  "mutation_rate": 0.5,
+  "mutation_subtree_prob": 0.8,
+  "crossover_rate": 0.9,
+  "penalty": 1.0,
+  "selection_pressure": 3,
+  "outdir_prefix": "logs/node_simple_x_plus_1_speedup"
+}
+```
+
+Then run:
+
+```bash
+python3 scripts/speedup_experiment.py
+```
+
+Report shape:
+- per fixture, `mode_compare.report.json` / `.md`
+- top-level summary, `summary.json` / `summary.md`
+- per fixture JSON includes:
+  - `modes`: raw `BENCH` fields from `g3pvm_population_bench_cli`
+  - `speedup_vs_cpu`: coarse CPU-vs-mode speedups
+  - `timing_analysis.mode_breakdown`: per-mode coarse timing, GPU eval breakdown, and reproduction breakdown
+  - `timing_analysis.mode_comparisons`: derived comparisons such as `gpu_eval_vs_cpu`, `gpu_repro_vs_gpu_eval`, and `gpu_repro_overlap_vs_gpu_repro`
+- summary JSON includes:
+  - `average_speedup_vs_cpu`
+  - `average_mode_timings`
+  - `average_timing_analysis`
+  - depth-bucketed variants when multiple `max_expr_depth` values are run
+
+Timing-analysis intent:
+- separate coarse benchmark wall clocks from detailed GPU eval timing using canonical `gpu_eval_*` names
+- expose GPU eval cold-start tax versus steady-state eval cost
+- expose GPU reproduction primary-phase breakdown and kernel subphases
+- quantify hidden overlap in `gpu_repro_overlap` as `hidden_overlap_ms`
 
 ### `scripts/kernel_bucket_experiment.py`
 
@@ -294,14 +377,37 @@ The canonical public modes are:
 
 ### Run one small benchmark smoke
 
+Edit `scripts/speedup_experiment.example.json` to a small sweep such as:
+
+```json
+{
+  "bench_cli": "cpp/build/g3pvm_population_bench_cli",
+  "fixtures": ["data/fixtures/bouncing_balls_1024.json"],
+  "modes": ["cpu", "gpu_eval", "gpu_repro", "gpu_repro_overlap"],
+  "population_sizes": [64],
+  "blocksize": 1024,
+  "seed_start": 0,
+  "probe_cases": 8,
+  "min_success_rate": 0.0,
+  "fuel": 20000,
+  "max_expr_depths": [5, 7],
+  "max_stmts_per_block": 6,
+  "max_total_nodes": 80,
+  "max_for_k": 16,
+  "max_call_args": 3,
+  "mutation_rate": 0.5,
+  "mutation_subtree_prob": 0.8,
+  "crossover_rate": 0.9,
+  "penalty": 1.0,
+  "selection_pressure": 3,
+  "outdir_prefix": "logs/fixture_speedup_smoke"
+}
+```
+
+Then run:
+
 ```bash
-python3 scripts/speedup_experiment.py \
-  --fixtures bouncing_balls_1024 \
-  --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap \
-  --max-expr-depths 5,7 \
-  --population-sizes 64 \
-  --probe-cases 8 \
-  --min-success-rate 0.0
+python3 scripts/speedup_experiment.py
 ```
 
 Primary metrics to track:
