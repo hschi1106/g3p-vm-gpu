@@ -172,6 +172,11 @@ When `--engine gpu` is used, the canonical GPU eval fields are:
 
 No GPU eval residual field is produced. In particular, the runtime does not emit a fake "session init" value computed by subtraction.
 
+### Benchmark report consumer
+
+`scripts/speedup_experiment.py` consumes these `BENCH` fields directly.
+Its reports preserve the raw mode timings under `modes.*` and derive higher-level timing analysis from the canonical `gpu_eval_*` and `repro_*` families rather than reconstructing residual buckets.
+
 ## `g3pvm_evolve_cli`
 
 The evolution CLI exposes the same timing families in three forms:
