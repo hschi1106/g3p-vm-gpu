@@ -8,6 +8,11 @@
 #include "g3pvm/evolution/repro/gpu.hpp"
 #include "g3pvm/evolution/repro/pack.hpp"
 #include "g3pvm/evolution/repro/prep.hpp"
+#include "g3pvm/evolution/selection.hpp"
+
+#ifdef G3PVM_HAS_CUDA
+#include "../../src/evolution/repro/gpu/internal.hpp"
+#endif
 
 namespace {
 
@@ -19,7 +24,7 @@ bool check(bool cond, const std::string& msg) {
   return true;
 }
 
-std::vector<g3pvm::evo::ProgramGenome> make_population() {
+std::vector<g3pvm::evo::ProgramGenome> make_population(int count = 4) {
   g3pvm::evo::Limits limits;
   limits.max_expr_depth = 5;
   limits.max_stmts_per_block = 6;
@@ -28,8 +33,8 @@ std::vector<g3pvm::evo::ProgramGenome> make_population() {
   limits.max_call_args = 3;
 
   std::vector<g3pvm::evo::ProgramGenome> out;
-  out.reserve(4);
-  for (std::uint64_t seed = 1; seed <= 4; ++seed) {
+  out.reserve(static_cast<std::size_t>(count));
+  for (int seed = 1; seed <= count; ++seed) {
     out.push_back(g3pvm::evo::generate_random_genome(seed, limits));
   }
   return out;
@@ -86,6 +91,52 @@ bool test_preprocess_and_pack() {
   }
   return true;
 }
+
+#ifdef G3PVM_HAS_CUDA
+bool copyback_gpu_selection_parents(const g3pvm::evo::EvolutionConfig& cfg,
+                                    const std::vector<g3pvm::evo::ProgramGenome>& population,
+                                    const std::vector<double>& ranked_fitness,
+                                    std::uint64_t seed,
+                                    std::vector<int>* parent_a_out,
+                                    std::vector<int>* parent_b_out,
+                                    std::string* message_out) {
+  g3pvm::evo::repro::ReproductionStats prep_stats;
+  const auto prepared =
+      g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, seed, &prep_stats);
+
+  g3pvm::evo::repro::GpuReproArena arena;
+  g3pvm::evo::repro::GpuReproHostStaging staging;
+  struct Cleanup {
+    g3pvm::evo::repro::GpuReproArena* arena = nullptr;
+    g3pvm::evo::repro::GpuReproHostStaging* staging = nullptr;
+    ~Cleanup() {
+      if (staging != nullptr) g3pvm::evo::repro::destroy_gpu_repro_host_staging(staging);
+      if (arena != nullptr) g3pvm::evo::repro::destroy_gpu_repro_arena(arena);
+    }
+  } cleanup{&arena, &staging};
+
+  if (!g3pvm::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, message_out) ||
+      !g3pvm::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, message_out)) {
+    return false;
+  }
+
+  g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
+  if (!g3pvm::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, message_out) ||
+      !g3pvm::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, message_out)) {
+    return false;
+  }
+
+  g3pvm::evo::repro::GpuReproChildView copyback;
+  if (!g3pvm::evo::repro::copyback_gpu_repro_children(
+          arena, prepared.config, &staging, &copyback, &run_stats, message_out)) {
+    return false;
+  }
+
+  parent_a_out->assign(copyback.parent_a, copyback.parent_a + prepared.config.pair_count);
+  parent_b_out->assign(copyback.parent_b, copyback.parent_b + prepared.config.pair_count);
+  return true;
+}
+#endif
 
 bool test_gpu_prepared_backend_smoke() {
 #ifdef G3PVM_HAS_CUDA
@@ -146,11 +197,87 @@ bool test_gpu_prepared_backend_smoke() {
   return true;
 }
 
+bool test_gpu_selection_preserves_round_based_tournament_invariants() {
+#ifdef G3PVM_HAS_CUDA
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 8;
+  cfg.seed = 42;
+  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.limits.max_expr_depth = 5;
+  cfg.limits.max_stmts_per_block = 6;
+  cfg.limits.max_total_nodes = 80;
+  cfg.limits.max_for_k = 16;
+  cfg.limits.max_call_args = 3;
+
+  const std::vector<g3pvm::evo::ProgramGenome> population = make_population(cfg.population_size);
+  std::vector<double> ranked_fitness;
+  ranked_fitness.reserve(population.size());
+  for (std::size_t i = 0; i < population.size(); ++i) {
+    ranked_fitness.push_back(
+        g3pvm::evo::canonicalize_fitness_for_ranking(static_cast<double>(i + 1)));
+  }
+
+  std::string message;
+  std::vector<int> parent_a;
+  std::vector<int> parent_b;
+
+  cfg.selection_pressure = cfg.population_size;
+  if (!copyback_gpu_selection_parents(cfg, population, ranked_fitness, 777, &parent_a, &parent_b, &message)) {
+    if (message.find("cuda device unavailable") != std::string::npos) {
+      std::cout << "g3pvm_test_repro_prep: SKIP gpu selection invariants (" << message << ")\n";
+      return true;
+    }
+    std::cerr << "FAIL: gpu selection invariant setup failed: " << message << "\n";
+    return false;
+  }
+  const int best_index = static_cast<int>(population.size()) - 1;
+  for (std::size_t i = 0; i < parent_a.size(); ++i) {
+    if (!check(parent_a[i] == best_index && parent_b[i] == best_index,
+               "full-pressure GPU selection should always pick the best genome")) {
+      return false;
+    }
+  }
+
+  cfg.selection_pressure = 1;
+  message.clear();
+  if (!copyback_gpu_selection_parents(cfg, population, ranked_fitness, 778, &parent_a, &parent_b, &message)) {
+    if (message.find("cuda device unavailable") != std::string::npos) {
+      std::cout << "g3pvm_test_repro_prep: SKIP gpu selection invariants (" << message << ")\n";
+      return true;
+    }
+    std::cerr << "FAIL: gpu selection invariant rerun failed: " << message << "\n";
+    return false;
+  }
+
+  std::vector<bool> seen(population.size(), false);
+  for (std::size_t pair = 0; pair < parent_a.size(); ++pair) {
+    for (int parent : {parent_a[pair], parent_b[pair]}) {
+      if (!check(parent >= 0 && parent < static_cast<int>(population.size()),
+                 "gpu selection parent index out of range")) {
+        return false;
+      }
+      if (!check(!seen[static_cast<std::size_t>(parent)],
+                 "k=1 GPU selection should not repeat winners within the first round")) {
+        return false;
+      }
+      seen[static_cast<std::size_t>(parent)] = true;
+    }
+  }
+  for (bool one_seen : seen) {
+    if (!check(one_seen, "k=1 GPU selection should visit every genome exactly once")) {
+      return false;
+    }
+  }
+#endif
+  return true;
+}
+
 }  // namespace
 
 int main() {
   if (!test_preprocess_and_pack()) return 1;
   if (!test_gpu_prepared_backend_smoke()) return 1;
+  if (!test_gpu_selection_preserves_round_based_tournament_invariants()) return 1;
   std::cout << "g3pvm_test_repro_prep: OK\n";
   return 0;
 }

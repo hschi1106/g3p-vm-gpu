@@ -25,6 +25,13 @@ std::uint64_t mix_seed(std::uint64_t seed, std::uint64_t salt) {
   return x;
 }
 
+int clamp_tournament_size(int population_size, int selection_pressure) {
+  if (population_size <= 0) {
+    return 0;
+  }
+  return std::max(1, std::min(population_size, selection_pressure));
+}
+
 RType choose_donor_type(const std::vector<CandidateRange>& candidates, std::uint64_t seed) {
   if (candidates.empty()) {
     return RType::Num;
@@ -95,7 +102,7 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
   out.max_donor_nodes = std::max(4, std::min(out.max_nodes, cfg.limits.max_expr_depth * 6));
   out.max_names = 1;
   out.max_consts = 1;
-  out.tournament_k = std::max(1, cfg.selection_pressure);
+  out.tournament_k = clamp_tournament_size(out.population_size, cfg.selection_pressure);
   out.max_expr_depth = std::max(0, cfg.limits.max_expr_depth);
   out.max_for_k = std::max(0, cfg.limits.max_for_k);
   out.mutation_ratio = std::clamp(cfg.mutation_rate, 0.0, 1.0);

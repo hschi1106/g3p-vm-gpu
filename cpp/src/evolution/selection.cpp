@@ -30,6 +30,13 @@ bool scored_genome_sorts_before(const ScoredGenome& a, const ScoredGenome& b) {
 
 namespace {
 
+int clamp_tournament_size(int population_size, int selection_pressure) {
+  if (population_size <= 0) {
+    return 0;
+  }
+  return std::max(1, std::min(population_size, selection_pressure));
+}
+
 std::size_t best_index_in_chunk(const std::vector<ScoredGenome>& scored,
                                 const std::vector<std::size_t>& shuffled_indices,
                                 std::size_t begin,
@@ -64,19 +71,18 @@ std::vector<ProgramGenome> tournament_selection_without_replacement(
 
   std::vector<ProgramGenome> selected;
   selected.reserve(static_cast<std::size_t>(selection_count));
-  const std::size_t tournament_size =
-      static_cast<std::size_t>(std::max(1, std::min(selection_pressure, static_cast<int>(scored.size()))));
-
+  const int tournament_size = clamp_tournament_size(static_cast<int>(scored.size()), selection_pressure);
   std::vector<std::size_t> shuffled_indices(scored.size());
   std::iota(shuffled_indices.begin(), shuffled_indices.end(), std::size_t{0});
 
-  while (selected.size() < static_cast<std::size_t>(selection_count)) {
+  while (static_cast<int>(selected.size()) < selection_count) {
     std::shuffle(shuffled_indices.begin(), shuffled_indices.end(), rng);
-    for (std::size_t base = 0;
-         base < shuffled_indices.size() && selected.size() < static_cast<std::size_t>(selection_count);
-         base += tournament_size) {
-      const std::size_t end = std::min(base + tournament_size, shuffled_indices.size());
-      const std::size_t winner_index = best_index_in_chunk(scored, shuffled_indices, base, end);
+    for (std::size_t begin = 0;
+         begin < shuffled_indices.size() && static_cast<int>(selected.size()) < selection_count;
+         begin += static_cast<std::size_t>(tournament_size)) {
+      const std::size_t end =
+          std::min(shuffled_indices.size(), begin + static_cast<std::size_t>(tournament_size));
+      const std::size_t winner_index = best_index_in_chunk(scored, shuffled_indices, begin, end);
       selected.push_back(scored[winner_index].genome);
     }
   }

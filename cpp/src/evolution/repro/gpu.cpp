@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/evolve.hpp"
+#include "g3pvm/evolution/selection.hpp"
 #include "g3pvm/evolution/repro/pack.hpp"
 #include "g3pvm/evolution/repro/prep.hpp"
 #include "gpu/internal.hpp"
@@ -35,7 +36,7 @@ std::vector<double> extract_fitness(const std::vector<ScoredGenome>& scored) {
   std::vector<double> fitness;
   fitness.reserve(scored.size());
   for (const ScoredGenome& one : scored) {
-    fitness.push_back(one.fitness);
+    fitness.push_back(canonicalize_fitness_for_ranking(one.fitness));
   }
   return fitness;
 }

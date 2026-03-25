@@ -99,7 +99,14 @@ The device executes two kernel families:
 - tournament selection kernel
 - variation kernel
 
-Selection uses the same round-based without-replacement tournament structure as the formal CPU implementation. Variation produces packed child buffers plus child metadata such as:
+Selection preserves the same high-level tournament semantics as the CPU path:
+
+- round-based selection
+- chunk size controlled by `selection_pressure`
+- without-replacement within each round
+- chunk winner chosen by best fitness inside that chunk
+
+The GPU kernel still emits one mating pair per thread, but its per-round permutation is an internal device implementation detail rather than a shared host/device plan. CPU and GPU are not required to use identical RNG streams or identical within-round permutations as long as they preserve the same public tournament contract. Variation produces packed child buffers plus child metadata such as:
 
 - node count
 - max depth

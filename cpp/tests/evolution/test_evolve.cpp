@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <iostream>
-#include <string>
 #include <random>
+#include <string>
 #include <vector>
 
 #include "g3pvm/evolution/evolve.hpp"
@@ -126,6 +126,42 @@ bool test_round_based_tournament_selection_without_replacement_repeats_winners()
   return true;
 }
 
+bool test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one() {
+  using g3pvm::evo::ScoredGenome;
+
+  std::vector<ScoredGenome> scored;
+  scored.push_back(ScoredGenome{make_dummy_genome("a"), 1.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("b"), 3.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("c"), 2.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("d"), 5.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("e"), 4.0});
+  scored.push_back(ScoredGenome{make_dummy_genome("f"), 6.0});
+
+  std::mt19937_64 rng(321);
+  const std::vector<g3pvm::evo::ProgramGenome> selected =
+      g3pvm::evo::tournament_selection_without_replacement(scored, rng, 1, 6);
+  if (!check(selected.size() == 6, "selection_count mismatch at k=1")) {
+    return false;
+  }
+
+  std::vector<std::string> keys;
+  keys.reserve(selected.size());
+  for (const auto& genome : selected) {
+    keys.push_back(genome.meta.program_key);
+  }
+  std::sort(keys.begin(), keys.end());
+  const std::vector<std::string> expected = {"a", "b", "c", "d", "e", "f"};
+  if (!check(keys == expected, "k=1 round should visit each genome exactly once")) {
+    return false;
+  }
+  for (std::size_t i = 1; i < keys.size(); ++i) {
+    if (!check(keys[i - 1] != keys[i], "k=1 round should not repeat winners within the round")) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool test_gpu_backend_smoke() {
 #ifdef G3PVM_HAS_CUDA
   g3pvm::evo::EvolutionConfig cfg;
@@ -206,6 +242,7 @@ int main() {
   if (!test_selection_pressure_variants()) return 1;
   if (!test_determinism_seed()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
+  if (!test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one()) return 1;
   if (!test_gpu_backend_smoke()) return 1;
   if (!test_repro_overlap_smoke()) return 1;
   std::cout << "g3pvm_test_evolve: OK\n";
