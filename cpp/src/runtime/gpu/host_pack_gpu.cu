@@ -60,14 +60,6 @@ DPayloadFlavor classify_payload_flavor(const BytecodeProgram& prog, unsigned sha
   return DPayloadFlavor::Mixed;
 }
 
-DPayloadFlavor classify_runtime_payload_flavor(const BytecodeProgram& prog, unsigned shared_input_payload_mask) {
-  const DPayloadFlavor fine = classify_payload_flavor(prog, shared_input_payload_mask);
-  if (fine == DPayloadFlavor::None) {
-    return DPayloadFlavor::None;
-  }
-  return DPayloadFlavor::Mixed;
-}
-
 }  // namespace
 
 DPayloadFlavor classify_payload_flavor_for_program(const BytecodeProgram& prog, unsigned shared_input_payload_mask) {
@@ -91,7 +83,7 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
     meta.case_count = shared_case_count;
     meta.case_local_offset = 0;
     meta.is_valid = 1;
-    meta.payload_flavor = classify_runtime_payload_flavor(prog, shared_input_payload_mask);
+    meta.payload_flavor = classify_payload_flavor(prog, shared_input_payload_mask);
     meta.err_code = ErrCode::Value;
 
     out.all_consts.insert(out.all_consts.end(), prog.consts.begin(), prog.consts.end());
@@ -116,23 +108,6 @@ PackResult pack_programs_with_shared_case_count(const std::vector<BytecodeProgra
     if (static_cast<std::size_t>(meta.code_len) > out.max_code_len) {
       out.max_code_len = static_cast<std::size_t>(meta.code_len);
     }
-    switch (meta.payload_flavor) {
-      case DPayloadFlavor::None:
-        out.no_payload_program_indices.push_back(static_cast<int>(p));
-        if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_no_payload) {
-          out.max_code_len_no_payload = static_cast<std::size_t>(meta.code_len);
-        }
-        break;
-      case DPayloadFlavor::StringOnly:
-      case DPayloadFlavor::ListOnly:
-      case DPayloadFlavor::Mixed:
-        out.payload_program_indices.push_back(static_cast<int>(p));
-        if (static_cast<std::size_t>(meta.code_len) > out.max_code_len_payload) {
-          out.max_code_len_payload = static_cast<std::size_t>(meta.code_len);
-        }
-        break;
-    }
-
     if (prog.n_locals < 0 || prog.n_locals > MAX_LOCALS) {
       meta.is_valid = 0;
       meta.err_code = ErrCode::Value;
@@ -170,8 +145,6 @@ DeviceArena::~DeviceArena() {
   if (d_out) cudaFree(d_out);
   if (d_expected) cudaFree(d_expected);
   if (d_fitness) cudaFree(d_fitness);
-  if (d_no_payload_program_indices) cudaFree(d_no_payload_program_indices);
-  if (d_payload_program_indices) cudaFree(d_payload_program_indices);
   if (d_string_payload_entries) cudaFree(d_string_payload_entries);
   if (d_string_payload_bytes) cudaFree(d_string_payload_bytes);
   if (d_list_payload_entries) cudaFree(d_list_payload_entries);

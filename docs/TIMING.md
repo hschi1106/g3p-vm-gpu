@@ -108,6 +108,8 @@ These are the canonical metrics for GPU fitness attribution.
 | `gpu_eval_copyback_ms` | Fitness copyback | Direct |
 | `gpu_eval_teardown_ms` | Temporary eval teardown after copyback | Direct |
 
+Current production behavior uses one `Mixed` eval kernel for the full accepted population. `gpu_eval_kernel_ms` is therefore one kernel family rather than a sum of separate runtime dispatch buckets.
+
 ### Reproduction metrics
 
 These are the canonical metrics for reproduction attribution.

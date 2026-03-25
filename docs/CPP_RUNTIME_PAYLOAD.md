@@ -117,7 +117,7 @@ This separation is important:
 
 ## GPU Payload Flavors
 
-The device path does not use one monolithic payload kernel anymore.
+The device path now uses one production eval kernel family.
 
 Programs are still classifiable into four fine-grained payload flavors in `cpp/src/runtime/gpu/host_pack_gpu.cu`:
 
@@ -126,19 +126,13 @@ Programs are still classifiable into four fine-grained payload flavors in `cpp/s
 - `ListOnly`
 - `Mixed`
 
-But the current production GPU fitness path only dispatches two runtime kernel families:
-
-- `None`
-- `Mixed`
+The current production GPU fitness path always launches a single `Mixed` eval kernel over the full accepted population.
 
 The finer `StringOnly` / `ListOnly` labels are kept for experiment tooling and offline bucket studies rather than the production eval dispatch tree.
 
-This keeps:
-
-- non-payload programs on the lightest path
-- payload-bearing programs on a single shared exact-payload path
-
 Exact string/list builtins still use bounded per-thread scratch and still fall back to compact transport when exact materialization does not fit.
+
+Operationally, this means production GPU eval no longer maintains a runtime dispatch split between payload-free and payload-bearing programs. Timing and benchmark analysis should treat `gpu_eval_kernel_ms` as one kernel family rather than reconstructing legacy `None` / `Mixed` launch buckets.
 
 ## Exact Path vs Fallback Path
 

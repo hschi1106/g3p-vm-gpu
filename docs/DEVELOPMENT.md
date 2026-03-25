@@ -39,6 +39,10 @@ To force a specific visible-device index for a run, set:
 G3PVM_CUDA_DEVICE=0
 ```
 
+Current GPU eval runtime behavior:
+- one production `Mixed` eval kernel launch per accepted population
+- payload flavor labels remain available for bucket-generation tools and offline analysis, but are not used for production eval dispatch
+
 ## Public CLI And Script Arguments
 
 This section documents the adjustable arguments that affect public workflows.

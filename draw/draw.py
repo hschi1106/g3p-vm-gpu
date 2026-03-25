@@ -93,7 +93,7 @@ def detect_sweep_axis(summary: Mapping[str, object]) -> tuple[str, str, str]:
 
     sample = fixtures[0]
     if sample.get("target_node_count") is not None:
-        return ("node_count", "Number of nodes", "nodes")
+        return ("target_node_count", "Number of nodes", "nodes")
     population_json = sample.get("population_json")
     if population_json:
         try:

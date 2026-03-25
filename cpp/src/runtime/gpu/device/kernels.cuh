@@ -17,8 +17,8 @@ __device__ inline double d_canonicalize_fitness_accumulator(double value) {
 }
 
 template <DPayloadFlavor Flavor>
-__global__ void evaluate_fitness_subset(
-    const int* program_indices, int n_program_indices,
+__global__ void evaluate_fitness_programs(
+    int program_count,
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
     const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
     const Value* shared_answer,
@@ -27,11 +27,9 @@ __global__ void evaluate_fitness_subset(
     const DListPayloadEntry* list_payload_entries, int list_payload_entry_count,
     const Value* list_payload_values,
     int fuel, double penalty, double* fitness_out) {
-  const int program_slot = static_cast<int>(blockIdx.x);
+  const int prog_idx = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
-  if (program_slot < 0 || program_slot >= n_program_indices) return;
-
-  const int prog_idx = program_indices[program_slot];
+  if (prog_idx < 0 || prog_idx >= program_count) return;
 
   const DProgramMeta meta = metas[prog_idx];
   const DPayloadTables payload_tables{

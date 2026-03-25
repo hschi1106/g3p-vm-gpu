@@ -62,9 +62,7 @@ Container builtins:
 Container values use payload-backed execution.
 - CPU runtime keeps decoded `String` and `List` payloads in a registry.
 - GPU runtime keeps a session-local host payload cache, lazily fills it by packed token from the process-global registry, and then builds compact per-eval payload packs for only the tokens needed by the current accepted population plus shared cases.
-- GPU payload evaluation is split into two runtime kernel families:
-  - `None` for programs that never need exact payload execution
-  - `Mixed` for all payload-bearing programs
+- GPU payload evaluation always launches one production `Mixed` eval kernel across the full accepted population.
 - the finer `StringOnly` / `ListOnly` / `Mixed` flavor classifier is still kept for experiment tooling and offline bucketing studies
 - GPU exact payload operations use bounded per-thread scratch.
 - When exact payload materialization does not fit, GPU falls back to deterministic compact transport instead of aborting the full evaluation.

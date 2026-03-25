@@ -66,18 +66,6 @@ void append_payload_tokens_from_values(const std::vector<Value>& values,
   }
 }
 
-void append_payload_tokens_from_programs(const std::vector<BytecodeProgram>& programs,
-                                         const std::vector<int>& indices,
-                                         std::vector<std::int64_t>* string_tokens,
-                                         std::vector<std::int64_t>* list_tokens) {
-  for (int idx : indices) {
-    if (idx < 0 || idx >= static_cast<int>(programs.size())) {
-      continue;
-    }
-    append_payload_tokens_from_values(programs[static_cast<std::size_t>(idx)].consts, string_tokens, list_tokens);
-  }
-}
-
 HostPayloadPack build_payload_pack(const HostStringPayloadLookup& string_lookup,
                                    const HostListPayloadLookup& list_lookup,
                                    std::vector<std::int64_t> string_tokens,
@@ -393,7 +381,9 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
 
   std::vector<std::int64_t> needed_string_tokens = impl_->shared_string_tokens;
   std::vector<std::int64_t> needed_list_tokens = impl_->shared_list_tokens;
-  append_payload_tokens_from_programs(programs, packed.payload_program_indices, &needed_string_tokens, &needed_list_tokens);
+  for (const BytecodeProgram& program : programs) {
+    append_payload_tokens_from_values(program.consts, &needed_string_tokens, &needed_list_tokens);
+  }
   sort_and_unique_tokens(&needed_string_tokens);
   sort_and_unique_tokens(&needed_list_tokens);
   populate_payload_cache(needed_string_tokens, needed_list_tokens, &impl_->host_string_payloads, &impl_->host_list_payloads);
@@ -403,15 +393,8 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   const auto pack_t1 = std::chrono::steady_clock::now();
 
   const auto launch_prep_t0 = std::chrono::steady_clock::now();
-  const std::size_t shared_bytes =
-      kernel_shared_bytes(packed.max_code_len, impl_->blocksize);
-  const std::size_t shared_bytes_no_payload =
-      kernel_shared_bytes(packed.max_code_len_no_payload, impl_->blocksize);
-  const std::size_t shared_bytes_payload =
-      kernel_shared_bytes(packed.max_code_len_payload, impl_->blocksize);
-  if (shared_bytes > static_cast<std::size_t>(impl_->props.sharedMemPerBlock) ||
-      shared_bytes_no_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock) ||
-      shared_bytes_payload > static_cast<std::size_t>(impl_->props.sharedMemPerBlock)) {
+  const std::size_t shared_bytes = kernel_shared_bytes(packed.max_code_len, impl_->blocksize);
+  if (shared_bytes > static_cast<std::size_t>(impl_->props.sharedMemPerBlock)) {
     return fitness_eval_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }
   const auto launch_prep_t1 = std::chrono::steady_clock::now();
@@ -424,8 +407,6 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
     if (!gpu_detail::cuda_alloc_and_copy_in(packed.all_consts, &dev.d_consts) ||
         !gpu_detail::cuda_alloc_and_copy_in(packed.all_code, &dev.d_code) ||
         !gpu_detail::cuda_alloc_and_copy_in(packed.metas, &dev.d_metas) ||
-        !gpu_detail::cuda_alloc_and_copy_in(packed.no_payload_program_indices, &dev.d_no_payload_program_indices) ||
-        !gpu_detail::cuda_alloc_and_copy_in(packed.payload_program_indices, &dev.d_payload_program_indices) ||
         !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_entries, &dev.d_string_payload_entries) ||
         !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_bytes, &dev.d_string_payload_bytes) ||
         !gpu_detail::cuda_alloc_and_copy_in(payload_pack.list_entries, &dev.d_list_payload_entries) ||
@@ -441,31 +422,14 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
     const auto upload_t1 = std::chrono::steady_clock::now();
 
     const auto kernel_t0 = std::chrono::steady_clock::now();
-    cudaError_t launch_err = cudaSuccess;
-    if (!packed.no_payload_program_indices.empty()) {
-      gpu_detail::evaluate_fitness_subset<gpu_detail::DPayloadFlavor::None>
-          <<<static_cast<unsigned int>(packed.no_payload_program_indices.size()), impl_->blocksize,
-             shared_bytes_no_payload>>>(
-              dev.d_no_payload_program_indices, static_cast<int>(packed.no_payload_program_indices.size()),
-              dev.d_consts, dev.d_code, dev.d_metas,
-              impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
-              dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
-              dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
-              impl_->fuel, impl_->penalty, dev.d_fitness);
-      launch_err = cudaGetLastError();
-    }
-    if (launch_err == cudaSuccess && !packed.payload_program_indices.empty()) {
-      gpu_detail::evaluate_fitness_subset<gpu_detail::DPayloadFlavor::Mixed>
-          <<<static_cast<unsigned int>(packed.payload_program_indices.size()), impl_->blocksize,
-             shared_bytes_payload>>>(
-              dev.d_payload_program_indices, static_cast<int>(packed.payload_program_indices.size()),
-              dev.d_consts, dev.d_code, dev.d_metas,
-              impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
-              dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
-              dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
-              impl_->fuel, impl_->penalty, dev.d_fitness);
-      launch_err = cudaGetLastError();
-    }
+    gpu_detail::evaluate_fitness_programs<gpu_detail::DPayloadFlavor::Mixed>
+        <<<static_cast<unsigned int>(programs.size()), impl_->blocksize, shared_bytes>>>(
+            static_cast<int>(programs.size()), dev.d_consts, dev.d_code, dev.d_metas,
+            impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
+            dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+            dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
+            impl_->fuel, impl_->penalty, dev.d_fitness);
+    const cudaError_t launch_err = cudaGetLastError();
     const cudaError_t sync_err = cudaDeviceSynchronize();
     if (launch_err != cudaSuccess || sync_err != cudaSuccess) {
       std::string msg = "cuda kernel execution failure";
