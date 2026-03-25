@@ -99,6 +99,74 @@ Interpretation:
 2. Payload flavor contributes almost nothing once depth is known.
 3. The strongest signal in this experiment is therefore not “which kernel family should exist”, but “how expensive a population is likely to be to evaluate”.
 
+## Eval Time Decomposition
+
+For this benchmark, GPU `eval_ms` is not just device execution. In [population_bench_cli.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/cli/population_bench_cli.cpp), the GPU path times:
+
+- `session.init(...)`
+- `session.eval_programs(...)`
+
+and only then writes `eval_ms`.
+
+Within `session.eval_programs(...)`, the reported GPU subphases are:
+
+- `pack_upload_ms`
+- `kernel_ms`
+- `copyback_ms`
+
+So the missing residual is:
+
+- `session_init_ms = eval_ms - pack_upload_ms - kernel_ms - copyback_ms`
+
+Depth-averaged decomposition:
+
+| depth | eval ms | session init ms | pack/upload ms | kernel ms | copyback ms | session init share | kernel share |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `5` | `144.609` | `107.140` | `3.344` | `31.876` | `0.026` | `74.9%` | `22.6%` |
+| `7` | `146.044` | `115.573` | `2.673` | `27.531` | `0.026` | `79.7%` | `18.5%` |
+| `9` | `166.284` | `135.534` | `2.237` | `26.351` | `0.027` | `82.7%` | `15.9%` |
+| `11` | `233.054` | `205.599` | `1.846` | `24.647` | `0.027` | `88.5%` | `10.7%` |
+| `13` | `353.602` | `324.669` | `2.000` | `28.266` | `0.027` | `91.3%` | `8.1%` |
+
+Population-level depth correlations for the decomposed pieces:
+
+- `corr(depth, session_init_ms) = 0.913`
+- `corr(depth, non_kernel_ms) = 0.911`
+- `corr(depth, kernel_ms) = -0.381`
+- `corr(depth, pack_upload_ms) = -0.918`
+
+Interpretation:
+
+1. The strong `depth -> eval_ms` relationship is overwhelmingly a `depth -> session_init_ms` relationship.
+2. `kernel_ms` does not rise with depth in the same way. In this synthetic grid it is roughly flat to weakly negative.
+3. `pack_upload_ms` is small and actually trends downward with depth.
+4. `copyback_ms` is negligible.
+
+So if the design question is “should we split eval kernels by depth to reduce device execution time,” this experiment is weak evidence. If the question is “is depth a good predictor of benchmark-level GPU eval wall time,” the answer is yes, but mostly because `session.init(...)` gets more expensive for deeper populations.
+
+### Steady-State View
+
+For an actual evolution run, `session.init(...)` is paid once per session, not once per generation. So the more relevant recurring cost is:
+
+- `steady_eval_ms = eval_ms - session_init_ms = pack_upload_ms + kernel_ms + copyback_ms`
+
+Depth-averaged steady-state comparison:
+
+| depth | steady eval ms | relative to depth 5 |
+| --- | ---: | ---: |
+| `5` | `35.247` | `1.000x` |
+| `7` | `30.231` | `1.166x` |
+| `9` | `28.615` | `1.232x` |
+| `11` | `26.520` | `1.329x` |
+| `13` | `30.293` | `1.164x` |
+
+Interpretation:
+
+1. Once `session_init` is removed, the depth trend mostly disappears.
+2. In this synthetic grid, deeper buckets are not slower in steady-state GPU eval. `depth=7/9/11` are actually a bit faster than `depth=5`.
+3. `depth=13` is only slightly slower than the best steady-state bucket and still faster than `depth=5`.
+4. This makes the case for depth-based kernel bucketing even weaker. The main observed depth penalty in raw `eval_ms` is startup/setup cost, not recurring execution cost.
+
 ## Design Reading
 
 This experiment does **not** say that the current payload split was a mistake.
@@ -128,7 +196,7 @@ What this experiment says is narrower:
 ## Bottom Line
 
 1. For `kernel_ms`, depth is too weak to justify more kernel families.
-2. For `eval_ms`, depth is very strong and should be treated as a cost signal.
+2. For `eval_ms`, depth is very strong, but most of that signal comes from `session.init(...)`, not from the eval kernel itself.
 3. The correct short-term conclusion is:
    - keep payload specialization,
    - do not add depth-based kernel bucketing yet,
