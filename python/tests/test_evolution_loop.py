@@ -37,7 +37,6 @@ class TestEvolutionLoop(unittest.TestCase):
             generations=8,
             mutation_rate=0.7,
             mutation_subtree_prob=0.75,
-            crossover_rate=0.9,
             selection_pressure=4,
             seed=42,
         )

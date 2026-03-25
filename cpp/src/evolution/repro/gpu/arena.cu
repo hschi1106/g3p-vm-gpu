@@ -48,7 +48,7 @@ bool gpu_repro_config_fits_capacity(const GpuReproConfig& need, const GpuReproCo
   return have.population_size >= need.population_size &&
          have.pair_count >= need.pair_count &&
          have.candidates_per_program >= need.candidates_per_program &&
-         have.donor_pool_size >= need.donor_pool_size &&
+         have.donor_pool_size_per_type >= need.donor_pool_size_per_type &&
          have.max_nodes >= need.max_nodes &&
          have.max_donor_nodes >= need.max_donor_nodes &&
          have.max_names >= need.max_names &&
@@ -138,8 +138,6 @@ void destroy_gpu_repro_arena(GpuReproArena* arena) {
   if (arena->d_parent_b) cudaFree(arena->d_parent_b);
   if (arena->d_cand_a) cudaFree(arena->d_cand_a);
   if (arena->d_cand_b) cudaFree(arena->d_cand_b);
-  if (arena->d_donor_idx) cudaFree(arena->d_donor_idx);
-  if (arena->d_is_mutation) cudaFree(arena->d_is_mutation);
   if (arena->d_child_nodes) cudaFree(arena->d_child_nodes);
   if (arena->d_child_used_len) cudaFree(arena->d_child_used_len);
   if (arena->d_child_name_ids) cudaFree(arena->d_child_name_ids);
@@ -173,6 +171,8 @@ bool allocate_gpu_arena(GpuReproArena* arena,
   auto alloc = [&](auto** ptr, std::size_t bytes, const char* what) {
     return set_error(cudaMalloc(reinterpret_cast<void**>(ptr), bytes), what, message_out);
   };
+  const std::size_t total_donor_count =
+      static_cast<std::size_t>(config.donor_pool_size_per_type * kGpuReproDonorTypeCount);
   if (!alloc(&arena->d_program_nodes,
              sizeof(PlainNode) * static_cast<std::size_t>(config.population_size * config.max_nodes),
              "cudaMalloc program_nodes") ||
@@ -190,22 +190,22 @@ bool allocate_gpu_arena(GpuReproArena* arena,
              sizeof(Value) * static_cast<std::size_t>(config.population_size * config.max_consts),
              "cudaMalloc program_consts") ||
       !alloc(&arena->d_donor_nodes,
-             sizeof(PlainNode) * static_cast<std::size_t>(config.donor_pool_size * config.max_donor_nodes),
+             sizeof(PlainNode) * (total_donor_count * static_cast<std::size_t>(config.max_donor_nodes)),
              "cudaMalloc donor_nodes") ||
       !alloc(&arena->d_donor_lens,
-             sizeof(int) * static_cast<std::size_t>(config.donor_pool_size),
+             sizeof(int) * total_donor_count,
              "cudaMalloc donor_lens") ||
       !alloc(&arena->d_donor_name_ids,
-             sizeof(std::uint64_t) * static_cast<std::size_t>(config.donor_pool_size * config.max_names),
+             sizeof(std::uint64_t) * (total_donor_count * static_cast<std::size_t>(config.max_names)),
              "cudaMalloc donor_name_ids") ||
       !alloc(&arena->d_donor_name_counts,
-             sizeof(int) * static_cast<std::size_t>(config.donor_pool_size),
+             sizeof(int) * total_donor_count,
              "cudaMalloc donor_name_counts") ||
       !alloc(&arena->d_donor_consts,
-             sizeof(Value) * static_cast<std::size_t>(config.donor_pool_size * config.max_consts),
+             sizeof(Value) * (total_donor_count * static_cast<std::size_t>(config.max_consts)),
              "cudaMalloc donor_consts") ||
       !alloc(&arena->d_donor_const_counts,
-             sizeof(int) * static_cast<std::size_t>(config.donor_pool_size),
+             sizeof(int) * total_donor_count,
              "cudaMalloc donor_const_counts") ||
       !alloc(&arena->d_fitness,
              sizeof(double) * static_cast<std::size_t>(config.population_size),
@@ -222,12 +222,6 @@ bool allocate_gpu_arena(GpuReproArena* arena,
       !alloc(&arena->d_cand_b,
              sizeof(int) * static_cast<std::size_t>(config.pair_count),
              "cudaMalloc cand_b") ||
-      !alloc(&arena->d_donor_idx,
-             sizeof(int) * static_cast<std::size_t>(config.pair_count),
-             "cudaMalloc donor_idx") ||
-      !alloc(&arena->d_is_mutation,
-             sizeof(unsigned char) * static_cast<std::size_t>(config.pair_count),
-             "cudaMalloc is_mutation") ||
       !alloc(&arena->d_child_nodes,
              sizeof(PlainNode) * static_cast<std::size_t>(config.pair_count * 2 * config.max_nodes),
              "cudaMalloc child_nodes") ||
@@ -313,7 +307,6 @@ void destroy_gpu_repro_host_staging(GpuReproHostStaging* staging) {
   }
   if (staging->parent_a) cudaFreeHost(staging->parent_a);
   if (staging->parent_b) cudaFreeHost(staging->parent_b);
-  if (staging->is_mutation) cudaFreeHost(staging->is_mutation);
   if (staging->child_used_len) cudaFreeHost(staging->child_used_len);
   if (staging->child_name_counts) cudaFreeHost(staging->child_name_counts);
   if (staging->child_const_counts) cudaFreeHost(staging->child_const_counts);
@@ -345,8 +338,6 @@ bool ensure_gpu_repro_host_staging_capacity(GpuReproHostStaging* staging,
                          "cudaMallocHost parent_a") ||
       !alloc_host_pinned(&staging->parent_b, static_cast<std::size_t>(config.pair_count), message_out,
                          "cudaMallocHost parent_b") ||
-      !alloc_host_pinned(&staging->is_mutation, static_cast<std::size_t>(config.pair_count), message_out,
-                         "cudaMallocHost is_mutation") ||
       !alloc_host_pinned(&staging->child_used_len, static_cast<std::size_t>(config.pair_count * 2), message_out,
                          "cudaMallocHost child_used_len") ||
       !alloc_host_pinned(&staging->child_name_counts, static_cast<std::size_t>(config.pair_count * 2), message_out,

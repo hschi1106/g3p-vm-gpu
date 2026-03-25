@@ -59,7 +59,6 @@ struct CliOptions {
   int fuel = 20000;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
-  double crossover_rate = 0.9;
   double penalty = 1.0;
   int selection_pressure = 3;
   int population_size = 1024;
@@ -204,7 +203,6 @@ CliOptions parse_cli(int argc, char** argv) {
     else if (arg == "--fuel") opts.fuel = std::stoi(need_value("--fuel"));
     else if (arg == "--mutation-rate") opts.mutation_rate = std::stod(need_value("--mutation-rate"));
     else if (arg == "--mutation-subtree-prob") opts.mutation_subtree_prob = std::stod(need_value("--mutation-subtree-prob"));
-    else if (arg == "--crossover-rate") opts.crossover_rate = std::stod(need_value("--crossover-rate"));
     else if (arg == "--penalty") opts.penalty = std::stod(need_value("--penalty"));
     else if (arg == "--selection-pressure") opts.selection_pressure = std::stoi(need_value("--selection-pressure"));
     else if (arg == "--population-size") opts.population_size = std::stoi(need_value("--population-size"));
@@ -612,7 +610,6 @@ int main(int argc, char** argv) {
     cfg.generations = 1;
     cfg.mutation_rate = args.mutation_rate;
     cfg.mutation_subtree_prob = args.mutation_subtree_prob;
-    cfg.crossover_rate = args.crossover_rate;
     cfg.penalty = args.penalty;
     cfg.eval_engine = (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
     cfg.reproduction_backend = g3pvm::evo::repro::parse_reproduction_backend_name(args.repro_backend);

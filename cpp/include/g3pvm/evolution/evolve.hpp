@@ -30,7 +30,6 @@ struct EvolutionConfig {
   int generations = 40;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
-  double crossover_rate = 0.9;
   double penalty = 1.0;
   EvalEngine eval_engine = EvalEngine::CPU;
   repro::ReproductionBackend reproduction_backend = repro::ReproductionBackend::Cpu;

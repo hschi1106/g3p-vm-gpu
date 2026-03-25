@@ -82,7 +82,6 @@ int main() {
   cpu_cfg.generations = 8;
   cpu_cfg.mutation_rate = 0.7;
   cpu_cfg.mutation_subtree_prob = 0.8;
-  cpu_cfg.crossover_rate = 0.9;
   cpu_cfg.selection_pressure = 3;
   cpu_cfg.seed = 42;
   cpu_cfg.eval_engine = g3pvm::evo::EvalEngine::CPU;

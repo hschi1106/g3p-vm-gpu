@@ -328,9 +328,10 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
                                                        std::mt19937_64* rng) {
   std::vector<ProgramGenome> next_population;
   next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-  const int offspring_count = cfg.population_size;
+  const int pair_count = (cfg.population_size + 1) / 2;
+  const int selected_parent_count = pair_count * 2;
   std::vector<ProgramGenome> selected_parents = g3pvm::evo::tournament_selection_without_replacement(
-      scored, *rng, cfg.selection_pressure, offspring_count);
+      scored, *rng, cfg.selection_pressure, selected_parent_count);
 
   std::vector<ProgramGenome> offspring = selected_parents;
   std::uniform_real_distribution<double> prob_dist(0.0, 1.0);
@@ -339,9 +340,6 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   if (selected_parents.size() > 1) {
     std::shuffle(offspring.begin(), offspring.end(), *rng);
     for (std::size_t i = 0; i + 1 < offspring.size(); i += 2) {
-      if (prob_dist(*rng) >= cfg.crossover_rate) {
-        continue;
-      }
       auto children = g3pvm::evo::crossover(offspring[i], offspring[i + 1], seed_dist(*rng), cfg.limits);
       offspring[i] = std::move(children.first);
       offspring[i + 1] = std::move(children.second);
@@ -355,7 +353,7 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   }
   next_population.insert(next_population.end(),
                          std::make_move_iterator(offspring.begin()),
-                         std::make_move_iterator(offspring.end()));
+                         std::make_move_iterator(offspring.begin() + cfg.population_size));
   return next_population;
 }
 
@@ -382,7 +380,6 @@ int main() {
   cpu_cfg.generations = 40;
   cpu_cfg.mutation_rate = 0.5;
   cpu_cfg.mutation_subtree_prob = 0.8;
-  cpu_cfg.crossover_rate = 0.9;
   cpu_cfg.selection_pressure = 3;
   cpu_cfg.seed = 0;
   cpu_cfg.fuel = 20000;

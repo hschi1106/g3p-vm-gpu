@@ -62,9 +62,9 @@ Core execution args:
 Evolution args:
 - `--population-size N`: individuals per generation
 - `--generations N`: number of generations to run
-- `--mutation-rate F`: probability that a selected child is mutated
+- selected parent pairs always attempt `typed_subtree` crossover; mutation is applied afterward per child
+- `--mutation-rate F`: probability that a post-crossover child is mutated
 - `--mutation-subtree-prob F`: internal mutation operator mix; probability of typed-subtree mutation instead of constant perturbation
-- `--crossover-rate F`: probability that a selected child is rebuilt via crossover
 - `--selection-pressure N`: tournament size for each round-based without-replacement pass; larger values increase selection pressure
 - `--seed N`: RNG seed for deterministic replay
 
@@ -102,7 +102,6 @@ Fixed-population benchmark args:
 - `--max-call-args N`
 - `--mutation-rate F`
 - `--mutation-subtree-prob F`
-- `--crossover-rate F`
 - `--penalty F`
 - `--selection-pressure N`
 
@@ -236,7 +235,6 @@ Config keys in `scripts/speedup_experiment.example.json`:
 - `max_call_args`
 - `mutation_rate`
 - `mutation_subtree_prob`
-- `crossover_rate`
 - `penalty`
 - `selection_pressure`
 - `outdir_prefix`
@@ -293,7 +291,6 @@ Edit `scripts/speedup_experiment.example.json` to:
   "max_call_args": null,
   "mutation_rate": 0.5,
   "mutation_subtree_prob": 0.8,
-  "crossover_rate": 0.9,
   "penalty": 1.0,
   "selection_pressure": 3,
   "outdir_prefix": "logs/node_simple_x_plus_1_speedup"
@@ -401,7 +398,6 @@ Edit `scripts/speedup_experiment.example.json` to a small sweep such as:
   "max_call_args": 3,
   "mutation_rate": 0.5,
   "mutation_subtree_prob": 0.8,
-  "crossover_rate": 0.9,
   "penalty": 1.0,
   "selection_pressure": 3,
   "outdir_prefix": "logs/fixture_speedup_smoke"

@@ -32,16 +32,23 @@ int clamp_tournament_size(int population_size, int selection_pressure) {
   return std::max(1, std::min(population_size, selection_pressure));
 }
 
-RType choose_donor_type(const std::vector<CandidateRange>& candidates, std::uint64_t seed) {
-  if (candidates.empty()) {
-    return RType::Num;
+RType donor_type_for_bucket(int bucket) {
+  switch (bucket) {
+    case 0:
+      return RType::Num;
+    case 1:
+      return RType::Bool;
+    case 2:
+      return RType::NoneType;
+    case 3:
+      return RType::String;
+    case 4:
+      return RType::List;
+    case 5:
+      return RType::Any;
+    default:
+      return RType::Num;
   }
-  const std::size_t idx = static_cast<std::size_t>(seed % static_cast<std::uint64_t>(candidates.size()));
-  const RType type = static_cast<RType>(candidates[idx].aux);
-  if (type == RType::Invalid || type == RType::Any) {
-    return RType::Num;
-  }
-  return type;
 }
 
 std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
@@ -97,7 +104,7 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
   out.population_size = static_cast<int>(population.size());
   out.pair_count = (out.population_size + 1) / 2;
   out.candidates_per_program = 16;
-  out.donor_pool_size = std::max(32, std::min(out.population_size, 256));
+  out.donor_pool_size_per_type = std::max(16, std::min(out.population_size, 64));
   out.max_nodes = std::max(1, cfg.limits.max_total_nodes);
   out.max_donor_nodes = std::max(4, std::min(out.max_nodes, cfg.limits.max_expr_depth * 6));
   out.max_names = 1;
@@ -106,6 +113,7 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
   out.max_expr_depth = std::max(0, cfg.limits.max_expr_depth);
   out.max_for_k = std::max(0, cfg.limits.max_for_k);
   out.mutation_ratio = std::clamp(cfg.mutation_rate, 0.0, 1.0);
+  out.mutation_subtree_ratio = std::clamp(cfg.mutation_subtree_prob, 0.0, 1.0);
   out.seed = cfg.seed;
   for (const ProgramGenome& genome : population) {
     out.max_names = std::max(out.max_names, static_cast<int>(genome.ast.names.size()) + 4);
@@ -124,13 +132,15 @@ PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& populat
     out.candidates[i] = sample_expr_candidates(population[i], out.subtree_ends[i], config.candidates_per_program);
   }
 
-  out.donor_pool.reserve(static_cast<std::size_t>(config.donor_pool_size));
-  for (int i = 0; i < config.donor_pool_size; ++i) {
-    const std::uint64_t donor_seed = mix_seed(config.seed, static_cast<std::uint64_t>(i + 1));
-    const std::size_t program_index =
-        static_cast<std::size_t>(donor_seed % static_cast<std::uint64_t>(std::max(1, config.population_size)));
-    const RType donor_type = choose_donor_type(out.candidates[program_index], donor_seed >> 8);
-    out.donor_pool.push_back(make_donor_program(donor_seed, donor_type, config));
+  out.donor_pool.reserve(
+      static_cast<std::size_t>(config.donor_pool_size_per_type * kGpuReproDonorTypeCount));
+  for (int bucket = 0; bucket < kGpuReproDonorTypeCount; ++bucket) {
+    const RType donor_type = donor_type_for_bucket(bucket);
+    for (int i = 0; i < config.donor_pool_size_per_type; ++i) {
+      const std::uint64_t donor_seed = mix_seed(
+          config.seed, static_cast<std::uint64_t>(bucket * config.donor_pool_size_per_type + i + 1));
+      out.donor_pool.push_back(make_donor_program(donor_seed, donor_type, config));
+    }
   }
   return out;
 }

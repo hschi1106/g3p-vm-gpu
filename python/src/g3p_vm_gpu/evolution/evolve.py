@@ -24,7 +24,6 @@ class EvolutionConfig:
     generations: int = 40
     mutation_rate: float = 0.5
     mutation_subtree_prob: float = 0.8
-    crossover_rate: float = 0.9
     penalty: float = 1.0
     selection_pressure: int = 3
     seed: int = 0
@@ -132,20 +131,25 @@ def evolve_population(
         history_best_fitness.append(best.fitness)
         history_mean_fitness.append(sum(item.fitness for item in scored) / len(scored))
 
+        pair_count = (cfg.population_size + 1) // 2
         selected_parents: List[ProgramGenome] = [
-            select_parent_tournament(scored, rng, cfg.selection_pressure) for _ in range(cfg.population_size)
+            select_parent_tournament(scored, rng, cfg.selection_pressure) for _ in range(pair_count * 2)
         ]
         next_population = list(selected_parents)
         if len(selected_parents) > 1:
-            for i, parent_a in enumerate(selected_parents):
-                if rng.random() >= cfg.crossover_rate:
-                    continue
-                mate_idx = rng.randrange(len(selected_parents))
-                if mate_idx == i:
-                    mate_idx = (mate_idx + 1) % len(selected_parents)
+            rng.shuffle(next_population)
+            for i in range(0, len(next_population) - 1, 2):
+                parent_a = next_population[i]
+                parent_b = next_population[i + 1]
                 next_population[i] = crossover(
                     parent_a,
-                    selected_parents[mate_idx],
+                    parent_b,
+                    seed=rng.randint(0, 2_000_000_000),
+                    limits=cfg.limits,
+                )
+                next_population[i + 1] = crossover(
+                    parent_b,
+                    parent_a,
                     seed=rng.randint(0, 2_000_000_000),
                     limits=cfg.limits,
                 )
@@ -157,7 +161,7 @@ def evolve_population(
                     limits=cfg.limits,
                     mutation_subtree_prob=cfg.mutation_subtree_prob,
                 )
-        population = next_population
+        population = next_population[: cfg.population_size]
 
     final_scored = evaluate_population(population, cases, cfg)
     return EvolutionResult(

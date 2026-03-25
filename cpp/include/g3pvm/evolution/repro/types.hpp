@@ -13,6 +13,7 @@ namespace g3pvm::evo::repro {
 constexpr int kGpuReproMaxNames = 64;
 constexpr int kGpuReproMaxConsts = 64;
 constexpr int kGpuReproKernelMaxNodes = 512;
+constexpr int kGpuReproDonorTypeCount = 6;
 
 enum class CandidateTag {
   Expr = 0,
@@ -52,7 +53,7 @@ struct GpuReproConfig {
   int population_size = 0;
   int pair_count = 0;
   int candidates_per_program = 16;
-  int donor_pool_size = 256;
+  int donor_pool_size_per_type = 64;
   int max_nodes = 80;
   int max_donor_nodes = 24;
   int max_names = kGpuReproMaxNames;
@@ -61,6 +62,7 @@ struct GpuReproConfig {
   int max_expr_depth = 0;
   int max_for_k = 0;
   double mutation_ratio = 0.5;
+  double mutation_subtree_ratio = 0.8;
   std::uint64_t seed = 0;
 };
 
@@ -85,8 +87,6 @@ struct GpuReproSelectionPlan {
   std::vector<int> parent_b;
   std::vector<int> cand_a;
   std::vector<int> cand_b;
-  std::vector<int> donor_idx;
-  std::vector<unsigned char> is_mutation;
 };
 
 struct PackedChildMeta {
@@ -112,7 +112,6 @@ struct GpuReproChildView {
   GpuReproConfig config;
   const int* parent_a = nullptr;
   const int* parent_b = nullptr;
-  const unsigned char* is_mutation = nullptr;
   const PlainNode* child_nodes = nullptr;
   const int* child_node_offsets = nullptr;
   const std::uint64_t* child_name_ids = nullptr;

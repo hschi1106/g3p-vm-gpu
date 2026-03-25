@@ -101,17 +101,18 @@ PackedHostData pack_population(const std::vector<ProgramGenome>& population,
                                const GpuReproConfig& config) {
   PackedHostData out;
   out.config = config;
+  const std::size_t total_donor_count = prep.donor_pool.size();
   out.program_nodes.resize(static_cast<std::size_t>(config.population_size * config.max_nodes));
   out.metas.resize(static_cast<std::size_t>(config.population_size));
   out.candidates.resize(static_cast<std::size_t>(config.population_size * config.candidates_per_program));
   out.program_name_ids.resize(static_cast<std::size_t>(config.population_size * config.max_names), 0ULL);
   out.program_consts.resize(static_cast<std::size_t>(config.population_size * config.max_consts), Value::none());
-  out.donor_nodes.resize(static_cast<std::size_t>(config.donor_pool_size * config.max_donor_nodes));
-  out.donor_lens.resize(static_cast<std::size_t>(config.donor_pool_size), 0);
-  out.donor_name_ids.resize(static_cast<std::size_t>(config.donor_pool_size * config.max_names), 0ULL);
-  out.donor_name_counts.resize(static_cast<std::size_t>(config.donor_pool_size), 0);
-  out.donor_consts.resize(static_cast<std::size_t>(config.donor_pool_size * config.max_consts), Value::none());
-  out.donor_const_counts.resize(static_cast<std::size_t>(config.donor_pool_size), 0);
+  out.donor_nodes.resize(total_donor_count * static_cast<std::size_t>(config.max_donor_nodes));
+  out.donor_lens.resize(total_donor_count, 0);
+  out.donor_name_ids.resize(total_donor_count * static_cast<std::size_t>(config.max_names), 0ULL);
+  out.donor_name_counts.resize(total_donor_count, 0);
+  out.donor_consts.resize(total_donor_count * static_cast<std::size_t>(config.max_consts), Value::none());
+  out.donor_const_counts.resize(total_donor_count, 0);
 
   for (int p = 0; p < config.population_size; ++p) {
     const ProgramGenome& genome = population[static_cast<std::size_t>(p)];
@@ -150,17 +151,17 @@ PackedHostData pack_population(const std::vector<ProgramGenome>& population,
     }
   }
 
-  for (int i = 0; i < config.donor_pool_size; ++i) {
-    const DonorProgram& donor = prep.donor_pool[static_cast<std::size_t>(i)];
+  for (std::size_t i = 0; i < total_donor_count; ++i) {
+    const DonorProgram& donor = prep.donor_pool[i];
     const int used_len = std::min<int>(static_cast<int>(donor.ast.nodes.size()), config.max_donor_nodes);
     const int name_count = std::min<int>(static_cast<int>(donor.ast.names.size()), config.max_names);
     const int const_count = std::min<int>(static_cast<int>(donor.ast.consts.size()), config.max_consts);
-    out.donor_lens[static_cast<std::size_t>(i)] = used_len;
-    out.donor_name_counts[static_cast<std::size_t>(i)] = name_count;
-    out.donor_const_counts[static_cast<std::size_t>(i)] = const_count;
-    const std::size_t node_base = static_cast<std::size_t>(i * config.max_donor_nodes);
-    const std::size_t name_base = static_cast<std::size_t>(i * config.max_names);
-    const std::size_t const_base = static_cast<std::size_t>(i * config.max_consts);
+    out.donor_lens[i] = used_len;
+    out.donor_name_counts[i] = name_count;
+    out.donor_const_counts[i] = const_count;
+    const std::size_t node_base = i * static_cast<std::size_t>(config.max_donor_nodes);
+    const std::size_t name_base = i * static_cast<std::size_t>(config.max_names);
+    const std::size_t const_base = i * static_cast<std::size_t>(config.max_consts);
     for (int j = 0; j < used_len; ++j) {
       const AstNode& n = donor.ast.nodes[static_cast<std::size_t>(j)];
       out.donor_nodes[node_base + static_cast<std::size_t>(j)] =
@@ -188,22 +189,13 @@ std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packe
   const int total_children = std::min<int>(cfg.population_size,
                                            copyback.config.pair_count * 2);
   for (int child_index = 0; child_index < total_children; ++child_index) {
-    const int pair_index = child_index / 2;
     ProgramGenome next;
-    const bool is_mutation =
-        pair_index < copyback.config.pair_count &&
-        copyback.is_mutation[static_cast<std::size_t>(pair_index)] != 0;
-
-    if (is_mutation && (child_index & 1) == 1) {
+    if (copyback.child_meta[static_cast<std::size_t>(child_index)].valid == 0) {
       next = fallback_parent_for_child(scored, copyback, child_index);
     } else {
-      if (copyback.child_meta[static_cast<std::size_t>(child_index)].valid == 0) {
+      next = decode_one_child(packed, copyback, child_index);
+      if (next.ast.nodes.empty()) {
         next = fallback_parent_for_child(scored, copyback, child_index);
-      } else {
-        next = decode_one_child(packed, copyback, child_index);
-        if (next.ast.nodes.empty()) {
-          next = fallback_parent_for_child(scored, copyback, child_index);
-        }
       }
     }
     out.push_back(std::move(next));

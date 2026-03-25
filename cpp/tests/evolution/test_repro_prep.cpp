@@ -59,7 +59,8 @@ bool test_preprocess_and_pack() {
 
   if (!check(prep.subtree_ends.size() == population.size(), "subtree_ends size mismatch")) return false;
   if (!check(prep.candidates.size() == population.size(), "candidates size mismatch")) return false;
-  if (!check(static_cast<int>(prep.donor_pool.size()) == repro_cfg.donor_pool_size,
+  if (!check(static_cast<int>(prep.donor_pool.size()) ==
+                 repro_cfg.donor_pool_size_per_type * g3pvm::evo::repro::kGpuReproDonorTypeCount,
              "donor_pool size mismatch")) {
     return false;
   }
@@ -77,7 +78,8 @@ bool test_preprocess_and_pack() {
   const g3pvm::evo::repro::PackedHostData packed =
       g3pvm::evo::repro::pack_population(population, prep, repro_cfg);
   if (!check(static_cast<int>(packed.metas.size()) == repro_cfg.population_size, "meta size mismatch")) return false;
-  if (!check(static_cast<int>(packed.donor_lens.size()) == repro_cfg.donor_pool_size,
+  if (!check(static_cast<int>(packed.donor_lens.size()) ==
+                 repro_cfg.donor_pool_size_per_type * g3pvm::evo::repro::kGpuReproDonorTypeCount,
              "donor_lens size mismatch")) {
     return false;
   }

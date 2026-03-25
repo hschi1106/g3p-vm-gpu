@@ -129,10 +129,6 @@ bool copyback_gpu_repro_children(const GpuReproArena& arena,
                                    sizeof(int) * static_cast<std::size_t>(config.pair_count),
                                    cudaMemcpyDeviceToHost),
                    "cudaMemcpyAsync parent_b", message_out) ||
-      !ensure_cuda(cudaMemcpyAsync(staging->is_mutation, arena.d_is_mutation,
-                                   sizeof(unsigned char) * static_cast<std::size_t>(config.pair_count),
-                                   cudaMemcpyDeviceToHost),
-                   "cudaMemcpyAsync is_mutation", message_out) ||
       !ensure_cuda(cudaMemcpyAsync(staging->child_used_len, arena.d_child_used_len,
                                    sizeof(int) * static_cast<std::size_t>(child_count),
                                    cudaMemcpyDeviceToHost),
@@ -195,7 +191,6 @@ bool copyback_gpu_repro_children(const GpuReproArena& arena,
   out->config = config;
   out->parent_a = staging->parent_a;
   out->parent_b = staging->parent_b;
-  out->is_mutation = staging->is_mutation;
   out->child_nodes = staging->child_nodes;
   out->child_node_offsets = staging->child_node_offsets;
   out->child_name_ids = staging->child_name_ids;

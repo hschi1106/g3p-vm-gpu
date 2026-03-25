@@ -26,6 +26,7 @@ Use the repo documents in this order:
 These are the current 1.0 invariants.
 - Public program representation is prefix `AstProgram`
 - Public crossover is `typed_subtree`
+- Public reproduction attempts `typed_subtree` crossover on every selected parent pair before child-level mutation
 - Default public reproduction backend is `cpu`
 - Default public selection is round-based tournament only, controlled by `selection_pressure`
 - Public mutation API is single-path, with internal operator mix controlled by `mutation_subtree_prob`

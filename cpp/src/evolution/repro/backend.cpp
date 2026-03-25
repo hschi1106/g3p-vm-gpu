@@ -24,11 +24,12 @@ ReproductionResult run_cpu_backend(const std::vector<ScoredGenome>& scored,
                                    std::mt19937_64& rng) {
   ReproductionResult out;
   out.next_population.reserve(static_cast<std::size_t>(cfg.population_size));
-  const int offspring_count = cfg.population_size;
+  const int pair_count = (cfg.population_size + 1) / 2;
+  const int selected_parent_count = pair_count * 2;
 
   const auto selection_t0 = std::chrono::steady_clock::now();
   std::vector<ProgramGenome> selected_parents =
-      tournament_selection_without_replacement(scored, rng, cfg.selection_pressure, offspring_count);
+      tournament_selection_without_replacement(scored, rng, cfg.selection_pressure, selected_parent_count);
   const auto selection_t1 = std::chrono::steady_clock::now();
   out.stats.selection_ms =
       std::chrono::duration<double, std::milli>(selection_t1 - selection_t0).count();
@@ -41,9 +42,6 @@ ReproductionResult run_cpu_backend(const std::vector<ScoredGenome>& scored,
   if (selected_parents.size() > 1) {
     std::shuffle(offspring.begin(), offspring.end(), rng);
     for (std::size_t i = 0; i + 1 < offspring.size(); i += 2) {
-      if (prob_dist(rng) >= cfg.crossover_rate) {
-        continue;
-      }
       auto children = crossover(offspring[i], offspring[i + 1], seed_dist(rng), cfg.limits);
       offspring[i] = std::move(children.first);
       offspring[i + 1] = std::move(children.second);
@@ -63,9 +61,10 @@ ReproductionResult run_cpu_backend(const std::vector<ScoredGenome>& scored,
   out.stats.mutation_ms =
       std::chrono::duration<double, std::milli>(mutation_t1 - mutation_t0).count();
 
+  const std::size_t emitted = std::min<std::size_t>(offspring.size(), static_cast<std::size_t>(cfg.population_size));
   out.next_population.insert(out.next_population.end(),
                              std::make_move_iterator(offspring.begin()),
-                             std::make_move_iterator(offspring.end()));
+                             std::make_move_iterator(offspring.begin() + static_cast<std::ptrdiff_t>(emitted)));
   return out;
 }
 

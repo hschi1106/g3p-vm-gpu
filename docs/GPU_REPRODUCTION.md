@@ -50,8 +50,8 @@ The host extracts:
 It then computes the preprocessing data needed by device kernels:
 
 - subtree end positions
-- mutation/crossover candidate ranges
-- donor pool entries
+- typed crossover candidate ranges
+- typed donor pool entries, bucketed by result type for subtree mutation
 
 This stage is reported as:
 
@@ -106,7 +106,19 @@ Selection preserves the same high-level tournament semantics as the CPU path:
 - without-replacement within each round
 - chunk winner chosen by best fitness inside that chunk
 
-The GPU kernel still emits one mating pair per thread, but its per-round permutation is an internal device implementation detail rather than a shared host/device plan. CPU and GPU are not required to use identical RNG streams or identical within-round permutations as long as they preserve the same public tournament contract. Variation produces packed child buffers plus child metadata such as:
+The GPU kernel still emits one mating pair per thread, but its per-round permutation is an internal device implementation detail rather than a shared host/device plan. CPU and GPU are not required to use identical RNG streams or identical within-round permutations as long as they preserve the same public tournament contract.
+
+Selection also chooses a typed crossover site pair for each mating pair by scanning the bounded candidate tables for parent A and parent B, finding a common result type, and picking one candidate of that type from each parent.
+
+Variation then applies the same high-level order as the CPU backend:
+
+- every pair first attempts `typed_subtree` crossover
+- each resulting child independently samples mutation from `mutation_rate`
+- if a child mutates, `mutation_subtree_prob` chooses subtree mutation vs constant perturbation
+
+GPU subtree mutation uses a type-bucketed donor pool keyed by the selected crossover-site type. Constant perturbation is applied directly to the packed child constant table after crossover.
+
+Variation produces packed child buffers plus child metadata such as:
 
 - node count
 - max depth
@@ -195,6 +207,7 @@ The GPU reproduction backend is not required to reproduce the exact same child s
 
 - children must decode into valid `ProgramGenome` objects or fall back deterministically
 - compiled children must remain legal under the same runtime/compiler rules
+- reproduction still follows the same public high-level order: select -> typed crossover on each pair -> child-level mutation
 - public CLI semantics and benchmark accounting remain stable
 
 Fitness parity remains a CPU/GPU requirement for evaluation. Reproduction identity is not a parity contract.

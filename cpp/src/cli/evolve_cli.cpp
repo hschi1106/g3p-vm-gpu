@@ -36,7 +36,6 @@ struct CliOptions {
   int generations = 40;
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
-  double crossover_rate = 0.9;
   double penalty = 1.0;
   int selection_pressure = 3;
   std::uint64_t seed = 0;
@@ -212,8 +211,6 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.mutation_rate = std::stod(need_value("--mutation-rate"));
     } else if (arg == "--mutation-subtree-prob") {
       opts.mutation_subtree_prob = std::stod(need_value("--mutation-subtree-prob"));
-    } else if (arg == "--crossover-rate") {
-      opts.crossover_rate = std::stod(need_value("--crossover-rate"));
     } else if (arg == "--penalty") {
       opts.penalty = std::stod(need_value("--penalty"));
     } else if (arg == "--selection-pressure") {
@@ -297,7 +294,6 @@ int main(int argc, char** argv) {
     cfg.generations = args.generations;
     cfg.mutation_rate = args.mutation_rate;
     cfg.mutation_subtree_prob = args.mutation_subtree_prob;
-    cfg.crossover_rate = args.crossover_rate;
     cfg.penalty = args.penalty;
     cfg.eval_engine = (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
     cfg.reproduction_backend = g3pvm::evo::repro::parse_reproduction_backend_name(args.repro_backend);
@@ -313,14 +309,8 @@ int main(int argc, char** argv) {
                                     args.max_call_args};
 
     const g3pvm::evo::EvolutionResult result = g3pvm::evo::evolve_population(cases, cfg);
-    const char* selection_label =
-        (cfg.reproduction_backend == g3pvm::evo::repro::ReproductionBackend::Gpu)
-            ? "gpu_tournament"
-            : "round_based_tournament";
-    const char* crossover_label =
-        (cfg.reproduction_backend == g3pvm::evo::repro::ReproductionBackend::Gpu)
-            ? "gpu_expr_splice"
-            : "typed_subtree";
+    const char* selection_label = "round_based_tournament";
+    const char* crossover_label = "typed_subtree";
 
     struct HistoryRow {
       int generation = 0;

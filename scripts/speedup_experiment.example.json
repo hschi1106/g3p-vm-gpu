@@ -25,7 +25,6 @@
   "max_call_args": 3,
   "mutation_rate": 0.5,
   "mutation_subtree_prob": 0.8,
-  "crossover_rate": 0.9,
   "penalty": 1.0,
   "selection_pressure": 3,
   "outdir_prefix": "logs/fixture_speedup"

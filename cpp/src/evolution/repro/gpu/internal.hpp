@@ -28,8 +28,6 @@ struct GpuReproArena {
   int* d_parent_b = nullptr;
   int* d_cand_a = nullptr;
   int* d_cand_b = nullptr;
-  int* d_donor_idx = nullptr;
-  unsigned char* d_is_mutation = nullptr;
   PlainNode* d_child_nodes = nullptr;
   int* d_child_used_len = nullptr;
   std::uint64_t* d_child_name_ids = nullptr;
@@ -49,7 +47,6 @@ struct GpuReproHostStaging {
   GpuReproConfig capacity;
   int* parent_a = nullptr;
   int* parent_b = nullptr;
-  unsigned char* is_mutation = nullptr;
   int* child_used_len = nullptr;
   int* child_name_counts = nullptr;
   int* child_const_counts = nullptr;

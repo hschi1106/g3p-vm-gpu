@@ -34,7 +34,6 @@ bool run_one(int selection_pressure) {
   cfg.generations = 8;
   cfg.mutation_rate = 0.7;
   cfg.mutation_subtree_prob = 0.8;
-  cfg.crossover_rate = 0.9;
   cfg.selection_pressure = selection_pressure;
   cfg.seed = 42;
 

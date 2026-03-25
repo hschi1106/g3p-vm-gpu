@@ -106,9 +106,9 @@ bool launch_gpu_repro_kernels(GpuReproArena* arena,
   const int select_blocks = (config.pair_count + select_threads - 1) / select_threads;
   const auto select_t0 = std::chrono::steady_clock::now();
   tournament_select_kernel<<<select_blocks, select_threads>>>(
-      arena->d_fitness, config.population_size, config.pair_count, config.candidates_per_program,
-      config.donor_pool_size, config.tournament_k, config.mutation_ratio, config.seed, arena->d_parent_a,
-      arena->d_parent_b, arena->d_cand_a, arena->d_cand_b, arena->d_donor_idx, arena->d_is_mutation);
+      arena->d_fitness, arena->d_candidates, config.population_size, config.pair_count,
+      config.candidates_per_program, config.tournament_k, config.seed, arena->d_parent_a,
+      arena->d_parent_b, arena->d_cand_a, arena->d_cand_b);
   if (!ensure_cuda(cudaGetLastError(), "tournament_select_kernel", message_out) ||
       !ensure_cuda(cudaDeviceSynchronize(), "cudaDeviceSynchronize selection", message_out)) {
     return false;
@@ -121,9 +121,9 @@ bool launch_gpu_repro_kernels(GpuReproArena* arena,
       arena->d_program_consts, arena->d_donor_nodes, arena->d_donor_lens, arena->d_donor_name_ids,
       arena->d_donor_name_counts, arena->d_donor_consts, arena->d_donor_const_counts,
       config.max_nodes, config.candidates_per_program, config.max_donor_nodes, config.max_names, config.max_consts,
-      config.max_expr_depth, config.max_for_k,
-      config.pair_count, arena->d_parent_a, arena->d_parent_b, arena->d_cand_a, arena->d_cand_b,
-      arena->d_donor_idx, arena->d_is_mutation, arena->d_child_nodes, arena->d_child_used_len,
+      config.max_expr_depth, config.max_for_k, config.pair_count, config.donor_pool_size_per_type,
+      config.mutation_ratio, config.mutation_subtree_ratio, config.seed,
+      arena->d_parent_a, arena->d_parent_b, arena->d_cand_a, arena->d_cand_b, arena->d_child_nodes, arena->d_child_used_len,
       arena->d_child_name_ids, arena->d_child_name_counts, arena->d_child_consts,
       arena->d_child_const_counts, arena->d_child_meta);
   if (!ensure_cuda(cudaGetLastError(), "variation_kernel", message_out) ||
