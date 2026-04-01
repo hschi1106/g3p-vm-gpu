@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/evolve.hpp"
+#include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/selection.hpp"
 
 namespace {
@@ -90,6 +91,65 @@ bool test_determinism_seed() {
                "determinism best program key mismatch")) {
       return false;
     }
+  }
+  return true;
+}
+
+bool test_skip_final_eval() {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 12;
+  cfg.generations = 3;
+  cfg.seed = 321;
+  cfg.selection_pressure = 3;
+  cfg.skip_final_eval = true;
+
+  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+  if (!check(result.final_eval_skipped, "skip_final_eval should mark final eval as skipped")) {
+    return false;
+  }
+  if (!check(result.final_population.empty(), "skip_final_eval should leave final_population empty")) {
+    return false;
+  }
+  if (!check(result.final_eval_ms == 0.0, "skip_final_eval should report zero final_eval_ms")) {
+    return false;
+  }
+  if (!check(static_cast<int>(result.history_best_fitness.size()) == cfg.generations,
+             "skip_final_eval should still record history")) {
+    return false;
+  }
+  return true;
+}
+
+bool test_initial_population_override() {
+  g3pvm::evo::EvolutionConfig cfg_a;
+  cfg_a.population_size = 6;
+  cfg_a.generations = 1;
+  cfg_a.seed = 11;
+  cfg_a.selection_pressure = 3;
+
+  std::vector<g3pvm::evo::ProgramGenome> initial_population;
+  initial_population.reserve(static_cast<std::size_t>(cfg_a.population_size));
+  for (int i = 0; i < cfg_a.population_size; ++i) {
+    initial_population.push_back(
+        g3pvm::evo::generate_random_genome(1000 + static_cast<std::uint64_t>(i), cfg_a.limits));
+  }
+
+  g3pvm::evo::EvolutionConfig cfg_b = cfg_a;
+  cfg_b.seed = 9999;
+
+  const auto a = g3pvm::evo::evolve_population(simple_cases(), cfg_a, &initial_population);
+  const auto b = g3pvm::evo::evolve_population(simple_cases(), cfg_b, &initial_population);
+  if (!check(a.history_best.size() == 1 && b.history_best.size() == 1,
+             "initial_population override history length mismatch")) {
+    return false;
+  }
+  if (!check(a.history_best[0].genome.meta.program_key == b.history_best[0].genome.meta.program_key,
+             "initial_population should override cfg.seed for generation-0 population")) {
+    return false;
+  }
+  if (!check(a.history_best_fitness[0] == b.history_best_fitness[0],
+             "initial_population should preserve generation-0 fitness")) {
+    return false;
   }
   return true;
 }
@@ -240,6 +300,8 @@ bool test_repro_overlap_smoke() {
 int main() {
   if (!test_selection_pressure_variants()) return 1;
   if (!test_determinism_seed()) return 1;
+  if (!test_skip_final_eval()) return 1;
+  if (!test_initial_population_override()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one()) return 1;
   if (!test_gpu_backend_smoke()) return 1;

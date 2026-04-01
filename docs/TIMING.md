@@ -88,8 +88,8 @@ These are the first metrics to use for end-to-end benchmark comparison.
 
 Important notes:
 
-- In `population_bench_cli`, CPU `eval_ms` is just the CPU fitness call, while GPU `eval_ms` is `gpu_eval_init_ms + gpu_eval_call_ms`.
 - In `evolve_cli`, `generation_eval_ms` includes compile, scoring, canonicalization, and scored-population rebuild. It is intentionally broader than the device kernel path.
+- The fixed-pop benchmark workflow derives `eval_ms` and `total_ms` from `evolve_cli --generations 1 --skip-final-eval on` rather than from a benchmark-only CLI.
 - `repro_ms` can be lower than the sum of some `repro_*` prep phases when overlap is enabled, because part of reproduction is hidden behind evaluation.
 
 ### GPU eval metrics
@@ -131,36 +131,32 @@ These are the canonical metrics for reproduction attribution.
 | `repro_selection_kernel_ms` | Selection-kernel subset of `repro_kernel_ms` |
 | `repro_variation_kernel_ms` | Variation-kernel subset of `repro_kernel_ms` |
 
-## `g3pvm_population_bench_cli`
+## Fixed-Pop Benchmark Workflow
 
-The benchmark CLI emits one `BENCH ...` line.
+The fixed-pop benchmark workflow now uses:
 
-### Always-present timing fields
+```bash
+cpp/build/g3pvm_evolve_cli \
+  --cases ... \
+  --population-json ... \
+  --generations 1 \
+  --skip-final-eval on \
+  --timing all \
+  --out-json ...
+```
+
+The canonical derived benchmark fields are:
 
 | Field | Meaning |
 | --- | --- |
-| `compile_ms` | Fixed-population compile stage |
-| `eval_ms` | Benchmark eval stage wall-clock |
-| `repro_ms` | Benchmark reproduction stage wall-clock |
-| `selection_ms` | Host selection phase |
-| `crossover_ms` | Host crossover phase |
-| `mutation_ms` | Host mutation phase |
-| `repro_prepare_inputs_ms` | Reproduction input extraction |
-| `repro_setup_ms` | GPU reproduction setup |
-| `repro_preprocess_ms` | Reproduction preprocessing |
-| `repro_pack_ms` | Reproduction pack |
-| `repro_upload_ms` | Reproduction upload |
-| `repro_kernel_ms` | Reproduction kernel total |
-| `repro_copyback_ms` | Reproduction copyback |
-| `repro_decode_ms` | Reproduction decode |
-| `repro_teardown_ms` | Reproduction teardown |
-| `repro_selection_kernel_ms` | Selection-kernel subset |
-| `repro_variation_kernel_ms` | Variation-kernel subset |
-| `total_ms` | Full one-generation benchmark wall-clock |
+| `compile_ms` | `generation_cpu_compile_ms[0]` for CPU, or `generation_gpu_compile_ms[0]` for GPU |
+| `eval_ms` | CPU: `generation_eval_ms[0] - generation_cpu_compile_ms[0]`; GPU: `gpu_eval_init_ms + generation_gpu_eval_call_ms[0]` |
+| `steady_eval_ms` | CPU: `eval_ms`; GPU: `generation_gpu_eval_call_ms[0]` |
+| `repro_ms` | `generation_repro_ms[0]` |
+| `total_ms` | CPU: `generation_total_ms[0]`; GPU: `generation_total_ms[0] + gpu_eval_init_ms` |
+| `warm_total_proxy_ms` | `total_ms` with cold `gpu_eval_init_ms` removed, and also `repro_setup_ms` removed for GPU reproduction modes |
 
-### GPU-only detail fields
-
-When `--engine gpu` is used, the canonical GPU eval fields are:
+The canonical GPU eval detail fields remain:
 
 - `gpu_eval_init_ms`
 - `gpu_eval_call_ms`
@@ -172,12 +168,7 @@ When `--engine gpu` is used, the canonical GPU eval fields are:
 - `gpu_eval_copyback_ms`
 - `gpu_eval_teardown_ms`
 
-No GPU eval residual field is produced. In particular, the runtime does not emit a fake "session init" value computed by subtraction.
-
-### Benchmark report consumer
-
-`scripts/speedup_experiment.py` consumes these `BENCH` fields directly.
-Its reports preserve the raw mode timings under `modes.*` and derive higher-level timing analysis from the canonical `gpu_eval_*` and `repro_*` families rather than reconstructing residual buckets.
+`scripts/speedup_experiment.py` and `scripts/run_experiment_plan.py` both consume `evolve_cli` JSON and derive fixed-pop benchmark reports from these generation-0 values.
 
 ## `g3pvm_evolve_cli`
 
@@ -186,6 +177,11 @@ The evolution CLI exposes the same timing families in three forms:
 - summary `TIMING phase=...`
 - per-generation `TIMING gen=...` and `TIMING gpu_gen=...`
 - JSON in `meta.timing` and top-level `timing`
+
+Relevant fixed-pop benchmark flags:
+
+- `--population-json PATH`
+- `--skip-final-eval {on|off}`
 
 ### Summary `TIMING phase=...`
 
@@ -293,6 +289,12 @@ GPU summary phases:
 - `generations_repro_variation_kernel_ms_total`
 - `total_ms`
 
+Additional metadata fields relevant to fixed-pop benchmarking:
+
+- `meta.population_source`
+- `meta.population_json`
+- `meta.skip_final_eval`
+
 The top-level `timing` object stores per-generation arrays:
 
 - `generation_eval_ms`
@@ -330,6 +332,7 @@ The top-level `timing` object stores per-generation arrays:
 - `gpu_eval_pack_upload_ms` is a convenience aggregate. The direct timers remain `gpu_eval_pack_ms` and `gpu_eval_upload_ms`.
 - `repro_kernel_ms` should equal the sum of `repro_selection_kernel_ms` and `repro_variation_kernel_ms` up to normal timer rounding.
 - With `repro_overlap=on`, the coarse `repro_ms` value is a visibility metric, not a full-accounting sum of all reproduction work.
+- With `skip_final_eval=on`, `final_eval_ms` is zero and the JSON final object is marked as skipped.
 - New timing work should extend the direct phase structs first, then thread the names through CLI and JSON unchanged.
 
 ## Removed Legacy Names

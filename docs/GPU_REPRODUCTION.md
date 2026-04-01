@@ -162,7 +162,7 @@ This stage is reported as `repro_decode_ms`.
 Source files:
 
 - [evolve.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/evolve.cpp)
-- [population_bench_cli.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/cli/population_bench_cli.cpp)
+- [evolve_cli.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/cli/evolve_cli.cpp)
 
 When `repro_overlap` is enabled and `--engine gpu --repro-backend gpu` is active, the implementation starts reproduction preparation in a background task while GPU fitness evaluation is running.
 
@@ -229,7 +229,7 @@ In overlap mode, improvement is limited when:
 
 ## How To Read Timings
 
-For fixed-population benchmarks:
+For fixed-population benchmarks built on `g3pvm_evolve_cli --generations 1 --skip-final-eval on`:
 
 - compare `total_ms` first
 - then inspect `eval_ms`

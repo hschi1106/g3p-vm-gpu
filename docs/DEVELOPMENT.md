@@ -58,6 +58,8 @@ Core execution args:
 - `--out-json PATH`: write evolution history JSON
 - `--timing {none|summary|per_gen|all}`: timing verbosity from the native CLI
 - `--show-program {none|ast|bytecode|both}`: include final-program dumps in output
+- `--population-json PATH`: load a fixed `population-seeds-v1` initial population instead of generating from `--seed`
+- `--skip-final-eval {on|off}`: skip the post-loop final scoring pass; benchmark workflows should set this to `on`
 
 Evolution args:
 - `--population-size N`: individuals per generation
@@ -79,38 +81,30 @@ Genome-shape args:
 - `--max-for-k N`: maximum constant loop bound used by generated `for range(K)`
 - `--max-call-args N`: maximum allowed builtin call arity during generation/compilation
 
-### `cpp/build/g3pvm_population_bench_cli`
+### Fixed-Pop Benchmark Mode
 
-Fixed-population benchmark args:
-- `--cases PATH`: input `fitness-cases-v1` file
-- `--population-json PATH`: load a pre-generated `population-seeds-v1` JSON instead of generating a fresh population
-- `--out-population-json PATH`: optional output path for the generated `population-seeds-v1` JSON
-- `--engine {cpu|gpu}`: evaluation backend
-- `--repro-backend {cpu|gpu}`: reproduction backend for the one-generation reproduction phase
-- `--repro-overlap {on|off}`: overlap `gpu` prepare/pack work with GPU eval; ignored by the CPU backend
-- `--blocksize N`: GPU block size when `--engine gpu`; current native CLI default is `1024`
-- `--fuel N`: per-program execution budget
-- `--population-size N`: number of accepted genomes in the generated fixed population
-- `--seed-start N`: first RNG seed considered during generation
-- `--probe-cases N`: number of leading cases used to reject programs that error too often
-- `--min-success-rate F`: required non-error ratio across probe cases
-- `--max-attempts N`: hard cap on candidate seeds inspected before failing
-- `--max-expr-depth N`
-- `--max-stmts-per-block N`
-- `--max-total-nodes N`
-- `--max-for-k N`
-- `--max-call-args N`
-- `--mutation-rate F`
-- `--mutation-subtree-prob F`
-- `--penalty F`
-- `--selection-pressure N`
+The benchmark workflow is now:
+
+```bash
+cpp/build/g3pvm_evolve_cli \
+  --cases data/fixtures/bouncing_balls_1024.json \
+  --population-json logs/fixed_population.seeds.json \
+  --engine gpu \
+  --repro-backend gpu \
+  --repro-overlap off \
+  --blocksize 1024 \
+  --generations 1 \
+  --skip-final-eval on \
+  --timing all \
+  --out-json logs/fixed_population.run.json
+```
 
 Timing semantics:
 - Canonical timing names, scope boundaries, and CLI/JSON mappings are defined in [TIMING.md](TIMING.md).
-- `compile_ms`, `eval_ms`, `repro_ms`, and `total_ms` are the coarse benchmark rollups used by scripts such as `speedup_experiment.py`.
+- `scripts/speedup_experiment.py` and `scripts/run_experiment_plan.py` derive fixed-pop `compile_ms`, `eval_ms`, `steady_eval_ms`, `repro_ms`, `total_ms`, and `warm_total_proxy_ms` from generation-0 timing arrays plus `meta.timing.gpu_eval_init_ms`.
 - GPU evaluation detail is reported with the `gpu_eval_*` family, including `gpu_eval_init_ms`, `gpu_eval_call_ms`, `gpu_eval_pack_ms`, `gpu_eval_launch_prep_ms`, `gpu_eval_upload_ms`, `gpu_eval_pack_upload_ms`, `gpu_eval_kernel_ms`, `gpu_eval_copyback_ms`, and `gpu_eval_teardown_ms`.
 - Reproduction detail is reported with the existing `repro_*` family, including selection/crossover/mutation plus the GPU backend phases `repro_prepare_inputs_ms`, `repro_setup_ms`, `repro_preprocess_ms`, `repro_pack_ms`, `repro_upload_ms`, `repro_kernel_ms`, `repro_copyback_ms`, `repro_decode_ms`, `repro_teardown_ms`, `repro_selection_kernel_ms`, and `repro_variation_kernel_ms`.
-- With `--repro-overlap on`, `repro_prepare_inputs_ms`, `repro_preprocess_ms`, and `repro_pack_ms` may be partially hidden behind GPU evaluation wall time; compare steady-state generation metrics rather than only the coarse `repro_ms`.
+- With `--repro-overlap on`, `repro_prepare_inputs_ms`, `repro_preprocess_ms`, and `repro_pack_ms` may be partially hidden behind GPU evaluation wall time; compare `warm_total_proxy_ms` and `total_ms` before interpreting subphases.
 
 ### `cpp/build/g3pvm_population_bucket_cli`
 
@@ -218,15 +212,17 @@ python3 scripts/speedup_experiment.py
 ```
 
 Config keys in `scripts/speedup_experiment.example.json`:
-- `bench_cli`
+- `evolve_cli`
 - `fixtures`
 - `population_jsons`
+- `population_bucket_cli`
 - `modes`
 - `population_sizes`
 - `blocksize`
 - `seed_start`
-- `probe_cases`
+- `probe_cases` (accepted for backward compatibility; auto-generated fixed populations do not use probe filtering)
 - `min_success_rate`
+- `max_attempts`
 - `fuel`
 - `max_expr_depths` or `max_expr_depth`
 - `max_stmts_per_block`
@@ -259,6 +255,9 @@ Fixed-population mode:
   - `max_call_args`
 - the script validates this so the config clearly shows which controls are inactive under fixed-population benchmarking
 - each population JSON must be `population-seeds-v1`; `cases_path` is loaded from the file unless overridden by `cases`
+- when `population_jsons` is empty, the script materializes deterministic `population-seeds-v1` files from `seed_start` and the configured AST limits
+- when `population_jsons` is empty and `probe_cases > 0`, the script uses `population_bucket_cli` to generate accepted `population-seeds-v1` files with `target_depth=0`, `target_node_count=0`, `target_payload_flavor=any`, and the configured AST limits as loose generation caps
+- the native population generator still requires numeric AST limits, so there is no true unbounded mode; use large caps when you want shape limits to be non-binding in practice
 
 Example node-bucket sweep:
 
@@ -266,7 +265,7 @@ Edit `scripts/speedup_experiment.example.json` to:
 
 ```json
 {
-  "bench_cli": "cpp/build/g3pvm_population_bench_cli",
+  "evolve_cli": "cpp/build/g3pvm_evolve_cli",
   "population_jsons": [
     "data/exp/node_simple_x_plus_1_1024/node20.population.json",
     "data/exp/node_simple_x_plus_1_1024/node30.population.json",
@@ -307,7 +306,7 @@ Report shape:
 - per fixture, `mode_compare.report.json` / `.md`
 - top-level summary, `summary.json` / `summary.md`
 - per fixture JSON includes:
-  - `modes`: raw `BENCH` fields from `g3pvm_population_bench_cli`
+  - `modes`: derived fixed-pop metrics from `g3pvm_evolve_cli --generations 1 --skip-final-eval on`
   - `speedup_vs_cpu`: coarse CPU-vs-mode speedups
   - `timing_analysis.mode_breakdown`: per-mode coarse timing, GPU eval breakdown, and reproduction breakdown
   - `timing_analysis.mode_comparisons`: derived comparisons such as `gpu_eval_vs_cpu`, `gpu_repro_vs_gpu_eval`, and `gpu_repro_overlap_vs_gpu_repro`
@@ -323,37 +322,6 @@ Timing-analysis intent:
 - expose GPU reproduction primary-phase breakdown and kernel subphases
 - quantify hidden overlap in `gpu_repro_overlap` as `hidden_overlap_ms`
 
-### `scripts/kernel_bucket_experiment.py`
-
-Experiment args:
-- `--cases PATH`: fixture used for payload classification and evaluation
-- `--bucket-cli PATH`: override `g3pvm_population_bucket_cli`
-- `--bench-cli PATH`: override `g3pvm_population_bench_cli`
-- `--population-size N`
-- `--replicates N`: number of fixed populations per grid cell
-- `--bench-repeats N`: benchmark repetitions per fixed population
-- `--depths LIST`: comma-separated exact depths
-- `--payload-flavors LIST`: comma-separated payload flavors
-- `--probe-cases N`
-- `--min-success-rate F`
-- `--fuel N`
-- `--blocksize N`
-- `--max-stmts-per-block N`
-- `--max-total-nodes N`
-- `--max-for-k N`
-- `--max-call-args N`
-- `--max-attempts N`
-- `--seed-base N`
-- `--population-outdir PATH`
-- `--outdir PATH`
-
-Report shape:
-- per fixture, `mode_compare.report.json` / `.md`
-- `modes.cpu`, `modes.gpu_eval`, `modes.gpu_repro`, `modes.gpu_repro_overlap`
-- `speedup_vs_cpu.gpu_eval.*`
-- `speedup_vs_cpu.gpu_repro.*`
-- `speedup_vs_cpu.gpu_repro_overlap.*`
-
 ## Benchmark Workflow
 
 ### Canonical speed benchmark
@@ -362,14 +330,15 @@ Report shape:
 python3 scripts/speedup_experiment.py
 ```
 
-This benchmark sweep generates one fixed population per fixture run and uses that same generation configuration for every selected mode.
+This benchmark sweep generates or loads one fixed `population-seeds-v1` file per fixture run and uses that same fixed population for every selected mode.
 The canonical interpretation is:
 - `compile`: genome-to-bytecode preparation and compile-cache lookup
-- `eval`: fitness execution only
+- `eval`: CPU fitness execution only for `cpu`, and `gpu_eval_init_ms + gpu_eval_call_ms` for GPU modes
+- `steady_eval_ms`: CPU fitness execution for `cpu`, and `gpu_eval_call_ms` for GPU modes
 - `repro`: one-generation selection, crossover, and mutation work
-- `total`: the full one-generation benchmark cost
+- `total`: generation-0 total plus cold GPU eval init when applicable
+- `warm_total_proxy_ms`: `total` with cold setup removed, as documented in `experiment.md`
 
-`eval` is intentionally narrower than the old mixed metric. It excludes `compile`.
 The canonical public modes are:
 - `cpu`
 - `gpu_eval`
@@ -382,7 +351,7 @@ Edit `scripts/speedup_experiment.example.json` to a small sweep such as:
 
 ```json
 {
-  "bench_cli": "cpp/build/g3pvm_population_bench_cli",
+  "evolve_cli": "cpp/build/g3pvm_evolve_cli",
   "fixtures": ["data/fixtures/bouncing_balls_1024.json"],
   "modes": ["cpu", "gpu_eval", "gpu_repro", "gpu_repro_overlap"],
   "population_sizes": [64],
@@ -415,6 +384,8 @@ Primary metrics to track:
 - `modes.gpu_eval.*`
 - `modes.gpu_repro.*`
 - `modes.gpu_repro_overlap.*`
+- `speedup_vs_cpu.*.steady_eval_cpu_over_mode`
+- `speedup_vs_cpu.*.warm_total_proxy_cpu_over_mode`
 - `speedup_vs_cpu.gpu_eval.*`
 - `speedup_vs_cpu.gpu_repro.*`
 - `speedup_vs_cpu.gpu_repro_overlap.*`

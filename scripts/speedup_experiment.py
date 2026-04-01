@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,6 +36,8 @@ COARSE_TIMING_KEYS = (
     "eval_ms",
     "repro_ms",
     "total_ms",
+    "steady_eval_ms",
+    "warm_total_proxy_ms",
 )
 
 CPU_REPRO_TIMING_KEYS = (
@@ -109,6 +112,8 @@ SUMMARY_TIMING_KEYS = (
     "repro_selection_kernel_ms",
     "repro_variation_kernel_ms",
     "total_ms",
+    "steady_eval_ms",
+    "warm_total_proxy_ms",
 )
 
 SUMMARY_TIMING_ANALYSIS_PATHS = {
@@ -141,6 +146,7 @@ SUMMARY_COMPARISON_PATHS = {
         "cold_eval_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "cold_eval_speedup"),
         "steady_state_eval_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "steady_state_eval_speedup"),
         "total_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "total_speedup"),
+        "warm_total_proxy_speedup": ("mode_comparisons", "gpu_eval_vs_cpu", "warm_total_proxy_speedup"),
         "gpu_init_tax_ms": ("mode_comparisons", "gpu_eval_vs_cpu", "gpu_init_tax_ms"),
     },
     "gpu_repro_vs_gpu_eval": {
@@ -188,6 +194,15 @@ FIXED_POP_NULL_KEYS = (
 )
 def load_config(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_json_file(path: Path) -> Any:
+    text = path.read_text(encoding="utf-8")
+    text = re.sub(r'(?<![A-Za-z0-9_"])-nan(?![A-Za-z0-9_"])', "NaN", text)
+    text = re.sub(r'(?<![A-Za-z0-9_"])nan(?![A-Za-z0-9_"])', "NaN", text)
+    text = re.sub(r'(?<![A-Za-z0-9_"])-inf(?![A-Za-z0-9_"])', "-Infinity", text)
+    text = re.sub(r'(?<![A-Za-z0-9_"])inf(?![A-Za-z0-9_"])', "Infinity", text)
+    return json.loads(text)
 
 
 def resolve_path(raw: str) -> Path:
@@ -304,27 +319,252 @@ def parse_modes(config: dict[str, Any], raw_override: str) -> list[str]:
     return modes
 
 
-def parse_value(raw: str) -> Any:
-    try:
-        if any(ch in raw for ch in ".eE"):
-            return float(raw)
-        return int(raw)
-    except ValueError:
-        return raw
+def write_population_seed_set(
+    *,
+    path: Path,
+    cases_path: Path,
+    population_size: int,
+    seed_start: int,
+    fuel: int,
+    max_expr_depth: int,
+    max_stmts_per_block: int,
+    max_total_nodes: int,
+    max_for_k: int,
+    max_call_args: int,
+) -> None:
+    payload = {
+        "format_version": "population-seeds-v1",
+        "cases_path": str(cases_path),
+        "population_size": population_size,
+        "probe_cases": 0,
+        "min_success_rate": 0.0,
+        "fuel": fuel,
+        "attempts": population_size,
+        "limits": {
+            "max_expr_depth": max_expr_depth,
+            "max_stmts_per_block": max_stmts_per_block,
+            "max_total_nodes": max_total_nodes,
+            "max_for_k": max_for_k,
+            "max_call_args": max_call_args,
+        },
+        "seeds": [{"seed": seed_start + i} for i in range(population_size)],
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
 
-def parse_bench(stdout_text: str) -> dict[str, Any]:
-    for line in stdout_text.splitlines():
-        if not line.startswith("BENCH "):
-            continue
-        body: dict[str, Any] = {}
-        for token in line[len("BENCH ") :].split():
-            if "=" not in token:
-                continue
-            key, value = token.split("=", 1)
-            body[key] = parse_value(value)
-        return body
-    raise RuntimeError("missing BENCH line")
+def generate_population_seed_set(
+    *,
+    generator_cli: Path,
+    path: Path,
+    metadata_path: Path,
+    cases_path: Path,
+    population_size: int,
+    seed_start: int,
+    probe_cases: int,
+    min_success_rate: float,
+    fuel: int,
+    max_expr_depth: int,
+    max_stmts_per_block: int,
+    max_total_nodes: int,
+    max_for_k: int,
+    max_call_args: int,
+    max_attempts: int,
+) -> None:
+    cmd = [
+        str(generator_cli),
+        "--cases",
+        str(cases_path),
+        "--out-population-json",
+        str(path),
+        "--out-metadata-json",
+        str(metadata_path),
+        "--target-payload-flavor",
+        "any",
+        "--generator-root-type",
+        "any",
+        "--generator-mode",
+        "native",
+        "--target-depth",
+        "0",
+        "--target-node-count",
+        "0",
+        "--population-size",
+        str(population_size),
+        "--seed-start",
+        str(seed_start),
+        "--probe-cases",
+        str(probe_cases),
+        "--min-success-rate",
+        str(min_success_rate),
+        "--max-attempts",
+        str(max_attempts),
+        "--fuel",
+        str(fuel),
+        "--max-expr-depth",
+        str(max_expr_depth),
+        "--max-stmts-per-block",
+        str(max_stmts_per_block),
+        "--max-total-nodes",
+        str(max_total_nodes),
+        "--max-for-k",
+        str(max_for_k),
+        "--max-call-args",
+        str(max_call_args),
+    ]
+    proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
+    console_path = metadata_path.with_suffix(".console.log")
+    console_path.write_text(proc.stdout + proc.stderr, encoding="utf-8")
+    if proc.returncode != 0:
+        raise RuntimeError(f"population generation failed for {cases_path.name}; see {console_path}")
+
+
+def ensure_population_seed_set(
+    *,
+    generator_cli: Path | None,
+    path: Path,
+    cases_path: Path,
+    population_size: int,
+    seed_start: int,
+    probe_cases: int,
+    min_success_rate: float,
+    fuel: int,
+    max_expr_depth: int,
+    max_stmts_per_block: int,
+    max_total_nodes: int,
+    max_for_k: int,
+    max_call_args: int,
+    max_attempts: int,
+) -> Path:
+    if not path.exists():
+        if probe_cases > 0:
+            if generator_cli is None:
+                raise RuntimeError("population generation requires a configured generator cli")
+            metadata_path = path.with_suffix(".metadata.json")
+            generate_population_seed_set(
+                generator_cli=generator_cli,
+                path=path,
+                metadata_path=metadata_path,
+                cases_path=cases_path,
+                population_size=population_size,
+                seed_start=seed_start,
+                probe_cases=probe_cases,
+                min_success_rate=min_success_rate,
+                fuel=fuel,
+                max_expr_depth=max_expr_depth,
+                max_stmts_per_block=max_stmts_per_block,
+                max_total_nodes=max_total_nodes,
+                max_for_k=max_for_k,
+                max_call_args=max_call_args,
+                max_attempts=max_attempts,
+            )
+        else:
+            write_population_seed_set(
+                path=path,
+                cases_path=cases_path,
+                population_size=population_size,
+                seed_start=seed_start,
+                fuel=fuel,
+                max_expr_depth=max_expr_depth,
+                max_stmts_per_block=max_stmts_per_block,
+                max_total_nodes=max_total_nodes,
+                max_for_k=max_for_k,
+                max_call_args=max_call_args,
+            )
+    return path
+
+
+def first_timing_value(run: dict[str, Any], key: str) -> float:
+    values = run.get("timing", {}).get(key, [])
+    if not isinstance(values, list) or not values:
+        return 0.0
+    return float(values[0])
+
+
+def run_to_fixed_pop_metrics(run: dict[str, Any]) -> dict[str, Any]:
+    meta = run.get("meta", {})
+    meta_timing = meta.get("timing", {})
+    history = run.get("history", [])
+
+    engine = str(meta.get("eval_engine", "cpu"))
+    repro_backend = str(meta.get("reproduction_backend", "cpu"))
+    repro_overlap = "on" if bool(meta.get("repro_overlap", False)) else "off"
+
+    compile_ms = first_timing_value(run, "generation_gpu_compile_ms" if engine == "gpu" else "generation_cpu_compile_ms")
+    generation_eval_ms = first_timing_value(run, "generation_eval_ms")
+    gpu_eval_init_ms = float(meta_timing.get("gpu_eval_init_ms", 0.0))
+    gpu_eval_call_ms = first_timing_value(run, "generation_gpu_eval_call_ms")
+    total_ms = first_timing_value(run, "generation_total_ms") + (gpu_eval_init_ms if engine == "gpu" else 0.0)
+    repro_ms = first_timing_value(run, "generation_repro_ms")
+    repro_setup_ms = first_timing_value(run, "generation_repro_setup_ms")
+
+    eval_ms = max(0.0, generation_eval_ms - compile_ms)
+    if engine == "gpu":
+        eval_ms = gpu_eval_init_ms + gpu_eval_call_ms
+
+    if engine == "cpu":
+        warm_total_proxy_ms = total_ms
+    elif repro_backend == "cpu":
+        warm_total_proxy_ms = total_ms - gpu_eval_init_ms
+    else:
+        warm_total_proxy_ms = total_ms - gpu_eval_init_ms - repro_setup_ms
+
+    raw: dict[str, Any] = {
+        "engine": engine,
+        "repro_backend": repro_backend,
+        "repro_overlap": repro_overlap,
+        "population_size": int(meta.get("population_size", 0)),
+        "population_source": meta.get("population_source", "generated"),
+        "population_json": meta.get("population_json"),
+        "compile_ms": compile_ms,
+        "eval_ms": eval_ms,
+        "repro_ms": repro_ms,
+        "total_ms": total_ms,
+        "steady_eval_ms": eval_ms if engine == "cpu" else gpu_eval_call_ms,
+        "warm_total_proxy_ms": warm_total_proxy_ms,
+        "selection_ms": first_timing_value(run, "generation_selection_ms"),
+        "crossover_ms": first_timing_value(run, "generation_crossover_ms"),
+        "mutation_ms": first_timing_value(run, "generation_mutation_ms"),
+        "gpu_eval_init_ms": gpu_eval_init_ms,
+        "gpu_eval_call_ms": gpu_eval_call_ms,
+        "gpu_eval_pack_ms": first_timing_value(run, "generation_gpu_eval_pack_ms"),
+        "gpu_eval_launch_prep_ms": first_timing_value(run, "generation_gpu_eval_launch_prep_ms"),
+        "gpu_eval_upload_ms": first_timing_value(run, "generation_gpu_eval_upload_ms"),
+        "gpu_eval_pack_upload_ms": first_timing_value(run, "generation_gpu_eval_pack_upload_ms"),
+        "gpu_eval_kernel_ms": first_timing_value(run, "generation_gpu_eval_kernel_ms"),
+        "gpu_eval_copyback_ms": first_timing_value(run, "generation_gpu_eval_copyback_ms"),
+        "gpu_eval_teardown_ms": first_timing_value(run, "generation_gpu_eval_teardown_ms"),
+        "repro_prepare_inputs_ms": first_timing_value(run, "generation_repro_prepare_inputs_ms"),
+        "repro_setup_ms": repro_setup_ms,
+        "repro_preprocess_ms": first_timing_value(run, "generation_repro_preprocess_ms"),
+        "repro_pack_ms": first_timing_value(run, "generation_repro_pack_ms"),
+        "repro_upload_ms": first_timing_value(run, "generation_repro_upload_ms"),
+        "repro_kernel_ms": first_timing_value(run, "generation_repro_kernel_ms"),
+        "repro_copyback_ms": first_timing_value(run, "generation_repro_copyback_ms"),
+        "repro_decode_ms": first_timing_value(run, "generation_repro_decode_ms"),
+        "repro_teardown_ms": first_timing_value(run, "generation_repro_teardown_ms"),
+        "repro_selection_kernel_ms": first_timing_value(run, "generation_repro_selection_kernel_ms"),
+        "repro_variation_kernel_ms": first_timing_value(run, "generation_repro_variation_kernel_ms"),
+        "mean_fitness": as_float(history[0]["mean_fitness"]) if history else None,
+        "best_fitness": as_float(history[0]["best_fitness"]) if history else None,
+        "best_program_key": history[0]["program_key"] if history else "",
+    }
+    if repro_backend == "gpu" and repro_overlap == "on":
+        raw["hidden_overlap_ms"] = max(
+            0.0,
+            raw["repro_prepare_inputs_ms"]
+            + raw["repro_setup_ms"]
+            + raw["repro_preprocess_ms"]
+            + raw["repro_pack_ms"]
+            + raw["repro_upload_ms"]
+            + raw["repro_kernel_ms"]
+            + raw["repro_copyback_ms"]
+            + raw["repro_decode_ms"]
+            + raw["repro_teardown_ms"]
+            - raw["repro_ms"],
+        )
+    else:
+        raw["hidden_overlap_ms"] = 0.0
+    return raw
 
 
 def parse_population_sizes(config: dict[str, Any], raw_override: str) -> list[int]:
@@ -575,6 +815,7 @@ def build_timing_analysis(modes: dict[str, dict[str, Any]]) -> dict[str, Any]:
             "cold_eval_speedup": speedup(cpu.get("eval_ms"), gpu_eval.get("eval_ms")),
             "steady_state_eval_speedup": speedup(cpu.get("eval_ms"), gpu_eval.get("gpu_eval_call_ms")),
             "total_speedup": speedup(cpu.get("total_ms"), gpu_eval.get("total_ms")),
+            "warm_total_proxy_speedup": speedup(cpu.get("warm_total_proxy_ms"), gpu_eval.get("warm_total_proxy_ms")),
             "gpu_init_tax_ms": as_float(gpu_eval.get("gpu_eval_init_ms")),
             "gpu_init_tax_share_of_eval": ratio(gpu_eval.get("gpu_eval_init_ms"), gpu_eval.get("eval_ms")),
         }
@@ -642,7 +883,8 @@ def run_one(
     mode_name: str,
     outdir: Path,
     *,
-    bench_cli: Path,
+    evolve_cli: Path,
+    generator_cli: Path | None,
     blocksize: int,
     fuel: int,
     mutation_rate: float,
@@ -658,11 +900,30 @@ def run_one(
     max_total_nodes: int,
     max_for_k: int,
     max_call_args: int,
+    max_attempts: int,
     population_json: Path | None = None,
 ) -> dict[str, Any]:
     mode = BENCH_MODES[mode_name]
+    if population_json is None:
+        population_json = ensure_population_seed_set(
+            generator_cli=generator_cli,
+            path=outdir / "fixed_population.seeds.json",
+            cases_path=fixture,
+            population_size=population_size,
+            seed_start=seed_start,
+            probe_cases=probe_cases,
+            min_success_rate=min_success_rate,
+            fuel=fuel,
+            max_expr_depth=max_expr_depth,
+            max_stmts_per_block=max_stmts_per_block,
+            max_total_nodes=max_total_nodes,
+            max_for_k=max_for_k,
+            max_call_args=max_call_args,
+            max_attempts=max_attempts,
+        )
+    run_json = outdir / f"one_gen_{mode_name}.run.json"
     cmd = [
-        str(bench_cli),
+        str(evolve_cli),
         "--cases",
         str(fixture),
         "--engine",
@@ -673,6 +934,8 @@ def run_one(
         "on" if mode["repro_overlap"] else "off",
         "--blocksize",
         str(blocksize),
+        "--generations",
+        "1",
         "--fuel",
         str(fuel),
         "--mutation-rate",
@@ -683,40 +946,25 @@ def run_one(
         str(penalty),
         "--selection-pressure",
         str(selection_pressure),
+        "--seed",
+        "0",
+        "--population-json",
+        str(population_json),
+        "--skip-final-eval",
+        "on",
+        "--timing",
+        "all",
+        "--show-program",
+        "none",
+        "--out-json",
+        str(run_json),
     ]
-    if population_json is None:
-        cmd.extend(
-            [
-                "--population-size",
-                str(population_size),
-                "--seed-start",
-                str(seed_start),
-                "--probe-cases",
-                str(probe_cases),
-                "--min-success-rate",
-                str(min_success_rate),
-                "--max-expr-depth",
-                str(max_expr_depth),
-                "--max-stmts-per-block",
-                str(max_stmts_per_block),
-                "--max-total-nodes",
-                str(max_total_nodes),
-                "--max-for-k",
-                str(max_for_k),
-                "--max-call-args",
-                str(max_call_args),
-                "--out-population-json",
-                str(outdir / "fixed_population.seeds.json"),
-            ]
-        )
-    else:
-        cmd.extend(["--population-json", str(population_json)])
     proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=False)
     console_path = outdir / f"one_gen_{mode_name}.console.log"
     console_path.write_text(proc.stdout + proc.stderr, encoding="utf-8")
     if proc.returncode != 0:
         raise RuntimeError(f"{mode_name} benchmark failed for {fixture.name}; see {console_path}")
-    return parse_bench(proc.stdout)
+    return run_to_fixed_pop_metrics(load_json_file(run_json))
 
 
 def build_speedup_report(modes: dict[str, dict[str, Any]]) -> dict[str, dict[str, float | None]]:
@@ -733,6 +981,8 @@ def build_speedup_report(modes: dict[str, dict[str, Any]]) -> dict[str, dict[str
             "crossover_cpu_over_mode": speedup(cpu.get("crossover_ms"), result.get("crossover_ms")),
             "mutation_cpu_over_mode": speedup(cpu.get("mutation_ms"), result.get("mutation_ms")),
             "total_cpu_over_mode": speedup(cpu.get("total_ms"), result.get("total_ms")),
+            "steady_eval_cpu_over_mode": speedup(cpu.get("steady_eval_ms"), result.get("steady_eval_ms")),
+            "warm_total_proxy_cpu_over_mode": speedup(cpu.get("warm_total_proxy_ms"), result.get("warm_total_proxy_ms")),
         }
     return out
 
@@ -742,7 +992,7 @@ def write_fixture_report(outdir: Path, modes: dict[str, dict[str, Any]], populat
     if population_json_path is None:
         population_json_path = outdir / "fixed_population.seeds.json"
     report = {
-        "benchmark_type": "fixed_population_compare_v5",
+        "benchmark_type": "fixed_population_evolve_cli_1gen_v1",
         "population_json": str(population_json_path),
         "modes": modes,
         "speedup_vs_cpu": build_speedup_report(modes),
@@ -919,9 +1169,13 @@ def build_average_timing_comparisons(
 def main() -> int:
     config = load_config(EXAMPLE_CONFIG)
 
-    bench_cli = resolve_path(config["bench_cli"])
-    if not bench_cli.exists():
-        raise SystemExit(f"missing bench cli: {bench_cli}")
+    evolve_cli = resolve_path(config.get("evolve_cli", config.get("bench_cli", "cpp/build/g3pvm_evolve_cli")))
+    if not evolve_cli.exists():
+        raise SystemExit(f"missing evolve cli: {evolve_cli}")
+    generator_cli_raw = config.get("population_bucket_cli", "cpp/build/g3pvm_population_bucket_cli")
+    generator_cli = resolve_path(generator_cli_raw) if generator_cli_raw else None
+    if generator_cli is not None and not generator_cli.exists():
+        raise SystemExit(f"missing population bucket cli: {generator_cli}")
 
     fixtures = select_fixtures(config["fixtures"], "")
     fixed_populations = parse_fixed_populations(config, "")
@@ -942,7 +1196,8 @@ def main() -> int:
 
     aggregate: list[dict[str, Any]] = []
     common = dict(
-        bench_cli=bench_cli,
+        evolve_cli=evolve_cli,
+        generator_cli=generator_cli,
         blocksize=int(config["blocksize"]),
         fuel=int(config["fuel"]),
         mutation_rate=float(config["mutation_rate"]),
@@ -956,6 +1211,7 @@ def main() -> int:
         max_total_nodes=0 if fixed_populations else int(config["max_total_nodes"]),
         max_for_k=0 if fixed_populations else int(config["max_for_k"]),
         max_call_args=0 if fixed_populations else int(config["max_call_args"]),
+        max_attempts=int(config.get("max_attempts", 500000)),
     )
     if fixed_populations:
         for spec in fixed_populations:
@@ -1045,6 +1301,8 @@ def main() -> int:
                     "crossover_cpu_over_mode",
                     "mutation_cpu_over_mode",
                     "total_cpu_over_mode",
+                    "steady_eval_cpu_over_mode",
+                    "warm_total_proxy_cpu_over_mode",
                 )
             }
             for mode_name in modes
@@ -1062,6 +1320,8 @@ def main() -> int:
                         "crossover_cpu_over_mode",
                         "mutation_cpu_over_mode",
                         "total_cpu_over_mode",
+                        "steady_eval_cpu_over_mode",
+                        "warm_total_proxy_cpu_over_mode",
                     )
                 }
                 for mode_name in modes
@@ -1174,7 +1434,9 @@ def main() -> int:
                 continue
             speed_map = item["speedup_vs_cpu"].get(mode_name, {})
             parts.append(
-                f"{mode_name}: total={fmt_speed(speed_map.get('total_cpu_over_mode'))}, eval={fmt_speed(speed_map.get('eval_cpu_over_mode'))}"
+                f"{mode_name}: cold_total={fmt_speed(speed_map.get('total_cpu_over_mode'))}, "
+                f"steady_eval={fmt_speed(speed_map.get('steady_eval_cpu_over_mode'))}, "
+                f"warm_total_proxy={fmt_speed(speed_map.get('warm_total_proxy_cpu_over_mode'))}"
             )
         prefix = f"{item['fixture']}"
         if item.get("population_label"):

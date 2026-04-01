@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -28,9 +29,11 @@ using g3pvm::cli_detail::JsonValue;
 
 struct CliOptions {
   std::string cases_path;
+  std::string population_json;
   std::string engine = "cpu";
   std::string repro_backend = "cpu";
   bool repro_overlap = false;
+  bool skip_final_eval = false;
   int blocksize = 1024;
   int population_size = 64;
   int generations = 40;
@@ -140,6 +143,19 @@ g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
+bool paths_match(const std::string& lhs, const std::string& rhs) {
+  if (lhs == rhs) {
+    return true;
+  }
+  try {
+    const auto lhs_path = std::filesystem::absolute(std::filesystem::path(lhs)).lexically_normal();
+    const auto rhs_path = std::filesystem::absolute(std::filesystem::path(rhs)).lexically_normal();
+    return lhs_path == rhs_path;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
 std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
@@ -176,6 +192,84 @@ std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
   return out;
 }
 
+std::string read_text_file(const std::string& path);
+
+g3pvm::evo::Limits parse_limits_object(const JsonValue& raw) {
+  if (raw.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("population seed set limits must be an object");
+  }
+  auto read_int = [&](const char* key) -> int {
+    auto it = raw.object_v.find(key);
+    if (it == raw.object_v.end() || it->second.kind != JsonValue::Kind::Number) {
+      throw std::runtime_error(std::string("population seed set missing numeric limits.") + key);
+    }
+    return static_cast<int>(it->second.number_v);
+  };
+  return g3pvm::evo::Limits{
+      read_int("max_expr_depth"),
+      read_int("max_stmts_per_block"),
+      read_int("max_total_nodes"),
+      read_int("max_for_k"),
+      read_int("max_call_args"),
+  };
+}
+
+struct LoadedPopulation {
+  g3pvm::evo::Limits limits;
+  std::vector<std::uint64_t> seeds;
+  std::vector<g3pvm::evo::ProgramGenome> genomes;
+};
+
+LoadedPopulation load_population_from_seed_set(const std::string& population_json,
+                                               const std::string& cases_path) {
+  const JsonValue payload = g3pvm::cli_detail::JsonParser(read_text_file(population_json)).parse();
+  if (payload.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("population seed set must be a JSON object");
+  }
+
+  auto fv_it = payload.object_v.find("format_version");
+  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
+      fv_it->second.string_v != "population-seeds-v1") {
+    throw std::runtime_error("population seed set must include format_version=population-seeds-v1");
+  }
+
+  auto cases_it = payload.object_v.find("cases_path");
+  if (cases_it != payload.object_v.end() && cases_it->second.kind == JsonValue::Kind::String &&
+      !cases_it->second.string_v.empty() && !paths_match(cases_it->second.string_v, cases_path)) {
+    throw std::runtime_error("population seed set cases_path does not match --cases");
+  }
+
+  auto limits_it = payload.object_v.find("limits");
+  if (limits_it == payload.object_v.end()) {
+    throw std::runtime_error("population seed set missing limits");
+  }
+  auto seeds_it = payload.object_v.find("seeds");
+  if (seeds_it == payload.object_v.end() || seeds_it->second.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("population seed set missing seeds array");
+  }
+
+  LoadedPopulation out;
+  out.limits = parse_limits_object(limits_it->second);
+  out.seeds.reserve(seeds_it->second.array_v.size());
+  out.genomes.reserve(seeds_it->second.array_v.size());
+  for (const JsonValue& row : seeds_it->second.array_v) {
+    if (row.kind != JsonValue::Kind::Object) {
+      throw std::runtime_error("population seed set seeds[i] must be object");
+    }
+    auto seed_it = row.object_v.find("seed");
+    if (seed_it == row.object_v.end() || seed_it->second.kind != JsonValue::Kind::Number) {
+      throw std::runtime_error("population seed set seeds[i] missing numeric seed");
+    }
+    const std::uint64_t seed = static_cast<std::uint64_t>(seed_it->second.number_v);
+    out.seeds.push_back(seed);
+    out.genomes.push_back(g3pvm::evo::generate_random_genome(seed, out.limits));
+  }
+  if (out.genomes.empty()) {
+    throw std::runtime_error("population seed set must contain at least one seed");
+  }
+  return out;
+}
+
 CliOptions parse_cli(int argc, char** argv) {
   CliOptions opts;
   auto parse_on_off = [](const std::string& raw, const char* flag) -> bool {
@@ -195,12 +289,16 @@ CliOptions parse_cli(int argc, char** argv) {
 
     if (arg == "--cases") {
       opts.cases_path = need_value("--cases");
+    } else if (arg == "--population-json") {
+      opts.population_json = need_value("--population-json");
     } else if (arg == "--engine") {
       opts.engine = need_value("--engine");
     } else if (arg == "--repro-backend") {
       opts.repro_backend = need_value("--repro-backend");
     } else if (arg == "--repro-overlap") {
       opts.repro_overlap = parse_on_off(need_value("--repro-overlap"), "--repro-overlap");
+    } else if (arg == "--skip-final-eval") {
+      opts.skip_final_eval = parse_on_off(need_value("--skip-final-eval"), "--skip-final-eval");
     } else if (arg == "--blocksize") {
       opts.blocksize = std::stoi(need_value("--blocksize"));
     } else if (arg == "--population-size") {
@@ -302,13 +400,28 @@ int main(int argc, char** argv) {
     cfg.selection_pressure = args.selection_pressure;
     cfg.seed = args.seed;
     cfg.fuel = args.fuel;
-    cfg.limits = g3pvm::evo::Limits{args.max_expr_depth,
-                                    args.max_stmts_per_block,
-                                    args.max_total_nodes,
-                                    args.max_for_k,
-                                    args.max_call_args};
+    cfg.skip_final_eval = args.skip_final_eval;
 
-    const g3pvm::evo::EvolutionResult result = g3pvm::evo::evolve_population(cases, cfg);
+    std::vector<g3pvm::evo::ProgramGenome> initial_population;
+    const std::vector<g3pvm::evo::ProgramGenome>* initial_population_ptr = nullptr;
+    std::string population_source = "generated";
+    if (!args.population_json.empty()) {
+      LoadedPopulation loaded = load_population_from_seed_set(args.population_json, args.cases_path);
+      cfg.population_size = static_cast<int>(loaded.genomes.size());
+      cfg.limits = loaded.limits;
+      initial_population = std::move(loaded.genomes);
+      initial_population_ptr = &initial_population;
+      population_source = "population_json";
+    } else {
+      cfg.limits = g3pvm::evo::Limits{args.max_expr_depth,
+                                      args.max_stmts_per_block,
+                                      args.max_total_nodes,
+                                      args.max_for_k,
+                                      args.max_call_args};
+    }
+
+    const g3pvm::evo::EvolutionResult result =
+        g3pvm::evo::evolve_population(cases, cfg, initial_population_ptr);
     const char* selection_label = "round_based_tournament";
     const char* crossover_label = "typed_subtree";
 
@@ -351,12 +464,23 @@ int main(int argc, char** argv) {
       }
     }
 
-    std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << canonicalize_metric(result.best.fitness)
-              << " program_key=" << result.best.genome.meta.program_key
-              << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
-              << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
-              << " selection=" << selection_label
-              << " crossover=" << crossover_label << "\n";
+    if (result.final_eval_skipped) {
+      const HistoryRow& last = history_rows.back();
+      std::cout << "FINAL skipped=true last_history_best=" << std::fixed << std::setprecision(6)
+                << canonicalize_metric(last.best_fitness)
+                << " program_key=" << last.program_key
+                << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+                << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
+                << " selection=" << selection_label
+                << " crossover=" << crossover_label << "\n";
+    } else {
+      std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << canonicalize_metric(result.best.fitness)
+                << " program_key=" << result.best.genome.meta.program_key
+                << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+                << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
+                << " selection=" << selection_label
+                << " crossover=" << crossover_label << "\n";
+    }
 
     if (args.timing == "summary" || args.timing == "all") {
       double gen_eval_sum = 0.0;
@@ -475,12 +599,19 @@ int main(int argc, char** argv) {
       out << "    \"cases_path\": \"" << json_escape(args.cases_path) << "\",\n";
       out << "    \"population_size\": " << cfg.population_size << ",\n";
       out << "    \"generations\": " << cfg.generations << ",\n";
+      out << "    \"population_source\": \"" << population_source << "\",\n";
+      if (!args.population_json.empty()) {
+        out << "    \"population_json\": \"" << json_escape(args.population_json) << "\",\n";
+      } else {
+        out << "    \"population_json\": null,\n";
+      }
       out << "    \"selection\": \"" << selection_label << "\",\n";
       out << "    \"crossover_method\": \"" << crossover_label << "\",\n";
       out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
       out << "    \"reproduction_backend\": \""
           << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend) << "\",\n";
       out << "    \"repro_overlap\": " << (cfg.repro_overlap ? "true" : "false") << ",\n";
+      out << "    \"skip_final_eval\": " << (cfg.skip_final_eval ? "true" : "false") << ",\n";
       out << "    \"gpu_blocksize\": " << cfg.gpu_blocksize << ",\n";
       out << "    \"seed\": " << cfg.seed << ",\n";
       out << "    \"timing\": {\n";
@@ -577,21 +708,27 @@ int main(int argc, char** argv) {
       out << "  },\n";
 
       out << "  \"final\": {\n";
-      out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";
-      out << "    \"program_key\": \"" << json_escape(result.best.genome.meta.program_key) << "\",\n";
-      out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(result.best.genome.ast)) << "\",\n";
-      out << "    \"ast_names\": [";
-      for (std::size_t i = 0; i < result.best.genome.ast.names.size(); ++i) {
-        if (i > 0) out << ", ";
-        out << "\"" << json_escape(result.best.genome.ast.names[i]) << "\"";
+      out << "    \"skipped\": " << (result.final_eval_skipped ? "true" : "false");
+      if (!result.final_eval_skipped) {
+        out << ",\n";
+        out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";
+        out << "    \"program_key\": \"" << json_escape(result.best.genome.meta.program_key) << "\",\n";
+        out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(result.best.genome.ast)) << "\",\n";
+        out << "    \"ast_names\": [";
+        for (std::size_t i = 0; i < result.best.genome.ast.names.size(); ++i) {
+          if (i > 0) out << ", ";
+          out << "\"" << json_escape(result.best.genome.ast.names[i]) << "\"";
+        }
+        out << "],\n";
+        out << "    \"ast_consts\": [";
+        for (std::size_t i = 0; i < result.best.genome.ast.consts.size(); ++i) {
+          if (i > 0) out << ", ";
+          write_value_json(out, result.best.genome.ast.consts[i]);
+        }
+        out << "]\n";
+      } else {
+        out << "\n";
       }
-      out << "],\n";
-      out << "    \"ast_consts\": [";
-      for (std::size_t i = 0; i < result.best.genome.ast.consts.size(); ++i) {
-        if (i > 0) out << ", ";
-        write_value_json(out, result.best.genome.ast.consts[i]);
-      }
-      out << "]\n";
       out << "  }\n";
       out << "}\n";
     }

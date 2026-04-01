@@ -425,24 +425,28 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
     (void)gen;
   }
 
-  const auto final_eval_t0 = std::chrono::steady_clock::now();
-  if (cfg.eval_engine == EvalEngine::GPU) {
-#ifdef G3PVM_HAS_CUDA
-        result.final_population =
-        score_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache, &result, false, nullptr,
-                             nullptr);
-#else
-    throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
-#endif
+  if (cfg.skip_final_eval) {
+    result.final_eval_skipped = true;
+    result.final_eval_ms = 0.0;
   } else {
-    result.final_population = score_population_cpu(
-        population, canonical_input_names, shared_case_bindings, expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
-        &compile_cache, &result, false, nullptr, nullptr);
+    const auto final_eval_t0 = std::chrono::steady_clock::now();
+    if (cfg.eval_engine == EvalEngine::GPU) {
+#ifdef G3PVM_HAS_CUDA
+      result.final_population =
+          score_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache, &result, false,
+                               nullptr, nullptr);
+#else
+      throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
+#endif
+    } else {
+      result.final_population = score_population_cpu(population, canonical_input_names, shared_case_bindings,
+                                                     expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
+                                                     &compile_cache, &result, false, nullptr, nullptr);
+    }
+    const auto final_eval_t1 = std::chrono::steady_clock::now();
+    result.best = result.final_population.front();
+    result.final_eval_ms = std::chrono::duration<double, std::milli>(final_eval_t1 - final_eval_t0).count();
   }
-  const auto final_eval_t1 = std::chrono::steady_clock::now();
-
-  result.best = result.final_population.front();
-  result.final_eval_ms = std::chrono::duration<double, std::milli>(final_eval_t1 - final_eval_t0).count();
   result.total_ms =
       std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - all_t0).count();
   return result;

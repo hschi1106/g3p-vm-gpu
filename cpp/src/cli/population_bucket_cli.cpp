@@ -731,13 +731,13 @@ CliOptions parse_cli(int argc, char** argv) {
   }
   if (opts.population_size <= 0) throw std::runtime_error("--population-size must be > 0");
   if (opts.target_node_count < 0) throw std::runtime_error("--target-node-count must be >= 0");
-  if (opts.target_node_count == 0 && opts.target_depth <= 0) throw std::runtime_error("--target-depth must be > 0");
+  if (opts.target_depth < 0) throw std::runtime_error("--target-depth must be >= 0");
   if (opts.probe_cases <= 0) throw std::runtime_error("--probe-cases must be > 0");
   if (opts.min_success_rate < 0.0 || opts.min_success_rate > 1.0) {
     throw std::runtime_error("--min-success-rate must be in [0, 1]");
   }
   if (opts.max_attempts <= 0) throw std::runtime_error("--max-attempts must be > 0");
-  if (opts.target_node_count == 0 && opts.max_expr_depth < opts.target_depth) {
+  if (opts.target_node_count == 0 && opts.target_depth > 0 && opts.max_expr_depth < opts.target_depth) {
     throw std::runtime_error("--max-expr-depth must be >= --target-depth");
   }
   return opts;

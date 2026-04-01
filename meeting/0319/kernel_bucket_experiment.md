@@ -101,7 +101,7 @@ Interpretation:
 
 ## Eval Time Decomposition
 
-For this benchmark, GPU `eval_ms` is not just device execution. In [population_bench_cli.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/cli/population_bench_cli.cpp), the GPU path times:
+For this benchmark, GPU `eval_ms` is not just device execution. In the historical fixed-pop benchmark path used at that time, the GPU path timed:
 
 - `session.init(...)`
 - `session.eval_programs(...)`

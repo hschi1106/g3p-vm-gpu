@@ -11,7 +11,7 @@
   - `include/g3pvm/`: public C++ headers
   - `src/runtime/`: CPU runtime, GPU runtime, payload support
   - `src/evolution/`: compiler, genome generation, operators, evolution loop
-  - `src/cli/`: native CLIs such as `g3pvm_evolve_cli` and `g3pvm_population_bench_cli`
+  - `src/cli/`: native CLIs such as `g3pvm_evolve_cli` and `g3pvm_population_bucket_cli`
   - `tests/`: runtime, GPU smoke, parity, and evolution tests
 - Tests live in `python/tests/`.
 - Native tests live in `cpp/tests/`.
@@ -91,8 +91,7 @@
   ```bash
   ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
   cpp/build/g3pvm_evolve_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --repro-backend gpu --repro-overlap on --blocksize 1024 --population-size 64 --generations 2 --out-json logs/bouncing_balls_1024.run.json
-  cpp/build/g3pvm_population_bench_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --repro-backend gpu --repro-overlap off --blocksize 1024 --population-size 1024 --probe-cases 32 --min-success-rate 0.10 --out-population-json logs/bouncing_balls_1024.population.json
-  python3 scripts/speedup_experiment.py --fixtures bouncing_balls_1024 --modes cpu,gpu_eval,gpu_repro,gpu_repro_overlap --population-sizes 1024
+  python3 scripts/speedup_experiment.py
   ```
 
 ## Commit & Pull Request Guidelines

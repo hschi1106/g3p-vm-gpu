@@ -50,7 +50,7 @@ Use the documents below as the source of truth.
 - `cpp/src/runtime/`: CPU runtime, GPU fitness runtime, payload support
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
 - `cpp/src/evolution/repro/`: reproduction backends, preprocess/pack, GPU reproduction backend
-- `cpp/src/cli/`: `evolve_cli`, benchmark/population utilities
+- `cpp/src/cli/`: `evolve_cli`, bucket/population utilities
 - `cpp/src/bench/`: benchmark binaries
 - `cpp/tests/`: native runtime, GPU smoke, parity, and evolution tests
 - `data/fixtures/`: canonical benchmark and evolution fixtures
@@ -116,20 +116,21 @@ It accepts either a single `max_expr_depth` or a list of `max_expr_depths` throu
 When multiple depths are configured, it runs one full sweep per depth and groups the reports under depth-specific subdirectories.
 It can also benchmark existing fixed populations directly via the config key `population_jsons`, which is useful for exact-depth or exact-node experiment datasets. In that mode, keep `fixtures`, `population_sizes`, and `max_expr_depths` as empty arrays, and set generation-only controls such as `seed_start`, `probe_cases`, `min_success_rate`, and the AST-shape limits to `null`, so the inactive inputs are explicit.
 
-Each fixture benchmark generates one fixed population per run instead of using a multi-generation evolution run.
+Each fixture benchmark now runs `g3pvm_evolve_cli --generations 1 --skip-final-eval on` against a fixed `population-seeds-v1` input. When `population_jsons` is omitted, the script materializes a deterministic seed set from `seed_start` and the configured AST limits.
 It can compare four formal benchmark modes:
 - `cpu`: CPU eval + CPU reproduction
 - `gpu_eval`: GPU eval + CPU reproduction
 - `gpu_repro`: GPU eval + GPU reproduction
 - `gpu_repro_overlap`: GPU eval + GPU reproduction with overlapped preparation
 
-Each mode executes one complete generation and reports a phase breakdown:
-- `compile`: genome-to-bytecode preparation and compile-cache lookup
-- `eval`: fitness execution only; `compile` is intentionally excluded
-- `repro`: one-generation host-side selection, crossover, and mutation work
+Each mode executes one complete generation and reports derived fixed-pop metrics:
+- `compile`: genome-to-bytecode preparation and compile-cache lookup from generation 0
+- `eval`: CPU fitness call for `cpu`, and `gpu_eval_init_ms + gpu_eval_call_ms` for GPU modes
+- `steady_eval_ms`: CPU fitness call for `cpu`, and `gpu_eval_call_ms` for GPU modes
+- `repro`: one-generation host-side or GPU reproduction work
+- `warm_total_proxy_ms`: generation-0 total with cold GPU setup removed as documented in `experiment.md`
 - `selection`, `crossover`, `mutation`: the internal reproduction phases
 - `repro_prepare_inputs`, `repro_setup`, `repro_preprocess`, `repro_pack`, `repro_upload`, `repro_kernel`, `repro_copyback`, `repro_decode`: GPU reproduction phases
-- `total`: the full one-generation benchmark wall time
 
 When `gpu_repro_overlap` is enabled, `repro_prepare_inputs` / `repro_preprocess` / `repro_pack`
 may be partially hidden behind GPU fitness evaluation. Compare `total` first, then inspect the

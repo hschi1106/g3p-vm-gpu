@@ -39,6 +39,7 @@ struct EvolutionConfig {
   std::uint64_t seed = 0;
   int fuel = 20000;
   Limits limits;
+  bool skip_final_eval = false;
 };
 
 struct EvolutionResult {
@@ -50,6 +51,7 @@ struct EvolutionResult {
   double init_population_ms = 0.0;
   double gpu_eval_init_ms = 0.0;
   double final_eval_ms = 0.0;
+  bool final_eval_skipped = false;
   double cpu_compile_ms_total = 0.0;
   double gpu_compile_ms_total = 0.0;
   double gpu_eval_call_ms_total = 0.0;
