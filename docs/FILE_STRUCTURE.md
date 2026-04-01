@@ -53,7 +53,6 @@ g3p-vm-gpu/
 │   └── psb2_datasets/
 ├── meeting/
 ├── tools/
-├── scripts/
 └── logs/
 ```
 
@@ -73,7 +72,6 @@ g3p-vm-gpu/
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
 - `tools/`: dataset fetch, conversion, and audit utilities
-- `scripts/`: benchmark and experiment entry scripts
 - `logs/`: generated artifacts, benchmark reports, and run outputs
 
 ## Spec Roles

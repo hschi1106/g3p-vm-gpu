@@ -154,7 +154,7 @@ The canonical derived benchmark fields are:
 | `steady_eval_ms` | CPU: `eval_ms`; GPU: `generation_gpu_eval_call_ms[0]` |
 | `repro_ms` | `generation_repro_ms[0]` |
 | `total_ms` | CPU: `generation_total_ms[0]`; GPU: `generation_total_ms[0] + gpu_eval_init_ms` |
-| `warm_total_proxy_ms` | `total_ms` with cold `gpu_eval_init_ms` removed, and also `repro_setup_ms` removed for GPU reproduction modes |
+| `warm_total_proxy_ms` | Optional derived comparison field: `total_ms` with cold `gpu_eval_init_ms` removed, and also `repro_setup_ms` removed for GPU reproduction modes |
 
 The canonical GPU eval detail fields remain:
 
@@ -168,7 +168,7 @@ The canonical GPU eval detail fields remain:
 - `gpu_eval_copyback_ms`
 - `gpu_eval_teardown_ms`
 
-`scripts/speedup_experiment.py` and `scripts/run_experiment_plan.py` both consume `evolve_cli` JSON and derive fixed-pop benchmark reports from these generation-0 values.
+Any external analysis script should derive fixed-pop benchmark reports directly from these generation-0 values rather than inventing alternate names.
 
 ## `g3pvm_evolve_cli`
 

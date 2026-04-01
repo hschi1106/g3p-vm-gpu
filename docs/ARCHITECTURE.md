@@ -167,7 +167,6 @@ Public evolution interfaces split by responsibility:
 
 ### `cpp/src/cli/`
 - `evolve_cli.cpp`: evolution CLI; also supports fixed-population one-generation benchmark runs via `--population-json` and `--skip-final-eval`
-- `population_bucket_cli.cpp`: exact-depth and exact-node population generator for eval-kernel bucketing experiments; supports runtime payload-flavor filtering and balanced synthetic exact-node buckets
 - codec / json / options helpers
 
 ### `cpp/src/bench/`
@@ -186,18 +185,11 @@ Benchmark binaries for runtime-focused measurement.
 - `audit_psb2_tasks.py`: inspect local PSB2 dataset coverage and shape
 - `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1`
 
-### `scripts/`
-- `speedup_experiment.py`: fixed-population multi-mode sweep driver for `cpu`, `gpu_eval`, `gpu_repro`, and `gpu_repro_overlap`
-- `kernel_bucket_experiment.py`: exact-depth / exact-payload GPU eval experiment driver for bucketing studies
-- `speedup_experiment.example.json`: tracked benchmark config template
-- local `speedup_experiment.json`: optional untracked machine-local override
-
 ## Data and Tooling Layout
 
 - `data/fixtures/`: canonical benchmark fixtures
 - `data/psb2_datasets/`: PSB2 dataset mirror used by fetch/convert/audit utilities
 - `tools/`: dataset fetch, conversion, and audit utilities
-- `scripts/`: benchmark and experiment entry scripts
 - `logs/`: generated run artifacts, benchmark reports, gate outputs
 - `meeting/`: meeting notes and non-normative discussion artifacts
 
