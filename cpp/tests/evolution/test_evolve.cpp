@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <string>
 #include <vector>
@@ -16,6 +17,29 @@ bool check(bool cond, const std::string& msg) {
     return false;
   }
   return true;
+}
+
+g3pvm::evo::ProgramGenome make_nan_genome() {
+  using g3pvm::Value;
+  using g3pvm::evo::AstNode;
+  using g3pvm::evo::AstProgram;
+  using g3pvm::evo::NodeKind;
+  using g3pvm::evo::ProgramGenome;
+
+  ProgramGenome genome;
+  genome.ast = AstProgram{
+      {
+          AstNode{NodeKind::PROGRAM, 0, 0},
+          AstNode{NodeKind::BLOCK_CONS, 0, 0},
+          AstNode{NodeKind::RETURN, 0, 0},
+          AstNode{NodeKind::CONST, 0, 0},
+          AstNode{NodeKind::BLOCK_NIL, 0, 0},
+      },
+      {},
+      {Value::from_float(std::numeric_limits<double>::quiet_NaN())},
+  };
+  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  return genome;
 }
 
 std::vector<g3pvm::evo::EvalCase> simple_cases() {
@@ -149,6 +173,34 @@ bool test_initial_population_override() {
   }
   if (!check(a.history_best_fitness[0] == b.history_best_fitness[0],
              "initial_population should preserve generation-0 fitness")) {
+    return false;
+  }
+  return true;
+}
+
+bool test_nonfinite_fitness_is_clamped_to_penalty() {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 4;
+  cfg.generations = 1;
+  cfg.penalty = 3.5;
+  cfg.skip_final_eval = true;
+
+  std::vector<g3pvm::evo::ProgramGenome> initial_population(
+      static_cast<std::size_t>(cfg.population_size), make_nan_genome());
+  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg, &initial_population);
+
+  if (!check(result.history_best_fitness.size() == 1, "nonfinite clamp best history length mismatch")) {
+    return false;
+  }
+  if (!check(result.history_mean_fitness.size() == 1, "nonfinite clamp mean history length mismatch")) {
+    return false;
+  }
+  if (!check(result.history_best_fitness[0] == -14.0,
+             "nonfinite best fitness should clamp per case to -penalty")) {
+    return false;
+  }
+  if (!check(result.history_mean_fitness[0] == -14.0,
+             "nonfinite mean fitness should clamp per case to -penalty")) {
     return false;
   }
   return true;
@@ -302,6 +354,7 @@ int main() {
   if (!test_determinism_seed()) return 1;
   if (!test_skip_final_eval()) return 1;
   if (!test_initial_population_override()) return 1;
+  if (!test_nonfinite_fitness_is_clamped_to_penalty()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one()) return 1;
   if (!test_gpu_backend_smoke()) return 1;

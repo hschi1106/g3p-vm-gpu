@@ -34,7 +34,7 @@ bool value_equal(const Value& a, const Value& b) {
   if (a.tag != b.tag) return false;
   if (a.tag == ValueTag::None) return true;
   if (a.tag == ValueTag::Bool) return a.b == b.b;
-  if (a.tag == ValueTag::Int) return a.i == b.i;
+  if (a.tag == ValueTag::Int || a.tag == ValueTag::FallbackToken) return a.i == b.i;
   if (a.tag == ValueTag::Float) return a.f == b.f;
   if (a.tag == ValueTag::String || a.tag == ValueTag::List) return a.i == b.i;
   return false;
@@ -66,6 +66,36 @@ int find_or_add_const(AstProgram& target, const Value& value) {
   const int idx = static_cast<int>(target.consts.size());
   target.consts.push_back(value);
   return idx;
+}
+
+RType infer_name_type_from_string(const std::string& name) {
+  if (name == "xs" || name == "items" || name == "list" ||
+      (name.size() >= 5 && name.compare(name.size() - 5, 5, "_list") == 0)) {
+    return RType::List;
+  }
+  if (name == "s" || name == "str" || name == "text" ||
+      (name.size() >= 7 && name.compare(name.size() - 7, 7, "_string") == 0)) {
+    return RType::String;
+  }
+  return RType::Num;
+}
+
+std::vector<int> collect_name_ids_for_type(const AstProgram& target, RType type) {
+  std::vector<int> out;
+  for (std::size_t i = 0; i < target.names.size(); ++i) {
+    const RType inferred = infer_name_type_from_string(target.names[i]);
+    if (type == RType::Any || inferred == type) {
+      out.push_back(static_cast<int>(i));
+    }
+  }
+  return out;
+}
+
+int choose_name_id(std::mt19937_64& rng, const std::vector<int>& ids) {
+  if (ids.empty()) {
+    return -1;
+  }
+  return ids[static_cast<std::size_t>(rand_int(rng, 0, static_cast<int>(ids.size()) - 1))];
 }
 
 std::vector<AstNode> map_subtree_nodes_into(AstProgram& target,
@@ -162,23 +192,53 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
                                                      int depth) {
   (void)depth;
   AstProgram donor;
-  int x_idx = -1;
-  for (std::size_t i = 0; i < target.names.size(); ++i) {
-    if (target.names[i] == "x") {
-      x_idx = static_cast<int>(i);
-      break;
-    }
-  }
-  if (x_idx >= 0) donor.names.push_back("x");
-  if (type == RType::Bool && x_idx >= 0 && rand_prob(rng, 0.6)) {
+  const std::vector<int> num_name_ids = collect_name_ids_for_type(target, RType::Num);
+  const std::vector<int> string_name_ids = collect_name_ids_for_type(target, RType::String);
+  const std::vector<int> list_name_ids = collect_name_ids_for_type(target, RType::List);
+  const std::vector<int> container_name_ids = [&]() {
+    std::vector<int> out = string_name_ids;
+    out.insert(out.end(), list_name_ids.begin(), list_name_ids.end());
+    return out;
+  }();
+  const int num_name_id = choose_name_id(rng, num_name_ids);
+  const int container_name_id = choose_name_id(rng, container_name_ids);
+  if (type == RType::Bool && num_name_id >= 0 && rand_prob(rng, 0.6)) {
+    donor.names.push_back(target.names[static_cast<std::size_t>(num_name_id)]);
     donor.nodes.push_back(AstNode{NodeKind::LT, 0, 0});
     donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
     donor.consts.push_back(Value::from_int(rand_int(rng, -8, 8)));
     donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
-  if (type == RType::Num && x_idx >= 0 && rand_prob(rng, 0.6)) {
+  if (type == RType::Bool && container_name_id >= 0 && rand_prob(rng, 0.4)) {
+    donor.names.push_back(target.names[static_cast<std::size_t>(container_name_id)]);
+    donor.nodes.push_back(AstNode{NodeKind::LT, 0, 0});
+    donor.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
     donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
+    donor.consts.push_back(Value::from_int(rand_int(rng, -8, 8)));
+    donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
+    return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
+  }
+  if (type == RType::Num && num_name_id >= 0 && rand_prob(rng, 0.45)) {
+    donor.names.push_back(target.names[static_cast<std::size_t>(num_name_id)]);
+    donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
+    return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
+  }
+  if (type == RType::Num && container_name_id >= 0 && rand_prob(rng, 0.55)) {
+    const RType container_type = infer_name_type_from_string(target.names[static_cast<std::size_t>(container_name_id)]);
+    donor.names.push_back(target.names[static_cast<std::size_t>(container_name_id)]);
+    if (rand_prob(rng, 0.5)) {
+      donor.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
+      donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
+    } else {
+      donor.nodes.push_back(AstNode{NodeKind::CALL_INDEX, 0, 0});
+      donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
+      donor.consts.push_back(Value::from_int(rand_int(rng, -6, 6)));
+      donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
+      if (container_type == RType::String && rand_prob(rng, 0.3)) {
+        return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
+      }
+    }
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
   Value value = Value::from_int(0);

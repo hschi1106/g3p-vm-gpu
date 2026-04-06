@@ -45,7 +45,7 @@ For numeric expected values:
 
 ```text
 if actual is numeric:
-    score_case(actual, expected) = -|actual - expected|
+    score_case(actual, expected) = -min(|actual - expected|, penalty)
 else:
     score_case(actual, expected) = -penalty
 ```
@@ -67,9 +67,13 @@ then score_case(actual1, expected) < score_case(actual2, expected)
 Examples with `penalty = 1.0`:
 - `expected = 3`, `actual = 3` => `0`
 - `expected = 3`, `actual = 2.5` => `-0.5`
-- `expected = 3`, `actual = 10` => `-7`
+- `expected = 3`, `actual = 10` => `-1`
 - `expected = 3`, `actual = "abc"` => `-1`
 - `expected = 3`, runtime error => `-1`
+
+Consequences:
+- numeric outliers are capped at the same per-case penalty used for runtime/type failures
+- a directly comparable numeric result is never worse than `-penalty`
 
 ### Binary case
 
@@ -118,10 +122,12 @@ fitness(program) =
 Value range:
 
 ```text
-fitness(program) ∈ (-∞, N_bin]
+fitness(program) ∈ [-penalty * N_cases, N_bin]
 ```
 
-where `N_bin` is the number of binary cases.
+where:
+- `N_cases` is the total number of cases
+- `N_bin` is the number of binary cases
 
 ## Solved Criteria
 
@@ -153,7 +159,7 @@ Reason:
 
 ## Design Consequences
 
-- numeric tasks still have a dense gradient through negative absolute error
+- numeric tasks still have a dense gradient through capped negative absolute error
 - binary tasks remain exact-match driven for same-type outputs
 - invalid-type outputs and runtime failures are explicitly worse than ordinary binary mismatches
-- `penalty` controls how strongly the search is pushed away from invalid executions
+- `penalty` also upper-bounds the damage from extreme but directly comparable numeric outputs

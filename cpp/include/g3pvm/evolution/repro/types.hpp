@@ -10,8 +10,8 @@
 
 namespace g3pvm::evo::repro {
 
-constexpr int kGpuReproMaxNames = 64;
-constexpr int kGpuReproMaxConsts = 64;
+constexpr int kGpuReproMaxNames = 128;
+constexpr int kGpuReproMaxConsts = 128;
 constexpr int kGpuReproKernelMaxNodes = 512;
 constexpr int kGpuReproDonorTypeCount = 6;
 

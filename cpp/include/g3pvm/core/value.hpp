@@ -18,6 +18,7 @@ enum class ValueTag : std::uint8_t {
   None,
   String,
   List,
+  FallbackToken,
 };
 
 struct Value {
@@ -57,6 +58,15 @@ struct Value {
     out.i = 0;
     out.b = false;
     out.tag = ValueTag::None;
+    return out;
+  }
+
+  G3PVM_HD static Value from_fallback_token(std::int64_t token) {
+    Value out;
+    out.i = 0;
+    out.b = false;
+    out.tag = ValueTag::FallbackToken;
+    out.i = token;
     return out;
   }
 

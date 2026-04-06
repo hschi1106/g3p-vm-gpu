@@ -139,7 +139,7 @@ Operationally, this means production GPU eval no longer maintains a runtime disp
 Container builtins in the CPU and GPU runtimes follow the same high-level policy:
 
 1. try exact payload lookup
-2. if lookup or exact materialization is not available, fall back to deterministic compact transport
+2. if lookup or exact materialization is not available, return an opaque fallback result
 
 Exact path:
 
@@ -150,9 +150,9 @@ Exact path:
 
 Fallback path:
 
-- `concat` returns a new container token from `combine_container_hash48()`
-- `slice` returns a new container token from `slice_container_hash48()`
-- `index` returns an `Int` token from `index_container_token64()`
+- `concat` returns `FallbackToken`
+- `slice` returns `FallbackToken`
+- `index` returns `FallbackToken`
 
 This fallback is deterministic and parity-friendly, but not fully semantics-preserving.
 The design target is:
@@ -169,7 +169,7 @@ Common cases:
 - tests or helper code directly create `Value::from_string_hash_len()` / `Value::from_list_hash_len()` without calling `payload::make_*()`
 - random constant generation creates container tokens directly
 - registry state was cleared with `payload::clear()`
-- GPU exact materialization exceeds bounded per-thread scratch and falls back to compact transport
+- GPU exact materialization exceeds bounded per-thread scratch and returns `FallbackToken`
 
 Because of this, callers must not assume every `String` or `List` value has a recoverable payload behind it.
 
@@ -184,7 +184,7 @@ On exact payload lookup:
 
 On fallback:
 
-- both string and list indexing return `Int` tokens
+- both string and list indexing return `FallbackToken`
 
 This means `index` result type depends on whether exact payload is available.
 
@@ -223,7 +223,7 @@ Costs:
 - process-global registry lifetime
 - possible token collision
 - fallback behavior is not fully semantics-preserving
-- `index` return type can degrade to `Int`
+- fallback results are opaque and intended to compare as mismatches in fitness/equality paths
 - list hashing is shallow
 
 ## Files To Read Together

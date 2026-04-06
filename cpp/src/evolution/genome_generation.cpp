@@ -22,6 +22,7 @@ struct PrefixGenCtx {
   std::set<int> none_names;
   std::set<int> string_names;
   std::set<int> list_names;
+  std::set<int> any_names;
   int tmp_idx = 0;
 };
 
@@ -70,6 +71,10 @@ int choose_name_for_type(std::mt19937_64& rng, const PrefixGenCtx& ctx, RType ty
     names.insert(names.end(), ctx.none_names.begin(), ctx.none_names.end());
     names.insert(names.end(), ctx.string_names.begin(), ctx.string_names.end());
     names.insert(names.end(), ctx.list_names.begin(), ctx.list_names.end());
+    names.insert(names.end(), ctx.any_names.begin(), ctx.any_names.end());
+  }
+  if (type != RType::Any) {
+    names.insert(names.end(), ctx.any_names.begin(), ctx.any_names.end());
   }
   if (names.empty()) {
     return -1;
@@ -123,11 +128,27 @@ void assign_name_type(PrefixGenCtx& ctx, int name_id, RType type) {
   ctx.none_names.erase(name_id);
   ctx.string_names.erase(name_id);
   ctx.list_names.erase(name_id);
+  ctx.any_names.erase(name_id);
   if (type == RType::Num) ctx.num_names.insert(name_id);
   if (type == RType::Bool) ctx.bool_names.insert(name_id);
   if (type == RType::NoneType) ctx.none_names.insert(name_id);
   if (type == RType::String) ctx.string_names.insert(name_id);
   if (type == RType::List) ctx.list_names.insert(name_id);
+  if (type == RType::Any) ctx.any_names.insert(name_id);
+}
+
+void seed_input_names(AstProgram& program, PrefixGenCtx& ctx, const std::vector<InputSpec>& input_specs) {
+  if (input_specs.empty()) {
+    ctx.num_names.insert(ensure_name(program, "x"));
+    return;
+  }
+  for (const InputSpec& spec : input_specs) {
+    if (spec.name.empty()) {
+      continue;
+    }
+    const int name_id = ensure_name(program, spec.name);
+    assign_name_type(ctx, name_id, spec.type == RType::Invalid ? RType::Any : spec.type);
+  }
 }
 
 void emit_random_leaf(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, RType target) {
@@ -313,25 +334,12 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
 }
 
 int choose_or_new_name(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx) {
-  const std::vector<std::string> base = {"x", "y", "z", "w", "u", "v"};
   std::vector<int> all;
   for (std::size_t i = 0; i < program.names.size(); ++i) {
     all.push_back(static_cast<int>(i));
   }
   if (!all.empty() && !std::bernoulli_distribution(0.4)(rng)) {
     return choose_one(rng, all);
-  }
-  for (const std::string& name : base) {
-    bool found = false;
-    for (const std::string& existing : program.names) {
-      if (existing == name) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      return ensure_name(program, name);
-    }
   }
   return ensure_name(program, "t" + std::to_string(ctx.tmp_idx++));
 }
@@ -463,13 +471,19 @@ void emit_random_block(std::mt19937_64& rng,
 }  // namespace
 
 ProgramGenome generate_random_genome(std::uint64_t seed, const Limits& limits) {
+  return generate_random_genome(seed, limits, {});
+}
+
+ProgramGenome generate_random_genome(std::uint64_t seed,
+                                     const Limits& limits,
+                                     const std::vector<InputSpec>& input_specs) {
   std::mt19937_64 rng(seed);
   for (int i = 0; i < 128; ++i) {
     AstProgram program;
     program.version = "ast-prefix-v1";
     program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
     PrefixGenCtx ctx;
-    ctx.num_names.insert(ensure_name(program, "x"));
+    seed_input_names(program, ctx, input_specs);
     emit_random_block(rng, program, ctx, limits.max_expr_depth, limits, true);
     ProgramGenome genome = as_genome_prefix(program);
     if (genome.meta.node_count <= limits.max_total_nodes) {
@@ -488,13 +502,20 @@ ProgramGenome generate_random_genome(std::uint64_t seed, const Limits& limits) {
 }
 
 ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed, RType return_type, const Limits& limits) {
+  return generate_random_genome_for_return_type(seed, return_type, limits, {});
+}
+
+ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
+                                                     RType return_type,
+                                                     const Limits& limits,
+                                                     const std::vector<InputSpec>& input_specs) {
   std::mt19937_64 rng(seed);
   for (int i = 0; i < 128; ++i) {
     AstProgram program;
     program.version = "ast-prefix-v1";
     program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
     PrefixGenCtx ctx;
-    ctx.num_names.insert(ensure_name(program, "x"));
+    seed_input_names(program, ctx, input_specs);
     emit_random_block(rng,
                       program,
                       ctx,

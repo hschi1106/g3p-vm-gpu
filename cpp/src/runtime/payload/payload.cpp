@@ -48,7 +48,8 @@ std::uint64_t hash_value_shallow(const Value& v) {
   h = Value::fnv1a_mix_u8(h, static_cast<std::uint8_t>(v.tag));
   if (v.tag == ValueTag::None) return h;
   if (v.tag == ValueTag::Bool) return Value::fnv1a_mix_u8(h, v.b ? 1U : 0U);
-  if (v.tag == ValueTag::Int || v.tag == ValueTag::String || v.tag == ValueTag::List) {
+  if (v.tag == ValueTag::Int || v.tag == ValueTag::String || v.tag == ValueTag::List ||
+      v.tag == ValueTag::FallbackToken) {
     return Value::fnv1a_mix_u64(h, static_cast<std::uint64_t>(v.i));
   }
   union {

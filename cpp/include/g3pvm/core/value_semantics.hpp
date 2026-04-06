@@ -157,21 +157,27 @@ G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
                                                  const Value& expected,
                                                  double penalty,
                                                  double& out_score) {
+  const double penalty_mag = fabs(penalty);
   double a_num = 0.0;
   double b_num = 0.0;
   bool any_float = false;
   if (to_numeric_pair(actual, expected, a_num, b_num, any_float)) {
-    out_score = -fabs(a_num - b_num);
+    const double diff = a_num - b_num;
+    if (!std::isfinite(a_num) || !std::isfinite(b_num) || !std::isfinite(diff)) {
+      out_score = -penalty_mag;
+      return true;
+    }
+    out_score = -fmin(fabs(diff), penalty_mag);
     return true;
   }
 
   if (is_numeric(expected)) {
-    out_score = -fabs(penalty);
+    out_score = -penalty_mag;
     return true;
   }
 
   if (actual.tag != expected.tag) {
-    out_score = -fabs(penalty);
+    out_score = -penalty_mag;
     return true;
   }
 
@@ -188,7 +194,7 @@ G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
     return true;
   }
 
-  out_score = -fabs(penalty);
+  out_score = -penalty_mag;
   return true;
 }
 

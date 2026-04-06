@@ -41,7 +41,7 @@ The returned length must match the exact payload length.
 Execution behavior:
 - CPU exact path concatenates exact payloads
 - GPU exact path concatenates payloads when scratch capacity is sufficient
-- GPU fallback path returns deterministic compact transport when exact materialization does not fit
+- any fallback path returns `FallbackToken`
 
 ## `slice(x, lo, hi)`
 
@@ -57,7 +57,7 @@ Semantics:
 - Python-like negative-index normalization
 - bounds clamp behavior consistent with Python slicing
 - exact path returns payload-backed slice
-- GPU fallback uses deterministic compact transport when exact materialization does not fit
+- any fallback path returns `FallbackToken`
 
 ## `index(x, i)`
 
@@ -73,7 +73,7 @@ Semantics:
 - Python runtime returns the exact indexed element
 - C++ CPU returns exact payload value when payload registry is available
 - C++ GPU returns exact payload value when uploaded payload and scratch capacity are sufficient
-- GPU fallback returns deterministic compact transport when exact materialization does not fit
+- any fallback path returns `FallbackToken`
 
 ## Container Comparison
 
@@ -91,7 +91,7 @@ The runtime extends comparison semantics as follows:
 ### GPU
 - payload snapshots are uploaded into global memory before evaluation
 - exact container builtins use bounded per-thread scratch
-- if exact materialization does not fit, the runtime must fall back to deterministic compact transport rather than failing the whole job
+- if exact materialization does not fit, the runtime must return `FallbackToken` rather than failing the whole job
 
 ## Fitness Link
 

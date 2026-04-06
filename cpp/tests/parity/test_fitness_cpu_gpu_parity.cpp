@@ -1,5 +1,6 @@
 #include <climits>
 #include <cmath>
+#include <limits>
 #include <iostream>
 #include <vector>
 
@@ -50,10 +51,36 @@ BytecodeProgram make_return_const_program(int v) {
   return p;
 }
 
+BytecodeProgram make_return_huge_int_program() {
+  BytecodeProgram p;
+  p.consts = {Value::from_int(4617273859665047847LL)};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Return)};
+  return p;
+}
+
+BytecodeProgram make_return_nan_program() {
+  BytecodeProgram p;
+  p.consts = {Value::from_float(std::numeric_limits<double>::quiet_NaN())};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Return)};
+  return p;
+}
+
 BytecodeProgram make_return_string_program() {
   BytecodeProgram p;
   p.consts = {Value::from_string_hash_len(0x1234ULL, 3)};
   p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Return)};
+  return p;
+}
+
+BytecodeProgram make_index_fallback_program() {
+  BytecodeProgram p;
+  p.consts = {Value::from_string_hash_len(0x1234ULL, 3), Value::from_int(1)};
+  p.code = {
+      ins_a(Opcode::PushConst, 0),
+      ins_a(Opcode::PushConst, 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
+      ins(Opcode::Return),
+  };
   return p;
 }
 
@@ -167,7 +194,10 @@ int main() {
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_add_one_program());
     programs.push_back(make_return_const_program(7));
+    programs.push_back(make_return_huge_int_program());
+    programs.push_back(make_return_nan_program());
     programs.push_back(make_return_string_program());
+    programs.push_back(make_index_fallback_program());
     programs.push_back(make_type_error_program());
     programs.push_back(make_timeout_program());
 
@@ -206,15 +236,27 @@ int main() {
       std::cerr << "FAIL: exact numeric program should score 0 MAE\n";
       return 1;
     }
-    if (!approx(cpu_fit[1], -1674.0)) {
-      std::cerr << "FAIL: constant numeric program should accumulate negative MAE\n";
+    if (!approx(cpu_fit[1], -64.0 * penalty)) {
+      std::cerr << "FAIL: constant numeric program should clamp per-case numeric loss to penalty\n";
       return 1;
     }
     if (!approx(cpu_fit[2], -64.0 * penalty)) {
+      std::cerr << "FAIL: huge numeric outlier should clamp per case to penalty\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[3], -64.0 * penalty)) {
+      std::cerr << "FAIL: non-finite numeric actual should accumulate penalty per case\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[4], -64.0 * penalty)) {
       std::cerr << "FAIL: non-numeric actual against numeric expected should accumulate penalty\n";
       return 1;
     }
-    if (!approx(cpu_fit[3], -64.0 * penalty) || !approx(cpu_fit[4], -64.0 * penalty)) {
+    if (!approx(cpu_fit[5], -64.0 * penalty)) {
+      std::cerr << "FAIL: fallback token actual against numeric expected should accumulate penalty\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[6], -64.0 * penalty) || !approx(cpu_fit[7], -64.0 * penalty)) {
       std::cerr << "FAIL: runtime errors on numeric cases should accumulate penalty\n";
       return 1;
     }

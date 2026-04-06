@@ -258,6 +258,10 @@ void print_value(const Value& v) {
     std::cout << "list_hash48 " << Value::container_hash48(v) << " len " << Value::container_len(v) << "\n";
     return;
   }
+  if (v.tag == ValueTag::FallbackToken) {
+    std::cout << "fallback_token " << static_cast<std::uint64_t>(v.i) << "\n";
+    return;
+  }
   std::cout << "none\n";
 }
 

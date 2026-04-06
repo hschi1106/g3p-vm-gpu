@@ -86,6 +86,10 @@ void write_value_json(std::ostream& out, const Value& v) {
     out << v.i;
     return;
   }
+  if (v.tag == ValueTag::FallbackToken) {
+    out << "null";
+    return;
+  }
   if (std::isfinite(v.f)) {
     out << std::setprecision(17) << v.f;
     return;

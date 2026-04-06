@@ -365,7 +365,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       }
       const std::uint32_t len = Value::saturating_len_add(Value::container_len(a), Value::container_len(b));
       const std::uint64_t h = Value::combine_container_hash48(1U, a, b);
-      out = Value::from_string_hash_len(h, len);
+      out = Value::from_fallback_token(Value::pack_container_payload(h, len));
       return true;
     }
     if (a.tag == ValueTag::List && b.tag == ValueTag::List) {
@@ -391,7 +391,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       }
       const std::uint32_t len = Value::saturating_len_add(Value::container_len(a), Value::container_len(b));
       const std::uint64_t h = Value::combine_container_hash48(2U, a, b);
-      out = Value::from_list_hash_len(h, len);
+      out = Value::from_fallback_token(Value::pack_container_payload(h, len));
       return true;
     }
     err = ErrCode::Type;
@@ -442,7 +442,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         }
       }
       const std::uint64_t out_h = Value::slice_container_hash48(3U, x, lo.i, hi.i);
-      out = Value::from_string_hash_len(out_h, out_len);
+      out = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
       return true;
     }
     if constexpr (PayloadTraits::kHasList) {
@@ -464,7 +464,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       }
     }
     const std::uint64_t out_h = Value::slice_container_hash48(4U, x, lo.i, hi.i);
-    out = Value::from_list_hash_len(out_h, out_len);
+    out = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
     return true;
   }
 
@@ -505,7 +505,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
           return true;
         }
       }
-      out = Value::from_int(Value::index_container_token64(5U, x, j));
+      out = Value::from_fallback_token(Value::index_container_token64(5U, x, j));
       return true;
     }
     if constexpr (PayloadTraits::kHasList) {
@@ -517,7 +517,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         return true;
       }
     }
-    out = Value::from_int(Value::index_container_token64(6U, x, j));
+    out = Value::from_fallback_token(Value::index_container_token64(6U, x, j));
     return true;
   }
 

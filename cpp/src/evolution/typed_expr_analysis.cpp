@@ -13,6 +13,22 @@ namespace g3pvm::evo::typed_expr {
 
 namespace {
 
+RType infer_unbound_var_type(const AstProgram& p, int name_id) {
+  if (name_id < 0 || static_cast<std::size_t>(name_id) >= p.names.size()) {
+    return RType::Num;
+  }
+  const std::string& name = p.names[static_cast<std::size_t>(name_id)];
+  if (name == "xs" || name == "items" || name == "list" ||
+      (name.size() >= 5 && name.compare(name.size() - 5, 5, "_list") == 0)) {
+    return RType::List;
+  }
+  if (name == "s" || name == "str" || name == "text" ||
+      (name.size() >= 7 && name.compare(name.size() - 7, 7, "_string") == 0)) {
+    return RType::String;
+  }
+  return RType::Num;
+}
+
 bool is_stmt_kind(NodeKind kind) {
   return kind == NodeKind::ASSIGN || kind == NodeKind::IF_STMT || kind == NodeKind::FOR_RANGE || kind == NodeKind::RETURN;
 }
@@ -55,7 +71,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
   }
   if (n.kind == NodeKind::VAR) {
     auto it = env.find(n.i0);
-    const RType t = (it == env.end()) ? RType::Num : it->second;
+    const RType t = (it == env.end()) ? infer_unbound_var_type(p, n.i0) : it->second;
     if (out != nullptr) out->push_back(TypedExprRoot{idx, end[idx], t});
     return {t, end[idx]};
   }
@@ -114,7 +130,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       RType r = RType::Invalid;
       if (i.t == RType::Num) {
         if (x.t == RType::String) r = RType::String;
-        else if (x.t == RType::List) r = RType::Any;
+        else if (x.t == RType::List) r = RType::Num;
       }
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, i.next, r});
       return {r, i.next};

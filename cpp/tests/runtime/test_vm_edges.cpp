@@ -151,8 +151,8 @@ bool test_builtin_concat_string_ok() {
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "concat(string,string) should not error")) return false;
-  if (!check(out.value.tag == g3pvm::ValueTag::String, "concat(string,string) should return string")) return false;
-  return check(g3pvm::Value::container_len(out.value) == 5U, "concat(string,string) length mismatch");
+  return check(out.value.tag == g3pvm::ValueTag::FallbackToken,
+               "concat(string,string) fallback should return fallback token");
 }
 
 bool test_builtin_concat_list_ok() {
@@ -169,8 +169,8 @@ bool test_builtin_concat_list_ok() {
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "concat(list,list) should not error")) return false;
-  if (!check(out.value.tag == g3pvm::ValueTag::List, "concat(list,list) should return list")) return false;
-  return check(g3pvm::Value::container_len(out.value) == 5U, "concat(list,list) length mismatch");
+  return check(out.value.tag == g3pvm::ValueTag::FallbackToken,
+               "concat(list,list) fallback should return fallback token");
 }
 
 bool test_builtin_concat_type_error() {
@@ -204,8 +204,8 @@ bool test_builtin_slice_string_ok() {
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "slice(string,2,6) should not error")) return false;
-  if (!check(out.value.tag == g3pvm::ValueTag::String, "slice(string,2,6) should return string")) return false;
-  return check(g3pvm::Value::container_len(out.value) == 4U, "slice(string,2,6) length mismatch");
+  return check(out.value.tag == g3pvm::ValueTag::FallbackToken,
+               "slice(string,2,6) fallback should return fallback token");
 }
 
 bool test_builtin_slice_string_payload_empty_ok() {
@@ -255,8 +255,8 @@ bool test_builtin_slice_list_negative_idx_ok() {
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "slice(list,-5,-1) should not error")) return false;
-  if (!check(out.value.tag == g3pvm::ValueTag::List, "slice(list,-5,-1) should return list")) return false;
-  return check(g3pvm::Value::container_len(out.value) == 4U, "slice(list,-5,-1) length mismatch");
+  return check(out.value.tag == g3pvm::ValueTag::FallbackToken,
+               "slice(list,-5,-1) fallback should return fallback token");
 }
 
 bool test_builtin_slice_type_error() {
@@ -290,7 +290,8 @@ bool test_builtin_index_string_ok() {
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "index(string,3) should not error")) return false;
-  return check(out.value.tag == g3pvm::ValueTag::Int, "index(string,3) should return int token");
+  return check(out.value.tag == g3pvm::ValueTag::FallbackToken,
+               "index(string,3) should return fallback token");
 }
 
 bool test_builtin_index_list_negative_ok() {
@@ -307,7 +308,8 @@ bool test_builtin_index_list_negative_ok() {
   };
   ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
   if (!check(!out.is_error, "index(list,-2) should not error")) return false;
-  return check(out.value.tag == g3pvm::ValueTag::Int, "index(list,-2) should return int token");
+  return check(out.value.tag == g3pvm::ValueTag::FallbackToken,
+               "index(list,-2) should return fallback token");
 }
 
 bool test_builtin_index_oob_error() {

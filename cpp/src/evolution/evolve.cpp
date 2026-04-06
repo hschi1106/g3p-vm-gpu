@@ -25,11 +25,47 @@ namespace g3pvm::evo {
 
 namespace {
 
-std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg) {
+std::vector<std::string> build_canonical_input_names(const std::vector<EvalCase>& cases);
+
+RType infer_input_rtype(const Value& value) {
+  if (value.tag == ValueTag::Bool) return RType::Bool;
+  if (value.tag == ValueTag::None) return RType::NoneType;
+  if (value.tag == ValueTag::String) return RType::String;
+  if (value.tag == ValueTag::List) return RType::List;
+  if (value.tag == ValueTag::FallbackToken) return RType::Any;
+  return RType::Num;
+}
+
+RType merge_input_rtype(RType a, RType b) {
+  if (a == RType::Invalid) return b;
+  if (b == RType::Invalid || a == b) return a;
+  return RType::Any;
+}
+
+std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& cases) {
+  const std::vector<std::string> input_names = build_canonical_input_names(cases);
+  std::vector<InputSpec> specs;
+  specs.reserve(input_names.size());
+  for (const std::string& name : input_names) {
+    RType type = RType::Invalid;
+    for (const EvalCase& one_case : cases) {
+      const auto it = one_case.inputs.find(name);
+      if (it == one_case.inputs.end()) {
+        continue;
+      }
+      type = merge_input_rtype(type, infer_input_rtype(it->second));
+    }
+    specs.push_back(InputSpec{name, type});
+  }
+  return specs;
+}
+
+std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg,
+                                           const std::vector<InputSpec>& input_specs) {
   std::vector<ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(cfg.population_size));
   for (int i = 0; i < cfg.population_size; ++i) {
-    out.push_back(generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits));
+    out.push_back(generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits, input_specs));
   }
   return out;
 }
@@ -267,10 +303,14 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
 
   const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);
+  const std::vector<InputSpec> canonical_input_specs = build_canonical_input_specs(cases);
+  const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
+  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
+  const std::vector<Value> expected_values = build_expected_values(cases);
   const auto init_t0 = std::chrono::steady_clock::now();
   std::vector<ProgramGenome> population;
   if (initial_population == nullptr) {
-    population = init_population(cfg);
+    population = init_population(cfg, canonical_input_specs);
   } else {
     population = *initial_population;
   }
@@ -278,10 +318,6 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   if (static_cast<int>(population.size()) != cfg.population_size) {
     throw std::invalid_argument("initial_population size must match population_size");
   }
-
-  const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
-  const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
-  const std::vector<Value> expected_values = build_expected_values(cases);
 
   EvolutionResult result;
   result.init_population_ms = std::chrono::duration<double, std::milli>(init_t1 - init_t0).count();
