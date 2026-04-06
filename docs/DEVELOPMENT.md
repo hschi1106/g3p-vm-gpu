@@ -143,7 +143,18 @@ cpp/build/g3pvm_evolve_cli \
   --out-json logs/fixed_population.run.json
 ```
 
-## PSB2 Workflow
+## PSB Dataset Workflow
+
+### `tools/fetch_psb1_datasets.py`
+
+Dataset-fetch args:
+- `--out-dir PATH`: target datasets directory for PSB1 files
+- `--problems LIST|all`: comma-separated task names or `all`
+- `--splits LIST`: comma-separated subset of `edge,random`
+- `--retries N`: retry count per file
+- `--timeout-sec N`: per-request timeout
+- `--force`: overwrite existing files
+- `--dry-run`: print planned work without downloading
 
 ### `tools/fetch_psb2_datasets.py`
 

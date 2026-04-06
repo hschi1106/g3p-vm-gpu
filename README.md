@@ -54,8 +54,9 @@ Use the documents below as the source of truth.
 - `cpp/src/bench/`: benchmark binaries
 - `cpp/tests/`: native runtime, GPU smoke, parity, and evolution tests
 - `data/fixtures/`: canonical benchmark and evolution fixtures
+- `data/psb1_datasets/`: mirrored PSB1 datasets
 - `data/psb2_datasets/`: mirrored PSB2 datasets
-- `tools/`: dataset conversion and audit utilities
+- `tools/`: PSB dataset fetch/conversion/audit utilities
 - `meeting/`: meeting notes and discussion artifacts
 
 ## Quick Start
@@ -126,6 +127,12 @@ python3 tools/convert_psb2_to_fitness_cases.py \
   --edge-file data/psb2_datasets/bouncing-balls/bouncing-balls-edge.json \
   --random-file data/psb2_datasets/bouncing-balls/bouncing-balls-random.json \
   --out logs/psb2/bouncing-balls.train.json
+```
+
+### Fetch PSB1 datasets
+
+```bash
+python3 tools/fetch_psb1_datasets.py --out-dir data/psb1_datasets
 ```
 
 ## GPU Commands

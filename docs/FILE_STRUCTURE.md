@@ -50,6 +50,7 @@ g3p-vm-gpu/
 ├── spec/
 ├── data/
 │   ├── fixtures/
+│   ├── psb1_datasets/
 │   └── psb2_datasets/
 ├── meeting/
 ├── tools/
@@ -69,6 +70,7 @@ g3p-vm-gpu/
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
 - `data/fixtures/`: canonical benchmark and evolution fixtures
+- `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
 - `tools/`: dataset fetch, conversion, and audit utilities

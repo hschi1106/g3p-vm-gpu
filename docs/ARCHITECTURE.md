@@ -181,6 +181,7 @@ Benchmark binaries for runtime-focused measurement.
 ## Tooling And Script Map
 
 ### `tools/`
+- `fetch_psb1_datasets.py`: download PSB1 datasets into `data/psb1_datasets/`
 - `fetch_psb2_datasets.py`: download PSB2 datasets into `data/psb2_datasets/`
 - `audit_psb2_tasks.py`: inspect local PSB2 dataset coverage and shape
 - `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1`
@@ -188,6 +189,7 @@ Benchmark binaries for runtime-focused measurement.
 ## Data and Tooling Layout
 
 - `data/fixtures/`: canonical benchmark fixtures
+- `data/psb1_datasets/`: PSB1 dataset mirror used by fetch tooling
 - `data/psb2_datasets/`: PSB2 dataset mirror used by fetch/convert/audit utilities
 - `tools/`: dataset fetch, conversion, and audit utilities
 - `logs/`: generated run artifacts, benchmark reports, gate outputs
