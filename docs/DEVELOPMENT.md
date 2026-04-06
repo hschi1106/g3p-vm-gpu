@@ -77,7 +77,7 @@ Genome-shape args:
 - `--max-expr-depth N`: maximum generated expression depth
 - `--max-stmts-per-block N`: maximum statements per block
 - `--max-total-nodes N`: maximum total AST nodes in one genome
-- `--max-for-k N`: maximum constant loop bound used by generated `for range(K)`
+- `--max-for-k N`: maximum constant loop bound used by generated `ForRange(x, K, ...)`; it does not clip or rewrite hand-authored `ForRangeExpr(x, e, ...)`
 - `--max-call-args N`: maximum allowed builtin call arity during generation/compilation
 
 ## Fixed-Pop Benchmark Mode

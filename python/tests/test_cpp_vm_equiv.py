@@ -143,6 +143,21 @@ class TestCppVMEquiv(unittest.TestCase):
         )
         self._assert_equiv(prog)
 
+    def test_for_expr_program(self):
+        prog = build_program(
+            [
+                ("assign", "x", ("const", 0)),
+                (
+                    "for_expr",
+                    "i",
+                    ("call", "len", [("const", [10, 20, 30, 40])]),
+                    [("assign", "x", ("add", ("var", "x"), ("var", "i")))],
+                ),
+                ("return", ("var", "x")),
+            ]
+        )
+        self._assert_equiv(prog)
+
     def test_none_compare(self):
         self._assert_equiv(build_program([("return", ("eq", ("const", None), ("const", 1)))]))
         self._assert_equiv(build_program([("return", ("ne", ("const", None), ("const", 1)))]))

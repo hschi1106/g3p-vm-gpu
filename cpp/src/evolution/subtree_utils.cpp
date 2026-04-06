@@ -121,7 +121,8 @@ std::vector<AstNode> map_subtree_nodes_into(AstProgram& target,
       } else {
         node.i0 = it->second;
       }
-    } else if (node.kind == NodeKind::VAR || node.kind == NodeKind::ASSIGN || node.kind == NodeKind::FOR_RANGE) {
+    } else if (node.kind == NodeKind::VAR || node.kind == NodeKind::ASSIGN ||
+               node.kind == NodeKind::FOR_RANGE || node.kind == NodeKind::FOR_RANGE_EXPR) {
       auto it = name_map.find(node.i0);
       if (it == name_map.end()) {
         const int mapped = find_or_add_name(target, donor.names.at(static_cast<std::size_t>(node.i0)), name2idx);
@@ -146,6 +147,7 @@ int node_arity(NodeKind kind) {
     case NodeKind::ASSIGN: return 1;
     case NodeKind::IF_STMT: return 3;
     case NodeKind::FOR_RANGE: return 1;
+    case NodeKind::FOR_RANGE_EXPR: return 2;
     case NodeKind::RETURN: return 1;
     case NodeKind::CONST: return 0;
     case NodeKind::VAR: return 0;

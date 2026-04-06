@@ -139,6 +139,10 @@ Pop one `Bool`.
 - non-`Bool` => `TypeError`
 - invalid `addr` => `ValueError`
 
+Compiler lowering notes:
+- `ForRange(x, K, body)` is lowered with a temporary counter local and the standard `LOAD` / `STORE` / `LT` / jump opcodes.
+- `ForRangeExpr(x, e, body)` first evaluates `e` once, stores the bound in a temporary local, and then reuses that stored bound for every iteration.
+
 ### Builtins
 
 Builtins are invoked by:

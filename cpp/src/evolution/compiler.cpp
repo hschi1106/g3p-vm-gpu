@@ -94,6 +94,38 @@ class Compiler {
 
   std::string new_temp() { return std::string("\x00for_i_") + std::to_string(tmp_counter_++); }
 
+  std::size_t compile_for_loop_body(const std::string& user_name, int bound_local, const AstProgram& program, std::size_t body_idx) {
+    const int idx_0 = add_const(Value::from_int(0));
+    const int idx_1 = add_const(Value::from_int(1));
+    const int counter_i = local(new_temp());
+    const int user_i = local(user_name);
+
+    const std::string loop_label = new_label("for_loop");
+    const std::string end_label = new_label("for_end");
+
+    emit(Opcode::PushConst, idx_0, true);
+    emit(Opcode::Store, counter_i, true);
+
+    mark_label(loop_label);
+    emit(Opcode::Load, counter_i, true);
+    emit(Opcode::Load, bound_local, true);
+    emit(Opcode::Lt);
+    emit_jump(Opcode::JmpIfFalse, end_label);
+
+    emit(Opcode::Load, counter_i, true);
+    emit(Opcode::Store, user_i, true);
+
+    const std::size_t next = compile_block_prefix(program, body_idx);
+
+    emit(Opcode::Load, counter_i, true);
+    emit(Opcode::PushConst, idx_1, true);
+    emit(Opcode::Add);
+    emit(Opcode::Store, counter_i, true);
+    emit_jump(Opcode::Jmp, loop_label);
+    mark_label(end_label);
+    return next;
+  }
+
   void emit(Opcode op, int a = 0, bool has_a = false, int b = 0, bool has_b = false) {
     code_.push_back(Instr{op, a, b, has_a, has_b});
   }
@@ -278,36 +310,24 @@ class Compiler {
         throw std::runtime_error("prefix compile: FOR_RANGE requires non-negative bound");
       }
 
-      const int idx_k = add_const(Value::from_int(node.i1));
-      const int idx_0 = add_const(Value::from_int(0));
-      const int idx_1 = add_const(Value::from_int(1));
-      const int counter_i = local(new_temp());
-      const int user_i = local(name_at(program, node.i0));
-
-      const std::string loop_label = new_label("for_loop");
-      const std::string end_label = new_label("for_end");
-
-      emit(Opcode::PushConst, idx_0, true);
-      emit(Opcode::Store, counter_i, true);
-
-      mark_label(loop_label);
-      emit(Opcode::Load, counter_i, true);
-      emit(Opcode::PushConst, idx_k, true);
+      const int bound_local = local(new_temp());
+      emit(Opcode::PushConst, add_const(Value::from_int(node.i1)), true);
+      emit(Opcode::Store, bound_local, true);
+      return compile_for_loop_body(name_at(program, node.i0), bound_local, program, idx + 1);
+    }
+    if (node.kind == NodeKind::FOR_RANGE_EXPR) {
+      const int bound_local = local(new_temp());
+      const std::string valid_label = new_label("for_expr_valid");
+      std::size_t next = compile_expr_prefix(program, idx + 1);
+      emit(Opcode::Store, bound_local, true);
+      emit(Opcode::Load, bound_local, true);
+      emit(Opcode::PushConst, add_const(Value::from_int(0)), true);
       emit(Opcode::Lt);
-      emit_jump(Opcode::JmpIfFalse, end_label);
-
-      emit(Opcode::Load, counter_i, true);
-      emit(Opcode::Store, user_i, true);
-
-      const std::size_t next = compile_block_prefix(program, idx + 1);
-
-      emit(Opcode::Load, counter_i, true);
-      emit(Opcode::PushConst, idx_1, true);
-      emit(Opcode::Add);
-      emit(Opcode::Store, counter_i, true);
-      emit_jump(Opcode::Jmp, loop_label);
-      mark_label(end_label);
-      return next;
+      emit_jump(Opcode::JmpIfFalse, valid_label);
+      emit(Opcode::Load, bound_local, true);
+      emit(Opcode::Not);
+      mark_label(valid_label);
+      return compile_for_loop_body(name_at(program, node.i0), bound_local, program, next);
     }
     throw std::runtime_error("prefix compile: expected stmt node");
   }

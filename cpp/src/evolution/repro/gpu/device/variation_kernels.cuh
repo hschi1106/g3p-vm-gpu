@@ -159,6 +159,14 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
           }
           break;
         }
+        if (kind == NodeKind::FOR_RANGE_EXPR) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBlock) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
         return out;
       }
       case DParseTaskKind::Expr: {
@@ -323,7 +331,8 @@ __device__ inline DPlainNode remap_node_for_child(const DPlainNode& in,
   const NodeKind kind = static_cast<NodeKind>(in.kind);
   if (kind == NodeKind::CONST) {
     out.i0 = remap_const_value(source_consts[in.i0], child_consts, child_const_count, max_consts);
-  } else if (kind == NodeKind::VAR || kind == NodeKind::ASSIGN || kind == NodeKind::FOR_RANGE) {
+  } else if (kind == NodeKind::VAR || kind == NodeKind::ASSIGN ||
+             kind == NodeKind::FOR_RANGE || kind == NodeKind::FOR_RANGE_EXPR) {
     out.i0 = remap_name_id(source_names[in.i0], child_names, child_name_count, max_names);
   }
   return out;

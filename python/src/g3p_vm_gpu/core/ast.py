@@ -63,6 +63,7 @@ class NodeKind(str, Enum):
     CALL_CONCAT = "CALL_CONCAT"
     CALL_SLICE = "CALL_SLICE"
     CALL_INDEX = "CALL_INDEX"
+    FOR_RANGE_EXPR = "FOR_RANGE_EXPR"
 
 
 NODE_ARITY: Dict[NodeKind, int] = {
@@ -72,6 +73,7 @@ NODE_ARITY: Dict[NodeKind, int] = {
     NodeKind.ASSIGN: 1,
     NodeKind.IF_STMT: 3,
     NodeKind.FOR_RANGE: 1,
+    NodeKind.FOR_RANGE_EXPR: 2,
     NodeKind.RETURN: 1,
     NodeKind.CONST: 0,
     NodeKind.VAR: 0,
@@ -136,6 +138,7 @@ STMT_KINDS = {
     NodeKind.ASSIGN,
     NodeKind.IF_STMT,
     NodeKind.FOR_RANGE,
+    NodeKind.FOR_RANGE_EXPR,
     NodeKind.RETURN,
 }
 
@@ -190,7 +193,7 @@ def validate_prefix_program(program: AstProgram) -> None:
     for n in program.nodes:
         if n.kind == NodeKind.CONST and not (0 <= n.i0 < len(program.consts)):
             raise ValueError("invalid prefix AST: const index out of range")
-        if n.kind in (NodeKind.VAR, NodeKind.ASSIGN, NodeKind.FOR_RANGE) and not (0 <= n.i0 < len(program.names)):
+        if n.kind in (NodeKind.VAR, NodeKind.ASSIGN, NodeKind.FOR_RANGE, NodeKind.FOR_RANGE_EXPR) and not (0 <= n.i0 < len(program.names)):
             raise ValueError("invalid prefix AST: name index out of range")
 
 
@@ -236,6 +239,10 @@ def _stmt_max_expr_depth(nodes: Sequence[AstNode], idx: int) -> tuple[int, int]:
     if kind == NodeKind.FOR_RANGE:
         d, j = _block_max_expr_depth(nodes, idx + 1)
         return d, j
+    if kind == NodeKind.FOR_RANGE_EXPR:
+        db, j = _expr_depth_from(nodes, idx + 1)
+        dbody, h = _block_max_expr_depth(nodes, j)
+        return max(db, dbody), h
     raise ValueError(f"expected Stmt at index {idx}, got {kind}")
 
 
@@ -279,6 +286,12 @@ def _block_contains_return(nodes: Sequence[AstNode], idx: int) -> tuple[bool, in
     if st == NodeKind.FOR_RANGE:
         body_idx = idx + 2
         _, body_end = _block_contains_return(nodes, body_idx)
+        rtail, k = _block_contains_return(nodes, body_end)
+        return rtail, k
+
+    if st == NodeKind.FOR_RANGE_EXPR:
+        bound_end = prefix_subtree_end(nodes, idx + 2)
+        _, body_end = _block_contains_return(nodes, bound_end)
         rtail, k = _block_contains_return(nodes, body_end)
         return rtail, k
 
@@ -394,7 +407,17 @@ def build_program(stmt_specs: Sequence[tuple]) -> AstProgram:
             emit_block(spec[3])
             return
         if tag == "for":
+            if isinstance(spec[2], tuple):
+                nodes.append(AstNode(NodeKind.FOR_RANGE_EXPR, i0=name_id(spec[1])))
+                emit_expr(spec[2])
+                emit_block(spec[3])
+                return
             nodes.append(AstNode(NodeKind.FOR_RANGE, i0=name_id(spec[1]), i1=int(spec[2])))
+            emit_block(spec[3])
+            return
+        if tag == "for_expr":
+            nodes.append(AstNode(NodeKind.FOR_RANGE_EXPR, i0=name_id(spec[1])))
+            emit_expr(spec[2])
             emit_block(spec[3])
             return
         raise ValueError(f"unknown stmt tag: {tag}")

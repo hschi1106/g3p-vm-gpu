@@ -97,6 +97,10 @@ def stmt_from_prefix(program: AstProgram, idx: int) -> tuple[tuple, int]:
     if node.kind == NodeKind.FOR_RANGE:
         body, nxt = block_from_prefix(program, idx + 1)
         return ("for", program.names[node.i0], node.i1, body), nxt
+    if node.kind == NodeKind.FOR_RANGE_EXPR:
+        bound, mid = expr_from_prefix(program, idx + 1)
+        body, nxt = block_from_prefix(program, mid)
+        return ("for_expr", program.names[node.i0], bound, body), nxt
     raise ValueError(f"expected Stmt at index {idx}, got {node.kind}")
 
 

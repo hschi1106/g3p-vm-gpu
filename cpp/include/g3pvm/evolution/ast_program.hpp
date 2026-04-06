@@ -51,6 +51,7 @@ enum class NodeKind {
   CALL_CONCAT,
   CALL_SLICE,
   CALL_INDEX,
+  FOR_RANGE_EXPR,
 };
 
 struct AstNode {

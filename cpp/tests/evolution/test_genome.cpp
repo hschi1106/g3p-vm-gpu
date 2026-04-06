@@ -7,6 +7,8 @@
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/mutation.hpp"
+#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 #include "../../src/evolution/subtree_utils.hpp"
 #include "../../src/evolution/typed_expr_analysis.hpp"
 
@@ -236,6 +238,64 @@ bool test_subtree_donor_generation_uses_existing_list_input_names() {
   return check(saw_xs_var, "subtree donor generation should sometimes reference xs directly");
 }
 
+bool test_for_range_expr_compiles_and_executes() {
+  using g3pvm::Value;
+  using g3pvm::ValueTag;
+  using g3pvm::evo::AstNode;
+  using g3pvm::evo::AstProgram;
+  using g3pvm::evo::NodeKind;
+  using g3pvm::evo::ProgramGenome;
+
+  AstProgram program;
+  program.names = {"x", "i"};
+  program.consts = {
+      Value::from_int(0),
+      g3pvm::payload::make_list_value({
+          Value::from_int(10),
+          Value::from_int(20),
+          Value::from_int(30),
+          Value::from_int(40),
+      }),
+  };
+  program.nodes = {
+      AstNode{NodeKind::PROGRAM, 0, 0},
+      AstNode{NodeKind::BLOCK_CONS, 0, 0},
+      AstNode{NodeKind::ASSIGN, 0, 0},
+      AstNode{NodeKind::CONST, 0, 0},
+      AstNode{NodeKind::BLOCK_CONS, 0, 0},
+      AstNode{NodeKind::FOR_RANGE_EXPR, 1, 0},
+      AstNode{NodeKind::CALL_LEN, 0, 0},
+      AstNode{NodeKind::CONST, 1, 0},
+      AstNode{NodeKind::BLOCK_CONS, 0, 0},
+      AstNode{NodeKind::ASSIGN, 0, 0},
+      AstNode{NodeKind::ADD, 0, 0},
+      AstNode{NodeKind::VAR, 0, 0},
+      AstNode{NodeKind::VAR, 1, 0},
+      AstNode{NodeKind::BLOCK_NIL, 0, 0},
+      AstNode{NodeKind::BLOCK_CONS, 0, 0},
+      AstNode{NodeKind::RETURN, 0, 0},
+      AstNode{NodeKind::VAR, 0, 0},
+      AstNode{NodeKind::BLOCK_NIL, 0, 0},
+  };
+
+  ProgramGenome genome;
+  genome.ast = program;
+  genome.meta = g3pvm::evo::build_genome_meta(program);
+  if (!check(genome.meta.max_depth == 2, "FOR_RANGE_EXPR bound should contribute expression depth")) {
+    return false;
+  }
+
+  const g3pvm::BytecodeProgram bytecode = g3pvm::evo::compile_for_eval(genome);
+  const g3pvm::ExecResult out = g3pvm::execute_bytecode_cpu(bytecode, {}, 20000);
+  if (!check(!out.is_error, "FOR_RANGE_EXPR program should execute successfully")) {
+    return false;
+  }
+  if (!check(out.value.tag == ValueTag::Int, "FOR_RANGE_EXPR program should return int")) {
+    return false;
+  }
+  return check(out.value.i == 6, "FOR_RANGE_EXPR program should sum loop indices");
+}
+
 }  // namespace
 
 int main() {
@@ -247,6 +307,7 @@ int main() {
   if (!test_random_genome_uses_requested_input_specs()) return 1;
   if (!test_typed_expr_analysis_treats_list_index_as_num()) return 1;
   if (!test_subtree_donor_generation_uses_existing_list_input_names()) return 1;
+  if (!test_for_range_expr_compiles_and_executes()) return 1;
   std::cout << "g3pvm_test_genome: OK\n";
   return 0;
 }

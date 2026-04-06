@@ -9,6 +9,7 @@ Prefix-AST genetic programming system with:
 
 The current public contract is:
 - program representation: prefix `AstProgram`
+- control flow grammar: constant `ForRange(x, K, body)` plus evaluate-once `ForRangeExpr(x, e, body)`
 - fixture schema: `fitness-cases-v1`
 - crossover: `typed_subtree`
 - reproduction order: selected parent pairs always attempt `typed_subtree` crossover before child-level mutation

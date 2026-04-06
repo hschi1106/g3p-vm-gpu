@@ -38,6 +38,34 @@ class TestEval(unittest.TestCase):
         self.assertIsInstance(out, Returned)
         self.assertEqual(out.value, 5)
 
+    def test_for_expr_loop(self):
+        prog = build_program(
+            [
+                ("assign", "x", ("const", 0)),
+                (
+                    "for_expr",
+                    "i",
+                    ("call", "len", [("const", [10, 20, 30, 40])]),
+                    [("assign", "x", ("add", ("var", "x"), ("var", "i")))],
+                ),
+                ("return", ("var", "x")),
+            ]
+        )
+        _, out = run_program(prog, {}, fuel=1000)
+        self.assertIsInstance(out, Returned)
+        self.assertEqual(out.value, 6)
+
+    def test_for_expr_requires_non_negative_numeric_bound(self):
+        prog = build_program(
+            [
+                ("for_expr", "i", ("sub", ("const", 1), ("const", 3)), [("assign", "x", ("const", 1))]),
+                ("return", ("const", 0)),
+            ]
+        )
+        _, out = run_program(prog, {}, fuel=1000)
+        self.assertIsInstance(out, Failed)
+        self.assertEqual(out.err.code, ErrCode.TYPE)
+
     def test_return_stops_block(self):
         prog = build_program([("return", ("const", 1)), ("assign", "x", ("const", 999))])
         env, out = run_program(prog, {}, fuel=100)

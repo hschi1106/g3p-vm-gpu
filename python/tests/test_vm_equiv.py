@@ -47,6 +47,24 @@ class TestVMEquiv(unittest.TestCase):
         )
         self._assert_equiv(prog)
 
+    def test_for_expr_program(self):
+        prog = build_program(
+            [
+                ("assign", "x", ("const", 0)),
+                (
+                    "for_expr",
+                    "i",
+                    ("call", "len", [("const", [10, 20, 30, 40])]),
+                    [
+                        ("assign", "x", ("add", ("var", "x"), ("var", "i"))),
+                        ("assign", "x", ("call", "clip", [("var", "x"), ("const", 0), ("const", 10)])),
+                    ],
+                ),
+                ("return", ("var", "x")),
+            ]
+        )
+        self._assert_equiv(prog)
+
     def test_short_circuit(self):
         prog = build_program([("return", ("and", ("const", False), ("div", ("const", 1), ("const", 0))))])
         self._assert_equiv(prog)

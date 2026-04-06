@@ -62,6 +62,31 @@ class _Compiler:
         self._tmp_counter += 1
         return name
 
+    def _compile_for_loop_body(self, bound_local: int, user_local: int, body_idx: int) -> int:
+        idx_0 = self._const(0)
+        idx_1 = self._const(1)
+        counter_i = self._local(self._new_temp())
+        loop_l = self._new_label("for_loop")
+        end_l = self._new_label("for_end")
+
+        self._emit("PUSH_CONST", idx_0)
+        self._emit("STORE", counter_i)
+        self._label(loop_l)
+        self._emit("LOAD", counter_i)
+        self._emit("LOAD", bound_local)
+        self._emit("LT")
+        self._emit_jump("JMP_IF_FALSE", end_l)
+        self._emit("LOAD", counter_i)
+        self._emit("STORE", user_local)
+        j = self._compile_block(body_idx)
+        self._emit("LOAD", counter_i)
+        self._emit("PUSH_CONST", idx_1)
+        self._emit("ADD")
+        self._emit("STORE", counter_i)
+        self._emit_jump("JMP", loop_l)
+        self._label(end_l)
+        return j
+
     def _compile_expr(self, idx: int) -> int:
         n = self.p.nodes[idx]
         k = n.kind
@@ -214,31 +239,26 @@ class _Compiler:
                 self._emit("NEG")
                 return prefix_subtree_end(self.p.nodes, idx)
 
-            idx_k = self._const(kval)
-            idx_0 = self._const(0)
-            idx_1 = self._const(1)
-            counter_i = self._local(self._new_temp())
+            bound_local = self._local(self._new_temp())
             user_i = self._local(self.p.names[n.i0])
-            loop_l = self._new_label("for_loop")
-            end_l = self._new_label("for_end")
+            self._emit("PUSH_CONST", self._const(kval))
+            self._emit("STORE", bound_local)
+            return self._compile_for_loop_body(bound_local, user_i, idx + 1)
 
-            self._emit("PUSH_CONST", idx_0)
-            self._emit("STORE", counter_i)
-            self._label(loop_l)
-            self._emit("LOAD", counter_i)
-            self._emit("PUSH_CONST", idx_k)
+        if k == NodeKind.FOR_RANGE_EXPR:
+            bound_local = self._local(self._new_temp())
+            user_i = self._local(self.p.names[n.i0])
+            valid_l = self._new_label("for_expr_valid")
+            j = self._compile_expr(idx + 1)
+            self._emit("STORE", bound_local)
+            self._emit("LOAD", bound_local)
+            self._emit("PUSH_CONST", self._const(0))
             self._emit("LT")
-            self._emit_jump("JMP_IF_FALSE", end_l)
-            self._emit("LOAD", counter_i)
-            self._emit("STORE", user_i)
-            j = self._compile_block(idx + 1)
-            self._emit("LOAD", counter_i)
-            self._emit("PUSH_CONST", idx_1)
-            self._emit("ADD")
-            self._emit("STORE", counter_i)
-            self._emit_jump("JMP", loop_l)
-            self._label(end_l)
-            return j
+            self._emit_jump("JMP_IF_FALSE", valid_l)
+            self._emit("LOAD", bound_local)
+            self._emit("NOT")
+            self._label(valid_l)
+            return self._compile_for_loop_body(bound_local, user_i, j)
 
         raise ValueError(f"expected Stmt at index {idx}, got {k}")
 
