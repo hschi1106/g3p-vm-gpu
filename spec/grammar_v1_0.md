@@ -58,8 +58,7 @@ Whitelisted call names:
 ```text
 Stmt ::= Assign(x, e)
        | IfStmt(cond, then_blk, else_blk)
-       | ForRange(x, K, body_blk)
-       | ForRangeExpr(x, e, body_blk)
+       | ForRange(x, e, body_blk)
        | Return(e)
 
 Block ::= [Stmt, ...]
@@ -68,8 +67,7 @@ Program ::= Block
 
 ## Syntactic Restrictions
 
-- `ForRange(x, K, body)` requires `K` to be a non-negative integer constant.
-- `ForRangeExpr(x, e, body)` accepts any expression `e`, but runtime execution requires `e` to evaluate to a non-negative numeric value.
+- `ForRange(x, e, body)` requires `e` to evaluate to a non-negative `Int`.
 - Builtin calls are restricted to the whitelist in this document and the builtin specs.
 - No user-defined functions, closures, classes, attribute access, exceptions, imports, or I/O.
 - No `while`, `break`, or `continue`.
@@ -165,15 +163,10 @@ Unknown builtin names yield `NameError`.
 
 ### ForRange
 
-`for x in range(K): body`
-- executes `body` with `x = 0, 1, ..., K-1`
-- propagates `Return` and `Error` immediately
-
-### ForRangeExpr
-
 `for x in range(e): body`
 - evaluates `e` exactly once before the first iteration
-- `e` must evaluate to a non-negative numeric value; otherwise execution stops with `TypeError`
+- `e` must evaluate to a non-negative `Int`; `Bool`, `Float`, negative integers, and all non-numeric values yield `TypeError`
+- if `e == 0`, the body executes zero times
 - executes `body` with integer `x = 0, 1, 2, ...` while `x < e`
 - propagates `Return` and `Error` immediately
 

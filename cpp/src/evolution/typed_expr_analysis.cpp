@@ -30,8 +30,7 @@ RType infer_unbound_var_type(const AstProgram& p, int name_id) {
 }
 
 bool is_stmt_kind(NodeKind kind) {
-  return kind == NodeKind::ASSIGN || kind == NodeKind::IF_STMT || kind == NodeKind::FOR_RANGE ||
-         kind == NodeKind::FOR_RANGE_EXPR || kind == NodeKind::RETURN;
+  return kind == NodeKind::ASSIGN || kind == NodeKind::IF_STMT || kind == NodeKind::FOR_RANGE || kind == NodeKind::RETURN;
 }
 
 bool is_expr_kind(NodeKind kind) {
@@ -200,17 +199,7 @@ void collect_typed_exprs_in_stmt(const AstProgram& p,
     return;
   }
   if (n.kind == NodeKind::FOR_RANGE) {
-    std::unordered_map<int, RType> env_b = env;
-    env_b[n.i0] = RType::Num;
-    std::size_t cur = idx + 1;
-    while (cur < p.nodes.size() && p.nodes[cur].kind == NodeKind::BLOCK_CONS) {
-      collect_typed_exprs_in_stmt(p, end, cur + 1, env_b, out);
-      cur = end[cur + 1];
-    }
-    return;
-  }
-  if (n.kind == NodeKind::FOR_RANGE_EXPR) {
-    ExprCheck bound = infer_expr_prefix(p, end, idx + 1, env, &out);
+    const ExprCheck bound = infer_expr_prefix(p, end, idx + 1, env, nullptr);
     std::unordered_map<int, RType> env_b = env;
     env_b[n.i0] = RType::Num;
     std::size_t cur = bound.next;

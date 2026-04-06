@@ -97,4 +97,10 @@ def builtin_call(name: str, args: List[Val]) -> Val | Err:
             return Err(ErrCode.VALUE, "index out of range")
         return x[j]
 
+    if name == "is_int":
+        if len(args) != 1:
+            return Err(ErrCode.TYPE, "is_int expects 1 argument")
+        x = args[0]
+        return isinstance(x, int) and not isinstance(x, bool)
+
     return Err(ErrCode.NAME, f"unknown builtin: {name}")

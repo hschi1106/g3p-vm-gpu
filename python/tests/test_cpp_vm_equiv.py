@@ -137,18 +137,18 @@ class TestCppVMEquiv(unittest.TestCase):
         prog = build_program(
             [
                 ("assign", "x", ("const", 0)),
-                ("for", "i", 5, [("assign", "x", ("add", ("var", "x"), ("const", 2)))]),
+                ("for", "i", ("const", 5), [("assign", "x", ("add", ("var", "x"), ("const", 2)))]),
                 ("return", ("var", "x")),
             ]
         )
         self._assert_equiv(prog)
 
-    def test_for_expr_program(self):
+    def test_for_loop_dynamic_bound_program(self):
         prog = build_program(
             [
                 ("assign", "x", ("const", 0)),
                 (
-                    "for_expr",
+                    "for",
                     "i",
                     ("call", "len", [("const", [10, 20, 30, 40])]),
                     [("assign", "x", ("add", ("var", "x"), ("var", "i")))],
@@ -156,6 +156,10 @@ class TestCppVMEquiv(unittest.TestCase):
                 ("return", ("var", "x")),
             ]
         )
+        self._assert_equiv(prog)
+
+    def test_float_for_range_bound_is_rejected(self):
+        prog = build_program([("for", "i", ("const", 1.0), []), ("return", ("const", 0))])
         self._assert_equiv(prog)
 
     def test_none_compare(self):

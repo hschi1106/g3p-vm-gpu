@@ -30,7 +30,7 @@ class TestEval(unittest.TestCase):
         prog = build_program(
             [
                 ("assign", "x", ("const", 0)),
-                ("for", "i", 5, [("assign", "x", ("add", ("var", "x"), ("const", 1)))]),
+                ("for", "i", ("const", 5), [("assign", "x", ("add", ("var", "x"), ("const", 1)))]),
                 ("return", ("var", "x")),
             ]
         )
@@ -38,12 +38,16 @@ class TestEval(unittest.TestCase):
         self.assertIsInstance(out, Returned)
         self.assertEqual(out.value, 5)
 
-    def test_for_expr_loop(self):
+    def test_for_loop_old_constant_bound_syntax_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_program([("for", "i", 5, [("assign", "x", ("const", 1))])])
+
+    def test_for_loop_dynamic_bound(self):
         prog = build_program(
             [
                 ("assign", "x", ("const", 0)),
                 (
-                    "for_expr",
+                    "for",
                     "i",
                     ("call", "len", [("const", [10, 20, 30, 40])]),
                     [("assign", "x", ("add", ("var", "x"), ("var", "i")))],
@@ -55,10 +59,21 @@ class TestEval(unittest.TestCase):
         self.assertIsInstance(out, Returned)
         self.assertEqual(out.value, 6)
 
-    def test_for_expr_requires_non_negative_numeric_bound(self):
+    def test_for_loop_requires_non_negative_int_bound(self):
         prog = build_program(
             [
-                ("for_expr", "i", ("sub", ("const", 1), ("const", 3)), [("assign", "x", ("const", 1))]),
+                ("for", "i", ("sub", ("const", 1), ("const", 3)), [("assign", "x", ("const", 1))]),
+                ("return", ("const", 0)),
+            ]
+        )
+        _, out = run_program(prog, {}, fuel=1000)
+        self.assertIsInstance(out, Failed)
+        self.assertEqual(out.err.code, ErrCode.TYPE)
+
+    def test_for_loop_rejects_float_bound(self):
+        prog = build_program(
+            [
+                ("for", "i", ("const", 1.0), [("assign", "x", ("const", 1))]),
                 ("return", ("const", 0)),
             ]
         )

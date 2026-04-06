@@ -410,8 +410,12 @@ void emit_random_stmt(std::mt19937_64& rng,
   if (choice == 2) {
     const int name_id = ensure_name(
         program, choose_one(rng, std::vector<std::string>{"i", "j", "k"}) + std::to_string(std::uniform_int_distribution<int>(0, 9)(rng)));
-    program.nodes.push_back(
-        AstNode{NodeKind::FOR_RANGE, name_id, std::uniform_int_distribution<int>(0, std::max(0, limits.max_for_k))(rng)});
+    program.nodes.push_back(AstNode{NodeKind::FOR_RANGE, name_id, 0});
+    program.nodes.push_back(AstNode{
+        NodeKind::CONST,
+        append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(0, std::max(0, limits.max_for_k))(rng))),
+        0,
+    });
     PrefixGenCtx body_ctx = ctx;
     body_ctx.num_names.insert(name_id);
     emit_random_block(rng,

@@ -150,7 +150,7 @@ def exec_bytecode(program: BytecodeProgram, inputs: Dict[str, Val] | None = None
                 return fail(ErrCode.VALUE, "stack underflow")
             args = stack[-argc:]
             del stack[-argc:]
-            name = {0: "abs", 1: "min", 2: "max", 3: "clip", 4: "len", 5: "concat", 6: "slice", 7: "index"}.get(bid)
+            name = {0: "abs", 1: "min", 2: "max", 3: "clip", 4: "len", 5: "concat", 6: "slice", 7: "index", 8: "is_int"}.get(bid)
             if name is None:
                 return fail(ErrCode.NAME, "unknown builtin id")
             out = builtin_call(name, args)

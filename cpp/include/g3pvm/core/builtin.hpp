@@ -19,6 +19,7 @@ enum class BuiltinId : std::int32_t {
   Concat = 5,
   Slice = 6,
   Index = 7,
+  IsInt = 8,
 };
 
 G3PVM_BUILTIN_HD inline const char* builtin_name(BuiltinId id) {
@@ -39,12 +40,14 @@ G3PVM_BUILTIN_HD inline const char* builtin_name(BuiltinId id) {
       return "slice";
     case BuiltinId::Index:
       return "index";
+    case BuiltinId::IsInt:
+      return "is_int";
   }
   return "";
 }
 
 G3PVM_BUILTIN_HD inline bool builtin_id_from_int(int value, BuiltinId& out) {
-  if (value < static_cast<int>(BuiltinId::Abs) || value > static_cast<int>(BuiltinId::Index)) {
+  if (value < static_cast<int>(BuiltinId::Abs) || value > static_cast<int>(BuiltinId::IsInt)) {
     return false;
   }
   out = static_cast<BuiltinId>(value);

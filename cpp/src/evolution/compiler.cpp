@@ -306,26 +306,21 @@ class Compiler {
       return next;
     }
     if (node.kind == NodeKind::FOR_RANGE) {
-      if (node.i1 < 0) {
-        throw std::runtime_error("prefix compile: FOR_RANGE requires non-negative bound");
-      }
-
       const int bound_local = local(new_temp());
-      emit(Opcode::PushConst, add_const(Value::from_int(node.i1)), true);
-      emit(Opcode::Store, bound_local, true);
-      return compile_for_loop_body(name_at(program, node.i0), bound_local, program, idx + 1);
-    }
-    if (node.kind == NodeKind::FOR_RANGE_EXPR) {
-      const int bound_local = local(new_temp());
-      const std::string valid_label = new_label("for_expr_valid");
+      const std::string valid_label = new_label("for_valid");
+      const std::string bad_label = new_label("for_bad");
       std::size_t next = compile_expr_prefix(program, idx + 1);
       emit(Opcode::Store, bound_local, true);
+      emit(Opcode::Load, bound_local, true);
+      emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::IsInt), true, 1, true);
+      emit_jump(Opcode::JmpIfFalse, bad_label);
       emit(Opcode::Load, bound_local, true);
       emit(Opcode::PushConst, add_const(Value::from_int(0)), true);
       emit(Opcode::Lt);
       emit_jump(Opcode::JmpIfFalse, valid_label);
-      emit(Opcode::Load, bound_local, true);
-      emit(Opcode::Not);
+      mark_label(bad_label);
+      emit(Opcode::PushConst, add_const(Value::from_bool(true)), true);
+      emit(Opcode::Neg);
       mark_label(valid_label);
       return compile_for_loop_body(name_at(program, node.i0), bound_local, program, next);
     }

@@ -521,6 +521,15 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
     return true;
   }
 
+  if (bid == BuiltinId::IsInt) {
+    if (argc != 1) {
+      err = ErrCode::Type;
+      return false;
+    }
+    out = Value::from_bool(args[0].tag == ValueTag::Int);
+    return true;
+  }
+
   err = ErrCode::Name;
   return false;
 }

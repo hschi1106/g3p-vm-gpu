@@ -148,7 +148,7 @@ def rand_stmt(rng: random.Random, depth: int, limits: Limits) -> tuple:
         return (
             "for",
             rng.choice(["i", "j", "k"]),
-            rng.randint(0, max(0, limits.max_for_k)),
+            ("const", rng.randint(0, max(0, limits.max_for_k))),
             rand_block(rng, depth - 1, limits, force_return=False),
         )
     return ("return", rand_expr(rng, depth - 1, rng.choice([RType.NUM, RType.BOOL, RType.NONE])))

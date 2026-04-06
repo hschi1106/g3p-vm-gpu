@@ -5,6 +5,7 @@ from src.g3p_vm_gpu.evolution.crossover import crossover
 from src.g3p_vm_gpu.evolution.genome import Limits, compile_for_eval
 from src.g3p_vm_gpu.evolution.mutation import mutate
 from src.g3p_vm_gpu.evolution.random_genome import make_random_genome
+from src.g3p_vm_gpu.evolution.stmt_codec import top_level_statements
 from src.g3p_vm_gpu.runtime.compiler import compile_program
 from src.g3p_vm_gpu.runtime.interp import run_program
 from src.g3p_vm_gpu.runtime.vm import ExecError, ExecReturn, exec_bytecode
@@ -38,14 +39,21 @@ class TestEvolutionOps(unittest.TestCase):
             self.assertLessEqual(child.meta.node_count, limits.max_total_nodes)
             compile_for_eval(child)
 
-    def test_for_range_k_constraints_after_mutation(self):
+    def test_random_generator_uses_bounded_constant_for_loops(self):
         limits = Limits(max_for_k=8)
-        base = make_random_genome(seed=88, limits=limits)
+        def check_block(statements):
+            for stmt in statements:
+                if stmt[0] == "for":
+                    self.assertEqual(stmt[2][0], "const")
+                    self.assertIsInstance(stmt[2][1], int)
+                    self.assertLessEqual(stmt[2][1], limits.max_for_k)
+                    check_block(stmt[3])
+                elif stmt[0] == "if":
+                    check_block(stmt[2])
+                    check_block(stmt[3])
         for i in range(100):
-            child = mutate(base, seed=10_000 + i, limits=limits)
-            for node in child.ast.nodes:
-                if node.kind.value == "FOR_RANGE":
-                    self.assertLessEqual(node.i1, limits.max_for_k)
+            genome = make_random_genome(seed=88 + i, limits=limits)
+            check_block(top_level_statements(genome.ast))
 
     def test_eval_parity_sample(self):
         limits = Limits()

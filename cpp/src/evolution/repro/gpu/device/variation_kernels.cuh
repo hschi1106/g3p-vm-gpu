@@ -73,6 +73,7 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
                                                        int max_for_k,
                                                        unsigned char* task_stack,
                                                        int* depth_stack) {
+  (void)max_for_k;
   PackedChildMeta out;
   out.node_count = used_len;
   out.max_depth = 0;
@@ -151,15 +152,6 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
           break;
         }
         if (kind == NodeKind::FOR_RANGE) {
-          if (node.i1 < 0 || node.i1 > max_for_k) {
-            return out;
-          }
-          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block)) {
-            return out;
-          }
-          break;
-        }
-        if (kind == NodeKind::FOR_RANGE_EXPR) {
           if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBlock) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Block) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
@@ -331,8 +323,7 @@ __device__ inline DPlainNode remap_node_for_child(const DPlainNode& in,
   const NodeKind kind = static_cast<NodeKind>(in.kind);
   if (kind == NodeKind::CONST) {
     out.i0 = remap_const_value(source_consts[in.i0], child_consts, child_const_count, max_consts);
-  } else if (kind == NodeKind::VAR || kind == NodeKind::ASSIGN ||
-             kind == NodeKind::FOR_RANGE || kind == NodeKind::FOR_RANGE_EXPR) {
+  } else if (kind == NodeKind::VAR || kind == NodeKind::ASSIGN || kind == NodeKind::FOR_RANGE) {
     out.i0 = remap_name_id(source_names[in.i0], child_names, child_name_count, max_names);
   }
   return out;

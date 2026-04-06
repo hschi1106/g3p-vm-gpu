@@ -9,7 +9,7 @@ def main():
     prog = build_program(
         [
             ("assign", "x", ("const", 0)),
-            ("for", "i", 3, [("assign", "x", ("add", ("var", "x"), ("const", 1)))]),
+            ("for", "i", ("const", 3), [("assign", "x", ("add", ("var", "x"), ("const", 1)))]),
             (
                 "if",
                 ("and", ("eq", ("var", "x"), ("const", 3)), ("const", True)),

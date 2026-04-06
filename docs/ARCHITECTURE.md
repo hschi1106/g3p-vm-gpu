@@ -47,9 +47,10 @@ These are the current 1.0 invariants.
 `Bool` is not numeric.
 
 ### Control flow
-- The public grammar supports both constant-bound `ForRange(x, K, body)` and evaluate-once dynamic-bound `ForRangeExpr(x, e, body)`.
-- `ForRangeExpr` evaluates `e` once, stores the bound in a temporary local during bytecode lowering, and then runs integer loop indices while `i < bound`.
-- Current random genome generation still emits constant-bound `ForRange` only. `ForRangeExpr` is available to hand-authored ASTs and parity tests without changing the existing benchmark population space.
+- The public grammar has one loop form: `ForRange(x, e, body)`.
+- `ForRange` evaluates `e` once, stores the bound in a temporary local during bytecode lowering, and then runs integer loop indices while `i < bound`.
+- The bound must be a non-negative integer. `0` is valid and executes zero iterations; `Bool` and `Float` are rejected.
+- Current random genome generation still seeds loop bounds with integer constants, so existing benchmark population generation remains bounded by `max_for_k`.
 
 ### Builtins
 Scalar builtins:

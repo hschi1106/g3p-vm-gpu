@@ -262,6 +262,15 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
     return out;
   }
 
+  if (id == BuiltinId::IsInt) {
+    if (args.size() != 1) {
+      return fail(ErrCode::Type, "is_int expects 1 argument");
+    }
+    BuiltinResult out;
+    out.value = Value::from_bool(args[0].tag == ValueTag::Int);
+    return out;
+  }
+
   return fail(ErrCode::Name, "unknown builtin");
 }
 

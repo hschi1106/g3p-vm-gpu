@@ -119,7 +119,12 @@ def _rand_stmt(rng: random.Random, vars_: List[str], depth: int) -> tuple:
         )
     if mode == 2:
         loop_var = rng.choice(["i", "j", "k"])
-        return ("for", loop_var, rng.randint(0, 4), _rand_block(rng, vars_ + [loop_var], depth - 1, max_stmts=2))
+        return (
+            "for",
+            loop_var,
+            ("const", rng.randint(0, 4)),
+            _rand_block(rng, vars_ + [loop_var], depth - 1, max_stmts=2),
+        )
     return ("return", _rand_expr(rng, vars_, depth - 1))
 
 

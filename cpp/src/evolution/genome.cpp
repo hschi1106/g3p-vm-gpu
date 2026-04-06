@@ -41,10 +41,6 @@ DepthResult compute_stmt_depth_prefix(const AstProgram& program, std::size_t idx
                                       std::max(then_block.max_expr_depth, else_block.max_expr_depth))};
   }
   if (node.kind == NodeKind::FOR_RANGE) {
-    const DepthResult body = compute_block_depth_prefix(program, idx + 1);
-    return {body.next, body.max_expr_depth};
-  }
-  if (node.kind == NodeKind::FOR_RANGE_EXPR) {
     const DepthResult bound = compute_expr_depth_prefix(program, idx + 1);
     const DepthResult body = compute_block_depth_prefix(program, bound.next);
     return {body.next, std::max(bound.max_expr_depth, body.max_expr_depth)};

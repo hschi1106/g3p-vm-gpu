@@ -66,8 +66,6 @@ def _skip_stmt_end(p: AstProgram, idx: int) -> int:
         j = _skip_block_end(p, j)
         return _skip_block_end(p, j)
     if n.kind == NodeKind.FOR_RANGE:
-        return _skip_block_end(p, idx + 1)
-    if n.kind == NodeKind.FOR_RANGE_EXPR:
         j = _skip_expr_end(p, idx + 1)
         return _skip_block_end(p, j)
     raise ValueError(f"expected Stmt at index {idx}, got {n.kind}")
@@ -286,34 +284,18 @@ def _exec_stmt(p: AstProgram, idx: int, env: Env, fuel: int) -> tuple[Env, Out, 
         return env3, out3, next_idx, fuel
 
     if k == NodeKind.FOR_RANGE:
-        kval = n.i1
-        body_idx = idx + 1
-        if not isinstance(kval, int) or isinstance(kval, bool) or kval < 0:
-            return env, Failed(Err(ErrCode.TYPE, "range(K) requires non-negative int constant K")), next_idx, fuel
-        cur_env = dict(env)
-        name = p.names[n.i0]
-        for i in range(kval):
-            cur_env[name] = i
-            cur_env, out, _after_body, fuel = _exec_block(p, body_idx, cur_env, fuel)
-            if not isinstance(out, Normal):
-                return cur_env, out, next_idx, fuel
-        return cur_env, Normal(), next_idx, fuel
-
-    if k == NodeKind.FOR_RANGE_EXPR:
         bound, body_idx, fuel = _eval_expr(p, idx + 1, env, fuel)
         if isinstance(bound, Err):
             return env, Failed(bound), next_idx, fuel
-        if not is_num(bound) or isinstance(bound, bool) or bound < 0:
-            return env, Failed(Err(ErrCode.TYPE, "range(e) requires non-negative numeric bound")), next_idx, fuel
+        if not isinstance(bound, int) or isinstance(bound, bool) or bound < 0:
+            return env, Failed(Err(ErrCode.TYPE, "range(e) requires non-negative int bound")), next_idx, fuel
         cur_env = dict(env)
         name = p.names[n.i0]
-        i = 0
-        while i < bound:
+        for i in range(bound):
             cur_env[name] = i
             cur_env, out, _after_body, fuel = _exec_block(p, body_idx, cur_env, fuel)
             if not isinstance(out, Normal):
                 return cur_env, out, next_idx, fuel
-            i += 1
         return cur_env, Normal(), next_idx, fuel
 
     return env, Failed(Err(ErrCode.TYPE, f"unknown Stmt node: {k}")), next_idx, fuel

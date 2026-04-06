@@ -140,8 +140,8 @@ Pop one `Bool`.
 - invalid `addr` => `ValueError`
 
 Compiler lowering notes:
-- `ForRange(x, K, body)` is lowered with a temporary counter local and the standard `LOAD` / `STORE` / `LT` / jump opcodes.
-- `ForRangeExpr(x, e, body)` first evaluates `e` once, stores the bound in a temporary local, and then reuses that stored bound for every iteration.
+- `ForRange(x, e, body)` first evaluates `e` once, stores the bound in a temporary local, validates that the bound is a non-negative integer, and then reuses that stored bound for every iteration.
+- The compiler may emit internal builtin id `8` (`is_int`) while lowering `ForRange`; this builtin is not part of the source-language call whitelist.
 
 ### Builtins
 
@@ -159,6 +159,7 @@ Builtin ID mapping:
 - `5`: `concat`
 - `6`: `slice`
 - `7`: `index`
+- `8`: `is_int` (compiler-internal helper used by `ForRange` lowering)
 
 Errors:
 - unknown builtin id => `NameError`

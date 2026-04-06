@@ -263,7 +263,7 @@ bool test_for_range_expr_compiles_and_executes() {
       AstNode{NodeKind::ASSIGN, 0, 0},
       AstNode{NodeKind::CONST, 0, 0},
       AstNode{NodeKind::BLOCK_CONS, 0, 0},
-      AstNode{NodeKind::FOR_RANGE_EXPR, 1, 0},
+      AstNode{NodeKind::FOR_RANGE, 1, 0},
       AstNode{NodeKind::CALL_LEN, 0, 0},
       AstNode{NodeKind::CONST, 1, 0},
       AstNode{NodeKind::BLOCK_CONS, 0, 0},
@@ -281,19 +281,19 @@ bool test_for_range_expr_compiles_and_executes() {
   ProgramGenome genome;
   genome.ast = program;
   genome.meta = g3pvm::evo::build_genome_meta(program);
-  if (!check(genome.meta.max_depth == 2, "FOR_RANGE_EXPR bound should contribute expression depth")) {
+  if (!check(genome.meta.max_depth == 2, "FOR_RANGE bound should contribute expression depth")) {
     return false;
   }
 
   const g3pvm::BytecodeProgram bytecode = g3pvm::evo::compile_for_eval(genome);
   const g3pvm::ExecResult out = g3pvm::execute_bytecode_cpu(bytecode, {}, 20000);
-  if (!check(!out.is_error, "FOR_RANGE_EXPR program should execute successfully")) {
+  if (!check(!out.is_error, "FOR_RANGE program should execute successfully")) {
     return false;
   }
-  if (!check(out.value.tag == ValueTag::Int, "FOR_RANGE_EXPR program should return int")) {
+  if (!check(out.value.tag == ValueTag::Int, "FOR_RANGE program should return int")) {
     return false;
   }
-  return check(out.value.i == 6, "FOR_RANGE_EXPR program should sum loop indices");
+  return check(out.value.i == 6, "FOR_RANGE program should sum loop indices");
 }
 
 }  // namespace

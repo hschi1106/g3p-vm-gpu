@@ -233,30 +233,21 @@ class _Compiler:
             return t
 
         if k == NodeKind.FOR_RANGE:
-            kval = n.i1
-            if not isinstance(kval, int) or isinstance(kval, bool) or kval < 0:
-                self._emit("PUSH_CONST", self._const(True))
-                self._emit("NEG")
-                return prefix_subtree_end(self.p.nodes, idx)
-
             bound_local = self._local(self._new_temp())
             user_i = self._local(self.p.names[n.i0])
-            self._emit("PUSH_CONST", self._const(kval))
-            self._emit("STORE", bound_local)
-            return self._compile_for_loop_body(bound_local, user_i, idx + 1)
-
-        if k == NodeKind.FOR_RANGE_EXPR:
-            bound_local = self._local(self._new_temp())
-            user_i = self._local(self.p.names[n.i0])
-            valid_l = self._new_label("for_expr_valid")
+            valid_l = self._new_label("for_valid")
             j = self._compile_expr(idx + 1)
             self._emit("STORE", bound_local)
+            self._emit("LOAD", bound_local)
+            self._emit("CALL_BUILTIN", 8, 1)
+            self._emit_jump("JMP_IF_FALSE", valid_l + "_bad")
             self._emit("LOAD", bound_local)
             self._emit("PUSH_CONST", self._const(0))
             self._emit("LT")
             self._emit_jump("JMP_IF_FALSE", valid_l)
-            self._emit("LOAD", bound_local)
-            self._emit("NOT")
+            self._label(valid_l + "_bad")
+            self._emit("PUSH_CONST", self._const(True))
+            self._emit("NEG")
             self._label(valid_l)
             return self._compile_for_loop_body(bound_local, user_i, j)
 
