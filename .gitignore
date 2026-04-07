@@ -215,6 +215,8 @@ data/fixtures/*
 !data/fixtures/simple_evo_affine_2x_plus_3_1024.json
 !data/fixtures/simple_evo_square_x2_1024.json
 !data/fixtures/speedup_cases_bouncing_balls_1024.json
+!data/fixtures/psb1/
+!data/fixtures/psb1/*.json
 
 # Local benchmark config overrides
 scripts/speedup_experiment.json

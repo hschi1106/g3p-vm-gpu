@@ -139,7 +139,15 @@ cpp/build/g3pvm_evolve_cli \
 For fair comparisons, reuse the same `population-seeds-v1` input across `cpu`, `gpu_eval`,
 `gpu_repro`, and `gpu_repro_overlap` runs, then compare generation-0 timing fields.
 
-### Convert PSB2 task into `fitness-cases-v1`
+### Convert PSB1/PSB2 tasks into `fitness-cases-v1`
+
+```bash
+python3 tools/convert_psb1_to_fitness_cases.py \
+  --problem count-odds \
+  --datasets-root data/psb1_datasets \
+  --out data/fixtures/psb1/count-odds.train.json \
+  --out-test data/fixtures/psb1/count-odds.test.json
+```
 
 ```bash
 python3 tools/convert_psb2_to_fitness_cases.py \
@@ -148,8 +156,8 @@ python3 tools/convert_psb2_to_fitness_cases.py \
   --out logs/psb2/bouncing-balls.train.json
 ```
 
-The converter emits typed sequence values as `num_list` or `string_list` so empty list fields remain unambiguous.
-Multi-output PSB rows are rejected by this converter path until runtime-level multi-output support is added; they are not encoded as fake list outputs.
+The converters emit typed sequence values as `num_list` or `string_list` so empty list fields remain unambiguous.
+Multi-output PSB rows are rejected until runtime-level multi-output support is added; they are not encoded as fake list outputs.
 
 ### Fetch PSB1 datasets
 

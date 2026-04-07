@@ -1,0 +1,1301 @@
+{
+  "format_version": "fitness-cases-v1",
+  "source": {
+    "suite": "psb1",
+    "problem": "compare-string-lengths",
+    "edge_file": "data/psb1_datasets/compare-string-lengths/compare-string-lengths-edge.json",
+    "random_file": "data/psb1_datasets/compare-string-lengths/compare-string-lengths-random.json",
+    "n_train": 64,
+    "n_test": 64,
+    "seed": 1,
+    "field_schemas": {
+      "input1": "scalar",
+      "input2": "scalar",
+      "input3": "scalar",
+      "output1": "scalar"
+    },
+    "split": "train"
+  },
+  "cases": [
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": "a"
+        },
+        "input3": {
+          "type": "string",
+          "value": "bc"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": "bc"
+        },
+        "input3": {
+          "type": "string",
+          "value": "a"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "a"
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": "bc"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "a"
+        },
+        "input2": {
+          "type": "string",
+          "value": "bc"
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "bc"
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": "a"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "bc"
+        },
+        "input2": {
+          "type": "string",
+          "value": "a"
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": "dFs&6$]3"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": "dFs&6$]3"
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "dFs&6$]3"
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": "%T>3.2?7u2hAI}(Y9|,"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ""
+        },
+        "input2": {
+          "type": "string",
+          "value": "%T>3.2?7u2hAI}(Y9|,"
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "%T>3.2?7u2hAI}(Y9|,"
+        },
+        "input2": {
+          "type": "string",
+          "value": ""
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "$'72Y]si8`UJSaP-[g3G%Mz$#&{*3)92u \\5Yp| J>"
+        },
+        "input2": {
+          "type": "string",
+          "value": "[6W]To#{11-.d(kSC\\M\\y63:Y$"
+        },
+        "input3": {
+          "type": "string",
+          "value": "[6W]To#{11-.d(kSC\\M\\y63:Y$"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "[6W]To#{11-.d(kSC\\M\\y63:Y$"
+        },
+        "input2": {
+          "type": "string",
+          "value": "$'72Y]si8`UJSaP-[g3G%Mz$#&{*3)92u \\5Yp| J>"
+        },
+        "input3": {
+          "type": "string",
+          "value": "[6W]To#{11-.d(kSC\\M\\y63:Y$"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "[6W]To#{11-.d(kSC\\M\\y63:Y$"
+        },
+        "input2": {
+          "type": "string",
+          "value": "[6W]To#{11-.d(kSC\\M\\y63:Y$"
+        },
+        "input3": {
+          "type": "string",
+          "value": "$'72Y]si8`UJSaP-[g3G%Mz$#&{*3)92u \\5Yp| J>"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "kR3b=g4k!~a<.SgTh6=}0STuoR"
+        },
+        "input2": {
+          "type": "string",
+          "value": "6"
+        },
+        "input3": {
+          "type": "string",
+          "value": "6"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "6"
+        },
+        "input2": {
+          "type": "string",
+          "value": "kR3b=g4k!~a<.SgTh6=}0STuoR"
+        },
+        "input3": {
+          "type": "string",
+          "value": "6"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "6"
+        },
+        "input2": {
+          "type": "string",
+          "value": "6"
+        },
+        "input3": {
+          "type": "string",
+          "value": "kR3b=g4k!~a<.SgTh6=}0STuoR"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "a@rXFD^OA\ndU?"
+        },
+        "input2": {
+          "type": "string",
+          "value": "cEf3L}zf\\AXd*r0"
+        },
+        "input3": {
+          "type": "string",
+          "value": "cEf3L}zf\\AXd*r0"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "cEf3L}zf\\AXd*r0"
+        },
+        "input2": {
+          "type": "string",
+          "value": "a@rXFD^OA\ndU?"
+        },
+        "input3": {
+          "type": "string",
+          "value": "cEf3L}zf\\AXd*r0"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "cEf3L}zf\\AXd*r0"
+        },
+        "input2": {
+          "type": "string",
+          "value": "cEf3L}zf\\AXd*r0"
+        },
+        "input3": {
+          "type": "string",
+          "value": "a@rXFD^OA\ndU?"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "33bknw\nv5$"
+        },
+        "input2": {
+          "type": "string",
+          "value": "ynAwsKlf AfXk.hsxfus3[u+VkQ"
+        },
+        "input3": {
+          "type": "string",
+          "value": "mLp=A9hJ+p=@HOce_UdjWXx1prsJ"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "'R1 ^9\"F@-mRDB~b[W*|OjrMzB$A#)*eoE:`5CQG#!}e1"
+        },
+        "input2": {
+          "type": "string",
+          "value": "*A}sGI;Y$~U+~rP[-[b =I)J{C/QE;L$WJUz-{HH[HKpf@f"
+        },
+        "input3": {
+          "type": "string",
+          "value": ";U#UY-Wxh^9#7Pn4qj["
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "QL6^!]Q$?.&10RUKevnYw0B-"
+        },
+        "input2": {
+          "type": "string",
+          "value": "KkKMR"
+        },
+        "input3": {
+          "type": "string",
+          "value": "I@^!2"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ".\tqBR{l=@4G`dr(@{i\"r{a5[fPhi'Q>?EX/\tK"
+        },
+        "input2": {
+          "type": "string",
+          "value": "mKjKxXG\t[3+h,\t%4{K@HM\"5/>lQ`"
+        },
+        "input3": {
+          "type": "string",
+          "value": "Sa|h*m_N#2_B]dFx'j*"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ">U/NB,_nOb+8177MRH@y+"
+        },
+        "input2": {
+          "type": "string",
+          "value": "Z`j.F8&F|qm^BE"
+        },
+        "input3": {
+          "type": "string",
+          "value": ")-gmnA'"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "0K-x#t'ID*~icD"
+        },
+        "input2": {
+          "type": "string",
+          "value": "0K-x#t'ID*~icD"
+        },
+        "input3": {
+          "type": "string",
+          "value": "0K-x#t'ID*~icD"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "*+u#~G;'$SI62j_'cL|`HL;"
+        },
+        "input2": {
+          "type": "string",
+          "value": "XWY?ib\t:;w5)C*N:aG@yw{\"@Em0n?m[32TIp4IB6$uahhMf"
+        },
+        "input3": {
+          "type": "string",
+          "value": "nDA0@_Z7gVzoOe[;F#kT^W J`o2c#4X0gu%L`[Y.n$U{'^\">G"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "CwPjtWR*V=BZQ;?MVwv$n#iUD>_w"
+        },
+        "input2": {
+          "type": "string",
+          "value": "4(Jvfdv3G\"q&`v#gI<3R[F\n0%w{A"
+        },
+        "input3": {
+          "type": "string",
+          "value": "EUvA@TmwMykx'2wv<vd:k4\tkG'&n)Bs5{NtM7E/e,n"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "4Y&F$UWqFQ;ds)> iPwg//Mb,NU`U^p)Ja02eR-!XJ"
+        },
+        "input2": {
+          "type": "string",
+          "value": "3@2-bL?o))g/j'3/C3;sh[e_sPO;JP##,1,b3"
+        },
+        "input3": {
+          "type": "string",
+          "value": "ZSu*SmFMTqV!Q[Yy5T"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "XB=qZ"
+        },
+        "input2": {
+          "type": "string",
+          "value": "lj\n)0OeNJpfzD+Y~jK"
+        },
+        "input3": {
+          "type": "string",
+          "value": "`^dZ7U6\new}1/1.i'<#D-*\nS(\"MQ1zfUSkK1\\l"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "k:_e0=m`F*(wZuu}JNG{I+z|.b3ws7tVS\nxGL*vr*fncQRms"
+        },
+        "input2": {
+          "type": "string",
+          "value": "c\\meV3Lo6ac\"2Pd)#F}oHU&Y;>Hhk"
+        },
+        "input3": {
+          "type": "string",
+          "value": "V<]"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "`ry0-&kr`s}RNDV'"
+        },
+        "input2": {
+          "type": "string",
+          "value": "n?eT{axKu'RD\n\t}V\\8E@/\nZ_:_9U-=g\"\\BANq}R?8xs\tv}Bs"
+        },
+        "input3": {
+          "type": "string",
+          "value": "{[.$[6UoX[iP4VL6+|+dxwHP7S/<iE(1x4o9-\t9R"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "S}MG DN0lzzZ<x(1Rwk|]q Hq<+6kaG[O3bq>g 0sG\n"
+        },
+        "input2": {
+          "type": "string",
+          "value": "H3h"
+        },
+        "input3": {
+          "type": "string",
+          "value": "\"i\tFz{RGN]4x[rzN.=>)O#HoD]C[DCio>LB"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "F#j~41H`1gsnS!(lhS3./(\"qk1z\\E\t48S\tf"
+        },
+        "input2": {
+          "type": "string",
+          "value": "vO"
+        },
+        "input3": {
+          "type": "string",
+          "value": "ol3;?N@ydhcFg\\0O4<Tz-"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "|)xh7\"O#A\to(/;~:E/pQ$ow_J\"4Y*"
+        },
+        "input2": {
+          "type": "string",
+          "value": "I!oKo3(<~\n\t\"|so23"
+        },
+        "input3": {
+          "type": "string",
+          "value": "[v)U\tMM{/< Ejzz+oqR`/R<9Ny`|*=E\\g"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "kv<Uz'L!z&"
+        },
+        "input2": {
+          "type": "string",
+          "value": "|bcq*&>_ejkwod:#6W=4%S\\*6)"
+        },
+        "input3": {
+          "type": "string",
+          "value": "t:>Ryo 8=-}e\t&g'|zw,#?Y@~~1R6]U&"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "!d@$\".4Z3<"
+        },
+        "input2": {
+          "type": "string",
+          "value": "!d@$\".4Z3<"
+        },
+        "input3": {
+          "type": "string",
+          "value": "!d@$\".4Z3<"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "\tR^a):`.i.JpQ;-12tS~N[aef.@M!Gv\t{Dar?Q5quR\t"
+        },
+        "input2": {
+          "type": "string",
+          "value": "Md9mLM5FK9||hOy)"
+        },
+        "input3": {
+          "type": "string",
+          "value": "N_e<_6'0bVQr6 3};b>DMY^Y<J"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "|AH"
+        },
+        "input2": {
+          "type": "string",
+          "value": "|AH"
+        },
+        "input3": {
+          "type": "string",
+          "value": "|AH"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "@v\"5 &;a*Y._7nn5DF1a."
+        },
+        "input2": {
+          "type": "string",
+          "value": "\\W\n?y/BmAF\n0`L^\tgG_ygxN@Z"
+        },
+        "input3": {
+          "type": "string",
+          "value": "-"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "o*S #B]ayZ;dAzFW*="
+        },
+        "input2": {
+          "type": "string",
+          "value": "%|z3Mm'lWV\t.\":"
+        },
+        "input3": {
+          "type": "string",
+          "value": "]kjPcO(D+\\Ve-"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "E](+x|<C8*2 s>& :__tl\n9bG'2>>BqN"
+        },
+        "input2": {
+          "type": "string",
+          "value": "9_!Bg7'>'t4},K:wfQQg:@{\"7YJEdu'i(-hobHg'b9"
+        },
+        "input3": {
+          "type": "string",
+          "value": "D)`I"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "\"R]AZ"
+        },
+        "input2": {
+          "type": "string",
+          "value": "J(PQ\\p(\nG`CBnYp(Y-vZsg8:lbMj5Eii\nv?HJ0QNe"
+        },
+        "input3": {
+          "type": "string",
+          "value": "n_(Ss$;]h6kxSPBe"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "xn -/+]BC/gW5m7e37A6i5eG|-wo2"
+        },
+        "input2": {
+          "type": "string",
+          "value": "\\jQ&9Vd^x9VOF!/xWC/Ym_]D"
+        },
+        "input3": {
+          "type": "string",
+          "value": "\\=@m*V<14/w[`^[_/OQ5"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "Vk<"
+        },
+        "input2": {
+          "type": "string",
+          "value": "vS=kd2MIlOkaq/T\n=&-1q;|EE/oi1>D1Ey()NCX"
+        },
+        "input3": {
+          "type": "string",
+          "value": "6hT>xZz7d"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": " S9vBTyDZw9CgFJ1)sSNdp-$H"
+        },
+        "input2": {
+          "type": "string",
+          "value": ".E+\nO@uD)&,8(`ib}L-M{ly=s8+j!>\":lQ-LWjONnuR\n)*"
+        },
+        "input3": {
+          "type": "string",
+          "value": "f>Le%m8[Xt d]^7f^;).[\te"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "iS:MZ$ZC#\no[Q"
+        },
+        "input2": {
+          "type": "string",
+          "value": "iS:MZ$ZC#\no[Q"
+        },
+        "input3": {
+          "type": "string",
+          "value": "iS:MZ$ZC#\no[Q"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": ";An&Ndu"
+        },
+        "input2": {
+          "type": "string",
+          "value": "H\">uum-0]d&=Zp"
+        },
+        "input3": {
+          "type": "string",
+          "value": "IGL#$Z -9R%{ERkA_QvE4+wtu;(bO'YZ`+6qAcS$!_x"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "ygKh\ncWswEeC6R!Uw_r]"
+        },
+        "input2": {
+          "type": "string",
+          "value": "jKpYPA#f;xk:Z/2Eye#~"
+        },
+        "input3": {
+          "type": "string",
+          "value": "2^(6.|OQ8\n2A^y*^Xa/wB#)zPl\n.&qhu<Q6(!:4Ky"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "yf7U "
+        },
+        "input2": {
+          "type": "string",
+          "value": ";Bh|rd@rB1AG1E]\\D)ayxIY$KbtO_s!nP!U@(w(R\\_\t\n\n!^"
+        },
+        "input3": {
+          "type": "string",
+          "value": "cTcgHCIasHf[s,.<\nym9`W_Ja6EEJ9p#G1}d(m8ktdgSrI~@b"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "NKZB4xn6!bTmUHb Y8~/KNHu`G&"
+        },
+        "input2": {
+          "type": "string",
+          "value": "q&=V\nYGRUxU|U.<EUbuW;UMf="
+        },
+        "input3": {
+          "type": "string",
+          "value": "GO@88+Sd_/5gWokIN{<\tC*ZRJI%B=M`36VnGz;y;3,br"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "pRt;xa<xRp:DY d_EFotNCp2_(C{:#t*9^74(Ll)u)nfyNV|A"
+        },
+        "input2": {
+          "type": "string",
+          "value": "e;8HLK?.:CF =9Bu2ngO\t-rj;}*LcW\n8vnJnGLF_"
+        },
+        "input3": {
+          "type": "string",
+          "value": "?4"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "qH\\!ZS}'k_R+QMA~&.Az]It[{N@cjKP=@@"
+        },
+        "input2": {
+          "type": "string",
+          "value": "v>1Ak\\8jIAEjM^]SH4ar8KnQ6Kmb(m1vFx7W];-7ibdz"
+        },
+        "input3": {
+          "type": "string",
+          "value": "Z<-poy<Txe%r`)3mLTl-9^k aMcv<`In9`M? `cVU}*NY[W["
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "jc&mU()~DU]I+3RYsa12fYu%"
+        },
+        "input2": {
+          "type": "string",
+          "value": "Z>aK/3!|e{\\["
+        },
+        "input3": {
+          "type": "string",
+          "value": "%*eJd:l\n%w2I^2j\n!+^8U]}cF%L jv4qI;0HAJCf&ROukU"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "b3A}ZZS>%R-GXx_H9:loc!(@]:ck?PTw\""
+        },
+        "input2": {
+          "type": "string",
+          "value": "G\t\"\\;.9/&LPwgxe!fd\"eC6`FD73A@*~dq"
+        },
+        "input3": {
+          "type": "string",
+          "value": ""
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "IPjNx*`s?S,_N#*EVj}uN^.H%?CvSP~1"
+        },
+        "input2": {
+          "type": "string",
+          "value": "z,eb#`YTD_@I[-e|xb@'\nS]C^V}:e 8IAwj6z|_<k]Ea"
+        },
+        "input3": {
+          "type": "string",
+          "value": "5ZnhxCWOfm,w~L^OgZ.7oNhr;K6ArNDR/]Q?R|jf^Q0o"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "WNMGN1WABIT~J\\t\t$%2"
+        },
+        "input2": {
+          "type": "string",
+          "value": "u@hGr4eG r<D`"
+        },
+        "input3": {
+          "type": "string",
+          "value": "YxA|(\tZBMp&WQfWnE0LA?MR}*6)"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "h0"
+        },
+        "input2": {
+          "type": "string",
+          "value": "S"
+        },
+        "input3": {
+          "type": "string",
+          "value": "m*xmyHz*W(>uZ!@S6!RD5Ew&CQP7ef}nzA[)\"y7{iDjiPL`"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "^d&Y;$ wq.z%d"
+        },
+        "input2": {
+          "type": "string",
+          "value": "^d&Y;$ wq.z%d"
+        },
+        "input3": {
+          "type": "string",
+          "value": "^d&Y;$ wq.z%d"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "f,:`~"
+        },
+        "input2": {
+          "type": "string",
+          "value": "f,:`~"
+        },
+        "input3": {
+          "type": "string",
+          "value": "f,:`~"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "d8pl^&h$,o4(]<Z\npS8.ALS^DX'#\t"
+        },
+        "input2": {
+          "type": "string",
+          "value": "d8pl^&h$,o4(]<Z\npS8.ALS^DX'#\t"
+        },
+        "input3": {
+          "type": "string",
+          "value": "d8pl^&h$,o4(]<Z\npS8.ALS^DX'#\t"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "string",
+          "value": "3{)Z Z<GjI<i"
+        },
+        "input2": {
+          "type": "string",
+          "value": "8j>S6]IA=oN134y>'@x{q>!t8SE?:)h?MnJw"
+        },
+        "input3": {
+          "type": "string",
+          "value": "gmX7p[}`$\towZa=qlctA"
+        }
+      },
+      "expected": {
+        "type": "bool",
+        "value": false
+      }
+    }
+  ]
+}

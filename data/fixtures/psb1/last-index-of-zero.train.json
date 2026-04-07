@@ -1,0 +1,1630 @@
+{
+  "format_version": "fitness-cases-v1",
+  "source": {
+    "suite": "psb1",
+    "problem": "last-index-of-zero",
+    "edge_file": "data/psb1_datasets/last-index-of-zero/last-index-of-zero-edge.json",
+    "random_file": "data/psb1_datasets/last-index-of-zero/last-index-of-zero-random.json",
+    "n_train": 64,
+    "n_test": 64,
+    "seed": 1,
+    "field_schemas": {
+      "input1": "num_list",
+      "output1": "scalar"
+    },
+    "split": "train"
+  },
+  "cases": [
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 4
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 31
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 44
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 30
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            -8,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            9,
+            5,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            9,
+            0,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            9,
+            5,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 9
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -7,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 26
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            1,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            0,
+            0,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            -8,
+            0,
+            5
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 13
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 47
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            -8,
+            5,
+            9
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            9,
+            -8,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            0,
+            -8,
+            5
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            1
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            5,
+            -8,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 32
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            5,
+            0,
+            9,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 41
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 33
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            -8,
+            0,
+            9
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 40
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            0,
+            -8,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            5,
+            -8,
+            0,
+            9
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            5,
+            -8,
+            9
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 28
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            9,
+            -8,
+            5,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            9,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 48
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            9,
+            -8,
+            5
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            9,
+            0,
+            5
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            5,
+            0,
+            -8,
+            9
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            -8,
+            9,
+            5
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            9,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            0,
+            9,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 7
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 11
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 29
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 17
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            5,
+            9,
+            -8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            5,
+            0,
+            9
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 38
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            5,
+            9,
+            -8,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            5,
+            9,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            8
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 0
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -1,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 14
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 37
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            9,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 6
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            9,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            -8,
+            0,
+            9,
+            5
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "num_list",
+          "value": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 25
+      }
+    }
+  ]
+}

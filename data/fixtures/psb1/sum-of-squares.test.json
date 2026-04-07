@@ -1,0 +1,787 @@
+{
+  "format_version": "fitness-cases-v1",
+  "source": {
+    "suite": "psb1",
+    "problem": "sum-of-squares",
+    "edge_file": "data/psb1_datasets/sum-of-squares/sum-of-squares-edge.json",
+    "random_file": "data/psb1_datasets/sum-of-squares/sum-of-squares-random.json",
+    "n_train": 64,
+    "n_test": 64,
+    "seed": 1,
+    "field_schemas": {
+      "input1": "scalar",
+      "output1": "scalar"
+    },
+    "split": "test"
+  },
+  "cases": [
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 79
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 167480
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 66
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 98021
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 28
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 7714
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 43
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 27434
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 44
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 29370
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 42
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 25585
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 65
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 93665
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 15
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1240
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 52
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 48230
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 99
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 328350
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 96
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 299536
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 8
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 204
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 48
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 38024
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 11
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 506
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 27
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 6930
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 63
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 85344
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 19
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2470
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 56
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 60116
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 64
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 89440
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 34
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 13685
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 31
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 10416
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 71
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 121836
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 30
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 9455
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 13
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 819
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 26
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 6201
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 29
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 8555
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 23
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 4324
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 87
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 223300
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 75
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 143450
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 82
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 187165
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 20
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2870
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 72
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 127020
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 53
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 51039
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 38
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 19019
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 57
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 63365
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 73
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 132349
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 21
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3311
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 88
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 231044
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 17
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 1785
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 24
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 4900
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 68
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 107134
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 97
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 308945
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 35
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 14910
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 59
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 70210
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 98
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 318549
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 49
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 40425
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 22
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 3795
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 18
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 2109
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 80
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 173880
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 89
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 238965
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 95
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 290320
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 51
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 45526
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 70
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 116795
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 40
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 22140
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 32
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 11440
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 47
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 35720
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 91
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 255346
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 84
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 201110
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 36
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 16206
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 61
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 77531
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 94
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 281295
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 45
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 31395
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 67
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 102510
+      }
+    },
+    {
+      "inputs": {
+        "input1": {
+          "type": "int",
+          "value": 37
+        }
+      },
+      "expected": {
+        "type": "int",
+        "value": 17575
+      }
+    }
+  ]
+}

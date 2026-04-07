@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "suite": "psb1",
+  "problem": "compare-string-lengths",
+  "train_cases": 64,
+  "test_cases": 64,
+  "type_counts": {
+    "string": 384,
+    "bool": 128
+  },
+  "runtime_compatible": true,
+  "unsupported_types": [],
+  "out_train": "data/fixtures/psb1/compare-string-lengths.train.json",
+  "out_test": "data/fixtures/psb1/compare-string-lengths.test.json"
+}

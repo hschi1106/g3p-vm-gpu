@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "suite": "psb1",
+  "problem": "sum-of-squares",
+  "train_cases": 64,
+  "test_cases": 64,
+  "type_counts": {
+    "int": 256
+  },
+  "runtime_compatible": true,
+  "unsupported_types": [],
+  "out_train": "data/fixtures/psb1/sum-of-squares.train.json",
+  "out_test": "data/fixtures/psb1/sum-of-squares.test.json"
+}

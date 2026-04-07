@@ -209,6 +209,7 @@ Benchmark binaries for runtime-focused measurement.
 - `fetch_psb1_datasets.py`: download PSB1 datasets into `data/psb1_datasets/`
 - `fetch_psb2_datasets.py`: download PSB2 datasets into `data/psb2_datasets/`
 - `audit_psb2_tasks.py`: inspect local PSB2 dataset coverage and shape
+- `convert_psb1_to_fitness_cases.py`: convert PSB1 JSON Lines into `fitness-cases-v1` with schema-aware `num_list` / `string_list` emission
 - `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1` with schema-aware `num_list` / `string_list` emission; multi-output rows are not encoded as list values
 
 ## Data and Tooling Layout

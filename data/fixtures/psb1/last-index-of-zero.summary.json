@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "suite": "psb1",
+  "problem": "last-index-of-zero",
+  "train_cases": 64,
+  "test_cases": 64,
+  "type_counts": {
+    "num_list": 128,
+    "int": 128
+  },
+  "runtime_compatible": true,
+  "unsupported_types": [],
+  "out_train": "data/fixtures/psb1/last-index-of-zero.train.json",
+  "out_test": "data/fixtures/psb1/last-index-of-zero.test.json"
+}

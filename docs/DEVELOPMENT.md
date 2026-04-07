@@ -199,6 +199,20 @@ Dataset-fetch args:
 - `--force`: overwrite existing files
 - `--dry-run`: print planned work without downloading
 
+### `tools/convert_psb1_to_fitness_cases.py`
+
+Dataset-conversion args:
+- `--problem NAME`: PSB1 problem name under `--datasets-root`
+- `--datasets-root PATH`: PSB1 dataset root; default is `data/psb1_datasets`
+- `--edge-file PATH`: explicit PSB1 edge JSONL file; use with `--random-file` instead of `--problem`
+- `--random-file PATH`: explicit PSB1 random JSONL file
+- `--n-train N`: number of training rows to emit; default is `64`
+- `--n-test N`: number of test rows to emit; default is `64`
+- `--seed N`: sampling seed
+- `--out PATH`: output training fixture path
+- `--out-test PATH`: optional test fixture output path
+- `--summary-json PATH`: optional conversion summary JSON path
+
 ### `tools/audit_psb2_tasks.py`
 
 Audit args:
@@ -218,7 +232,7 @@ Dataset-conversion args:
 - `--summary-json PATH`: optional conversion summary JSON path
 
 Conversion behavior:
-- list fields are inferred column-wise and emitted as explicit `num_list` or `string_list` values
+- PSB1 and PSB2 conversion both infer list fields column-wise and emit explicit `num_list` or `string_list` values
 - empty list values use the inferred column schema
 - mixed numeric/string list columns are rejected
 - multi-output PSB rows are rejected for now and are not encoded as list values

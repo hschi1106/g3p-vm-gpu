@@ -70,7 +70,7 @@ g3p-vm-gpu/
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
 - `docs/GRAMMAR_CONFIG.md`: external config format for evolution grammar search-space controls
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
-- `data/fixtures/`: canonical benchmark and evolution fixtures
+- `data/fixtures/`: canonical benchmark and evolution fixtures, including generated PSB smoke fixtures under `data/fixtures/psb1/`
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
