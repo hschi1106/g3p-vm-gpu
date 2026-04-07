@@ -54,7 +54,7 @@ ReproductionResult run_cpu_backend(const std::vector<ScoredGenome>& scored,
   const auto mutation_t0 = std::chrono::steady_clock::now();
   for (ProgramGenome& child : offspring) {
     if (prob_dist(rng) < cfg.mutation_rate) {
-      child = mutate(child, seed_dist(rng), cfg.limits, cfg.mutation_subtree_prob);
+      child = mutate(child, seed_dist(rng), cfg.limits, cfg.mutation_subtree_prob, cfg.grammar);
     }
   }
   const auto mutation_t1 = std::chrono::steady_clock::now();

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/grammar_config.hpp"
 #include "g3pvm/evolution/repro/backend.hpp"
 #include "g3pvm/evolution/selection.hpp"
 #include "g3pvm/core/value.hpp"
@@ -39,6 +40,7 @@ struct EvolutionConfig {
   std::uint64_t seed = 0;
   int fuel = 20000;
   Limits limits;
+  GrammarConfig grammar;
   bool skip_final_eval = false;
 };
 

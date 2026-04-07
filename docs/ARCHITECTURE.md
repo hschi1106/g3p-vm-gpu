@@ -16,6 +16,7 @@ Use the repo documents in this order:
 - `README.md`: entrypoint and common workflows
 - `docs/DEVELOPMENT.md`: commands, CLIs, and benchmark procedure
 - `docs/TIMING.md`: canonical timing names, scope boundaries, and output mapping
+- `docs/GRAMMAR_CONFIG.md`: external evolution grammar config contract
 - `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend design, overlap model, and current bottlenecks
 - `docs/FILE_STRUCTURE.md`: terse directory map
@@ -30,6 +31,7 @@ These are the current 1.0 invariants.
 - Default public reproduction backend is `cpu`
 - Default public selection is round-based tournament only, controlled by `selection_pressure`
 - Public mutation API is single-path, with internal operator mix controlled by `mutation_subtree_prob`
+- Evolution grammar configs are search-space controls only; runtime/VM execution remains the all-enabled public grammar superset
 - Public fixture schema is `fitness-cases-v1`
 - Public runners do not expose heavyweight validate modes
 - CPU and GPU must preserve fitness parity for the same inputs and configuration
@@ -55,6 +57,12 @@ Nested and heterogeneous lists are not part of the public value contract.
 - `ForRange` evaluates `e` once, stores the bound in a temporary local during bytecode lowering, and then runs integer loop indices while `i < bound`.
 - The bound must be a non-negative integer. `0` is valid and executes zero iterations; `Bool` and `Float` are rejected.
 - Current random genome generation still seeds loop bounds with integer constants, so existing benchmark population generation remains bounded by `max_for_k`.
+
+### Evolution grammar configs
+- `grammar-config-v1` files live under `configs/grammar/` and can be passed to the native CLI with `--grammar-config`.
+- The config restricts random genome generation, CPU mutation donor synthesis, and seed replay regeneration.
+- The config does not reject execution of existing ASTs or bytecode that use disabled constructs.
+- Non-default configs currently require CPU reproduction; GPU reproduction rejects them until GPU donor buckets are config-aware.
 
 ### Builtins
 Scalar builtins:
@@ -112,6 +120,7 @@ This keeps numeric tasks dense while keeping container semantics exact and simpl
 
 ### `python/src/g3p_vm_gpu/evolution/`
 - `genome.py`: genome container and compile-for-eval helpers
+- `grammar_config.py`: Python-side `grammar-config-v1` parser and config object
 - `stmt_codec.py`: AST and statement codec helpers
 - `random_tree.py`: typed random expression and statement generation
 - `random_genome.py`: random genome generation
@@ -145,6 +154,7 @@ Public payload registry interface for host-side string/list snapshots and lookup
 Public evolution interfaces split by responsibility:
 - `ast_program.hpp`: prefix AST program representation, shape limits, and canonical AST serialization helpers
 - `genome.hpp`: genome metadata and `ProgramGenome` wrapper
+- `grammar_config.hpp`: evolution grammar search-space config
 - `genome_generation.hpp`: random genome generation
 - `compiler.hpp`: AST-to-bytecode lowering
 - `selection.hpp`: ranking and parent selection
@@ -169,6 +179,7 @@ Public evolution interfaces split by responsibility:
 ### `cpp/src/evolution/`
 - `ast_program.cpp`: canonical AST serialization and cache-key generation
 - `genome.cpp`: genome metadata construction
+- `grammar_config.cpp`: native grammar config validation and helper predicates
 - `subtree_utils.*`: subtree traversal and rewrite
 - `typed_expr_analysis.*`: typed expression root analysis
 - `compiler.cpp`: AST-to-bytecode compiler

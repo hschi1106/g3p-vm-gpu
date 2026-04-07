@@ -38,12 +38,14 @@ g3p-vm-gpu/
 │   │   ├── parity/
 │   │   └── runtime/
 │   └── CMakeLists.txt
+├── configs/
+│   └── grammar/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── CPP_RUNTIME_PAYLOAD.md
 │   ├── DEVELOPMENT.md
+│   ├── GRAMMAR_CONFIG.md
 │   ├── GPU_REPRODUCTION.md
-│   ├── STRING_LIST_BUILTINS_PLAN.md
 │   ├── TIMING.md
 │   └── FILE_STRUCTURE.md
 ├── spec/
@@ -62,11 +64,12 @@ g3p-vm-gpu/
 - `README.md`: entrypoint and quick workflow
 - `python/`: reference semantics and Python-side tests
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests
+- `configs/grammar/`: checked-in `grammar-config-v1` presets for evolution search-space control
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
+- `docs/GRAMMAR_CONFIG.md`: external config format for evolution grammar search-space controls
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
-- `docs/STRING_LIST_BUILTINS_PLAN.md`: phased roadmap for string/list builtins and typed-generation cleanup
 - `data/fixtures/`: canonical benchmark and evolution fixtures
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets

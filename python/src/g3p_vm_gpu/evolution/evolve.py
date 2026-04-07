@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Sequence
 
 from ..core.ast import Val
 from ..runtime.vm import ExecError, ExecReturn, exec_bytecode
 from .crossover import crossover
 from .genome import Limits, ProgramGenome, compile_for_eval
+from .grammar_config import DEFAULT_GRAMMAR_CONFIG, GrammarConfig
 from .mutation import mutate
 from .random_genome import make_random_genome
 
@@ -29,6 +30,7 @@ class EvolutionConfig:
     seed: int = 0
     fuel: int = 20_000
     limits: Limits = Limits()
+    grammar_config: GrammarConfig = field(default_factory=lambda: DEFAULT_GRAMMAR_CONFIG)
 
 
 @dataclass(frozen=True)
@@ -96,7 +98,10 @@ def select_parent_tournament(scored: Sequence[ScoredGenome], rng: random.Random,
 
 
 def _init_population(cfg: EvolutionConfig) -> List[ProgramGenome]:
-    return [make_random_genome(seed=cfg.seed + i, limits=cfg.limits) for i in range(cfg.population_size)]
+    return [
+        make_random_genome(seed=cfg.seed + i, limits=cfg.limits, grammar_config=cfg.grammar_config)
+        for i in range(cfg.population_size)
+    ]
 
 
 def evolve_population(
@@ -146,12 +151,14 @@ def evolve_population(
                     parent_b,
                     seed=rng.randint(0, 2_000_000_000),
                     limits=cfg.limits,
+                    grammar_config=cfg.grammar_config,
                 )
                 next_population[i + 1] = crossover(
                     parent_b,
                     parent_a,
                     seed=rng.randint(0, 2_000_000_000),
                     limits=cfg.limits,
+                    grammar_config=cfg.grammar_config,
                 )
         for i, child in enumerate(next_population):
             if rng.random() < cfg.mutation_rate:
@@ -160,6 +167,7 @@ def evolve_population(
                     seed=rng.randint(0, 2_000_000_000),
                     limits=cfg.limits,
                     mutation_subtree_prob=cfg.mutation_subtree_prob,
+                    grammar_config=cfg.grammar_config,
                 )
         population = next_population[: cfg.population_size]
 

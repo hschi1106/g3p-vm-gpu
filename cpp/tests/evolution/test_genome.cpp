@@ -6,6 +6,7 @@
 #include "g3pvm/evolution/crossover.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/grammar_config.hpp"
 #include "g3pvm/evolution/mutation.hpp"
 #include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
 #include "g3pvm/runtime/payload/payload.hpp"
@@ -296,6 +297,46 @@ bool test_for_range_expr_compiles_and_executes() {
   return check(out.value.i == 6, "FOR_RANGE program should sum loop indices");
 }
 
+bool scalar_config_allows_program(const g3pvm::evo::ProgramGenome& genome) {
+  const g3pvm::evo::GrammarConfig cfg = g3pvm::evo::GrammarConfig::scalar();
+  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
+    if (!cfg.allows_node_kind(node.kind)) {
+      return false;
+    }
+  }
+  for (const g3pvm::Value& value : genome.ast.consts) {
+    if (value.tag == g3pvm::ValueTag::String ||
+        value.tag == g3pvm::ValueTag::NumList ||
+        value.tag == g3pvm::ValueTag::StringList) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool test_scalar_grammar_config_restricts_generation_and_mutation() {
+  const g3pvm::evo::GrammarConfig cfg = g3pvm::evo::GrammarConfig::scalar();
+  g3pvm::evo::Limits limits;
+  for (std::uint64_t seed = 0; seed < 160; ++seed) {
+    const g3pvm::evo::ProgramGenome genome = g3pvm::evo::generate_random_genome(seed, limits, cfg);
+    if (!check(scalar_config_allows_program(genome), "scalar grammar config should not generate sequence features")) {
+      return false;
+    }
+    (void)g3pvm::evo::compile_for_eval(genome);
+  }
+
+  const g3pvm::evo::ProgramGenome base = g3pvm::evo::generate_random_genome(4242, limits, cfg);
+  for (std::uint64_t seed = 0; seed < 80; ++seed) {
+    const g3pvm::evo::ProgramGenome child =
+        g3pvm::evo::mutate(base, 9000 + seed, limits, 0.8, cfg);
+    if (!check(scalar_config_allows_program(child), "scalar grammar config should not mutate in sequence features")) {
+      return false;
+    }
+    (void)g3pvm::evo::compile_for_eval(child);
+  }
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -308,6 +349,7 @@ int main() {
   if (!test_typed_expr_analysis_treats_list_index_as_num()) return 1;
   if (!test_subtree_donor_generation_uses_existing_list_input_names()) return 1;
   if (!test_for_range_expr_compiles_and_executes()) return 1;
+  if (!test_scalar_grammar_config_restricts_generation_and_mutation()) return 1;
   std::cout << "g3pvm_test_genome: OK\n";
   return 0;
 }

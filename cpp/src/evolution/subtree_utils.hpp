@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/ast_program.hpp"
+#include "g3pvm/evolution/grammar_config.hpp"
 
 namespace g3pvm::evo::subtree {
 
@@ -14,7 +15,8 @@ std::vector<std::size_t> build_subtree_end(const AstProgram& program);
 std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
                                                      AstProgram& target,
                                                      RType type,
-                                                     int depth);
+                                                     int depth,
+                                                     const GrammarConfig& grammar = GrammarConfig{});
 AstProgram replace_subtree(const AstProgram& base,
                            std::size_t target_start,
                            std::size_t target_stop,

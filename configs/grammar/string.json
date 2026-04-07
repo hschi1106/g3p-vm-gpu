@@ -1,0 +1,56 @@
+{
+  "format_version": "grammar-config-v1",
+  "statements": {
+    "assign": true,
+    "if_stmt": true,
+    "for_range": true,
+    "return": true
+  },
+  "expressions": {
+    "const": true,
+    "var": true,
+    "if_expr": true,
+    "unary": {
+      "neg": true,
+      "not": true
+    },
+    "binary": {
+      "add": true,
+      "sub": true,
+      "mul": true,
+      "div": true,
+      "mod": true,
+      "lt": true,
+      "le": true,
+      "gt": true,
+      "ge": true,
+      "eq": true,
+      "ne": true,
+      "and": true,
+      "or": true
+    },
+    "builtins": {
+      "abs": true,
+      "min": true,
+      "max": true,
+      "clip": true,
+      "len": true,
+      "concat": true,
+      "slice": true,
+      "index": true,
+      "append": false,
+      "reverse": true,
+      "find": true,
+      "contains": true
+    }
+  },
+  "values": {
+    "int": true,
+    "float": true,
+    "bool": true,
+    "none": true,
+    "string": true,
+    "num_list": false,
+    "string_list": false
+  }
+}

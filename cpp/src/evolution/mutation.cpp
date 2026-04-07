@@ -25,7 +25,10 @@ const T& choose_one(std::mt19937_64& rng, const std::vector<T>& values) {
   return values[static_cast<std::size_t>(idx)];
 }
 
-AstProgram typed_subtree_mutation(const AstProgram& ast, std::mt19937_64& rng, const Limits& limits) {
+AstProgram typed_subtree_mutation(const AstProgram& ast,
+                                  std::mt19937_64& rng,
+                                  const Limits& limits,
+                                  const GrammarConfig& grammar) {
   AstProgram mutated;
   const std::vector<std::size_t> end = subtree::build_subtree_end(ast);
   const std::vector<typed_expr::TypedExprRoot> expr_roots = typed_expr::collect_typed_expr_roots(ast, end);
@@ -37,7 +40,7 @@ AstProgram typed_subtree_mutation(const AstProgram& ast, std::mt19937_64& rng, c
   AstProgram donor;
   donor.version = "ast-prefix-v1";
   donor.nodes = subtree::make_random_expr_nodes_for_type(
-      rng, donor, target.type, std::max(1, limits.max_expr_depth / 2));
+      rng, donor, target.type, std::max(1, limits.max_expr_depth / 2), grammar);
   return subtree::replace_subtree(ast, target.start, target.stop, donor, 0, donor.nodes.size());
 }
 
@@ -80,16 +83,18 @@ AstProgram constant_perturbation(const AstProgram& ast, std::mt19937_64& rng) {
 ProgramGenome mutate(const ProgramGenome& genome,
                      std::uint64_t seed,
                      const Limits& limits,
-                     double mutation_subtree_prob) {
+                     double mutation_subtree_prob,
+                     const GrammarConfig& grammar) {
+  grammar.validate();
   std::mt19937_64 rng(seed);
   if (genome.ast.nodes.empty()) {
-    return generate_random_genome(seed, limits);
+    return generate_random_genome(seed, limits, grammar);
   }
 
   AstProgram mutated;
   const double subtree_prob = std::clamp(mutation_subtree_prob, 0.0, 1.0);
   if (std::bernoulli_distribution(subtree_prob)(rng)) {
-    mutated = typed_subtree_mutation(genome.ast, rng, limits);
+    mutated = typed_subtree_mutation(genome.ast, rng, limits, grammar);
   }
   if (mutated.nodes.empty()) {
     mutated = constant_perturbation(genome.ast, rng);

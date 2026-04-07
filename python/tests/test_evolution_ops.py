@@ -1,8 +1,13 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
+from src.g3p_vm_gpu.core.ast import NodeKind, NumList, StringList
 from src.g3p_vm_gpu.core.errors import Failed, Returned
 from src.g3p_vm_gpu.evolution.crossover import crossover
 from src.g3p_vm_gpu.evolution.genome import Limits, compile_for_eval
+from src.g3p_vm_gpu.evolution.grammar_config import load_grammar_config
 from src.g3p_vm_gpu.evolution.mutation import mutate
 from src.g3p_vm_gpu.evolution.random_genome import make_random_genome
 from src.g3p_vm_gpu.evolution.stmt_codec import top_level_statements
@@ -12,6 +17,22 @@ from src.g3p_vm_gpu.runtime.vm import ExecError, ExecReturn, exec_bytecode
 
 
 class TestEvolutionOps(unittest.TestCase):
+    def _assert_no_sequence_features(self, genome):
+        disabled_calls = {
+            NodeKind.CALL_LEN,
+            NodeKind.CALL_CONCAT,
+            NodeKind.CALL_SLICE,
+            NodeKind.CALL_INDEX,
+            NodeKind.CALL_APPEND,
+            NodeKind.CALL_REVERSE,
+            NodeKind.CALL_FIND,
+            NodeKind.CALL_CONTAINS,
+        }
+        for node in genome.ast.nodes:
+            self.assertNotIn(node.kind, disabled_calls)
+        for value in genome.ast.consts:
+            self.assertNotIsInstance(value, (str, NumList, StringList))
+
     def test_random_genome_compile_rate(self):
         limits = Limits()
         compiled = 0
@@ -72,6 +93,37 @@ class TestEvolutionOps(unittest.TestCase):
                 self.fail("unexpected top-level interpreter outcome")
 
             self.assertIsInstance(interp_env, dict)
+
+    def test_scalar_grammar_config_restricts_random_generation(self):
+        limits = Limits()
+        grammar = load_grammar_config("configs/grammar/scalar.json")
+        for i in range(160):
+            genome = make_random_genome(seed=5000 + i, limits=limits, grammar_config=grammar)
+            self._assert_no_sequence_features(genome)
+            compile_for_eval(genome)
+
+    def test_scalar_grammar_config_restricts_mutation(self):
+        limits = Limits()
+        grammar = load_grammar_config("configs/grammar/scalar.json")
+        base = make_random_genome(seed=6111, limits=limits, grammar_config=grammar)
+        for i in range(80):
+            child = mutate(base, seed=7000 + i, limits=limits, mutation_subtree_prob=0.8, grammar_config=grammar)
+            self._assert_no_sequence_features(child)
+            compile_for_eval(child)
+
+    def test_checked_in_grammar_presets_parse(self):
+        for name in ("all", "scalar", "string", "num_list", "string_list", "sequence"):
+            with self.subTest(name=name):
+                load_grammar_config(f"configs/grammar/{name}.json")
+
+    def test_grammar_config_rejects_unknown_keys(self):
+        raw = json.loads(Path("configs/grammar/scalar.json").read_text(encoding="utf-8"))
+        raw["values"]["generic_list"] = True
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad_grammar.json"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_grammar_config(path)
 
 
 if __name__ == "__main__":

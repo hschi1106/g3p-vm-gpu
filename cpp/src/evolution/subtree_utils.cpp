@@ -198,13 +198,26 @@ std::vector<std::size_t> build_subtree_end(const AstProgram& program) {
 std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
                                                      AstProgram& target,
                                                      RType type,
-                                                     int depth) {
+                                                     int depth,
+                                                     const GrammarConfig& grammar) {
   (void)depth;
+  grammar.validate();
+  if (!grammar.allows_type(type)) {
+    type = RType::Num;
+  }
   AstProgram donor;
-  const std::vector<int> num_name_ids = collect_name_ids_for_type(target, RType::Num);
-  const std::vector<int> string_name_ids = collect_name_ids_for_type(target, RType::String);
-  const std::vector<int> num_list_name_ids = collect_name_ids_for_type(target, RType::NumList);
-  const std::vector<int> string_list_name_ids = collect_name_ids_for_type(target, RType::StringList);
+  const std::vector<int> num_name_ids =
+      (grammar.expression_var && grammar.allows_type(RType::Num)) ? collect_name_ids_for_type(target, RType::Num)
+                                                                  : std::vector<int>{};
+  const std::vector<int> string_name_ids =
+      (grammar.expression_var && grammar.value_string) ? collect_name_ids_for_type(target, RType::String)
+                                                       : std::vector<int>{};
+  const std::vector<int> num_list_name_ids =
+      (grammar.expression_var && grammar.value_num_list) ? collect_name_ids_for_type(target, RType::NumList)
+                                                         : std::vector<int>{};
+  const std::vector<int> string_list_name_ids =
+      (grammar.expression_var && grammar.value_string_list) ? collect_name_ids_for_type(target, RType::StringList)
+                                                            : std::vector<int>{};
   const std::vector<int> container_name_ids = [&]() {
     std::vector<int> out = string_name_ids;
     out.insert(out.end(), num_list_name_ids.begin(), num_list_name_ids.end());
@@ -213,7 +226,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
   }();
   const int num_name_id = choose_name_id(rng, num_name_ids);
   const int container_name_id = choose_name_id(rng, container_name_ids);
-  if (type == RType::Bool && num_name_id >= 0 && rand_prob(rng, 0.6)) {
+  if (type == RType::Bool && grammar.binary_lt && num_name_id >= 0 && rand_prob(rng, 0.6)) {
     donor.names.push_back(target.names[static_cast<std::size_t>(num_name_id)]);
     donor.nodes.push_back(AstNode{NodeKind::LT, 0, 0});
     donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
@@ -221,7 +234,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
     donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
-  if (type == RType::Bool && container_name_id >= 0 && rand_prob(rng, 0.4)) {
+  if (type == RType::Bool && grammar.binary_lt && grammar.builtin_len && container_name_id >= 0 && rand_prob(rng, 0.4)) {
     donor.names.push_back(target.names[static_cast<std::size_t>(container_name_id)]);
     donor.nodes.push_back(AstNode{NodeKind::LT, 0, 0});
     donor.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
@@ -230,26 +243,31 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
     donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
-  if (type == RType::Num && num_name_id >= 0 && rand_prob(rng, 0.45)) {
+  if (type == RType::Num && grammar.expression_var && num_name_id >= 0 && rand_prob(rng, 0.45)) {
     donor.names.push_back(target.names[static_cast<std::size_t>(num_name_id)]);
     donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
-  if (type == RType::Num && container_name_id >= 0 && rand_prob(rng, 0.55)) {
+  if (type == RType::Num && container_name_id >= 0 &&
+      (grammar.builtin_len || (grammar.builtin_index && grammar.value_num_list)) &&
+      rand_prob(rng, 0.55)) {
     const RType container_type = infer_name_type_from_string(target.names[static_cast<std::size_t>(container_name_id)]);
     donor.names.push_back(target.names[static_cast<std::size_t>(container_name_id)]);
-    if (container_type != RType::NumList || rand_prob(rng, 0.5)) {
+    if (grammar.builtin_len && (container_type != RType::NumList || !grammar.builtin_index || rand_prob(rng, 0.5))) {
       donor.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
       donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
-    } else {
+    } else if (grammar.builtin_index && container_type == RType::NumList) {
       donor.nodes.push_back(AstNode{NodeKind::CALL_INDEX, 0, 0});
       donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
       donor.consts.push_back(Value::from_int(rand_int(rng, -6, 6)));
       donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
+    } else {
+      donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
+      donor.consts.push_back(grammar.value_int ? Value::from_int(0) : Value::from_float(0.0));
     }
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
-  Value value = Value::from_int(0);
+  Value value = grammar.value_int ? Value::from_int(0) : Value::from_float(0.0);
   if (type == RType::Bool) value = Value::from_bool(rand_prob(rng, 0.5));
   else if (type == RType::NoneType) value = Value::none();
   else if (type == RType::String) {
@@ -283,7 +301,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
       elems.push_back(g3pvm::payload::make_string_value(s));
     }
     value = g3pvm::payload::make_string_list_value(elems);
-  } else if (rand_prob(rng, 0.5)) {
+  } else if (grammar.value_int && (!grammar.value_float || rand_prob(rng, 0.5))) {
     value = Value::from_int(rand_int(rng, -8, 8));
   } else {
     value = Value::from_float(std::round(rand_real(rng, -8.0, 8.0) * 1000.0) / 1000.0);

@@ -66,7 +66,7 @@ std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg,
   std::vector<ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(cfg.population_size));
   for (int i = 0; i < cfg.population_size; ++i) {
-    out.push_back(generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits, input_specs));
+    out.push_back(generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits, input_specs, cfg.grammar));
   }
   return out;
 }
@@ -300,6 +300,11 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   }
   if (cfg.generations <= 0) {
     throw std::invalid_argument("generations must be > 0");
+  }
+  cfg.grammar.validate();
+  if (cfg.reproduction_backend == repro::ReproductionBackend::Gpu && !cfg.grammar.is_all_enabled()) {
+    throw std::invalid_argument(
+        "non-default grammar configs are not supported with gpu reproduction yet; use --repro-backend cpu");
   }
 
   const auto all_t0 = std::chrono::steady_clock::now();

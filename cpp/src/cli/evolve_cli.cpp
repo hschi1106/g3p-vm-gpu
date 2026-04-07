@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -14,6 +15,7 @@
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
+#include "g3pvm/evolution/grammar_config.hpp"
 #include "g3pvm/cli/codec.hpp"
 #include "g3pvm/cli/json.hpp"
 
@@ -30,6 +32,7 @@ using g3pvm::cli_detail::JsonValue;
 struct CliOptions {
   std::string cases_path;
   std::string population_json;
+  std::string grammar_config_path;
   std::string engine = "cpu";
   std::string repro_backend = "cpu";
   bool repro_overlap = false;
@@ -164,6 +167,120 @@ bool paths_match(const std::string& lhs, const std::string& rhs) {
   }
 }
 
+std::string fnv1a64_hex(const std::string& text) {
+  std::uint64_t h = 1469598103934665603ULL;
+  for (unsigned char c : text) {
+    h ^= static_cast<std::uint64_t>(c);
+    h *= 1099511628211ULL;
+  }
+  std::ostringstream oss;
+  oss << "fnv1a64:" << std::hex << std::setfill('0') << std::setw(16) << h;
+  return oss.str();
+}
+
+const JsonValue& require_object_section(const JsonValue& raw, const char* key) {
+  auto it = raw.object_v.find(key);
+  if (it == raw.object_v.end() || it->second.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error(std::string("grammar config missing object section: ") + key);
+  }
+  return it->second;
+}
+
+void reject_unknown_fields(const JsonValue& raw, const std::vector<std::string>& allowed, const char* section) {
+  if (raw.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error(std::string("grammar config section is not an object: ") + section);
+  }
+  for (const auto& kv : raw.object_v) {
+    if (std::find(allowed.begin(), allowed.end(), kv.first) == allowed.end()) {
+      throw std::runtime_error(std::string("grammar config unknown field: ") + section + "." + kv.first);
+    }
+  }
+}
+
+bool require_bool_field(const JsonValue& raw, const char* key, const char* section) {
+  auto it = raw.object_v.find(key);
+  if (it == raw.object_v.end() || it->second.kind != JsonValue::Kind::Bool) {
+    throw std::runtime_error(std::string("grammar config expected boolean field: ") + section + "." + key);
+  }
+  return it->second.bool_v;
+}
+
+g3pvm::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload) {
+  if (payload.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("grammar config must be a JSON object");
+  }
+  auto fv_it = payload.object_v.find("format_version");
+  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
+      fv_it->second.string_v != "grammar-config-v1") {
+    throw std::runtime_error("grammar config must include format_version=grammar-config-v1");
+  }
+
+  const JsonValue& statements = require_object_section(payload, "statements");
+  const JsonValue& expressions = require_object_section(payload, "expressions");
+  const JsonValue& unary = require_object_section(expressions, "unary");
+  const JsonValue& binary = require_object_section(expressions, "binary");
+  const JsonValue& builtins = require_object_section(expressions, "builtins");
+  const JsonValue& values = require_object_section(payload, "values");
+
+  reject_unknown_fields(payload, {"format_version", "statements", "expressions", "values"}, "root");
+  reject_unknown_fields(statements, {"assign", "if_stmt", "for_range", "return"}, "statements");
+  reject_unknown_fields(expressions, {"const", "var", "if_expr", "unary", "binary", "builtins"}, "expressions");
+  reject_unknown_fields(unary, {"neg", "not"}, "expressions.unary");
+  reject_unknown_fields(binary, {"add", "sub", "mul", "div", "mod", "lt", "le", "gt", "ge", "eq", "ne", "and", "or"}, "expressions.binary");
+  reject_unknown_fields(builtins, {"abs", "min", "max", "clip", "len", "concat", "slice", "index", "append", "reverse", "find", "contains"}, "expressions.builtins");
+  reject_unknown_fields(values, {"int", "float", "bool", "none", "string", "num_list", "string_list"}, "values");
+
+  g3pvm::evo::GrammarConfig cfg;
+  cfg.statement_assign = require_bool_field(statements, "assign", "statements");
+  cfg.statement_if_stmt = require_bool_field(statements, "if_stmt", "statements");
+  cfg.statement_for_range = require_bool_field(statements, "for_range", "statements");
+  cfg.statement_return = require_bool_field(statements, "return", "statements");
+
+  cfg.expression_const = require_bool_field(expressions, "const", "expressions");
+  cfg.expression_var = require_bool_field(expressions, "var", "expressions");
+  cfg.expression_if_expr = require_bool_field(expressions, "if_expr", "expressions");
+
+  cfg.unary_neg = require_bool_field(unary, "neg", "expressions.unary");
+  cfg.unary_not = require_bool_field(unary, "not", "expressions.unary");
+
+  cfg.binary_add = require_bool_field(binary, "add", "expressions.binary");
+  cfg.binary_sub = require_bool_field(binary, "sub", "expressions.binary");
+  cfg.binary_mul = require_bool_field(binary, "mul", "expressions.binary");
+  cfg.binary_div = require_bool_field(binary, "div", "expressions.binary");
+  cfg.binary_mod = require_bool_field(binary, "mod", "expressions.binary");
+  cfg.binary_lt = require_bool_field(binary, "lt", "expressions.binary");
+  cfg.binary_le = require_bool_field(binary, "le", "expressions.binary");
+  cfg.binary_gt = require_bool_field(binary, "gt", "expressions.binary");
+  cfg.binary_ge = require_bool_field(binary, "ge", "expressions.binary");
+  cfg.binary_eq = require_bool_field(binary, "eq", "expressions.binary");
+  cfg.binary_ne = require_bool_field(binary, "ne", "expressions.binary");
+  cfg.binary_and = require_bool_field(binary, "and", "expressions.binary");
+  cfg.binary_or = require_bool_field(binary, "or", "expressions.binary");
+
+  cfg.builtin_abs = require_bool_field(builtins, "abs", "expressions.builtins");
+  cfg.builtin_min = require_bool_field(builtins, "min", "expressions.builtins");
+  cfg.builtin_max = require_bool_field(builtins, "max", "expressions.builtins");
+  cfg.builtin_clip = require_bool_field(builtins, "clip", "expressions.builtins");
+  cfg.builtin_len = require_bool_field(builtins, "len", "expressions.builtins");
+  cfg.builtin_concat = require_bool_field(builtins, "concat", "expressions.builtins");
+  cfg.builtin_slice = require_bool_field(builtins, "slice", "expressions.builtins");
+  cfg.builtin_index = require_bool_field(builtins, "index", "expressions.builtins");
+  cfg.builtin_append = require_bool_field(builtins, "append", "expressions.builtins");
+  cfg.builtin_reverse = require_bool_field(builtins, "reverse", "expressions.builtins");
+  cfg.builtin_find = require_bool_field(builtins, "find", "expressions.builtins");
+  cfg.builtin_contains = require_bool_field(builtins, "contains", "expressions.builtins");
+
+  cfg.value_int = require_bool_field(values, "int", "values");
+  cfg.value_float = require_bool_field(values, "float", "values");
+  cfg.value_bool = require_bool_field(values, "bool", "values");
+  cfg.value_none = require_bool_field(values, "none", "values");
+  cfg.value_string = require_bool_field(values, "string", "values");
+  cfg.value_num_list = require_bool_field(values, "num_list", "values");
+  cfg.value_string_list = require_bool_field(values, "string_list", "values");
+  cfg.validate();
+  return cfg;
+}
+
 std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
@@ -229,7 +346,10 @@ struct LoadedPopulation {
 };
 
 LoadedPopulation load_population_from_seed_set(const std::string& population_json,
-                                               const std::string& cases_path) {
+                                               const std::string& cases_path,
+                                               const g3pvm::evo::GrammarConfig& grammar,
+                                               const std::string& grammar_config_path,
+                                               const std::string& grammar_config_hash) {
   const JsonValue payload = g3pvm::cli_detail::JsonParser(read_text_file(population_json)).parse();
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("population seed set must be a JSON object");
@@ -245,6 +365,33 @@ LoadedPopulation load_population_from_seed_set(const std::string& population_jso
   if (cases_it != payload.object_v.end() && cases_it->second.kind == JsonValue::Kind::String &&
       !cases_it->second.string_v.empty() && !paths_match(cases_it->second.string_v, cases_path)) {
     throw std::runtime_error("population seed set cases_path does not match --cases");
+  }
+
+  auto grammar_it = payload.object_v.find("grammar_config");
+  if (grammar_it != payload.object_v.end() && grammar_it->second.kind == JsonValue::Kind::Object) {
+    const JsonValue& seed_grammar = grammar_it->second;
+    std::string seed_hash;
+    std::string seed_path;
+    auto hash_it = seed_grammar.object_v.find("hash");
+    if (hash_it != seed_grammar.object_v.end() && hash_it->second.kind == JsonValue::Kind::String) {
+      seed_hash = hash_it->second.string_v;
+    }
+    auto path_it = seed_grammar.object_v.find("path");
+    if (path_it != seed_grammar.object_v.end() && path_it->second.kind == JsonValue::Kind::String) {
+      seed_path = path_it->second.string_v;
+    }
+    if (!seed_hash.empty()) {
+      if (grammar_config_hash.empty()) {
+        throw std::runtime_error("population seed set requires matching --grammar-config hash");
+      }
+      if (seed_hash != grammar_config_hash) {
+        throw std::runtime_error("population seed set grammar_config.hash does not match --grammar-config");
+      }
+    } else if (!seed_path.empty()) {
+      if (grammar_config_path.empty() || !paths_match(seed_path, grammar_config_path)) {
+        throw std::runtime_error("population seed set grammar_config.path does not match --grammar-config");
+      }
+    }
   }
 
   auto limits_it = payload.object_v.find("limits");
@@ -270,7 +417,7 @@ LoadedPopulation load_population_from_seed_set(const std::string& population_jso
     }
     const std::uint64_t seed = static_cast<std::uint64_t>(seed_it->second.number_v);
     out.seeds.push_back(seed);
-    out.genomes.push_back(g3pvm::evo::generate_random_genome(seed, out.limits));
+    out.genomes.push_back(g3pvm::evo::generate_random_genome(seed, out.limits, grammar));
   }
   if (out.genomes.empty()) {
     throw std::runtime_error("population seed set must contain at least one seed");
@@ -299,6 +446,8 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.cases_path = need_value("--cases");
     } else if (arg == "--population-json") {
       opts.population_json = need_value("--population-json");
+    } else if (arg == "--grammar-config") {
+      opts.grammar_config_path = need_value("--grammar-config");
     } else if (arg == "--engine") {
       opts.engine = need_value("--engine");
     } else if (arg == "--repro-backend") {
@@ -377,7 +526,7 @@ CliOptions parse_cli(int argc, char** argv) {
 std::string read_text_file(const std::string& path) {
   std::ifstream in(path);
   if (!in) {
-    throw std::runtime_error("missing cases file: " + path);
+    throw std::runtime_error("missing input file: " + path);
   }
   std::stringstream buffer;
   buffer << in.rdbuf();
@@ -389,6 +538,14 @@ std::string read_text_file(const std::string& path) {
 int main(int argc, char** argv) {
   try {
     const CliOptions args = parse_cli(argc, argv);
+    g3pvm::evo::GrammarConfig grammar_config;
+    std::string grammar_config_hash;
+    if (!args.grammar_config_path.empty()) {
+      const std::string grammar_text = read_text_file(args.grammar_config_path);
+      grammar_config = parse_grammar_config_payload(g3pvm::cli_detail::JsonParser(grammar_text).parse());
+      grammar_config_hash = fnv1a64_hex(grammar_text);
+    }
+
     const std::string text = read_text_file(args.cases_path);
 
     g3pvm::cli_detail::JsonParser parser(text);
@@ -409,12 +566,17 @@ int main(int argc, char** argv) {
     cfg.seed = args.seed;
     cfg.fuel = args.fuel;
     cfg.skip_final_eval = args.skip_final_eval;
+    cfg.grammar = grammar_config;
 
     std::vector<g3pvm::evo::ProgramGenome> initial_population;
     const std::vector<g3pvm::evo::ProgramGenome>* initial_population_ptr = nullptr;
     std::string population_source = "generated";
     if (!args.population_json.empty()) {
-      LoadedPopulation loaded = load_population_from_seed_set(args.population_json, args.cases_path);
+      LoadedPopulation loaded = load_population_from_seed_set(args.population_json,
+                                                              args.cases_path,
+                                                              cfg.grammar,
+                                                              args.grammar_config_path,
+                                                              grammar_config_hash);
       cfg.population_size = static_cast<int>(loaded.genomes.size());
       cfg.limits = loaded.limits;
       initial_population = std::move(loaded.genomes);
@@ -613,6 +775,15 @@ int main(int argc, char** argv) {
       } else {
         out << "    \"population_json\": null,\n";
       }
+      out << "    \"grammar_config\": {\n";
+      if (!args.grammar_config_path.empty()) {
+        out << "      \"path\": \"" << json_escape(args.grammar_config_path) << "\",\n";
+        out << "      \"hash\": \"" << json_escape(grammar_config_hash) << "\"\n";
+      } else {
+        out << "      \"path\": null,\n";
+        out << "      \"hash\": null\n";
+      }
+      out << "    },\n";
       out << "    \"selection\": \"" << selection_label << "\",\n";
       out << "    \"crossover_method\": \"" << crossover_label << "\",\n";
       out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
@@ -743,7 +914,7 @@ int main(int argc, char** argv) {
 
     return 0;
   } catch (const std::exception& e) {
-    std::cerr << "invalid cases payload: " << e.what() << "\n";
+    std::cerr << "g3pvm_evolve_cli error: " << e.what() << "\n";
     return 2;
   }
 }

@@ -27,6 +27,7 @@ add_library(g3pvm_cpu
   src/runtime/cpu/fitness_cpu.cpp
   src/evolution/ast_program.cpp
   src/evolution/genome.cpp
+  src/evolution/grammar_config.cpp
   src/evolution/subtree_utils.cpp
   src/evolution/typed_expr_analysis.cpp
   src/evolution/compiler.cpp

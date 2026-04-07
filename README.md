@@ -39,7 +39,7 @@ Use the documents below as the source of truth.
 - [CPP_RUNTIME_PAYLOAD.md](docs/CPP_RUNTIME_PAYLOAD.md): host/device container payload model and fallback behavior
 - [GPU_REPRODUCTION.md](docs/GPU_REPRODUCTION.md): GPU reproduction backend pipeline, overlap model, and bottlenecks
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
-- [STRING_LIST_BUILTINS_PLAN.md](docs/STRING_LIST_BUILTINS_PLAN.md): completed `NumList` / `StringList` migration plan and remaining sequence-support gaps
+- [GRAMMAR_CONFIG.md](docs/GRAMMAR_CONFIG.md): external config format for evolution grammar search-space controls
 - [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
 - [FILE_STRUCTURE.md](docs/FILE_STRUCTURE.md): terse repository directory map
 
@@ -55,6 +55,7 @@ Use the documents below as the source of truth.
 - `cpp/src/cli/`: `evolve_cli` and shared CLI helpers
 - `cpp/src/bench/`: benchmark binaries
 - `cpp/tests/`: native runtime, GPU smoke, parity, and evolution tests
+- `configs/grammar/`: checked-in evolution grammar config presets
 - `data/fixtures/`: canonical benchmark and evolution fixtures
 - `data/psb1_datasets/`: mirrored PSB1 datasets
 - `data/psb2_datasets/`: mirrored PSB2 datasets
@@ -100,6 +101,21 @@ cpp/build/g3pvm_evolve_cli \
   --generations 20 \
   --out-json logs/simple_exp_1024.run.json
 ```
+
+To restrict the evolution search space, pass a checked-in grammar config. The config affects generation and CPU reproduction, not runtime execution of already-materialized programs:
+
+```bash
+cpp/build/g3pvm_evolve_cli \
+  --cases data/fixtures/simple_exp_1024.json \
+  --grammar-config configs/grammar/scalar.json \
+  --engine cpu \
+  --repro-backend cpu \
+  --population-size 64 \
+  --generations 5 \
+  --out-json logs/simple_exp_1024.scalar.json
+```
+
+Non-default grammar configs currently require CPU reproduction; `--repro-backend gpu` rejects them until GPU donor buckets are config-aware.
 
 ### Run one fixed-population benchmark
 

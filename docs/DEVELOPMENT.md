@@ -58,6 +58,7 @@ Core execution args:
 - `--timing {none|summary|per_gen|all}`: timing verbosity from the native CLI
 - `--show-program {none|ast|bytecode|both}`: include final-program dumps in output
 - `--population-json PATH`: load a fixed `population-seeds-v1` initial population instead of generating from `--seed`
+- `--grammar-config PATH`: load a `grammar-config-v1` JSON file that restricts evolution generation and CPU reproduction donor synthesis
 - `--skip-final-eval {on|off}`: skip the post-loop final scoring pass; fixed-population timing runs should set this to `on`
 
 Evolution args:
@@ -79,6 +80,36 @@ Genome-shape args:
 - `--max-total-nodes N`: maximum total AST nodes in one genome
 - `--max-for-k N`: maximum integer constant used when the random generator seeds `ForRange(x, e, ...)` bounds with `Const(K)`; it is a generator limit, not a general static bound on every loop expression
 - `--max-call-args N`: maximum allowed builtin call arity during generation/compilation
+
+## Grammar Configs
+
+Checked-in presets live under `configs/grammar/`:
+- `all.json`: all public grammar constructs enabled; this is the default when `--grammar-config` is omitted
+- `scalar.json`: scalar numeric / boolean / `None` search space; sequence values and container builtins disabled
+- `string.json`: scalar plus `String` and string-compatible builtins
+- `num_list.json`: scalar plus `NumList` and numeric-list builtins
+- `string_list.json`: scalar plus `String` / `StringList` and string-list builtins
+- `sequence.json`: broad sequence profile, currently equivalent to all first-wave sequence support
+
+The config is a search-space control only. It does not reject bytecode execution or loading of already-materialized ASTs that contain disabled constructs.
+The full config schema and replay rules are defined in [GRAMMAR_CONFIG.md](GRAMMAR_CONFIG.md).
+
+Current backend support:
+- CPU reproduction respects non-default grammar configs.
+- GPU reproduction rejects non-default grammar configs until GPU donor buckets become config-aware.
+
+Example:
+
+```bash
+cpp/build/g3pvm_evolve_cli \
+  --cases data/fixtures/simple_exp_1024.json \
+  --grammar-config configs/grammar/scalar.json \
+  --engine cpu \
+  --repro-backend cpu \
+  --population-size 64 \
+  --generations 5 \
+  --out-json logs/simple_exp_1024.scalar.json
+```
 
 ## Fixed-Pop Benchmark Mode
 

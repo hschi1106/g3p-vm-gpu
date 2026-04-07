@@ -3,16 +3,22 @@ from __future__ import annotations
 import random
 
 from .genome import Limits, ProgramGenome
+from .grammar_config import GrammarConfig
 from .random_genome import make_random_genome
 from .random_tree import RType, rand_expr
 from .stmt_codec import genome_from_statements, top_level_statements
 
 
-def _ensure_terminal_return(statements: list[tuple], rng: random.Random, limits: Limits) -> list[tuple]:
+def _ensure_terminal_return(
+    statements: list[tuple],
+    rng: random.Random,
+    limits: Limits,
+    grammar_config: GrammarConfig | None,
+) -> list[tuple]:
     out = list(statements[: limits.max_stmts_per_block])
     if any(stmt[0] == "return" for stmt in out):
         return out
-    ret = ("return", rand_expr(rng, max(1, limits.max_expr_depth - 1), RType.NUM))
+    ret = ("return", rand_expr(rng, max(1, limits.max_expr_depth - 1), RType.NUM, grammar_config))
     if len(out) < limits.max_stmts_per_block:
         out.append(ret)
     elif out:
@@ -27,6 +33,7 @@ def crossover(
     parent_b: ProgramGenome,
     seed: int = 0,
     limits: Limits | None = None,
+    grammar_config: GrammarConfig | None = None,
 ) -> ProgramGenome:
     limits = limits or Limits()
     rng = random.Random(seed)
@@ -34,14 +41,14 @@ def crossover(
         a_stmts = top_level_statements(parent_a.ast)
         b_stmts = top_level_statements(parent_b.ast)
     except Exception:
-        return make_random_genome(seed=seed, limits=limits)
+        return make_random_genome(seed=seed, limits=limits, grammar_config=grammar_config)
 
     cut_a = rng.randint(0, len(a_stmts)) if a_stmts else 0
     cut_b = rng.randint(0, len(b_stmts)) if b_stmts else 0
     child = list(a_stmts[:cut_a]) + list(b_stmts[cut_b:])
     if not child:
         child = [("return", ("const", 0))]
-    child = _ensure_terminal_return(child, rng, limits)
+    child = _ensure_terminal_return(child, rng, limits, grammar_config)
 
     out = genome_from_statements(child)
     if out.meta.node_count > limits.max_total_nodes:
