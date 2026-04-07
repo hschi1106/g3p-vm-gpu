@@ -72,6 +72,7 @@
   - error code behavior (`ErrCode` paths),
   - interpreter vs VM parity,
   - CPU vs GPU fitness parity when touching runtime, payload, or GPU execution,
+  - `NumList` / `StringList` typed-list behavior when touching sequence values, fixture conversion, payloads, or generation,
   - edge cases around fuel/timeouts and numeric/type operations.
 
 ## Profiling Guidelines

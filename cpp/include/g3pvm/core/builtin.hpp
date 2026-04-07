@@ -19,7 +19,11 @@ enum class BuiltinId : std::int32_t {
   Concat = 5,
   Slice = 6,
   Index = 7,
-  IsInt = 8,
+  Append = 8,
+  Reverse = 9,
+  Find = 10,
+  Contains = 11,
+  IsInt = 12,
 };
 
 G3PVM_BUILTIN_HD inline const char* builtin_name(BuiltinId id) {
@@ -40,6 +44,14 @@ G3PVM_BUILTIN_HD inline const char* builtin_name(BuiltinId id) {
       return "slice";
     case BuiltinId::Index:
       return "index";
+    case BuiltinId::Append:
+      return "append";
+    case BuiltinId::Reverse:
+      return "reverse";
+    case BuiltinId::Find:
+      return "find";
+    case BuiltinId::Contains:
+      return "contains";
     case BuiltinId::IsInt:
       return "is_int";
   }

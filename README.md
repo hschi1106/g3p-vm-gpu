@@ -19,7 +19,7 @@ The current public contract is:
 - fitness:
   - numeric expected + numeric actual => `-abs(actual - expected)`
   - numeric expected + non-numeric actual => `-penalty`
-  - `Bool` / `None` / `String` / `List` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
+  - `Bool` / `None` / `String` / `NumList` / `StringList` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
   - runtime error => `-penalty`
 
 ## Document Map
@@ -39,6 +39,7 @@ Use the documents below as the source of truth.
 - [CPP_RUNTIME_PAYLOAD.md](docs/CPP_RUNTIME_PAYLOAD.md): host/device container payload model and fallback behavior
 - [GPU_REPRODUCTION.md](docs/GPU_REPRODUCTION.md): GPU reproduction backend pipeline, overlap model, and bottlenecks
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
+- [STRING_LIST_BUILTINS_PLAN.md](docs/STRING_LIST_BUILTINS_PLAN.md): completed `NumList` / `StringList` migration plan and remaining sequence-support gaps
 - [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
 - [FILE_STRUCTURE.md](docs/FILE_STRUCTURE.md): terse repository directory map
 
@@ -129,6 +130,9 @@ python3 tools/convert_psb2_to_fitness_cases.py \
   --random-file data/psb2_datasets/bouncing-balls/bouncing-balls-random.json \
   --out logs/psb2/bouncing-balls.train.json
 ```
+
+The converter emits typed sequence values as `num_list` or `string_list` so empty list fields remain unambiguous.
+Multi-output PSB rows are rejected by this converter path until runtime-level multi-output support is added; they are not encoded as fake list outputs.
 
 ### Fetch PSB1 datasets
 

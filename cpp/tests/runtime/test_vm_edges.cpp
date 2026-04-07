@@ -96,7 +96,7 @@ bool test_builtin_len_string_ok() {
 
 bool test_builtin_len_list_ok() {
   BytecodeProgram p;
-  p.consts = {Value::from_list_hash_len(0x5678ULL, 3U)};
+  p.consts = {Value::from_num_list_hash_len(0x5678ULL, 3U)};
   p.code = {
       ins_a(Opcode::PushConst, 0),
       ins_ab(Opcode::CallBuiltin, 4, 1),
@@ -158,8 +158,8 @@ bool test_builtin_concat_string_ok() {
 bool test_builtin_concat_list_ok() {
   BytecodeProgram p;
   p.consts = {
-      Value::from_list_hash_len(0x3333ULL, 1U),
-      Value::from_list_hash_len(0x4444ULL, 4U),
+      Value::from_num_list_hash_len(0x3333ULL, 1U),
+      Value::from_num_list_hash_len(0x4444ULL, 4U),
   };
   p.code = {
       ins_a(Opcode::PushConst, 0),
@@ -177,7 +177,7 @@ bool test_builtin_concat_type_error() {
   BytecodeProgram p;
   p.consts = {
       Value::from_string_hash_len(0x1111ULL, 2U),
-      Value::from_list_hash_len(0x4444ULL, 4U),
+      Value::from_num_list_hash_len(0x4444ULL, 4U),
   };
   p.code = {
       ins_a(Opcode::PushConst, 0),
@@ -242,7 +242,7 @@ bool test_builtin_slice_string_payload_empty_ok() {
 bool test_builtin_slice_list_negative_idx_ok() {
   BytecodeProgram p;
   p.consts = {
-      Value::from_list_hash_len(0x2222ULL, 8U),
+      Value::from_num_list_hash_len(0x2222ULL, 8U),
       Value::from_int(-5),
       Value::from_int(-1),
   };
@@ -297,7 +297,7 @@ bool test_builtin_index_string_ok() {
 bool test_builtin_index_list_negative_ok() {
   BytecodeProgram p;
   p.consts = {
-      Value::from_list_hash_len(0x2222ULL, 8U),
+      Value::from_num_list_hash_len(0x2222ULL, 8U),
       Value::from_int(-2),
   };
   p.code = {
@@ -366,7 +366,7 @@ bool test_builtin_index_list_payload_exact_ok() {
   BytecodeProgram p;
   std::vector<Value> elems = {Value::from_int(11), Value::from_int(22), Value::from_int(33)};
   p.consts = {
-      g3pvm::payload::make_list_value(elems),
+      g3pvm::payload::make_num_list_value(elems),
       Value::from_int(1),
   };
   p.code = {
@@ -379,6 +379,74 @@ bool test_builtin_index_list_payload_exact_ok() {
   if (!check(!out.is_error, "index(payload_list,1) should not error")) return false;
   if (!check(out.value.tag == g3pvm::ValueTag::Int, "index(payload_list,1) should return int")) return false;
   return check(out.value.i == 22, "index(payload_list,1) element mismatch");
+}
+
+bool test_first_wave_sequence_builtins_payload_exact_ok() {
+  g3pvm::payload::clear();
+  {
+    BytecodeProgram p;
+    p.consts = {
+        g3pvm::payload::make_num_list_value({Value::from_int(1), Value::from_int(2)}),
+        Value::from_int(3),
+    };
+    p.code = {
+        ins_a(Opcode::PushConst, 0),
+        ins_a(Opcode::PushConst, 1),
+        ins_ab(Opcode::CallBuiltin, 8, 2),
+        ins(Opcode::Return),
+    };
+    ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
+    if (!check(!out.is_error, "append(num_list,num) should not error")) return false;
+    if (!check(out.value.tag == g3pvm::ValueTag::NumList, "append should return NumList")) return false;
+    std::vector<Value> elems;
+    if (!check(g3pvm::payload::lookup_list(out.value, &elems), "append should keep exact payload")) return false;
+    if (!check(elems.size() == 3 && elems[2].tag == g3pvm::ValueTag::Int && elems[2].i == 3,
+               "append payload element mismatch")) return false;
+  }
+
+  {
+    BytecodeProgram p;
+    p.consts = {g3pvm::payload::make_string_value("abc")};
+    p.code = {
+        ins_a(Opcode::PushConst, 0),
+        ins_ab(Opcode::CallBuiltin, 9, 1),
+        ins(Opcode::Return),
+    };
+    ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
+    if (!check(!out.is_error, "reverse(string) should not error")) return false;
+    std::string exact;
+    if (!check(g3pvm::payload::lookup_string(out.value, &exact), "reverse should keep exact string payload")) return false;
+    if (!check(exact == "cba", "reverse string payload mismatch")) return false;
+  }
+
+  {
+    BytecodeProgram p;
+    p.consts = {g3pvm::payload::make_string_value("abracadabra"), g3pvm::payload::make_string_value("cad")};
+    p.code = {
+        ins_a(Opcode::PushConst, 0),
+        ins_a(Opcode::PushConst, 1),
+        ins_ab(Opcode::CallBuiltin, 10, 2),
+        ins(Opcode::Return),
+    };
+    ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
+    if (!check(!out.is_error, "find(string,string) should not error")) return false;
+    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 4, "find result mismatch")) return false;
+  }
+
+  {
+    BytecodeProgram p;
+    p.consts = {g3pvm::payload::make_string_value("abracadabra"), g3pvm::payload::make_string_value("cad")};
+    p.code = {
+        ins_a(Opcode::PushConst, 0),
+        ins_a(Opcode::PushConst, 1),
+        ins_ab(Opcode::CallBuiltin, 11, 2),
+        ins(Opcode::Return),
+    };
+    ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 10);
+    if (!check(!out.is_error, "contains(string,string) should not error")) return false;
+    if (!check(out.value.tag == g3pvm::ValueTag::Bool && out.value.b, "contains result mismatch")) return false;
+  }
+  return true;
 }
 
 }  // namespace
@@ -406,6 +474,7 @@ int main() {
   if (!test_builtin_index_type_error()) return 1;
   if (!test_builtin_index_string_payload_exact_ok()) return 1;
   if (!test_builtin_index_list_payload_exact_ok()) return 1;
+  if (!test_first_wave_sequence_builtins_payload_exact_ok()) return 1;
   std::cout << "g3pvm_test_vm_edges: OK\n";
   return 0;
 }

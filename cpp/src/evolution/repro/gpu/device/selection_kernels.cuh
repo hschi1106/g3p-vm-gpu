@@ -98,10 +98,12 @@ __device__ inline unsigned int d_type_bit(RType type) {
       return 1u << 2;
     case RType::String:
       return 1u << 3;
-    case RType::List:
+    case RType::NumList:
       return 1u << 4;
-    case RType::Any:
+    case RType::StringList:
       return 1u << 5;
+    case RType::Any:
+      return 1u << 6;
     default:
       return 0u;
   }
@@ -118,8 +120,10 @@ __device__ inline RType d_type_from_bit(unsigned int bit) {
     case 3:
       return RType::String;
     case 4:
-      return RType::List;
+      return RType::NumList;
     case 5:
+      return RType::StringList;
+    case 6:
       return RType::Any;
     default:
       return RType::Invalid;

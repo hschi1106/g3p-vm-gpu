@@ -177,6 +177,10 @@ class _Compiler:
             NodeKind.CALL_CONCAT,
             NodeKind.CALL_SLICE,
             NodeKind.CALL_INDEX,
+            NodeKind.CALL_APPEND,
+            NodeKind.CALL_REVERSE,
+            NodeKind.CALL_FIND,
+            NodeKind.CALL_CONTAINS,
         }:
             argc = {
                 NodeKind.CALL_ABS: 1,
@@ -187,6 +191,10 @@ class _Compiler:
                 NodeKind.CALL_CONCAT: 2,
                 NodeKind.CALL_SLICE: 3,
                 NodeKind.CALL_INDEX: 2,
+                NodeKind.CALL_APPEND: 2,
+                NodeKind.CALL_REVERSE: 1,
+                NodeKind.CALL_FIND: 2,
+                NodeKind.CALL_CONTAINS: 2,
             }[k]
             cur = idx + 1
             for _ in range(argc):
@@ -200,6 +208,10 @@ class _Compiler:
                 NodeKind.CALL_CONCAT: 5,
                 NodeKind.CALL_SLICE: 6,
                 NodeKind.CALL_INDEX: 7,
+                NodeKind.CALL_APPEND: 8,
+                NodeKind.CALL_REVERSE: 9,
+                NodeKind.CALL_FIND: 10,
+                NodeKind.CALL_CONTAINS: 11,
             }[k]
             self._emit("CALL_BUILTIN", bid, argc)
             return cur
@@ -239,7 +251,7 @@ class _Compiler:
             j = self._compile_expr(idx + 1)
             self._emit("STORE", bound_local)
             self._emit("LOAD", bound_local)
-            self._emit("CALL_BUILTIN", 8, 1)
+            self._emit("CALL_BUILTIN", 12, 1)
             self._emit_jump("JMP_IF_FALSE", valid_l + "_bad")
             self._emit("LOAD", bound_local)
             self._emit("PUSH_CONST", self._const(0))

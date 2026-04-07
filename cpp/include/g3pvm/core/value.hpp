@@ -17,7 +17,8 @@ enum class ValueTag : std::uint8_t {
   Bool,
   None,
   String,
-  List,
+  NumList,
+  StringList,
   FallbackToken,
 };
 
@@ -70,7 +71,7 @@ struct Value {
     return out;
   }
 
-  // String/List use a compact packed token in the base Value representation:
+  // String/NumList/StringList use a compact packed token in the base Value representation:
   // upper 16 bits store a saturated length, lower 48 bits store a deterministic hash.
   // Full container payloads live in higher runtime layers keyed by this packed token.
   static constexpr std::uint64_t k_container_hash_mask = (1ULL << 48) - 1ULL;
@@ -99,7 +100,7 @@ struct Value {
   }
 
   // Combine two container payloads of the same tag into a deterministic hash48.
-  // type_code: 1 for string, 2 for list.
+  // type_code: 1 for string, 2 for num_list, 3 for string_list.
   G3PVM_HD static std::uint64_t combine_container_hash48(std::uint8_t type_code, const Value& a, const Value& b) {
     std::uint64_t h = fnv1a_init();
     h = fnv1a_mix_u8(h, type_code);
@@ -146,6 +147,40 @@ struct Value {
     return (u & k_container_hash_mask);
   }
 
+  G3PVM_HD static std::uint64_t shallow_hash64(const Value& v) {
+    std::uint64_t h = fnv1a_init();
+    h = fnv1a_mix_u8(h, static_cast<std::uint8_t>(v.tag));
+    if (v.tag == ValueTag::None) return h;
+    if (v.tag == ValueTag::Bool) return fnv1a_mix_u8(h, v.b ? 1U : 0U);
+    if (v.tag == ValueTag::Float) {
+      union {
+        double d;
+        std::uint64_t u;
+      } bits{};
+      bits.d = v.f;
+      return fnv1a_mix_u64(h, bits.u);
+    }
+    return fnv1a_mix_u64(h, static_cast<std::uint64_t>(v.i));
+  }
+
+  G3PVM_HD static std::uint64_t append_list_hash48(std::uint8_t type_code, const Value& src, const Value& elem) {
+    std::uint64_t h = fnv1a_init();
+    h = fnv1a_mix_u8(h, type_code);
+    h = fnv1a_mix_u64(h, container_hash48(src));
+    h = fnv1a_mix_u64(h, static_cast<std::uint64_t>(container_len(src)));
+    h = fnv1a_mix_u64(h, shallow_hash64(elem));
+    return (h & k_container_hash_mask);
+  }
+
+  G3PVM_HD static std::uint64_t reverse_container_hash48(std::uint8_t type_code, const Value& src) {
+    std::uint64_t h = fnv1a_init();
+    h = fnv1a_mix_u8(h, type_code);
+    h = fnv1a_mix_u64(h, container_hash48(src));
+    h = fnv1a_mix_u64(h, static_cast<std::uint64_t>(container_len(src)));
+    h = fnv1a_mix_u8(h, 0x7dU);
+    return (h & k_container_hash_mask);
+  }
+
   G3PVM_HD static Value from_string_hash_len(std::uint64_t h, std::uint32_t len) {
     Value out;
     out.i = pack_container_payload(h, len);
@@ -154,17 +189,33 @@ struct Value {
     return out;
   }
 
-  G3PVM_HD static Value from_list_hash_len(std::uint64_t h, std::uint32_t len) {
+  G3PVM_HD static Value from_num_list_hash_len(std::uint64_t h, std::uint32_t len) {
     Value out;
     out.i = pack_container_payload(h, len);
     out.b = false;
-    out.tag = ValueTag::List;
+    out.tag = ValueTag::NumList;
+    return out;
+  }
+
+  G3PVM_HD static Value from_string_list_hash_len(std::uint64_t h, std::uint32_t len) {
+    Value out;
+    out.i = pack_container_payload(h, len);
+    out.b = false;
+    out.tag = ValueTag::StringList;
     return out;
   }
 };
 
 G3PVM_HD inline bool is_numeric(const Value& v) {
   return v.tag == ValueTag::Int || v.tag == ValueTag::Float;
+}
+
+G3PVM_HD inline bool is_typed_list(const Value& v) {
+  return v.tag == ValueTag::NumList || v.tag == ValueTag::StringList;
+}
+
+G3PVM_HD inline bool is_container(const Value& v) {
+  return v.tag == ValueTag::String || is_typed_list(v);
 }
 
 static_assert(std::is_trivially_copyable<Value>::value, "Value must be trivially copyable");

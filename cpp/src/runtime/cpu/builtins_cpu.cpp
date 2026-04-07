@@ -1,4 +1,7 @@
 #include "g3pvm/runtime/cpu/builtins_cpu.hpp"
+
+#include <algorithm>
+
 #include "g3pvm/core/value_semantics.hpp"
 #include "g3pvm/runtime/payload/payload.hpp"
 
@@ -40,6 +43,19 @@ bool normalize_index_idx(long long idx, long long n, long long& out) {
   }
   out = j;
   return true;
+}
+
+bool is_list_tag(ValueTag tag) {
+  return tag == ValueTag::NumList || tag == ValueTag::StringList;
+}
+
+std::uint8_t list_type_code(const Value& v) {
+  return v.tag == ValueTag::NumList ? 2U : 3U;
+}
+
+Value make_list_hash_len(const Value& src, std::uint64_t h, std::uint32_t len) {
+  return src.tag == ValueTag::NumList ? Value::from_num_list_hash_len(h, len)
+                                      : Value::from_string_list_hash_len(h, len);
 }
 
 }  // namespace
@@ -129,8 +145,8 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
       return fail(ErrCode::Type, "len expects 1 argument");
     }
     const Value& x = args[0];
-    if (x.tag != ValueTag::String && x.tag != ValueTag::List) {
-      return fail(ErrCode::Type, "len expects string/list argument");
+    if (!is_container(x)) {
+      return fail(ErrCode::Type, "len expects string/typed-list argument");
     }
     BuiltinResult out;
     out.value = Value::from_int(static_cast<long long>(Value::container_len(x)));
@@ -155,7 +171,7 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
       out.value = Value::from_fallback_token(Value::pack_container_payload(h, len));
       return out;
     }
-    if (a.tag == ValueTag::List && b.tag == ValueTag::List) {
+    if (is_list_tag(a.tag) && a.tag == b.tag) {
       std::vector<Value> la;
       std::vector<Value> lb;
       if (payload::lookup_list(a, &la) && payload::lookup_list(b, &lb)) {
@@ -163,15 +179,18 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
         out_elems.reserve(la.size() + lb.size());
         out_elems.insert(out_elems.end(), la.begin(), la.end());
         out_elems.insert(out_elems.end(), lb.begin(), lb.end());
-        return BuiltinResult{false, payload::make_list_value(out_elems), Err{ErrCode::Value, ""}};
+        if (a.tag == ValueTag::NumList) {
+          return BuiltinResult{false, payload::make_num_list_value(out_elems), Err{ErrCode::Value, ""}};
+        }
+        return BuiltinResult{false, payload::make_string_list_value(out_elems), Err{ErrCode::Value, ""}};
       }
       const std::uint32_t len = Value::saturating_len_add(Value::container_len(a), Value::container_len(b));
-      const std::uint64_t h = Value::combine_container_hash48(2U, a, b);
+      const std::uint64_t h = Value::combine_container_hash48(list_type_code(a), a, b);
       BuiltinResult out;
       out.value = Value::from_fallback_token(Value::pack_container_payload(h, len));
       return out;
     }
-    return fail(ErrCode::Type, "concat expects (string,string) or (list,list)");
+    return fail(ErrCode::Type, "concat expects matching string/typed-list arguments");
   }
 
   if (id == BuiltinId::Slice) {
@@ -181,8 +200,8 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
     const Value& x = args[0];
     const Value& lo = args[1];
     const Value& hi = args[2];
-    if (!(x.tag == ValueTag::String || x.tag == ValueTag::List)) {
-      return fail(ErrCode::Type, "slice expects string/list as first argument");
+    if (!is_container(x)) {
+      return fail(ErrCode::Type, "slice expects string/typed-list as first argument");
     }
     if (lo.tag != ValueTag::Int || hi.tag != ValueTag::Int) {
       return fail(ErrCode::Type, "slice expects integer lo/hi");
@@ -208,21 +227,27 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
       out.value = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
       return out;
     }
-    std::vector<Value> lx;
-    if (payload::lookup_list(x, &lx)) {
-      const std::size_t ls = static_cast<std::size_t>(l);
-      const std::size_t hs = static_cast<std::size_t>(h);
-      std::vector<Value> out_elems;
-      out_elems.reserve(hs > ls ? (hs - ls) : 0U);
-      for (std::size_t k = ls; k < hs; ++k) {
-        out_elems.push_back(lx[k]);
+    if (is_list_tag(x.tag)) {
+      std::vector<Value> lx;
+      if (payload::lookup_list(x, &lx)) {
+        const std::size_t ls = static_cast<std::size_t>(l);
+        const std::size_t hs = static_cast<std::size_t>(h);
+        std::vector<Value> out_elems;
+        out_elems.reserve(hs > ls ? (hs - ls) : 0U);
+        for (std::size_t k = ls; k < hs; ++k) {
+          out_elems.push_back(lx[k]);
+        }
+        if (x.tag == ValueTag::NumList) {
+          return BuiltinResult{false, payload::make_num_list_value(out_elems), Err{ErrCode::Value, ""}};
+        }
+        return BuiltinResult{false, payload::make_string_list_value(out_elems), Err{ErrCode::Value, ""}};
       }
-      return BuiltinResult{false, payload::make_list_value(out_elems), Err{ErrCode::Value, ""}};
+      const std::uint64_t out_h = Value::slice_container_hash48(list_type_code(x), x, lo.i, hi.i);
+      BuiltinResult out;
+      out.value = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
+      return out;
     }
-    const std::uint64_t out_h = Value::slice_container_hash48(4U, x, lo.i, hi.i);
-    BuiltinResult out;
-    out.value = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
-    return out;
+    return fail(ErrCode::Type, "slice expects string/typed-list as first argument");
   }
 
   if (id == BuiltinId::Index) {
@@ -231,8 +256,8 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
     }
     const Value& x = args[0];
     const Value& i = args[1];
-    if (!(x.tag == ValueTag::String || x.tag == ValueTag::List)) {
-      return fail(ErrCode::Type, "index expects string/list as first argument");
+    if (!is_container(x)) {
+      return fail(ErrCode::Type, "index expects string/typed-list as first argument");
     }
     if (i.tag != ValueTag::Int) {
       return fail(ErrCode::Type, "index expects integer index");
@@ -253,12 +278,102 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
       out.value = Value::from_fallback_token(Value::index_container_token64(5U, x, j));
       return out;
     }
-    std::vector<Value> lx;
-    if (payload::lookup_list(x, &lx)) {
-      out.value = lx[static_cast<std::size_t>(j)];
+    if (is_list_tag(x.tag)) {
+      std::vector<Value> lx;
+      if (payload::lookup_list(x, &lx)) {
+        out.value = lx[static_cast<std::size_t>(j)];
+        return out;
+      }
+      out.value = Value::from_fallback_token(Value::index_container_token64(list_type_code(x), x, j));
       return out;
     }
-    out.value = Value::from_fallback_token(Value::index_container_token64(6U, x, j));
+    return fail(ErrCode::Type, "index expects string/typed-list as first argument");
+  }
+
+  if (id == BuiltinId::Append) {
+    if (args.size() != 2) {
+      return fail(ErrCode::Type, "append expects 2 arguments");
+    }
+    const Value& xs = args[0];
+    const Value& elem = args[1];
+    if (!is_list_tag(xs.tag)) {
+      return fail(ErrCode::Type, "append expects typed-list as first argument");
+    }
+    if (xs.tag == ValueTag::NumList && !is_numeric(elem)) {
+      return fail(ErrCode::Type, "append expects numeric element for NumList");
+    }
+    if (xs.tag == ValueTag::StringList && elem.tag != ValueTag::String) {
+      return fail(ErrCode::Type, "append expects string element for StringList");
+    }
+    std::vector<Value> lx;
+    if (payload::lookup_list(xs, &lx)) {
+      lx.push_back(elem);
+      if (xs.tag == ValueTag::NumList) {
+        return BuiltinResult{false, payload::make_num_list_value(lx), Err{ErrCode::Value, ""}};
+      }
+      return BuiltinResult{false, payload::make_string_list_value(lx), Err{ErrCode::Value, ""}};
+    }
+    const std::uint32_t len = Value::saturating_len_add(Value::container_len(xs), 1U);
+    const std::uint64_t h = Value::append_list_hash48(list_type_code(xs), xs, elem);
+    BuiltinResult out;
+    out.value = Value::from_fallback_token(Value::pack_container_payload(h, len));
+    return out;
+  }
+
+  if (id == BuiltinId::Reverse) {
+    if (args.size() != 1) {
+      return fail(ErrCode::Type, "reverse expects 1 argument");
+    }
+    const Value& x = args[0];
+    if (x.tag == ValueTag::String) {
+      std::string sx;
+      if (payload::lookup_string(x, &sx)) {
+        std::reverse(sx.begin(), sx.end());
+        return BuiltinResult{false, payload::make_string_value(sx), Err{ErrCode::Value, ""}};
+      }
+      const std::uint64_t h = Value::reverse_container_hash48(7U, x);
+      BuiltinResult out;
+      out.value = Value::from_fallback_token(Value::pack_container_payload(h, Value::container_len(x)));
+      return out;
+    }
+    if (!is_list_tag(x.tag)) {
+      return fail(ErrCode::Type, "reverse expects string/typed-list argument");
+    }
+    std::vector<Value> lx;
+    if (payload::lookup_list(x, &lx)) {
+      std::reverse(lx.begin(), lx.end());
+      if (x.tag == ValueTag::NumList) {
+        return BuiltinResult{false, payload::make_num_list_value(lx), Err{ErrCode::Value, ""}};
+      }
+      return BuiltinResult{false, payload::make_string_list_value(lx), Err{ErrCode::Value, ""}};
+    }
+    const std::uint64_t h = Value::reverse_container_hash48(list_type_code(x), x);
+    BuiltinResult out;
+    out.value = Value::from_fallback_token(Value::pack_container_payload(h, Value::container_len(x)));
+    return out;
+  }
+
+  if (id == BuiltinId::Find || id == BuiltinId::Contains) {
+    if (args.size() != 2) {
+      return fail(ErrCode::Type, std::string(builtin_name(id)) + " expects 2 arguments");
+    }
+    const Value& haystack = args[0];
+    const Value& needle = args[1];
+    if (haystack.tag != ValueTag::String || needle.tag != ValueTag::String) {
+      return fail(ErrCode::Type, std::string(builtin_name(id)) + " expects (string,string)");
+    }
+    std::string hs;
+    std::string nd;
+    if (!payload::lookup_string(haystack, &hs) || !payload::lookup_string(needle, &nd)) {
+      return fail(ErrCode::Value, std::string(builtin_name(id)) + " requires exact string payload");
+    }
+    const std::size_t pos = hs.find(nd);
+    BuiltinResult out;
+    if (id == BuiltinId::Find) {
+      out.value = Value::from_int(pos == std::string::npos ? -1LL : static_cast<long long>(pos));
+    } else {
+      out.value = Value::from_bool(pos != std::string::npos);
+    }
     return out;
   }
 

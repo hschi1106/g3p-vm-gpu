@@ -20,12 +20,16 @@ Base scalar values:
 
 Runtime-extended values:
 - `String`
-- `List`
+- `NumList`
+- `StringList`
 
 Type policy:
 - `Bool` is not numeric.
 - Conditions for `if`, `and`, `or`, and ternary expressions must be `Bool`.
-- `String` and `List` are first-class runtime values, but only the whitelisted container builtins operate on them.
+- `NumList` is a homogeneous list of `Int`/`Float` values; `Bool` is not allowed as a `NumList` element.
+- `StringList` is a homogeneous list of `String` values.
+- Nested lists and heterogeneous lists are not part of the public value domain.
+- `String`, `NumList`, and `StringList` are first-class runtime values, but only the whitelisted container builtins operate on them.
 
 ## Abstract Grammar
 
@@ -51,7 +55,7 @@ Binary operators:
 
 Whitelisted call names:
 - scalar: `abs`, `min`, `max`, `clip`
-- container: `len`, `concat`, `slice`, `index`
+- container: `len`, `concat`, `slice`, `index`, `append`, `reverse`, `find`, `contains`
 
 ### Statements
 
@@ -129,8 +133,8 @@ Rules:
 - Numeric comparisons require numeric operands and use numeric promotion.
 - `None` supports only `EQ` and `NE`.
 - `Bool` supports only `EQ` and `NE` with another `Bool`.
-- `String` and `List` support only `EQ` and `NE` with the same tag.
-- Ordering comparisons on `None`, `Bool`, `String`, and `List` are invalid and yield `TypeError`.
+- `String`, `NumList`, and `StringList` support only `EQ` and `NE` with the same tag.
+- Ordering comparisons on `None`, `Bool`, `String`, `NumList`, and `StringList` are invalid and yield `TypeError`.
 
 ### Builtin calls
 

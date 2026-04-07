@@ -3,15 +3,15 @@ from __future__ import annotations
 import random
 from typing import List
 
-from ..core.ast import AstProgram, build_program
+from ..core.ast import AstProgram, build_program, make_num_list, make_string_list
 
 
-_BUILTINS = ("abs", "min", "max", "clip", "len", "concat", "slice", "index")
+_BUILTINS = ("abs", "min", "max", "clip", "len", "concat", "slice", "index", "append", "reverse", "find", "contains")
 _BIN = ("add", "sub", "mul", "div", "mod", "lt", "le", "gt", "ge", "eq", "ne", "and", "or")
 
 
 def _rand_const(rng: random.Random) -> tuple:
-    t = rng.choice(["int", "float", "bool", "none", "string", "list"])
+    t = rng.choice(["int", "float", "bool", "none", "string", "num_list", "string_list"])
     if t == "int":
         return ("const", rng.randint(-5, 5))
     if t == "float":
@@ -20,8 +20,10 @@ def _rand_const(rng: random.Random) -> tuple:
         return ("const", rng.choice([True, False]))
     if t == "string":
         return ("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 6))))
-    if t == "list":
-        return ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))])
+    if t == "num_list":
+        return ("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6))))
+    if t == "string_list":
+        return ("const", make_string_list("".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 3))) for _ in range(rng.randint(0, 6))))
     return ("const", None)
 
 
@@ -59,9 +61,12 @@ def _rand_expr(rng: random.Random, vars_: List[str], depth: int) -> tuple:
         elif b in ("min", "max"):
             args = [_rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1)]
         elif b == "len":
-            args = [("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 6))))] if rng.random() < 0.5 else [
-                ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))])
-            ]
+            if rng.random() < 0.34:
+                args = [("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 6))))]
+            elif rng.random() < 0.5:
+                args = [("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6))))]
+            else:
+                args = [("const", make_string_list("".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 3))) for _ in range(rng.randint(0, 6))))]
         elif b == "concat":
             if rng.random() < 0.5:
                 args = [
@@ -70,8 +75,8 @@ def _rand_expr(rng: random.Random, vars_: List[str], depth: int) -> tuple:
                 ]
             else:
                 args = [
-                    ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))]),
-                    ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))]),
+                    ("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6)))),
+                    ("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6)))),
                 ]
         elif b == "slice":
             if rng.random() < 0.5:
@@ -82,7 +87,7 @@ def _rand_expr(rng: random.Random, vars_: List[str], depth: int) -> tuple:
                 ]
             else:
                 args = [
-                    ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))]),
+                    ("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6)))),
                     ("const", rng.randint(-6, 6)),
                     ("const", rng.randint(-6, 6)),
                 ]
@@ -94,9 +99,32 @@ def _rand_expr(rng: random.Random, vars_: List[str], depth: int) -> tuple:
                 ]
             else:
                 args = [
-                    ("const", [rng.randint(-3, 3) for _ in range(rng.randint(0, 6))]),
+                    ("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6)))),
                     ("const", rng.randint(-6, 6)),
                 ]
+        elif b == "append":
+            if rng.random() < 0.5:
+                args = [
+                    ("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6)))),
+                    ("const", rng.randint(-3, 3)),
+                ]
+            else:
+                args = [
+                    ("const", make_string_list("".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 3))) for _ in range(rng.randint(0, 6)))),
+                    ("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 3)))),
+                ]
+        elif b == "reverse":
+            if rng.random() < 0.34:
+                args = [("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 6))))]
+            elif rng.random() < 0.5:
+                args = [("const", make_num_list(rng.randint(-3, 3) for _ in range(rng.randint(0, 6))))]
+            else:
+                args = [("const", make_string_list("".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 3))) for _ in range(rng.randint(0, 6))))]
+        elif b in ("find", "contains"):
+            args = [
+                ("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 6)))),
+                ("const", "".join(rng.choice("abcxyz") for _ in range(rng.randint(0, 3)))),
+            ]
         else:
             args = [_rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1), _rand_expr(rng, vars_, depth - 1)]
         return ("call", b, args)

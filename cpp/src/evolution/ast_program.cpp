@@ -25,7 +25,8 @@ std::string canonical_prefix_serialize(const AstProgram& program) {
 std::string encode_value_for_cache_key(const Value& value) {
   std::ostringstream oss;
   oss << static_cast<int>(value.tag) << ":";
-  if (value.tag == ValueTag::Int || value.tag == ValueTag::String || value.tag == ValueTag::List ||
+  if (value.tag == ValueTag::Int || value.tag == ValueTag::String || value.tag == ValueTag::NumList ||
+      value.tag == ValueTag::StringList ||
       value.tag == ValueTag::FallbackToken) {
     oss << value.i;
     return oss.str();

@@ -2,10 +2,68 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Sequence, Union
+from typing import Dict, List as TList, Sequence, Union
 
 
-Val = Union[int, float, bool, None, str, List["Val"]]
+@dataclass(frozen=True)
+class NumList:
+    items: tuple[int | float, ...]
+
+    def __post_init__(self) -> None:
+        for item in self.items:
+            if not isinstance(item, (int, float)) or isinstance(item, bool):
+                raise TypeError("NumList elements must be int or float")
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __getitem__(self, idx: int | slice) -> int | float | tuple[int | float, ...]:
+        return self.items[idx]
+
+
+@dataclass(frozen=True)
+class StringList:
+    items: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        for item in self.items:
+            if not isinstance(item, str):
+                raise TypeError("StringList elements must be strings")
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __getitem__(self, idx: int | slice) -> str | tuple[str, ...]:
+        return self.items[idx]
+
+
+Val = Union[int, float, bool, None, str, NumList, StringList]
+
+
+def make_num_list(values: Sequence[int | float]) -> NumList:
+    return NumList(tuple(values))
+
+
+def make_string_list(values: Sequence[str]) -> StringList:
+    return StringList(tuple(values))
+
+
+def normalize_value(v: object) -> Val:
+    if isinstance(v, NumList):
+        return make_num_list(v.items)
+    if isinstance(v, StringList):
+        return make_string_list(v.items)
+    if isinstance(v, list):
+        if not v:
+            raise ValueError("ambiguous empty list constant; use NumList(()) or StringList(())")
+        if all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in v):
+            return make_num_list(v)
+        if all(isinstance(item, str) for item in v):
+            return make_string_list(v)
+        raise ValueError("list constants must be homogeneous numeric or string lists")
+    if isinstance(v, (int, float, bool, str)) or v is None:
+        return v
+    raise ValueError(f"unsupported constant value: {v!r}")
 
 
 class UOp(str, Enum):
@@ -63,6 +121,10 @@ class NodeKind(str, Enum):
     CALL_CONCAT = "CALL_CONCAT"
     CALL_SLICE = "CALL_SLICE"
     CALL_INDEX = "CALL_INDEX"
+    CALL_APPEND = "CALL_APPEND"
+    CALL_REVERSE = "CALL_REVERSE"
+    CALL_FIND = "CALL_FIND"
+    CALL_CONTAINS = "CALL_CONTAINS"
 
 
 NODE_ARITY: Dict[NodeKind, int] = {
@@ -99,6 +161,10 @@ NODE_ARITY: Dict[NodeKind, int] = {
     NodeKind.CALL_CONCAT: 2,
     NodeKind.CALL_SLICE: 3,
     NodeKind.CALL_INDEX: 2,
+    NodeKind.CALL_APPEND: 2,
+    NodeKind.CALL_REVERSE: 1,
+    NodeKind.CALL_FIND: 2,
+    NodeKind.CALL_CONTAINS: 2,
 }
 
 
@@ -129,6 +195,10 @@ EXPR_KINDS = {
     NodeKind.CALL_CONCAT,
     NodeKind.CALL_SLICE,
     NodeKind.CALL_INDEX,
+    NodeKind.CALL_APPEND,
+    NodeKind.CALL_REVERSE,
+    NodeKind.CALL_FIND,
+    NodeKind.CALL_CONTAINS,
 }
 
 
@@ -301,11 +371,11 @@ def top_level_has_return(program: AstProgram) -> bool:
 
 
 def build_program(stmt_specs: Sequence[tuple]) -> AstProgram:
-    names: List[str] = []
+    names: TList[str] = []
     name_to_idx: Dict[str, int] = {}
-    consts: List[Val] = []
+    consts: TList[Val] = []
     const_to_idx: Dict[tuple[str, str], int] = {}
-    nodes: List[AstNode] = [AstNode(NodeKind.PROGRAM)]
+    nodes: TList[AstNode] = [AstNode(NodeKind.PROGRAM)]
 
     def name_id(name: str) -> int:
         idx = name_to_idx.get(name)
@@ -317,6 +387,7 @@ def build_program(stmt_specs: Sequence[tuple]) -> AstProgram:
         return idx
 
     def const_id(v: Val) -> int:
+        v = normalize_value(v)
         key = (type(v).__name__, repr(v))
         idx = const_to_idx.get(key)
         if idx is not None:
@@ -367,6 +438,10 @@ def build_program(stmt_specs: Sequence[tuple]) -> AstProgram:
                 "concat": NodeKind.CALL_CONCAT,
                 "slice": NodeKind.CALL_SLICE,
                 "index": NodeKind.CALL_INDEX,
+                "append": NodeKind.CALL_APPEND,
+                "reverse": NodeKind.CALL_REVERSE,
+                "find": NodeKind.CALL_FIND,
+                "contains": NodeKind.CALL_CONTAINS,
             }.get(name)
             if nk is None:
                 raise ValueError(f"unknown builtin: {name}")

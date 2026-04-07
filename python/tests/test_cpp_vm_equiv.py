@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.g3p_vm_gpu.core.ast import build_program
+from src.g3p_vm_gpu.core.ast import NumList, StringList, build_program
 from src.g3p_vm_gpu.evolution.random_program import make_random_program
 from src.g3p_vm_gpu.runtime.compiler import BytecodeProgram, compile_program
 from src.g3p_vm_gpu.runtime.vm import ExecError, ExecReturn, exec_bytecode
@@ -26,8 +26,10 @@ def _encode_value(v):
         return {"type": "float", "value": v}
     if isinstance(v, str):
         return {"type": "string", "value": v}
-    if isinstance(v, list):
-        return {"type": "list", "value": [_encode_value(x) for x in v]}
+    if isinstance(v, NumList):
+        return {"type": "num_list", "value": list(v.items)}
+    if isinstance(v, StringList):
+        return {"type": "string_list", "value": list(v.items)}
     raise TypeError(f"unsupported value type: {type(v)}")
 
 
@@ -72,6 +74,12 @@ def _parse_cli_output(text: str):
     if t == "list_hash48":
         toks = raw.split()
         return ("OK", ("list_hash48", int(toks[0]), int(toks[2])), None)
+    if t == "num_list_hash48":
+        toks = raw.split()
+        return ("OK", ("num_list_hash48", int(toks[0]), int(toks[2])), None)
+    if t == "string_list_hash48":
+        toks = raw.split()
+        return ("OK", ("string_list_hash48", int(toks[0]), int(toks[2])), None)
     raise AssertionError(f"unknown cpp value tag: {t}")
 
 
@@ -172,7 +180,7 @@ class TestCppVMEquiv(unittest.TestCase):
     def test_fuzz_equivalence(self):
         for i in range(120):
             prog = make_random_program(seed=i, depth=3)
-            if any(isinstance(c, (str, list)) for c in prog.consts):
+            if any(isinstance(c, (str, NumList, StringList)) for c in prog.consts):
                 continue
             self._assert_equiv(prog)
 

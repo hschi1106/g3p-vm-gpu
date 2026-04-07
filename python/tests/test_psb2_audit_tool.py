@@ -41,7 +41,7 @@ class TestPsb2AuditTool(unittest.TestCase):
             self.assertIn("PSB2_AUDIT_JSON", proc.stdout)
             report = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(report["tasks_total"], 3)
-            self.assertEqual(report["runtime_compatible_current"], 3)
+            self.assertEqual(report["runtime_compatible_current"], 2)
             self.assertEqual(report["multi_output_tasks"], 1)
 
             by_task = {r["task"]: r for r in report["results"]}

@@ -43,7 +43,8 @@ static_assert(alignof(DSharedValueSlot) == alignof(Value), "shared Value storage
 __device__ inline bool d_is_builtin_kind(NodeKind kind) {
   return kind == NodeKind::CALL_ABS || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
          kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_CONCAT ||
-         kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX;
+         kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
+         kind == NodeKind::CALL_REVERSE || kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS;
 }
 
 __device__ inline bool d_push_parse_task(unsigned char* task_stack, int* task_size, DParseTaskKind task) {
@@ -172,7 +173,7 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
           break;
         }
         if (kind == NodeKind::NEG || kind == NodeKind::NOT || kind == NodeKind::CALL_ABS ||
-            kind == NodeKind::CALL_LEN) {
+            kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_REVERSE) {
           if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceUnary) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
             return out;
@@ -183,7 +184,8 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
             kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
             kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
             kind == NodeKind::OR || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
-            kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX) {
+            kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
+            kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS) {
           if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBinary) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
@@ -252,7 +254,8 @@ __host__ __device__ inline bool value_equal_simple(const Value& a, const Value& 
   if (a.tag != b.tag) return false;
   if (a.tag == ValueTag::None) return true;
   if (a.tag == ValueTag::Bool) return a.b == b.b;
-  if (a.tag == ValueTag::Int || a.tag == ValueTag::String || a.tag == ValueTag::List) return a.i == b.i;
+  if (a.tag == ValueTag::Int || a.tag == ValueTag::String || a.tag == ValueTag::NumList ||
+      a.tag == ValueTag::StringList) return a.i == b.i;
   return a.f == b.f;
 }
 
@@ -339,10 +342,12 @@ __device__ inline int donor_bucket_for_type(RType type) {
       return 2;
     case RType::String:
       return 3;
-    case RType::List:
+    case RType::NumList:
       return 4;
-    case RType::Any:
+    case RType::StringList:
       return 5;
+    case RType::Any:
+      return 6;
     default:
       return 0;
   }

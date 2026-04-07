@@ -42,9 +42,13 @@ These are the current 1.0 invariants.
 - `Bool`
 - `None`
 - `String`
-- `List`
+- `NumList`
+- `StringList`
 
 `Bool` is not numeric.
+`NumList` is a homogeneous list of `Int`/`Float` values.
+`StringList` is a homogeneous list of `String` values.
+Nested and heterogeneous lists are not part of the public value contract.
 
 ### Control flow
 - The public grammar has one loop form: `ForRange(x, e, body)`.
@@ -64,10 +68,14 @@ Container builtins:
 - `concat`
 - `slice`
 - `index`
+- `append`
+- `reverse`
+- `find`
+- `contains`
 
 ### Payload execution
 Container values use payload-backed execution.
-- CPU runtime keeps decoded `String` and `List` payloads in a registry.
+- CPU runtime keeps decoded `String`, `NumList`, and `StringList` payloads in a registry.
 - GPU runtime keeps a session-local host payload cache, lazily fills it by packed token from the process-global registry, and then builds compact per-eval payload packs for only the tokens needed by the current accepted population plus shared cases.
 - GPU payload evaluation always launches one production `Mixed` eval kernel across the full accepted population.
 - the finer `StringOnly` / `ListOnly` / `Mixed` flavor classifier is still kept for experiment tooling and offline bucketing studies
@@ -84,7 +92,7 @@ The scoring model is defined in [fitness_v1_0.md](../spec/fitness_v1_0.md).
 Operational summary:
 - numeric expected + numeric actual => negative absolute error
 - numeric expected + non-numeric actual => `-penalty`
-- `Bool` / `None` / `String` / `List` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
+- `Bool` / `None` / `String` / `NumList` / `StringList` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
 - runtime error => `-penalty`
 
 This keeps numeric tasks dense while keeping container semantics exact and simple.
@@ -190,7 +198,7 @@ Benchmark binaries for runtime-focused measurement.
 - `fetch_psb1_datasets.py`: download PSB1 datasets into `data/psb1_datasets/`
 - `fetch_psb2_datasets.py`: download PSB2 datasets into `data/psb2_datasets/`
 - `audit_psb2_tasks.py`: inspect local PSB2 dataset coverage and shape
-- `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1`
+- `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1` with schema-aware `num_list` / `string_list` emission; multi-output rows are not encoded as list values
 
 ## Data and Tooling Layout
 

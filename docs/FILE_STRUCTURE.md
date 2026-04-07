@@ -4,8 +4,6 @@
 g3p-vm-gpu/
 ├── AGENTS.md
 ├── README.md
-├── TODO.md
-├── compile_optimize.md
 ├── python/
 │   ├── src/g3p_vm_gpu/
 │   │   ├── core/
@@ -45,6 +43,7 @@ g3p-vm-gpu/
 │   ├── CPP_RUNTIME_PAYLOAD.md
 │   ├── DEVELOPMENT.md
 │   ├── GPU_REPRODUCTION.md
+│   ├── STRING_LIST_BUILTINS_PLAN.md
 │   ├── TIMING.md
 │   └── FILE_STRUCTURE.md
 ├── spec/
@@ -61,14 +60,13 @@ g3p-vm-gpu/
 
 - `AGENTS.md`: repo-local working conventions for coding agents
 - `README.md`: entrypoint and quick workflow
-- `TODO.md`: active engineering notes and current follow-ups
-- `compile_optimize.md`: local optimization notes and experiments
 - `python/`: reference semantics and Python-side tests
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
+- `docs/STRING_LIST_BUILTINS_PLAN.md`: phased roadmap for string/list builtins and typed-generation cleanup
 - `data/fixtures/`: canonical benchmark and evolution fixtures
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets

@@ -46,7 +46,14 @@ def _type_name(v: Any) -> str:
     if isinstance(v, str):
         return "string"
     if isinstance(v, list):
-        return "list"
+        elem_types = {_type_name(x) for x in v}
+        if not elem_types:
+            return "empty_list"
+        if elem_types.issubset({"int", "float"}):
+            return "num_list"
+        if elem_types == {"string"}:
+            return "string_list"
+        return "unsupported_list"
     if isinstance(v, dict):
         return "object"
     return type(v).__name__
@@ -96,7 +103,8 @@ def audit_task(task_dir: Path) -> Dict[str, Any]:
         "max_outputs": max_outputs,
         "has_multi_output": has_multi_output,
         "value_types": dict(value_types),
-        "runtime_compatible_current": set(value_types.keys()).issubset({"none", "bool", "int", "float", "string", "list"}),
+        "runtime_compatible_current": (not has_multi_output)
+        and set(value_types.keys()).issubset({"none", "bool", "int", "float", "string", "num_list", "string_list", "empty_list"}),
     }
 
 

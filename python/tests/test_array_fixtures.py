@@ -13,8 +13,10 @@ def decode_value(node):
         return None
     if t in {"bool", "int", "float", "string"}:
         return node["value"]
-    if t == "list":
-        return [decode_value(x) for x in node["value"]]
+    if t in {"list", "num_list", "string_list"}:
+        if t == "list":
+            return [decode_value(x) for x in node["value"]]
+        return node["value"]
     raise AssertionError(f"unsupported typed value: {t}")
 
 

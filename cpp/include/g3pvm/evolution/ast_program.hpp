@@ -12,7 +12,8 @@ enum class RType {
   Bool,
   NoneType,
   String,
-  List,
+  NumList,
+  StringList,
   Any,
   Invalid,
 };
@@ -51,6 +52,10 @@ enum class NodeKind {
   CALL_CONCAT,
   CALL_SLICE,
   CALL_INDEX,
+  CALL_APPEND,
+  CALL_REVERSE,
+  CALL_FIND,
+  CALL_CONTAINS,
 };
 
 struct AstNode {

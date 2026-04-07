@@ -15,7 +15,7 @@ constexpr unsigned kPayloadMaskList = 1U << 1;
 
 unsigned value_payload_mask(const Value& v) {
   if (v.tag == ValueTag::String) return kPayloadMaskString;
-  if (v.tag == ValueTag::List) return kPayloadMaskList;
+  if (v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) return kPayloadMaskList;
   return 0U;
 }
 
@@ -36,7 +36,9 @@ bool program_has_exact_payload_builtin(const BytecodeProgram& prog) {
     if (!builtin_id_from_int(ins.a, bid)) {
       continue;
     }
-    if (bid == BuiltinId::Concat || bid == BuiltinId::Slice || bid == BuiltinId::Index) {
+    if (bid == BuiltinId::Concat || bid == BuiltinId::Slice || bid == BuiltinId::Index ||
+        bid == BuiltinId::Append || bid == BuiltinId::Reverse || bid == BuiltinId::Find ||
+        bid == BuiltinId::Contains) {
       return true;
     }
   }

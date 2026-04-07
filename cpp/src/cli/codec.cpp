@@ -9,6 +9,8 @@
 
 namespace g3pvm::cli_detail {
 
+Value decode_typed_value(const JsonValue& v);
+
 namespace {
 
 std::uint64_t fnv1a64_bytes(const unsigned char* p, std::size_t n) {
@@ -30,6 +32,8 @@ std::uint64_t fnv1a64_mix(std::uint64_t h, std::uint64_t x) {
 }
 
 std::uint64_t stable_typed_hash(const JsonValue& v);
+
+Value decode_legacy_typed_list(const JsonValue& raw);
 
 std::uint64_t stable_scalar_hash(const std::string& t, const JsonValue& raw) {
   std::uint64_t h = fnv1a64_bytes(reinterpret_cast<const unsigned char*>(t.data()), t.size());
@@ -70,17 +74,48 @@ std::uint64_t stable_scalar_hash(const std::string& t, const JsonValue& raw) {
 std::uint64_t stable_typed_hash(const JsonValue& v) {
   const JsonValue& t_node = require_object_field(v, "type");
   const std::string t = require_string(t_node, "type");
-  if (t == "list") {
+  if (t == "num_list") {
     const JsonValue& raw = require_object_field(v, "value");
     if (raw.kind != JsonValue::Kind::Array) {
-      throw std::runtime_error("list typed value requires array payload");
+      throw std::runtime_error("num_list typed value requires array payload");
     }
-    std::uint64_t h = fnv1a64_bytes(reinterpret_cast<const unsigned char*>("list"), 4);
+    std::uint64_t h = fnv1a64_bytes(reinterpret_cast<const unsigned char*>("num_list"), 8);
     h = fnv1a64_mix(h, static_cast<std::uint64_t>(raw.array_v.size()));
     for (const JsonValue& e : raw.array_v) {
-      h = fnv1a64_mix(h, stable_typed_hash(e));
+      if (e.kind != JsonValue::Kind::Number) {
+        throw std::runtime_error("num_list elements must be numeric");
+      }
+      if (static_cast<double>(static_cast<long long>(e.number_v)) == e.number_v) {
+        h = fnv1a64_mix(h, stable_scalar_hash("int", e));
+      } else {
+        h = fnv1a64_mix(h, stable_scalar_hash("float", e));
+      }
     }
     return h;
+  }
+  if (t == "string_list") {
+    const JsonValue& raw = require_object_field(v, "value");
+    if (raw.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("string_list typed value requires array payload");
+    }
+    std::uint64_t h = fnv1a64_bytes(reinterpret_cast<const unsigned char*>("string_list"), 11);
+    h = fnv1a64_mix(h, static_cast<std::uint64_t>(raw.array_v.size()));
+    for (const JsonValue& e : raw.array_v) {
+      if (e.kind != JsonValue::Kind::String) {
+        throw std::runtime_error("string_list elements must be strings");
+      }
+      h = fnv1a64_mix(h, stable_scalar_hash("string", e));
+    }
+    return h;
+  }
+  if (t == "list") {
+    const Value legacy = decode_legacy_typed_list(require_object_field(v, "value"));
+    if (legacy.tag == ValueTag::NumList) {
+      return fnv1a64_mix(fnv1a64_bytes(reinterpret_cast<const unsigned char*>("legacy_num_list"), 15),
+                         static_cast<std::uint64_t>(legacy.i));
+    }
+    return fnv1a64_mix(fnv1a64_bytes(reinterpret_cast<const unsigned char*>("legacy_string_list"), 18),
+                       static_cast<std::uint64_t>(legacy.i));
   }
   auto it = v.object_v.find("value");
   if (t == "none") {
@@ -91,6 +126,33 @@ std::uint64_t stable_typed_hash(const JsonValue& v) {
     throw std::runtime_error("typed value requires field: value");
   }
   return stable_scalar_hash(t, it->second);
+}
+
+Value decode_legacy_typed_list(const JsonValue& raw) {
+  if (raw.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("legacy list typed value requires array payload");
+  }
+  std::vector<Value> elems;
+  elems.reserve(raw.array_v.size());
+  bool all_numeric = true;
+  bool all_string = true;
+  for (const JsonValue& e : raw.array_v) {
+    const Value v = decode_typed_value(e);
+    elems.push_back(v);
+    if (!is_numeric(v)) {
+      all_numeric = false;
+    }
+    if (v.tag != ValueTag::String) {
+      all_string = false;
+    }
+  }
+  if (all_numeric) {
+    return payload::make_num_list_value(elems);
+  }
+  if (all_string) {
+    return payload::make_string_list_value(elems);
+  }
+  throw std::runtime_error("legacy list typed value must infer to num_list or string_list");
 }
 
 }  // namespace
@@ -133,17 +195,40 @@ Value decode_typed_value(const JsonValue& v) {
     }
     return payload::make_string_value(raw.string_v);
   }
-  if (t == "list") {
+  if (t == "num_list") {
     const JsonValue& raw = require_object_field(v, "value");
     if (raw.kind != JsonValue::Kind::Array) {
-      throw std::runtime_error("list typed value requires array payload");
+      throw std::runtime_error("num_list typed value requires array payload");
     }
     std::vector<Value> elems;
     elems.reserve(raw.array_v.size());
     for (const JsonValue& e : raw.array_v) {
-      elems.push_back(decode_typed_value(e));
+      if (e.kind != JsonValue::Kind::Number) {
+        throw std::runtime_error("num_list elements must be numeric");
+      }
+      const long long i = static_cast<long long>(e.number_v);
+      if (static_cast<double>(i) == e.number_v) elems.push_back(Value::from_int(i));
+      else elems.push_back(Value::from_float(e.number_v));
     }
-    return payload::make_list_value(elems);
+    return payload::make_num_list_value(elems);
+  }
+  if (t == "string_list") {
+    const JsonValue& raw = require_object_field(v, "value");
+    if (raw.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("string_list typed value requires array payload");
+    }
+    std::vector<Value> elems;
+    elems.reserve(raw.array_v.size());
+    for (const JsonValue& e : raw.array_v) {
+      if (e.kind != JsonValue::Kind::String) {
+        throw std::runtime_error("string_list elements must be strings");
+      }
+      elems.push_back(payload::make_string_value(e.string_v));
+    }
+    return payload::make_string_list_value(elems);
+  }
+  if (t == "list") {
+    return decode_legacy_typed_list(require_object_field(v, "value"));
   }
   throw std::runtime_error("unknown typed value type");
 }
@@ -254,8 +339,12 @@ void print_value(const Value& v) {
     std::cout << "string_hash48 " << Value::container_hash48(v) << " len " << Value::container_len(v) << "\n";
     return;
   }
-  if (v.tag == ValueTag::List) {
-    std::cout << "list_hash48 " << Value::container_hash48(v) << " len " << Value::container_len(v) << "\n";
+  if (v.tag == ValueTag::NumList) {
+    std::cout << "num_list_hash48 " << Value::container_hash48(v) << " len " << Value::container_len(v) << "\n";
+    return;
+  }
+  if (v.tag == ValueTag::StringList) {
+    std::cout << "string_list_hash48 " << Value::container_hash48(v) << " len " << Value::container_len(v) << "\n";
     return;
   }
   if (v.tag == ValueTag::FallbackToken) {

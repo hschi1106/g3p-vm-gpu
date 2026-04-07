@@ -14,13 +14,15 @@ bool is_binary_expr(NodeKind kind) {
          kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
          kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
          kind == NodeKind::OR || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
-         kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX;
+         kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
+         kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS;
 }
 
 bool is_expr_kind(NodeKind kind) {
   return kind == NodeKind::CONST || kind == NodeKind::VAR || kind == NodeKind::NEG || kind == NodeKind::NOT ||
          kind == NodeKind::IF_EXPR || is_binary_expr(kind) || kind == NodeKind::CALL_ABS ||
-         kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_SLICE;
+         kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_SLICE ||
+         kind == NodeKind::CALL_REVERSE;
 }
 
 DepthResult compute_expr_depth_prefix(const AstProgram& program, std::size_t idx);
@@ -69,7 +71,7 @@ DepthResult compute_expr_depth_prefix(const AstProgram& program, std::size_t idx
     return {idx + 1, 1};
   }
   if (node.kind == NodeKind::NEG || node.kind == NodeKind::NOT || node.kind == NodeKind::CALL_ABS ||
-      node.kind == NodeKind::CALL_LEN) {
+      node.kind == NodeKind::CALL_LEN || node.kind == NodeKind::CALL_REVERSE) {
     const DepthResult child = compute_expr_depth_prefix(program, idx + 1);
     return {child.next, 1 + child.max_expr_depth};
   }
@@ -109,7 +111,8 @@ GenomeMeta build_genome_meta(const AstProgram& ast) {
   for (const AstNode& node : ast.nodes) {
     if (node.kind == NodeKind::CALL_ABS || node.kind == NodeKind::CALL_MIN || node.kind == NodeKind::CALL_MAX ||
         node.kind == NodeKind::CALL_CLIP || node.kind == NodeKind::CALL_LEN || node.kind == NodeKind::CALL_CONCAT ||
-        node.kind == NodeKind::CALL_SLICE || node.kind == NodeKind::CALL_INDEX) {
+        node.kind == NodeKind::CALL_SLICE || node.kind == NodeKind::CALL_INDEX || node.kind == NodeKind::CALL_APPEND ||
+        node.kind == NodeKind::CALL_REVERSE || node.kind == NodeKind::CALL_FIND || node.kind == NodeKind::CALL_CONTAINS) {
       meta.uses_builtins = true;
       break;
     }

@@ -50,6 +50,10 @@ def _skip_expr_end(p: AstProgram, idx: int) -> int:
             NodeKind.CALL_CONCAT: 2,
             NodeKind.CALL_SLICE: 3,
             NodeKind.CALL_INDEX: 2,
+            NodeKind.CALL_APPEND: 2,
+            NodeKind.CALL_REVERSE: 1,
+            NodeKind.CALL_FIND: 2,
+            NodeKind.CALL_CONTAINS: 2,
         }.get(n.kind)
         if arity is None:
             raise ValueError(f"expected Expr at index {cur - 1}, got {n.kind}")
@@ -212,6 +216,10 @@ def _eval_expr(p: AstProgram, idx: int, env: Env, fuel: int) -> tuple[Val | Err,
         NodeKind.CALL_CONCAT,
         NodeKind.CALL_SLICE,
         NodeKind.CALL_INDEX,
+        NodeKind.CALL_APPEND,
+        NodeKind.CALL_REVERSE,
+        NodeKind.CALL_FIND,
+        NodeKind.CALL_CONTAINS,
     ):
         name = {
             NodeKind.CALL_ABS: "abs",
@@ -222,6 +230,10 @@ def _eval_expr(p: AstProgram, idx: int, env: Env, fuel: int) -> tuple[Val | Err,
             NodeKind.CALL_CONCAT: "concat",
             NodeKind.CALL_SLICE: "slice",
             NodeKind.CALL_INDEX: "index",
+            NodeKind.CALL_APPEND: "append",
+            NodeKind.CALL_REVERSE: "reverse",
+            NodeKind.CALL_FIND: "find",
+            NodeKind.CALL_CONTAINS: "contains",
         }[k]
         argc = {
             NodeKind.CALL_ABS: 1,
@@ -232,6 +244,10 @@ def _eval_expr(p: AstProgram, idx: int, env: Env, fuel: int) -> tuple[Val | Err,
             NodeKind.CALL_CONCAT: 2,
             NodeKind.CALL_SLICE: 3,
             NodeKind.CALL_INDEX: 2,
+            NodeKind.CALL_APPEND: 2,
+            NodeKind.CALL_REVERSE: 1,
+            NodeKind.CALL_FIND: 2,
+            NodeKind.CALL_CONTAINS: 2,
         }[k]
         vals: List[Val] = []
         cur = idx + 1

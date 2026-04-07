@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 
@@ -48,7 +49,7 @@ std::uint64_t hash_value_shallow(const Value& v) {
   h = Value::fnv1a_mix_u8(h, static_cast<std::uint8_t>(v.tag));
   if (v.tag == ValueTag::None) return h;
   if (v.tag == ValueTag::Bool) return Value::fnv1a_mix_u8(h, v.b ? 1U : 0U);
-  if (v.tag == ValueTag::Int || v.tag == ValueTag::String || v.tag == ValueTag::List ||
+  if (v.tag == ValueTag::Int || v.tag == ValueTag::String || v.tag == ValueTag::NumList || v.tag == ValueTag::StringList ||
       v.tag == ValueTag::FallbackToken) {
     return Value::fnv1a_mix_u64(h, static_cast<std::uint64_t>(v.i));
   }
@@ -70,6 +71,24 @@ std::uint64_t hash_list_payload(const std::vector<Value>& elems) {
   return h;
 }
 
+bool validate_num_list_elems(const std::vector<Value>& elems) {
+  for (const Value& elem : elems) {
+    if (!is_numeric(elem)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool validate_string_list_elems(const std::vector<Value>& elems) {
+  for (const Value& elem : elems) {
+    if (elem.tag != ValueTag::String) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 void clear() {
@@ -85,7 +104,7 @@ void register_string(const Value& key, const std::string& s) {
 }
 
 void register_list(const Value& key, const std::vector<Value>& elems) {
-  if (key.tag != ValueTag::List) return;
+  if (key.tag != ValueTag::NumList && key.tag != ValueTag::StringList) return;
   std::lock_guard<std::mutex> lock(g_mu);
   g_lists[key_of(key)] = elems;
 }
@@ -100,7 +119,7 @@ bool lookup_string(const Value& key, std::string* out) {
 }
 
 bool lookup_list(const Value& key, std::vector<Value>* out) {
-  if (key.tag != ValueTag::List || out == nullptr) return false;
+  if ((key.tag != ValueTag::NumList && key.tag != ValueTag::StringList) || out == nullptr) return false;
   std::lock_guard<std::mutex> lock(g_mu);
   auto it = g_lists.find(key_of(key));
   if (it == g_lists.end()) return false;
@@ -117,10 +136,10 @@ bool lookup_string_packed(std::int64_t packed, std::string* out) {
   return true;
 }
 
-bool lookup_list_packed(std::int64_t packed, std::vector<Value>* out) {
+bool lookup_list_packed(ValueTag tag, std::int64_t packed, std::vector<Value>* out) {
   if (out == nullptr) return false;
   std::lock_guard<std::mutex> lock(g_mu);
-  auto it = g_lists.find(PayloadKey{ValueTag::List, packed});
+  auto it = g_lists.find(PayloadKey{tag, packed});
   if (it == g_lists.end()) return false;
   *out = it->second;
   return true;
@@ -137,13 +156,30 @@ Value make_string_value(const std::string& s) {
   return out;
 }
 
-Value make_list_value(const std::vector<Value>& elems) {
+Value make_num_list_value(const std::vector<Value>& elems) {
+  if (!validate_num_list_elems(elems)) {
+    throw std::runtime_error("NumList payload requires numeric elements");
+  }
   const std::uint64_t h = hash_list_payload(elems);
   const std::uint32_t len =
       static_cast<std::uint32_t>(elems.size() > static_cast<std::size_t>(Value::k_container_len_max)
                                      ? Value::k_container_len_max
                                      : elems.size());
-  const Value out = Value::from_list_hash_len(h, len);
+  const Value out = Value::from_num_list_hash_len(h, len);
+  register_list(out, elems);
+  return out;
+}
+
+Value make_string_list_value(const std::vector<Value>& elems) {
+  if (!validate_string_list_elems(elems)) {
+    throw std::runtime_error("StringList payload requires string elements");
+  }
+  const std::uint64_t h = hash_list_payload(elems);
+  const std::uint32_t len =
+      static_cast<std::uint32_t>(elems.size() > static_cast<std::size_t>(Value::k_container_len_max)
+                                     ? Value::k_container_len_max
+                                     : elems.size());
+  const Value out = Value::from_string_list_hash_len(h, len);
   register_list(out, elems);
   return out;
 }

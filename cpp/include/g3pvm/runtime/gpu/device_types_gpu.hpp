@@ -43,6 +43,7 @@ struct DStringPayloadEntry {
 };
 
 struct DListPayloadEntry {
+  ValueTag tag = ValueTag::None;
   std::int64_t packed = 0;
   int offset = 0;
   int len = 0;

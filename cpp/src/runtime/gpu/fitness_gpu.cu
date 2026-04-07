@@ -38,14 +38,31 @@ struct HostPayloadPack {
 };
 
 using HostStringPayloadLookup = std::unordered_map<std::int64_t, std::string>;
-using HostListPayloadLookup = std::unordered_map<std::int64_t, std::vector<Value>>;
+struct HostListPayloadKey {
+  ValueTag tag = ValueTag::None;
+  std::int64_t packed = 0;
+
+  bool operator==(const HostListPayloadKey& other) const {
+    return tag == other.tag && packed == other.packed;
+  }
+};
+
+struct HostListPayloadKeyHash {
+  std::size_t operator()(const HostListPayloadKey& key) const {
+    const std::uint64_t a = static_cast<std::uint64_t>(key.packed);
+    return static_cast<std::size_t>((a * 11400714819323198485ULL) ^
+                                    static_cast<std::uint64_t>(key.tag));
+  }
+};
+
+using HostListPayloadLookup = std::unordered_map<HostListPayloadKey, std::vector<Value>, HostListPayloadKeyHash>;
 
 constexpr unsigned kPayloadMaskString = 1U << 0;
 constexpr unsigned kPayloadMaskList = 1U << 1;
 
 unsigned value_payload_mask(const Value& v) {
   if (v.tag == ValueTag::String) return kPayloadMaskString;
-  if (v.tag == ValueTag::List) return kPayloadMaskList;
+  if (v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) return kPayloadMaskList;
   return 0U;
 }
 
@@ -54,14 +71,25 @@ void sort_and_unique_tokens(std::vector<std::int64_t>* tokens) {
   tokens->erase(std::unique(tokens->begin(), tokens->end()), tokens->end());
 }
 
+void sort_and_unique_list_tokens(std::vector<Value>* tokens) {
+  std::sort(tokens->begin(), tokens->end(), [](const Value& a, const Value& b) {
+    if (a.tag != b.tag) return static_cast<int>(a.tag) < static_cast<int>(b.tag);
+    return a.i < b.i;
+  });
+  tokens->erase(std::unique(tokens->begin(), tokens->end(), [](const Value& a, const Value& b) {
+                  return a.tag == b.tag && a.i == b.i;
+                }),
+                tokens->end());
+}
+
 void append_payload_tokens_from_values(const std::vector<Value>& values,
                                        std::vector<std::int64_t>* string_tokens,
-                                       std::vector<std::int64_t>* list_tokens) {
+                                       std::vector<Value>* list_tokens) {
   for (const Value& v : values) {
     if (v.tag == ValueTag::String) {
       string_tokens->push_back(v.i);
-    } else if (v.tag == ValueTag::List) {
-      list_tokens->push_back(v.i);
+    } else if (v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) {
+      list_tokens->push_back(v);
     }
   }
 }
@@ -69,10 +97,10 @@ void append_payload_tokens_from_values(const std::vector<Value>& values,
 HostPayloadPack build_payload_pack(const HostStringPayloadLookup& string_lookup,
                                    const HostListPayloadLookup& list_lookup,
                                    std::vector<std::int64_t> string_tokens,
-                                   std::vector<std::int64_t> list_tokens) {
+                                   std::vector<Value> list_tokens) {
   HostPayloadPack out;
   sort_and_unique_tokens(&string_tokens);
-  sort_and_unique_tokens(&list_tokens);
+  sort_and_unique_list_tokens(&list_tokens);
 
   out.string_entries.reserve(string_tokens.size());
   for (const std::int64_t packed : string_tokens) {
@@ -89,13 +117,14 @@ HostPayloadPack build_payload_pack(const HostStringPayloadLookup& string_lookup,
   }
 
   out.list_entries.reserve(list_tokens.size());
-  for (const std::int64_t packed : list_tokens) {
-    const auto it = list_lookup.find(packed);
+  for (const Value& list_value : list_tokens) {
+    const auto it = list_lookup.find(HostListPayloadKey{list_value.tag, list_value.i});
     if (it == list_lookup.end()) {
       continue;
     }
     DListPayloadEntry e;
-    e.packed = packed;
+    e.tag = list_value.tag;
+    e.packed = list_value.i;
     e.offset = static_cast<int>(out.list_values.size());
     e.len = static_cast<int>(it->second.size());
     out.list_entries.push_back(e);
@@ -105,7 +134,7 @@ HostPayloadPack build_payload_pack(const HostStringPayloadLookup& string_lookup,
 }
 
 void populate_payload_cache(const std::vector<std::int64_t>& string_tokens,
-                            const std::vector<std::int64_t>& list_tokens,
+                            const std::vector<Value>& list_tokens,
                             HostStringPayloadLookup* string_lookup,
                             HostListPayloadLookup* list_lookup) {
   for (const std::int64_t packed : string_tokens) {
@@ -118,15 +147,16 @@ void populate_payload_cache(const std::vector<std::int64_t>& string_tokens,
     }
     (*string_lookup)[packed] = std::move(payload_value);
   }
-  for (const std::int64_t packed : list_tokens) {
-    if (list_lookup->find(packed) != list_lookup->end()) {
+  for (const Value& list_value : list_tokens) {
+    const HostListPayloadKey key{list_value.tag, list_value.i};
+    if (list_lookup->find(key) != list_lookup->end()) {
       continue;
     }
     std::vector<Value> payload_value;
-    if (!payload::lookup_list_packed(packed, &payload_value)) {
+    if (!payload::lookup_list_packed(list_value.tag, list_value.i, &payload_value)) {
       continue;
     }
-    (*list_lookup)[packed] = std::move(payload_value);
+    (*list_lookup)[key] = std::move(payload_value);
   }
 }
 
@@ -264,7 +294,7 @@ struct FitnessSessionGpu::Impl {
   mutable HostStringPayloadLookup host_string_payloads;
   mutable HostListPayloadLookup host_list_payloads;
   std::vector<std::int64_t> shared_string_tokens;
-  std::vector<std::int64_t> shared_list_tokens;
+  std::vector<Value> shared_list_tokens;
   cudaDeviceProp props{};
   Err last_err{ErrCode::Value, ""};
 
@@ -326,7 +356,7 @@ FitnessSessionInitResult FitnessSessionGpu::init(const std::vector<CaseBindings>
   impl_->shared_list_tokens.clear();
   append_payload_tokens_from_values(packed_case_local_vals, &impl_->shared_string_tokens, &impl_->shared_list_tokens);
   sort_and_unique_tokens(&impl_->shared_string_tokens);
-  sort_and_unique_tokens(&impl_->shared_list_tokens);
+  sort_and_unique_list_tokens(&impl_->shared_list_tokens);
   populate_payload_cache(impl_->shared_string_tokens, impl_->shared_list_tokens, &impl_->host_string_payloads,
                          &impl_->host_list_payloads);
   const auto payload_cache_t1 = std::chrono::steady_clock::now();
@@ -380,12 +410,12 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   }
 
   std::vector<std::int64_t> needed_string_tokens = impl_->shared_string_tokens;
-  std::vector<std::int64_t> needed_list_tokens = impl_->shared_list_tokens;
+  std::vector<Value> needed_list_tokens = impl_->shared_list_tokens;
   for (const BytecodeProgram& program : programs) {
     append_payload_tokens_from_values(program.consts, &needed_string_tokens, &needed_list_tokens);
   }
   sort_and_unique_tokens(&needed_string_tokens);
-  sort_and_unique_tokens(&needed_list_tokens);
+  sort_and_unique_list_tokens(&needed_list_tokens);
   populate_payload_cache(needed_string_tokens, needed_list_tokens, &impl_->host_string_payloads, &impl_->host_list_payloads);
   const HostPayloadPack payload_pack =
       build_payload_pack(impl_->host_string_payloads, impl_->host_list_payloads, std::move(needed_string_tokens),

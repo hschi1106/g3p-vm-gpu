@@ -1,6 +1,6 @@
 import unittest
 
-from src.g3p_vm_gpu.core.ast import build_program
+from src.g3p_vm_gpu.core.ast import build_program, make_num_list, make_string_list
 from src.g3p_vm_gpu.core.errors import ErrCode, Failed, Returned
 from src.g3p_vm_gpu.evolution.random_program import make_random_program
 from src.g3p_vm_gpu.runtime.builtins import builtin_call
@@ -96,7 +96,7 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_len_string_and_list(self):
         self.assertEqual(builtin_call("len", ["abcd"]), 4)
-        self.assertEqual(builtin_call("len", [[1, 2, 3]]), 3)
+        self.assertEqual(builtin_call("len", [make_num_list([1, 2, 3])]), 3)
 
     def test_builtin_len_via_ast(self):
         prog = build_program([("return", ("call", "len", [("const", "abcd")]))])
@@ -110,10 +110,10 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_concat_string_and_list(self):
         self.assertEqual(builtin_call("concat", ["ab", "cd"]), "abcd")
-        self.assertEqual(builtin_call("concat", [[1, 2], [3]]), [1, 2, 3])
+        self.assertEqual(builtin_call("concat", [make_num_list([1, 2]), make_num_list([3])]), make_num_list([1, 2, 3]))
 
     def test_builtin_concat_type_error(self):
-        out = builtin_call("concat", ["ab", [1]])
+        out = builtin_call("concat", ["ab", make_num_list([1])])
         self.assertEqual(out.code, ErrCode.TYPE)
 
     def test_builtin_concat_via_ast(self):
@@ -124,7 +124,7 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_slice_string_and_list(self):
         self.assertEqual(builtin_call("slice", ["abcdef", 1, 4]), "bcd")
-        self.assertEqual(builtin_call("slice", [[1, 2, 3, 4], 1, 3]), [2, 3])
+        self.assertEqual(builtin_call("slice", [make_num_list([1, 2, 3, 4]), 1, 3]), make_num_list([2, 3]))
 
     def test_builtin_slice_type_error(self):
         out = builtin_call("slice", ["abcdef", 1.5, 4])
@@ -138,7 +138,15 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_index_string_and_list(self):
         self.assertEqual(builtin_call("index", ["abcdef", 1]), "b")
-        self.assertEqual(builtin_call("index", [[1, 2, 3], -1]), 3)
+        self.assertEqual(builtin_call("index", [make_num_list([1, 2, 3]), -1]), 3)
+
+    def test_first_wave_sequence_builtins(self):
+        self.assertEqual(builtin_call("append", [make_num_list([1, 2]), 3]), make_num_list([1, 2, 3]))
+        self.assertEqual(builtin_call("append", [make_string_list(["a"]), "b"]), make_string_list(["a", "b"]))
+        self.assertEqual(builtin_call("reverse", ["abc"]), "cba")
+        self.assertEqual(builtin_call("reverse", [make_num_list([1, 2, 3])]), make_num_list([3, 2, 1]))
+        self.assertEqual(builtin_call("find", ["abracadabra", "cad"]), 4)
+        self.assertEqual(builtin_call("contains", ["abracadabra", "cad"]), True)
 
     def test_builtin_index_type_and_bounds_error(self):
         out = builtin_call("index", ["abcdef", 1.5])

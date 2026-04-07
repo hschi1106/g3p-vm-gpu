@@ -247,7 +247,11 @@ class Compiler {
       case NodeKind::CALL_LEN:
       case NodeKind::CALL_CONCAT:
       case NodeKind::CALL_SLICE:
-      case NodeKind::CALL_INDEX: {
+      case NodeKind::CALL_INDEX:
+      case NodeKind::CALL_APPEND:
+      case NodeKind::CALL_REVERSE:
+      case NodeKind::CALL_FIND:
+      case NodeKind::CALL_CONTAINS: {
         std::size_t next = idx + 1;
         const int argc = subtree::node_arity(node.kind);
         for (int i = 0; i < argc; ++i) {
@@ -261,6 +265,10 @@ class Compiler {
         else if (node.kind == NodeKind::CALL_LEN) builtin_id = g3pvm::BuiltinId::Len;
         else if (node.kind == NodeKind::CALL_CONCAT) builtin_id = g3pvm::BuiltinId::Concat;
         else if (node.kind == NodeKind::CALL_SLICE) builtin_id = g3pvm::BuiltinId::Slice;
+        else if (node.kind == NodeKind::CALL_APPEND) builtin_id = g3pvm::BuiltinId::Append;
+        else if (node.kind == NodeKind::CALL_REVERSE) builtin_id = g3pvm::BuiltinId::Reverse;
+        else if (node.kind == NodeKind::CALL_FIND) builtin_id = g3pvm::BuiltinId::Find;
+        else if (node.kind == NodeKind::CALL_CONTAINS) builtin_id = g3pvm::BuiltinId::Contains;
         emit(Opcode::CallBuiltin, static_cast<int>(builtin_id), true, argc, true);
         return next;
       }

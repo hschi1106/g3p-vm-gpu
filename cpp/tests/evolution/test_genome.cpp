@@ -131,7 +131,7 @@ bool test_build_genome_meta_tracks_max_expr_depth() {
 
 bool test_random_genome_uses_requested_input_specs() {
   g3pvm::evo::Limits limits;
-  const std::vector<g3pvm::evo::InputSpec> inputs = {{"xs", g3pvm::evo::RType::List}};
+  const std::vector<g3pvm::evo::InputSpec> inputs = {{"xs", g3pvm::evo::RType::NumList}};
   bool saw_xs_var = false;
   for (std::uint64_t seed = 0; seed < 256; ++seed) {
     const g3pvm::evo::ProgramGenome g =
@@ -250,7 +250,7 @@ bool test_for_range_expr_compiles_and_executes() {
   program.names = {"x", "i"};
   program.consts = {
       Value::from_int(0),
-      g3pvm::payload::make_list_value({
+      g3pvm::payload::make_num_list_value({
           Value::from_int(10),
           Value::from_int(20),
           Value::from_int(30),

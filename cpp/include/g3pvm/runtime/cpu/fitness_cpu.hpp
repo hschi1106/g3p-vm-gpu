@@ -19,7 +19,7 @@ using CaseBindings = std::vector<InputBinding>;
 //   if expected is numeric:
 //     actual numeric => -abs(actual - expected)
 //     actual non-numeric => -penalty
-//   Bool/None/String/List => exact match ? 1 : 0
+//   Bool/None/String/NumList/StringList => exact match ? 1 : 0
 //     type mismatch => -penalty
 //   runtime error => -penalty
 // All programs share one case set.

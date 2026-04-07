@@ -49,8 +49,10 @@ std::string value_debug_string(const Value& v) {
     oss << "none";
   } else if (v.tag == g3pvm::ValueTag::String) {
     oss << "string(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
-  } else if (v.tag == g3pvm::ValueTag::List) {
-    oss << "list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
+  } else if (v.tag == g3pvm::ValueTag::NumList) {
+    oss << "num_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
+  } else if (v.tag == g3pvm::ValueTag::StringList) {
+    oss << "string_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
   }
   return oss.str();
 }

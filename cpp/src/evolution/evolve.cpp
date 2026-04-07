@@ -31,7 +31,8 @@ RType infer_input_rtype(const Value& value) {
   if (value.tag == ValueTag::Bool) return RType::Bool;
   if (value.tag == ValueTag::None) return RType::NoneType;
   if (value.tag == ValueTag::String) return RType::String;
-  if (value.tag == ValueTag::List) return RType::List;
+  if (value.tag == ValueTag::NumList) return RType::NumList;
+  if (value.tag == ValueTag::StringList) return RType::StringList;
   if (value.tag == ValueTag::FallbackToken) return RType::Any;
   return RType::Num;
 }

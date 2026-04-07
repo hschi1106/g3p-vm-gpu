@@ -90,6 +90,10 @@ void write_value_json(std::ostream& out, const Value& v) {
     out << "null";
     return;
   }
+  if (v.tag == ValueTag::String || v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) {
+    out << "null";
+    return;
+  }
   if (std::isfinite(v.f)) {
     out << std::setprecision(17) << v.f;
     return;

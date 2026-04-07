@@ -13,14 +13,14 @@ This document explains how C++ runtime container values work under `cpp/` and ho
 
 That means `Value` does not directly own `std::string` or `std::vector<Value>` payloads.
 
-Instead, `String` and `List` values use a two-layer model:
+Instead, `String`, `NumList`, and `StringList` values use a two-layer model:
 
 1. `Value` stores a compact packed token
 2. the payload registry stores the real host-side container contents keyed by that token
 
 ## Base Container Representation
 
-In [cpp/include/g3pvm/core/value.hpp](../cpp/include/g3pvm/core/value.hpp), `String` and `List` use `Value.i` as:
+In [cpp/include/g3pvm/core/value.hpp](../cpp/include/g3pvm/core/value.hpp), `String`, `NumList`, and `StringList` use `Value.i` as:
 
 - upper 16 bits: saturated length
 - lower 48 bits: deterministic hash
@@ -31,7 +31,8 @@ Helpers:
 - `container_len()`
 - `container_hash48()`
 - `from_string_hash_len()`
-- `from_list_hash_len()`
+- `from_num_list_hash_len()`
+- `from_string_list_hash_len()`
 
 This compact representation is the public runtime transport form for containers.
 
@@ -59,7 +60,8 @@ The registry is process-global and protected by a single mutex.
 ### Construction
 
 - `payload::make_string_value(s)`
-- `payload::make_list_value(elems)`
+- `payload::make_num_list_value(elems)`
+- `payload::make_string_list_value(elems)`
 
 These functions:
 
@@ -92,6 +94,7 @@ They remain useful for diagnostics and offline tooling, but the production GPU f
 - `lookup_string_packed()`
 - `lookup_list_packed()`
 
+`lookup_list_packed()` takes the typed-list `ValueTag` as part of the lookup key, so `NumList` and `StringList` payloads with the same compact token do not alias across tags.
 These let the GPU fitness session lazily fetch only the payload tokens it actually needs for the current accepted population.
 
 ## GPU Session Handoff
@@ -130,7 +133,7 @@ The current production GPU fitness path always launches a single `Mixed` eval ke
 
 The finer `StringOnly` / `ListOnly` labels are kept for experiment tooling and offline bucket studies rather than the production eval dispatch tree.
 
-Exact string/list builtins still use bounded per-thread scratch and still fall back to compact transport when exact materialization does not fit.
+Exact string/typed-list builtins still use bounded per-thread scratch and still fall back to compact transport when exact materialization does not fit.
 
 Operationally, this means production GPU eval no longer maintains a runtime dispatch split between payload-free and payload-bearing programs. Timing and benchmark analysis should treat `gpu_eval_kernel_ms` as one kernel family rather than reconstructing legacy `None` / `Mixed` launch buckets.
 
@@ -143,16 +146,23 @@ Container builtins in the CPU and GPU runtimes follow the same high-level policy
 
 Exact path:
 
-- `concat` builds the real concatenated string/list
-- `slice` builds the real sliced string/list
+- `concat` builds the real concatenated string or typed list
+- `slice` builds the real sliced string or typed list
+- `append` builds the real typed list with one additional element
+- `reverse` builds the real reversed string or typed list
+- `find` and `contains` inspect exact string payloads
 - `index(string, i)` returns a length-1 `String`
-- `index(list, i)` returns the actual element value
+- `index(NumList, i)` returns the numeric element value
+- `index(StringList, i)` returns the string element value
 
 Fallback path:
 
 - `concat` returns `FallbackToken`
 - `slice` returns `FallbackToken`
+- `append` returns `FallbackToken`
+- `reverse` returns `FallbackToken`
 - `index` returns `FallbackToken`
+- `find` and `contains` return `ValueError` when exact string payload lookup is unavailable
 
 This fallback is deterministic and parity-friendly, but not fully semantics-preserving.
 The design target is:
@@ -166,33 +176,34 @@ Exact payload lookup is not guaranteed.
 
 Common cases:
 
-- tests or helper code directly create `Value::from_string_hash_len()` / `Value::from_list_hash_len()` without calling `payload::make_*()`
+- tests or helper code directly create `Value::from_string_hash_len()` / `Value::from_num_list_hash_len()` / `Value::from_string_list_hash_len()` without calling `payload::make_*()`
 - random constant generation creates container tokens directly
 - registry state was cleared with `payload::clear()`
 - GPU exact materialization exceeds bounded per-thread scratch and returns `FallbackToken`
 
-Because of this, callers must not assume every `String` or `List` value has a recoverable payload behind it.
+Because of this, callers must not assume every `String`, `NumList`, or `StringList` value has a recoverable payload behind it.
 
 ## `index` Return Type Behavior
 
-`index` is type-stable only on the exact path.
+`index` is type-stable on exact typed-list payloads.
 
 On exact payload lookup:
 
 - `index(string, i)` returns `String`
-- `index(list, i)` returns the element's real `Value`, so any `ValueTag` is possible
+- `index(NumList, i)` returns `Int` or `Float`
+- `index(StringList, i)` returns `String`
 
 On fallback:
 
-- both string and list indexing return `FallbackToken`
+- string and typed-list indexing return `FallbackToken`
 
-This means `index` result type depends on whether exact payload is available.
+This means the exact result type is predictable from the typed-list tag, while missing payloads still produce the deterministic fallback token.
 
-## List Hashing Is Shallow
+## Typed-List Hashing Is Shallow
 
-`payload::make_list_value()` hashes list elements with a shallow helper.
+`payload::make_num_list_value()` and `payload::make_string_list_value()` hash list elements with a shallow helper.
 
-For nested `String` and `List` elements, the hash includes their packed token, not a recursive deep re-hash of the full nested payload.
+Nested lists are not part of the public typed-list contract. If helper or compatibility code ever constructs container-valued elements, the hash includes the nested container's packed token rather than a recursive deep re-hash of the full nested payload.
 
 This keeps hashing cheap and stable across CPU/GPU paths, but it means list identity is based on element `Value` identity, not fully expanded recursive content.
 
@@ -224,7 +235,7 @@ Costs:
 - possible token collision
 - fallback behavior is not fully semantics-preserving
 - fallback results are opaque and intended to compare as mismatches in fitness/equality paths
-- list hashing is shallow
+- typed-list hashing is shallow
 
 ## Files To Read Together
 

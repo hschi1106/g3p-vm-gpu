@@ -138,7 +138,8 @@ G3PVM_VM_HD inline CompareStatus compare_values(CmpOp op, const Value& a, const 
   }
 
   if ((a.tag == ValueTag::String && b.tag == ValueTag::String) ||
-      (a.tag == ValueTag::List && b.tag == ValueTag::List)) {
+      (a.tag == ValueTag::NumList && b.tag == ValueTag::NumList) ||
+      (a.tag == ValueTag::StringList && b.tag == ValueTag::StringList)) {
     if (op == CmpOp::EQ) {
       out_bool = (a.i == b.i);
       return CompareStatus::Ok;
@@ -189,7 +190,7 @@ G3PVM_VM_HD inline bool fitness_score_for_values(const Value& actual,
     out_score = (actual.b == expected.b) ? 1.0 : 0.0;
     return true;
   }
-  if (actual.tag == ValueTag::String || actual.tag == ValueTag::List) {
+  if (actual.tag == ValueTag::String || actual.tag == ValueTag::NumList || actual.tag == ValueTag::StringList) {
     out_score = (actual.i == expected.i) ? 1.0 : 0.0;
     return true;
   }

@@ -184,3 +184,9 @@ Dataset-conversion args:
 - `--out PATH`: output training fixture path
 - `--out-test PATH`: optional test fixture output path
 - `--summary-json PATH`: optional conversion summary JSON path
+
+Conversion behavior:
+- list fields are inferred column-wise and emitted as explicit `num_list` or `string_list` values
+- empty list values use the inferred column schema
+- mixed numeric/string list columns are rejected
+- multi-output PSB rows are rejected for now and are not encoded as list values

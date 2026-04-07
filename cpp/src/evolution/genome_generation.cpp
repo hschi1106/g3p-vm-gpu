@@ -21,7 +21,8 @@ struct PrefixGenCtx {
   std::set<int> bool_names;
   std::set<int> none_names;
   std::set<int> string_names;
-  std::set<int> list_names;
+  std::set<int> num_list_names;
+  std::set<int> string_list_names;
   std::set<int> any_names;
   int tmp_idx = 0;
 };
@@ -64,13 +65,15 @@ int choose_name_for_type(std::mt19937_64& rng, const PrefixGenCtx& ctx, RType ty
   else if (type == RType::Bool) names.assign(ctx.bool_names.begin(), ctx.bool_names.end());
   else if (type == RType::NoneType) names.assign(ctx.none_names.begin(), ctx.none_names.end());
   else if (type == RType::String) names.assign(ctx.string_names.begin(), ctx.string_names.end());
-  else if (type == RType::List) names.assign(ctx.list_names.begin(), ctx.list_names.end());
+  else if (type == RType::NumList) names.assign(ctx.num_list_names.begin(), ctx.num_list_names.end());
+  else if (type == RType::StringList) names.assign(ctx.string_list_names.begin(), ctx.string_list_names.end());
   else if (type == RType::Any) {
     names.assign(ctx.num_names.begin(), ctx.num_names.end());
     names.insert(names.end(), ctx.bool_names.begin(), ctx.bool_names.end());
     names.insert(names.end(), ctx.none_names.begin(), ctx.none_names.end());
     names.insert(names.end(), ctx.string_names.begin(), ctx.string_names.end());
-    names.insert(names.end(), ctx.list_names.begin(), ctx.list_names.end());
+    names.insert(names.end(), ctx.num_list_names.begin(), ctx.num_list_names.end());
+    names.insert(names.end(), ctx.string_list_names.begin(), ctx.string_list_names.end());
     names.insert(names.end(), ctx.any_names.begin(), ctx.any_names.end());
   }
   if (type != RType::Any) {
@@ -93,33 +96,29 @@ std::string random_string_literal(std::mt19937_64& rng) {
   return out;
 }
 
-Value random_scalar_literal(std::mt19937_64& rng) {
-  const int choice = std::uniform_int_distribution<int>(0, 2)(rng);
-  if (choice == 0) {
-    return Value::from_int(std::uniform_int_distribution<int>(-8, 8)(rng));
-  }
-  if (choice == 1) {
-    return Value::from_bool(std::bernoulli_distribution(0.5)(rng));
-  }
-  return Value::none();
-}
-
-Value random_container_literal(std::mt19937_64& rng, int nested_budget) {
-  if (nested_budget <= 0 || std::bernoulli_distribution(0.55)(rng)) {
-    return g3pvm::payload::make_string_value(random_string_literal(rng));
-  }
-
+Value random_num_list_literal(std::mt19937_64& rng) {
   const int len = std::uniform_int_distribution<int>(0, 5)(rng);
   std::vector<Value> elems;
   elems.reserve(static_cast<std::size_t>(len));
   for (int i = 0; i < len; ++i) {
-    if (nested_budget > 1 && std::bernoulli_distribution(0.2)(rng)) {
-      elems.push_back(random_container_literal(rng, nested_budget - 1));
+    if (std::bernoulli_distribution(0.65)(rng)) {
+      elems.push_back(Value::from_int(std::uniform_int_distribution<int>(-8, 8)(rng)));
     } else {
-      elems.push_back(random_scalar_literal(rng));
+      elems.push_back(Value::from_float(
+          std::round(std::uniform_real_distribution<double>(-8.0, 8.0)(rng) * 1000.0) / 1000.0));
     }
   }
-  return g3pvm::payload::make_list_value(elems);
+  return g3pvm::payload::make_num_list_value(elems);
+}
+
+Value random_string_list_literal(std::mt19937_64& rng) {
+  const int len = std::uniform_int_distribution<int>(0, 5)(rng);
+  std::vector<Value> elems;
+  elems.reserve(static_cast<std::size_t>(len));
+  for (int i = 0; i < len; ++i) {
+    elems.push_back(g3pvm::payload::make_string_value(random_string_literal(rng)));
+  }
+  return g3pvm::payload::make_string_list_value(elems);
 }
 
 void assign_name_type(PrefixGenCtx& ctx, int name_id, RType type) {
@@ -127,13 +126,15 @@ void assign_name_type(PrefixGenCtx& ctx, int name_id, RType type) {
   ctx.bool_names.erase(name_id);
   ctx.none_names.erase(name_id);
   ctx.string_names.erase(name_id);
-  ctx.list_names.erase(name_id);
+  ctx.num_list_names.erase(name_id);
+  ctx.string_list_names.erase(name_id);
   ctx.any_names.erase(name_id);
   if (type == RType::Num) ctx.num_names.insert(name_id);
   if (type == RType::Bool) ctx.bool_names.insert(name_id);
   if (type == RType::NoneType) ctx.none_names.insert(name_id);
   if (type == RType::String) ctx.string_names.insert(name_id);
-  if (type == RType::List) ctx.list_names.insert(name_id);
+  if (type == RType::NumList) ctx.num_list_names.insert(name_id);
+  if (type == RType::StringList) ctx.string_list_names.insert(name_id);
   if (type == RType::Any) ctx.any_names.insert(name_id);
 }
 
@@ -183,8 +184,13 @@ void emit_random_leaf(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
     program.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(program, value), 0});
     return;
   }
-  if (target == RType::List) {
-    const Value value = random_container_literal(rng, 2);
+  if (target == RType::NumList) {
+    const Value value = random_num_list_literal(rng);
+    program.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(program, value), 0});
+    return;
+  }
+  if (target == RType::StringList) {
+    const Value value = random_string_list_literal(rng);
     program.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(program, value), 0});
     return;
   }
@@ -202,7 +208,7 @@ void emit_random_leaf(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
 
 void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& ctx, int depth, RType target) {
   if (target == RType::Any) {
-    target = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::List});
+    target = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::NumList, RType::StringList});
   }
   if (depth <= 0) {
     emit_random_leaf(rng, program, ctx, target);
@@ -231,22 +237,26 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
                                      NodeKind::CALL_MAX,
                                      NodeKind::CALL_CLIP,
                                      NodeKind::CALL_LEN,
-                                     NodeKind::CALL_INDEX});
+                                     NodeKind::CALL_INDEX,
+                                     NodeKind::CALL_FIND});
       program.nodes.push_back(AstNode{builtin, 0, 0});
       if (builtin == NodeKind::CALL_LEN) {
         emit_random_expr(rng,
                          program,
                          ctx,
                          depth - 1,
-                         choose_one(rng, std::vector<RType>{RType::String, RType::List}));
+                         choose_one(rng, std::vector<RType>{RType::String, RType::NumList, RType::StringList}));
       } else if (builtin == NodeKind::CALL_INDEX) {
         emit_random_expr(rng,
                          program,
                          ctx,
                          depth - 1,
-                         choose_one(rng, std::vector<RType>{RType::String, RType::List}));
+                         choose_one(rng, std::vector<RType>{RType::NumList}));
         program.nodes.push_back(AstNode{
             NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
+      } else if (builtin == NodeKind::CALL_FIND) {
+        emit_random_expr(rng, program, ctx, depth - 1, RType::String);
+        emit_random_expr(rng, program, ctx, depth - 1, RType::String);
       } else {
         for (int i = 0; i < subtree::node_arity(builtin); ++i) {
           emit_random_expr(rng, program, ctx, depth - 1, RType::Num);
@@ -261,7 +271,7 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
     return;
   }
   if (target == RType::Bool) {
-    const int c = std::uniform_int_distribution<int>(0, 4)(rng);
+    const int c = std::uniform_int_distribution<int>(0, 5)(rng);
     if (c == 0) return emit_random_leaf(rng, program, ctx, RType::Bool);
     if (c == 1) {
       program.nodes.push_back(AstNode{NodeKind::NOT, 0, 0});
@@ -283,6 +293,12 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
       emit_random_expr(rng, program, ctx, depth - 1, RType::Bool);
       return;
     }
+    if (c == 4) {
+      program.nodes.push_back(AstNode{NodeKind::CALL_CONTAINS, 0, 0});
+      emit_random_expr(rng, program, ctx, depth - 1, RType::String);
+      emit_random_expr(rng, program, ctx, depth - 1, RType::String);
+      return;
+    }
     program.nodes.push_back(AstNode{NodeKind::IF_EXPR, 0, 0});
     emit_random_expr(rng, program, ctx, depth - 1, RType::Bool);
     emit_random_expr(rng, program, ctx, depth - 1, RType::Bool);
@@ -290,7 +306,7 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
     return;
   }
   if (target == RType::String) {
-    const int c = std::uniform_int_distribution<int>(0, 2)(rng);
+    const int c = std::uniform_int_distribution<int>(0, 3)(rng);
     if (c == 0) return emit_random_leaf(rng, program, ctx, RType::String);
     if (c == 1) {
       program.nodes.push_back(AstNode{NodeKind::CALL_CONCAT, 0, 0});
@@ -298,36 +314,52 @@ void emit_random_expr(std::mt19937_64& rng, AstProgram& program, PrefixGenCtx& c
       emit_random_expr(rng, program, ctx, depth - 1, RType::String);
       return;
     }
-    program.nodes.push_back(AstNode{NodeKind::CALL_SLICE, 0, 0});
+    if (c == 2) {
+      program.nodes.push_back(AstNode{NodeKind::CALL_SLICE, 0, 0});
+      emit_random_expr(rng, program, ctx, depth - 1, RType::String);
+      program.nodes.push_back(AstNode{
+          NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
+      program.nodes.push_back(AstNode{
+          NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
+      return;
+    }
+    program.nodes.push_back(AstNode{NodeKind::CALL_REVERSE, 0, 0});
     emit_random_expr(rng, program, ctx, depth - 1, RType::String);
-    program.nodes.push_back(AstNode{
-        NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
-    program.nodes.push_back(AstNode{
-        NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
     return;
   }
-  if (target == RType::List) {
-    const int c = std::uniform_int_distribution<int>(0, 3)(rng);
-    if (c == 0) return emit_random_leaf(rng, program, ctx, RType::List);
+  if (target == RType::NumList || target == RType::StringList) {
+    const int c = std::uniform_int_distribution<int>(0, 5)(rng);
+    if (c == 0) return emit_random_leaf(rng, program, ctx, target);
     if (c == 1) {
       program.nodes.push_back(AstNode{NodeKind::CALL_CONCAT, 0, 0});
-      emit_random_expr(rng, program, ctx, depth - 1, RType::List);
-      emit_random_expr(rng, program, ctx, depth - 1, RType::List);
+      emit_random_expr(rng, program, ctx, depth - 1, target);
+      emit_random_expr(rng, program, ctx, depth - 1, target);
       return;
     }
     if (c == 2) {
       program.nodes.push_back(AstNode{NodeKind::CALL_SLICE, 0, 0});
-      emit_random_expr(rng, program, ctx, depth - 1, RType::List);
+      emit_random_expr(rng, program, ctx, depth - 1, target);
       program.nodes.push_back(AstNode{
           NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
       program.nodes.push_back(AstNode{
           NodeKind::CONST, append_const_id(program, Value::from_int(std::uniform_int_distribution<int>(-6, 6)(rng))), 0});
       return;
     }
+    if (c == 3) {
+      program.nodes.push_back(AstNode{NodeKind::CALL_APPEND, 0, 0});
+      emit_random_expr(rng, program, ctx, depth - 1, target);
+      emit_random_expr(rng, program, ctx, depth - 1, target == RType::NumList ? RType::Num : RType::String);
+      return;
+    }
+    if (c == 4) {
+      program.nodes.push_back(AstNode{NodeKind::CALL_REVERSE, 0, 0});
+      emit_random_expr(rng, program, ctx, depth - 1, target);
+      return;
+    }
     program.nodes.push_back(AstNode{NodeKind::IF_EXPR, 0, 0});
     emit_random_expr(rng, program, ctx, depth - 1, RType::Bool);
-    emit_random_expr(rng, program, ctx, depth - 1, RType::List);
-    emit_random_expr(rng, program, ctx, depth - 1, RType::List);
+    emit_random_expr(rng, program, ctx, depth - 1, target);
+    emit_random_expr(rng, program, ctx, depth - 1, target);
     return;
   }
   emit_random_leaf(rng, program, ctx, RType::NoneType);
@@ -363,7 +395,7 @@ void emit_random_stmt(std::mt19937_64& rng,
   if (depth <= 0) {
     if (!allow_return_stmt || std::bernoulli_distribution(0.75)(rng)) {
       const int name_id = choose_or_new_name(rng, program, ctx);
-      const RType type = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::List});
+      const RType type = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::NumList, RType::StringList});
       program.nodes.push_back(AstNode{NodeKind::ASSIGN, name_id, 0});
       emit_random_expr(rng, program, ctx, 0, type);
       assign_name_type(ctx, name_id, type);
@@ -378,7 +410,7 @@ void emit_random_stmt(std::mt19937_64& rng,
   const int choice = std::uniform_int_distribution<int>(0, max_choice)(rng);
   if (choice == 0) {
     const int name_id = choose_or_new_name(rng, program, ctx);
-    const RType type = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::List});
+    const RType type = choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::NumList, RType::StringList});
     program.nodes.push_back(AstNode{NodeKind::ASSIGN, name_id, 0});
     emit_random_expr(rng, program, ctx, depth - 1, type);
     assign_name_type(ctx, name_id, type);
@@ -433,7 +465,7 @@ void emit_random_stmt(std::mt19937_64& rng,
                    program,
                    ctx,
                    depth - 1,
-                   choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::List}));
+                   choose_one(rng, std::vector<RType>{RType::Num, RType::Bool, RType::NoneType, RType::String, RType::NumList, RType::StringList}));
 }
 
 void emit_random_block(std::mt19937_64& rng,
@@ -460,7 +492,7 @@ void emit_random_block(std::mt19937_64& rng,
   if (force_return && !has_return) {
     program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
     program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
-    const std::vector<RType> forced_choices{RType::Num, RType::Bool, RType::String, RType::List};
+    const std::vector<RType> forced_choices{RType::Num, RType::Bool, RType::String, RType::NumList, RType::StringList};
     const RType return_type = forced_return_type != RType::Invalid ? forced_return_type
                                                                    : choose_one(rng, forced_choices);
     emit_random_expr(rng,
@@ -547,9 +579,12 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
   } else if (return_type == RType::String) {
     fallback.nodes.push_back(
         AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_string_value("")), 0});
-  } else if (return_type == RType::List) {
+  } else if (return_type == RType::NumList) {
     fallback.nodes.push_back(
-        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_list_value({})), 0});
+        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_num_list_value({})), 0});
+  } else if (return_type == RType::StringList) {
+    fallback.nodes.push_back(
+        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_string_list_value({})), 0});
   } else {
     fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::from_int(0)), 0});
   }

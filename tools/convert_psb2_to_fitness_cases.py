@@ -38,7 +38,7 @@ def _sort_io_keys(keys: Iterable[str], prefix: str) -> List[str]:
     return [k for _, k in out]
 
 
-def _typed(v: Any, type_counts: Dict[str, int]) -> Dict[str, Any]:
+def _typed_scalar(v: Any, type_counts: Dict[str, int]) -> Dict[str, Any]:
     if v is None:
         type_counts["none"] = type_counts.get("none", 0) + 1
         return {"type": "none", "value": None}
@@ -54,29 +54,103 @@ def _typed(v: Any, type_counts: Dict[str, int]) -> Dict[str, Any]:
     if isinstance(v, str):
         type_counts["string"] = type_counts.get("string", 0) + 1
         return {"type": "string", "value": v}
-    if isinstance(v, list):
-        type_counts["list"] = type_counts.get("list", 0) + 1
-        return {"type": "list", "value": [_typed(x, type_counts) for x in v]}
     raise ValueError(f"unsupported JSON value type: {type(v).__name__}")
 
 
-def _convert_row(row: Dict[str, Any], type_counts: Dict[str, int]) -> Dict[str, Any]:
-    out_keys = _sort_io_keys(row.keys(), "output")
-    if not out_keys:
-        raise ValueError("row has no outputK fields")
+def _list_element_kind(v: Any) -> str:
+    if isinstance(v, bool) or v is None:
+        raise ValueError("typed lists do not support bool/none elements")
+    if isinstance(v, (int, float)):
+        return "num"
+    if isinstance(v, str):
+        return "string"
+    raise ValueError(f"typed lists do not support {type(v).__name__} elements")
 
-    in_keys = _sort_io_keys(row.keys(), "input")
-    if not in_keys:
-        raise ValueError("row has no inputK fields")
 
+def _infer_field_schema(rows: List[Dict[str, Any]], key: str) -> str:
+    values = []
+    for row in rows:
+        if key not in row:
+            raise ValueError(f"row missing required field: {key}")
+        values.append(row[key])
+
+    has_list = any(isinstance(v, list) for v in values)
+    if not has_list:
+        for v in values:
+            _typed_scalar(v, {})
+        return "scalar"
+
+    if not all(isinstance(v, list) for v in values):
+        raise ValueError(f"field {key} mixes list and non-list values")
+
+    elem_kind: str | None = None
+    for v in values:
+        for item in v:
+            item_kind = _list_element_kind(item)
+            if elem_kind is None:
+                elem_kind = item_kind
+            elif elem_kind != item_kind:
+                raise ValueError(f"field {key} mixes numeric and string list elements")
+    if elem_kind is None:
+        raise ValueError(f"field {key} has only empty lists; cannot infer NumList vs StringList")
+    return "num_list" if elem_kind == "num" else "string_list"
+
+
+def _typed_with_schema(v: Any, schema: str, type_counts: Dict[str, int]) -> Dict[str, Any]:
+    if schema == "scalar":
+        return _typed_scalar(v, type_counts)
+    if schema == "num_list":
+        if not isinstance(v, list):
+            raise ValueError("num_list schema requires list value")
+        out: List[int | float] = []
+        for item in v:
+            if not isinstance(item, (int, float)) or isinstance(item, bool):
+                raise ValueError("num_list elements must be int or float")
+            out.append(item)
+        type_counts["num_list"] = type_counts.get("num_list", 0) + 1
+        return {"type": "num_list", "value": out}
+    if schema == "string_list":
+        if not isinstance(v, list):
+            raise ValueError("string_list schema requires list value")
+        out_s: List[str] = []
+        for item in v:
+            if not isinstance(item, str):
+                raise ValueError("string_list elements must be strings")
+            out_s.append(item)
+        type_counts["string_list"] = type_counts.get("string_list", 0) + 1
+        return {"type": "string_list", "value": out_s}
+    raise ValueError(f"unknown schema: {schema}")
+
+
+def _infer_dataset_schema(rows: List[Dict[str, Any]]) -> Tuple[List[str], str, Dict[str, str]]:
+    if not rows:
+        raise ValueError("cannot infer schema from empty rows")
+    input_keys = _sort_io_keys({k for row in rows for k in _sort_io_keys(row.keys(), "input")}, "input")
+    if not input_keys:
+        raise ValueError("rows have no inputK fields")
+    output_keys = _sort_io_keys({k for row in rows for k in _sort_io_keys(row.keys(), "output")}, "output")
+    if not output_keys:
+        raise ValueError("rows have no outputK fields")
+    if len(output_keys) != 1:
+        raise ValueError("multi-output rows are not runtime-compatible yet; do not encode them as list values")
+
+    schemas: Dict[str, str] = {}
+    for key in input_keys + output_keys:
+        schemas[key] = _infer_field_schema(rows, key)
+    return input_keys, output_keys[0], schemas
+
+
+def _convert_row(
+    row: Dict[str, Any],
+    input_keys: List[str],
+    output_key: str,
+    schemas: Dict[str, str],
+    type_counts: Dict[str, int],
+) -> Dict[str, Any]:
     inputs: Dict[str, Any] = {}
-    for k in in_keys:
-        inputs[k] = _typed(row[k], type_counts)
-    if len(out_keys) == 1:
-        expected = _typed(row[out_keys[0]], type_counts)
-    else:
-        expected = {"type": "list", "value": [_typed(row[k], type_counts) for k in out_keys]}
-        type_counts["list"] = type_counts.get("list", 0) + 1
+    for k in input_keys:
+        inputs[k] = _typed_with_schema(row[k], schemas[k], type_counts)
+    expected = _typed_with_schema(row[output_key], schemas[output_key], type_counts)
     return {"inputs": inputs, "expected": expected}
 
 
@@ -136,11 +210,12 @@ def main() -> int:
 
     edge_rows = _load_jsonl(edge_file)
     random_rows = _load_jsonl(random_file)
+    input_keys, output_key, field_schemas = _infer_dataset_schema(edge_rows + random_rows)
     train_rows, test_rows = _sample_train_test(edge_rows, random_rows, args.n_train, args.n_test, args.seed)
 
     type_counts: Dict[str, int] = {}
-    train_cases = [_convert_row(r, type_counts) for r in train_rows]
-    test_cases = [_convert_row(r, type_counts) for r in test_rows]
+    train_cases = [_convert_row(r, input_keys, output_key, field_schemas, type_counts) for r in train_rows]
+    test_cases = [_convert_row(r, input_keys, output_key, field_schemas, type_counts) for r in test_rows]
 
     source = {
         "edge_file": str(edge_file),
@@ -148,6 +223,7 @@ def main() -> int:
         "n_train": args.n_train,
         "n_test": args.n_test,
         "seed": args.seed,
+        "field_schemas": field_schemas,
     }
     train_payload = _build_cases_payload(train_cases, source=source | {"split": "train"})
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -158,7 +234,7 @@ def main() -> int:
         out_test.parent.mkdir(parents=True, exist_ok=True)
         out_test.write_text(json.dumps(test_payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
-    unsupported_types = sorted(t for t in type_counts.keys() if t not in {"none", "bool", "int", "float", "string", "list"})
+    unsupported_types = sorted(t for t in type_counts.keys() if t not in {"none", "bool", "int", "float", "string", "num_list", "string_list"})
     summary = {
         "ok": True,
         "train_cases": len(train_cases),

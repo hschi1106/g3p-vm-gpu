@@ -26,7 +26,8 @@ Runtime values are:
 - `Bool`
 - `None`
 - `String`
-- `List`
+- `NumList`
+- `StringList`
 
 Type rules:
 - `Bool` is not numeric.
@@ -116,7 +117,7 @@ Rules:
 - numeric comparisons require numeric operands and use promotion
 - `None` only supports `EQ` and `NE`
 - `Bool` only supports `EQ` and `NE` with `Bool`
-- `String` and `List` only support `EQ` and `NE` with the same tag
+- `String`, `NumList`, and `StringList` only support `EQ` and `NE` with the same tag
 - invalid comparison combinations => `TypeError`
 
 ### Control flow
@@ -141,7 +142,7 @@ Pop one `Bool`.
 
 Compiler lowering notes:
 - `ForRange(x, e, body)` first evaluates `e` once, stores the bound in a temporary local, validates that the bound is a non-negative integer, and then reuses that stored bound for every iteration.
-- The compiler may emit internal builtin id `8` (`is_int`) while lowering `ForRange`; this builtin is not part of the source-language call whitelist.
+- The compiler may emit internal builtin id `12` (`is_int`) while lowering `ForRange`; this builtin is not part of the source-language call whitelist.
 
 ### Builtins
 
@@ -159,7 +160,11 @@ Builtin ID mapping:
 - `5`: `concat`
 - `6`: `slice`
 - `7`: `index`
-- `8`: `is_int` (compiler-internal helper used by `ForRange` lowering)
+- `8`: `append`
+- `9`: `reverse`
+- `10`: `find`
+- `11`: `contains`
+- `12`: `is_int` (compiler-internal helper used by `ForRange` lowering)
 
 Errors:
 - unknown builtin id => `NameError`

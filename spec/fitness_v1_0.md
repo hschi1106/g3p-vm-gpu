@@ -15,7 +15,8 @@ A case is binary when `expected` is one of:
 - `Bool`
 - `None`
 - `String`
-- `List`
+- `NumList`
+- `StringList`
 
 ## Adjustable Parameter
 
@@ -77,7 +78,7 @@ Consequences:
 
 ### Binary case
 
-For `Bool`, `None`, `String`, and `List` expected values:
+For `Bool`, `None`, `String`, `NumList`, and `StringList` expected values:
 
 ```text
 if actual has the same runtime type as expected:

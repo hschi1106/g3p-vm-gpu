@@ -24,7 +24,11 @@ def encode_value(value):
     if isinstance(value, str):
         return {"type": "string", "value": value}
     if isinstance(value, list):
-        return {"type": "list", "value": [encode_value(x) for x in value]}
+        if all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in value):
+            return {"type": "num_list", "value": value}
+        if all(isinstance(x, str) for x in value):
+            return {"type": "string_list", "value": value}
+        raise TypeError("fixtures only support numeric or string typed lists")
     raise TypeError(f"unsupported value type: {type(value)}")
 
 

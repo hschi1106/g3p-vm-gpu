@@ -36,7 +36,7 @@ bool value_equal(const Value& a, const Value& b) {
   if (a.tag == ValueTag::Bool) return a.b == b.b;
   if (a.tag == ValueTag::Int || a.tag == ValueTag::FallbackToken) return a.i == b.i;
   if (a.tag == ValueTag::Float) return a.f == b.f;
-  if (a.tag == ValueTag::String || a.tag == ValueTag::List) return a.i == b.i;
+  if (a.tag == ValueTag::String || a.tag == ValueTag::NumList || a.tag == ValueTag::StringList) return a.i == b.i;
   return false;
 }
 
@@ -69,9 +69,14 @@ int find_or_add_const(AstProgram& target, const Value& value) {
 }
 
 RType infer_name_type_from_string(const std::string& name) {
+  if (name == "strings" || name == "words" || name == "string_list" ||
+      (name.size() >= 8 && name.compare(name.size() - 8, 8, "_strings") == 0) ||
+      (name.size() >= 6 && name.compare(name.size() - 6, 6, "_words") == 0)) {
+    return RType::StringList;
+  }
   if (name == "xs" || name == "items" || name == "list" ||
       (name.size() >= 5 && name.compare(name.size() - 5, 5, "_list") == 0)) {
-    return RType::List;
+    return RType::NumList;
   }
   if (name == "s" || name == "str" || name == "text" ||
       (name.size() >= 7 && name.compare(name.size() - 7, 7, "_string") == 0)) {
@@ -173,6 +178,10 @@ int node_arity(NodeKind kind) {
     case NodeKind::CALL_CONCAT: return 2;
     case NodeKind::CALL_SLICE: return 3;
     case NodeKind::CALL_INDEX: return 2;
+    case NodeKind::CALL_APPEND: return 2;
+    case NodeKind::CALL_REVERSE: return 1;
+    case NodeKind::CALL_FIND: return 2;
+    case NodeKind::CALL_CONTAINS: return 2;
   }
   return 0;
 }
@@ -194,10 +203,12 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
   AstProgram donor;
   const std::vector<int> num_name_ids = collect_name_ids_for_type(target, RType::Num);
   const std::vector<int> string_name_ids = collect_name_ids_for_type(target, RType::String);
-  const std::vector<int> list_name_ids = collect_name_ids_for_type(target, RType::List);
+  const std::vector<int> num_list_name_ids = collect_name_ids_for_type(target, RType::NumList);
+  const std::vector<int> string_list_name_ids = collect_name_ids_for_type(target, RType::StringList);
   const std::vector<int> container_name_ids = [&]() {
     std::vector<int> out = string_name_ids;
-    out.insert(out.end(), list_name_ids.begin(), list_name_ids.end());
+    out.insert(out.end(), num_list_name_ids.begin(), num_list_name_ids.end());
+    out.insert(out.end(), string_list_name_ids.begin(), string_list_name_ids.end());
     return out;
   }();
   const int num_name_id = choose_name_id(rng, num_name_ids);
@@ -227,7 +238,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
   if (type == RType::Num && container_name_id >= 0 && rand_prob(rng, 0.55)) {
     const RType container_type = infer_name_type_from_string(target.names[static_cast<std::size_t>(container_name_id)]);
     donor.names.push_back(target.names[static_cast<std::size_t>(container_name_id)]);
-    if (rand_prob(rng, 0.5)) {
+    if (container_type != RType::NumList || rand_prob(rng, 0.5)) {
       donor.nodes.push_back(AstNode{NodeKind::CALL_LEN, 0, 0});
       donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
     } else {
@@ -235,9 +246,6 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
       donor.nodes.push_back(AstNode{NodeKind::VAR, 0, 0});
       donor.consts.push_back(Value::from_int(rand_int(rng, -6, 6)));
       donor.nodes.push_back(AstNode{NodeKind::CONST, 0, 0});
-      if (container_type == RType::String && rand_prob(rng, 0.3)) {
-        return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
-      }
     }
     return map_subtree_nodes_into(target, donor, 0, donor.nodes.size());
   }
@@ -253,17 +261,28 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
       s.push_back(kAlphabet[rand_int(rng, 0, 25)]);
     }
     value = g3pvm::payload::make_string_value(s);
-  } else if (type == RType::List) {
+  } else if (type == RType::NumList) {
     const int len = rand_int(rng, 0, 4);
     std::vector<Value> elems;
     elems.reserve(static_cast<std::size_t>(len));
     for (int i = 0; i < len; ++i) {
-      const int scalar_kind = rand_int(rng, 0, 2);
-      if (scalar_kind == 0) elems.push_back(Value::from_int(rand_int(rng, -8, 8)));
-      else if (scalar_kind == 1) elems.push_back(Value::from_bool(rand_prob(rng, 0.5)));
-      else elems.push_back(Value::none());
+      if (rand_prob(rng, 0.65)) elems.push_back(Value::from_int(rand_int(rng, -8, 8)));
+      else elems.push_back(Value::from_float(std::round(rand_real(rng, -8.0, 8.0) * 1000.0) / 1000.0));
     }
-    value = g3pvm::payload::make_list_value(elems);
+    value = g3pvm::payload::make_num_list_value(elems);
+  } else if (type == RType::StringList) {
+    static constexpr char kAlphabet[] = "abcdefghijklmnopqrstuvwxyz";
+    const int len = rand_int(rng, 0, 4);
+    std::vector<Value> elems;
+    elems.reserve(static_cast<std::size_t>(len));
+    for (int i = 0; i < len; ++i) {
+      const int s_len = rand_int(rng, 0, 5);
+      std::string s;
+      s.reserve(static_cast<std::size_t>(s_len));
+      for (int j = 0; j < s_len; ++j) s.push_back(kAlphabet[rand_int(rng, 0, 25)]);
+      elems.push_back(g3pvm::payload::make_string_value(s));
+    }
+    value = g3pvm::payload::make_string_list_value(elems);
   } else if (rand_prob(rng, 0.5)) {
     value = Value::from_int(rand_int(rng, -8, 8));
   } else {

@@ -43,8 +43,10 @@ RType donor_type_for_bucket(int bucket) {
     case 3:
       return RType::String;
     case 4:
-      return RType::List;
+      return RType::NumList;
     case 5:
+      return RType::StringList;
+    case 6:
       return RType::Any;
     default:
       return RType::Num;

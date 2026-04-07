@@ -18,9 +18,14 @@ RType infer_unbound_var_type(const AstProgram& p, int name_id) {
     return RType::Num;
   }
   const std::string& name = p.names[static_cast<std::size_t>(name_id)];
+  if (name == "strings" || name == "words" || name == "string_list" ||
+      (name.size() >= 8 && name.compare(name.size() - 8, 8, "_strings") == 0) ||
+      (name.size() >= 6 && name.compare(name.size() - 6, 6, "_words") == 0)) {
+    return RType::StringList;
+  }
   if (name == "xs" || name == "items" || name == "list" ||
       (name.size() >= 5 && name.compare(name.size() - 5, 5, "_list") == 0)) {
-    return RType::List;
+    return RType::NumList;
   }
   if (name == "s" || name == "str" || name == "text" ||
       (name.size() >= 7 && name.compare(name.size() - 7, 7, "_string") == 0)) {
@@ -40,7 +45,17 @@ bool is_expr_kind(NodeKind kind) {
          kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
          kind == NodeKind::OR || kind == NodeKind::IF_EXPR || kind == NodeKind::CALL_ABS || kind == NodeKind::CALL_MIN ||
          kind == NodeKind::CALL_MAX || kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN ||
-         kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX;
+         kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX ||
+         kind == NodeKind::CALL_APPEND || kind == NodeKind::CALL_REVERSE || kind == NodeKind::CALL_FIND ||
+         kind == NodeKind::CALL_CONTAINS;
+}
+
+bool is_sequence_type(RType type) {
+  return type == RType::String || type == RType::NumList || type == RType::StringList;
+}
+
+bool is_value_type(RType type) {
+  return type == RType::Num || type == RType::Bool || type == RType::NoneType || is_sequence_type(type);
 }
 
 struct ExprCheck {
@@ -63,7 +78,8 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       if (v.tag == ValueTag::None) t = RType::NoneType;
       else if (v.tag == ValueTag::Bool) t = RType::Bool;
       else if (v.tag == ValueTag::String) t = RType::String;
-      else if (v.tag == ValueTag::List) t = RType::List;
+      else if (v.tag == ValueTag::NumList) t = RType::NumList;
+      else if (v.tag == ValueTag::StringList) t = RType::StringList;
       else t = RType::Num;
     }
     if (out != nullptr && t != RType::Invalid) out->push_back(TypedExprRoot{idx, end[idx], t});
@@ -87,8 +103,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     ExprCheck t = infer_expr_prefix(p, end, c.next, env, out);
     ExprCheck f = infer_expr_prefix(p, end, t.next, env, out);
     RType r = RType::Invalid;
-    if (c.t == RType::Bool && t.t == f.t &&
-        (t.t == RType::Num || t.t == RType::Bool || t.t == RType::NoneType || t.t == RType::String || t.t == RType::List)) {
+    if (c.t == RType::Bool && t.t == f.t && is_value_type(t.t)) {
       r = t.t;
     }
     if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, f.next, r});
@@ -96,12 +111,13 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
   }
   if (n.kind == NodeKind::CALL_ABS || n.kind == NodeKind::CALL_MIN || n.kind == NodeKind::CALL_MAX ||
       n.kind == NodeKind::CALL_CLIP || n.kind == NodeKind::CALL_LEN || n.kind == NodeKind::CALL_CONCAT ||
-      n.kind == NodeKind::CALL_SLICE || n.kind == NodeKind::CALL_INDEX) {
+      n.kind == NodeKind::CALL_SLICE || n.kind == NodeKind::CALL_INDEX || n.kind == NodeKind::CALL_APPEND ||
+      n.kind == NodeKind::CALL_REVERSE || n.kind == NodeKind::CALL_FIND || n.kind == NodeKind::CALL_CONTAINS) {
     std::size_t cur = idx + 1;
     bool ok = true;
     if (n.kind == NodeKind::CALL_LEN) {
       ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
-      if (a.t != RType::String && a.t != RType::List) ok = false;
+      if (!is_sequence_type(a.t)) ok = false;
       cur = a.next;
       const RType r = ok ? RType::Num : RType::Invalid;
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, cur, r});
@@ -110,7 +126,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     if (n.kind == NodeKind::CALL_CONCAT) {
       ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
       ExprCheck b = infer_expr_prefix(p, end, a.next, env, out);
-      const RType r = (a.t == b.t && (a.t == RType::String || a.t == RType::List)) ? a.t : RType::Invalid;
+      const RType r = (a.t == b.t && is_sequence_type(a.t)) ? a.t : RType::Invalid;
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, b.next, r});
       return {r, b.next};
     }
@@ -118,7 +134,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       ExprCheck x = infer_expr_prefix(p, end, cur, env, out);
       ExprCheck lo = infer_expr_prefix(p, end, x.next, env, out);
       ExprCheck hi = infer_expr_prefix(p, end, lo.next, env, out);
-      const RType r = ((x.t == RType::String || x.t == RType::List) && lo.t == RType::Num && hi.t == RType::Num)
+      const RType r = (is_sequence_type(x.t) && lo.t == RType::Num && hi.t == RType::Num)
                           ? x.t
                           : RType::Invalid;
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, hi.next, r});
@@ -130,10 +146,36 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
       RType r = RType::Invalid;
       if (i.t == RType::Num) {
         if (x.t == RType::String) r = RType::String;
-        else if (x.t == RType::List) r = RType::Num;
+        else if (x.t == RType::NumList) r = RType::Num;
+        else if (x.t == RType::StringList) r = RType::String;
       }
       if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, i.next, r});
       return {r, i.next};
+    }
+    if (n.kind == NodeKind::CALL_APPEND) {
+      ExprCheck xs = infer_expr_prefix(p, end, cur, env, out);
+      ExprCheck elem = infer_expr_prefix(p, end, xs.next, env, out);
+      const RType r = ((xs.t == RType::NumList && elem.t == RType::Num) ||
+                       (xs.t == RType::StringList && elem.t == RType::String))
+                          ? xs.t
+                          : RType::Invalid;
+      if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, elem.next, r});
+      return {r, elem.next};
+    }
+    if (n.kind == NodeKind::CALL_REVERSE) {
+      ExprCheck x = infer_expr_prefix(p, end, cur, env, out);
+      const RType r = is_sequence_type(x.t) ? x.t : RType::Invalid;
+      if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, x.next, r});
+      return {r, x.next};
+    }
+    if (n.kind == NodeKind::CALL_FIND || n.kind == NodeKind::CALL_CONTAINS) {
+      ExprCheck haystack = infer_expr_prefix(p, end, cur, env, out);
+      ExprCheck needle = infer_expr_prefix(p, end, haystack.next, env, out);
+      const RType r = (haystack.t == RType::String && needle.t == RType::String)
+                          ? (n.kind == NodeKind::CALL_FIND ? RType::Num : RType::Bool)
+                          : RType::Invalid;
+      if (out != nullptr && r != RType::Invalid) out->push_back(TypedExprRoot{idx, needle.next, r});
+      return {r, needle.next};
     }
     for (int i = 0; i < subtree::node_arity(n.kind); ++i) {
       ExprCheck a = infer_expr_prefix(p, end, cur, env, out);
@@ -154,8 +196,7 @@ ExprCheck infer_expr_prefix(const AstProgram& p,
     else if (n.kind == NodeKind::LT || n.kind == NodeKind::LE || n.kind == NodeKind::GT || n.kind == NodeKind::GE)
       r = (a.t == RType::Num && b.t == RType::Num) ? RType::Bool : RType::Invalid;
     else if (n.kind == NodeKind::EQ || n.kind == NodeKind::NE)
-      r = (a.t == b.t &&
-           (a.t == RType::Num || a.t == RType::Bool || a.t == RType::NoneType || a.t == RType::String || a.t == RType::List))
+      r = (a.t == b.t && is_value_type(a.t))
               ? RType::Bool
               : RType::Invalid;
     else

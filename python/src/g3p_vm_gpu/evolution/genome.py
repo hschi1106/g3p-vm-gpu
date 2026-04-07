@@ -43,6 +43,10 @@ def build_genome_meta(ast: AstProgram) -> GenomeMeta:
             NodeKind.CALL_CONCAT,
             NodeKind.CALL_SLICE,
             NodeKind.CALL_INDEX,
+            NodeKind.CALL_APPEND,
+            NodeKind.CALL_REVERSE,
+            NodeKind.CALL_FIND,
+            NodeKind.CALL_CONTAINS,
         }
         for node in ast.nodes
     )

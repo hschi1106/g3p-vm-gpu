@@ -26,10 +26,11 @@ void register_list(const Value& key, const std::vector<Value>& elems);
 bool lookup_string(const Value& key, std::string* out);
 bool lookup_list(const Value& key, std::vector<Value>* out);
 bool lookup_string_packed(std::int64_t packed, std::string* out);
-bool lookup_list_packed(std::int64_t packed, std::vector<Value>* out);
+bool lookup_list_packed(ValueTag tag, std::int64_t packed, std::vector<Value>* out);
 
 Value make_string_value(const std::string& s);
-Value make_list_value(const std::vector<Value>& elems);
+Value make_num_list_value(const std::vector<Value>& elems);
+Value make_string_list_value(const std::vector<Value>& elems);
 
 std::vector<StringSnapshot> snapshot_strings();
 std::vector<ListSnapshot> snapshot_lists();

@@ -236,7 +236,7 @@ int main() {
       std::cerr << "FAIL: exact numeric program should score 0 MAE\n";
       return 1;
     }
-    if (!approx(cpu_fit[1], -64.0 * penalty)) {
+    if (!approx(cpu_fit[1], -63.0 * penalty)) {
       std::cerr << "FAIL: constant numeric program should clamp per-case numeric loss to penalty\n";
       return 1;
     }

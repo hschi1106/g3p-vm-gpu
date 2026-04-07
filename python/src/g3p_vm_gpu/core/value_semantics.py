@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .ast import Val
+from .ast import NumList, StringList, Val
 from .errors import Err, ErrCode
 
 
@@ -50,7 +50,14 @@ def compare_values(op: str, a: Val, b: Val) -> bool | Err:
             return a is not b
         return Err(ErrCode.TYPE, "ordering comparison on None not supported")
 
-    if (isinstance(a, str) and isinstance(b, str)) or (isinstance(a, list) and isinstance(b, list)):
+    if isinstance(a, str) and isinstance(b, str):
+        if op == "EQ":
+            return a == b
+        if op == "NE":
+            return a != b
+        return Err(ErrCode.TYPE, "ordering comparison on string/list not supported")
+
+    if (isinstance(a, NumList) and isinstance(b, NumList)) or (isinstance(a, StringList) and isinstance(b, StringList)):
         if op == "EQ":
             return a == b
         if op == "NE":

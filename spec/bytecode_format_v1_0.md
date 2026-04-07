@@ -52,7 +52,8 @@ Supported values:
 {"type": "int", "value": 123}
 {"type": "float", "value": 1.5}
 {"type": "string", "value": "abc"}
-{"type": "list", "value": [1, 2, 3]}
+{"type": "num_list", "value": [1, 2, 3.5]}
+{"type": "string_list", "value": ["a", "bc"]}
 ```
 
 Rules:
@@ -60,7 +61,10 @@ Rules:
 - `float.value` must be a JSON number
 - `bool.value` must be a JSON boolean
 - `string.value` must be a JSON string
-- `list.value` must be a JSON array of recursively encodable values supported by the current runtime/tooling path
+- `num_list.value` must be a JSON array of `int`/`float` JSON numbers; booleans are rejected
+- `string_list.value` must be a JSON array of JSON strings
+- empty list values must carry the explicit `num_list` or `string_list` tag
+- legacy `"list"` values may be accepted by some compatibility paths only when the element type can be inferred; new fixtures must not emit generic `"list"` values
 
 ## Instruction Encoding
 
