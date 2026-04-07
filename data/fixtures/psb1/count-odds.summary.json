@@ -2,11 +2,11 @@
   "ok": true,
   "suite": "psb1",
   "problem": "count-odds",
-  "train_cases": 64,
-  "test_cases": 64,
+  "train_cases": 1024,
+  "test_cases": 1024,
   "type_counts": {
-    "num_list": 128,
-    "int": 128
+    "num_list": 2048,
+    "int": 2048
   },
   "runtime_compatible": true,
   "unsupported_types": [],

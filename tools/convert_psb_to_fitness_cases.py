@@ -4,11 +4,138 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 
-def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
+PSB1_PROBLEMS: tuple[str, ...] = (
+    "checksum",
+    "collatz-numbers",
+    "compare-string-lengths",
+    "count-odds",
+    "digits",
+    "double-letters",
+    "even-squares",
+    "for-loop-index",
+    "grade",
+    "last-index-of-zero",
+    "median",
+    "mirror-image",
+    "negative-to-zero",
+    "number-io",
+    "pig-latin",
+    "replace-space-with-newline",
+    "scrabble-score",
+    "small-or-large",
+    "smallest",
+    "string-differences",
+    "string-lengths-backwards",
+    "sum-of-squares",
+    "super-anagrams",
+    "syllables",
+    "vector-average",
+    "vectors-summed",
+    "wallis-pi",
+    "word-stats",
+    "x-word-lines",
+)
+
+PSB2_PROBLEMS: tuple[str, ...] = (
+    "basement",
+    "bouncing-balls",
+    "bowling",
+    "camel-case",
+    "coin-sums",
+    "cut-vector",
+    "dice-game",
+    "find-pair",
+    "fizz-buzz",
+    "fuel-cost",
+    "gcd",
+    "indices-of-substring",
+    "leaders",
+    "luhn",
+    "mastermind",
+    "middle-character",
+    "paired-digits",
+    "shopping-list",
+    "snow-day",
+    "solve-boolean",
+    "spin-words",
+    "square-digits",
+    "substitution-cipher",
+    "twitter",
+    "vector-distance",
+)
+
+RUNTIME_VALUE_TYPES = {"none", "bool", "int", "float", "string", "num_list", "string_list"}
+
+
+@dataclass(frozen=True)
+class PsbSuiteConfig:
+    label: str
+    problems: tuple[str, ...]
+    default_datasets_root: str
+
+
+PSB1_CONFIG = PsbSuiteConfig(
+    label="psb1",
+    problems=PSB1_PROBLEMS,
+    default_datasets_root="data/psb1_datasets",
+)
+
+PSB2_CONFIG = PsbSuiteConfig(
+    label="psb2",
+    problems=PSB2_PROBLEMS,
+    default_datasets_root="data/psb2_datasets",
+)
+
+
+def suite_config(suite: str) -> PsbSuiteConfig:
+    normalized = suite.strip().lower()
+    if normalized == "psb1":
+        return PSB1_CONFIG
+    if normalized == "psb2":
+        return PSB2_CONFIG
+    raise ValueError(f"unsupported PSB suite: {suite}")
+
+
+def resolve_problem_files(
+    *,
+    suite: str,
+    problem: str,
+    datasets_root: Path,
+    edge_file: Path | None,
+    random_file: Path | None,
+) -> tuple[str, Path, Path]:
+    config = suite_config(suite)
+    problem = problem.strip()
+    if problem:
+        if edge_file is not None or random_file is not None:
+            raise ValueError("--problem cannot be combined with --edge-file/--random-file")
+        if problem not in config.problems:
+            raise ValueError(
+                f"unknown {config.label.upper()} problem: {problem}. "
+                + "Use --problem with one of: "
+                + ", ".join(config.problems)
+            )
+        edge_file = datasets_root / problem / f"{problem}-edge.json"
+        random_file = datasets_root / problem / f"{problem}-random.json"
+    else:
+        if edge_file is None or random_file is None:
+            raise ValueError("provide either --problem or both --edge-file and --random-file")
+        problem = edge_file.parent.name or edge_file.stem.replace("-edge", "")
+
+    assert edge_file is not None and random_file is not None
+    if not edge_file.exists():
+        raise ValueError(f"edge file does not exist: {edge_file}")
+    if not random_file.exists():
+        raise ValueError(f"random file does not exist: {random_file}")
+    return problem, edge_file, random_file
+
+
+def load_jsonl(path: Path) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as f:
         for ln, line in enumerate(f, start=1):
@@ -25,7 +152,7 @@ def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def _sort_io_keys(keys: Iterable[str], prefix: str) -> List[str]:
+def sort_io_keys(keys: Iterable[str], prefix: str) -> List[str]:
     out: List[Tuple[int, str]] = []
     for k in keys:
         if not k.startswith(prefix):
@@ -122,13 +249,13 @@ def _typed_with_schema(v: Any, schema: str, type_counts: Dict[str, int]) -> Dict
     raise ValueError(f"unknown schema: {schema}")
 
 
-def _infer_dataset_schema(rows: List[Dict[str, Any]]) -> Tuple[List[str], str, Dict[str, str]]:
+def infer_dataset_schema(rows: List[Dict[str, Any]]) -> Tuple[List[str], str, Dict[str, str]]:
     if not rows:
         raise ValueError("cannot infer schema from empty rows")
-    input_keys = _sort_io_keys({k for row in rows for k in _sort_io_keys(row.keys(), "input")}, "input")
+    input_keys = sort_io_keys({k for row in rows for k in sort_io_keys(row.keys(), "input")}, "input")
     if not input_keys:
         raise ValueError("rows have no inputK fields")
-    output_keys = _sort_io_keys({k for row in rows for k in _sort_io_keys(row.keys(), "output")}, "output")
+    output_keys = sort_io_keys({k for row in rows for k in sort_io_keys(row.keys(), "output")}, "output")
     if not output_keys:
         raise ValueError("rows have no outputK fields")
     if len(output_keys) != 1:
@@ -140,7 +267,7 @@ def _infer_dataset_schema(rows: List[Dict[str, Any]]) -> Tuple[List[str], str, D
     return input_keys, output_keys[0], schemas
 
 
-def _convert_row(
+def convert_row(
     row: Dict[str, Any],
     input_keys: List[str],
     output_key: str,
@@ -154,7 +281,7 @@ def _convert_row(
     return {"inputs": inputs, "expected": expected}
 
 
-def _sample_train_test(
+def sample_train_test(
     edge_rows: List[Dict[str, Any]],
     random_rows: List[Dict[str, Any]],
     n_train: int,
@@ -182,7 +309,7 @@ def _sample_train_test(
     return train, test
 
 
-def _build_cases_payload(cases: List[Dict[str, Any]], source: Dict[str, Any]) -> Dict[str, Any]:
+def build_cases_payload(cases: List[Dict[str, Any]], source: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "format_version": "fitness-cases-v1",
         "source": source,
@@ -190,10 +317,52 @@ def _build_cases_payload(cases: List[Dict[str, Any]], source: Dict[str, Any]) ->
     }
 
 
+def build_train_test_payloads(
+    edge_file: Path,
+    random_file: Path,
+    n_train: int,
+    n_test: int,
+    seed: int,
+    source: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, str], Dict[str, int]]:
+    edge_rows = load_jsonl(edge_file)
+    random_rows = load_jsonl(random_file)
+    input_keys, output_key, field_schemas = infer_dataset_schema(edge_rows + random_rows)
+    train_rows, test_rows = sample_train_test(edge_rows, random_rows, n_train, n_test, seed)
+
+    type_counts: Dict[str, int] = {}
+    train_cases = [convert_row(r, input_keys, output_key, field_schemas, type_counts) for r in train_rows]
+    test_cases = [convert_row(r, input_keys, output_key, field_schemas, type_counts) for r in test_rows]
+
+    source_with_schema = source | {
+        "edge_file": str(edge_file),
+        "random_file": str(random_file),
+        "n_train": n_train,
+        "n_test": n_test,
+        "seed": seed,
+        "field_schemas": field_schemas,
+    }
+    train_payload = build_cases_payload(train_cases, source=source_with_schema | {"split": "train"})
+    test_payload = build_cases_payload(test_cases, source=source_with_schema | {"split": "test"})
+    return train_payload, test_payload, field_schemas, type_counts
+
+
+def unsupported_runtime_types(type_counts: Dict[str, int]) -> List[str]:
+    return sorted(t for t in type_counts.keys() if t not in RUNTIME_VALUE_TYPES)
+
+
+def write_json(path: Path, payload: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Convert PSB2 JSONL files to fitness-cases-v1 JSON.")
-    parser.add_argument("--edge-file", required=True, help="Path to <task>-edge.json (JSONL).")
-    parser.add_argument("--random-file", required=True, help="Path to <task>-random.json (JSONL).")
+    parser = argparse.ArgumentParser(description="Convert PSB1/PSB2 JSONL files to fitness-cases-v1 JSON.")
+    parser.add_argument("--suite", required=True, choices=("psb1", "psb2"), help="PSB dataset suite.")
+    parser.add_argument("--problem", default="", help="Problem name under --datasets-root.")
+    parser.add_argument("--datasets-root", default="", help="Dataset root; defaults to the selected suite's data root.")
+    parser.add_argument("--edge-file", default="", help="Explicit edge JSONL file.")
+    parser.add_argument("--random-file", default="", help="Explicit random JSONL file.")
     parser.add_argument("--n-train", type=int, default=1024)
     parser.add_argument("--n-test", type=int, default=1024)
     parser.add_argument("--seed", type=int, default=0)
@@ -202,53 +371,55 @@ def main() -> int:
     parser.add_argument("--summary-json", default="", help="Optional output path for conversion summary JSON.")
     args = parser.parse_args()
 
-    edge_file = Path(args.edge_file)
-    random_file = Path(args.random_file)
+    config = suite_config(args.suite)
+    problem, edge_file, random_file = resolve_problem_files(
+        suite=config.label,
+        problem=str(args.problem or ""),
+        datasets_root=Path(args.datasets_root or config.default_datasets_root),
+        edge_file=Path(args.edge_file) if args.edge_file else None,
+        random_file=Path(args.random_file) if args.random_file else None,
+    )
+
     out = Path(args.out)
     out_test = Path(args.out_test) if args.out_test else None
     summary_path = Path(args.summary_json) if args.summary_json else None
 
-    edge_rows = _load_jsonl(edge_file)
-    random_rows = _load_jsonl(random_file)
-    input_keys, output_key, field_schemas = _infer_dataset_schema(edge_rows + random_rows)
-    train_rows, test_rows = _sample_train_test(edge_rows, random_rows, args.n_train, args.n_test, args.seed)
-
-    type_counts: Dict[str, int] = {}
-    train_cases = [_convert_row(r, input_keys, output_key, field_schemas, type_counts) for r in train_rows]
-    test_cases = [_convert_row(r, input_keys, output_key, field_schemas, type_counts) for r in test_rows]
-
     source = {
-        "edge_file": str(edge_file),
-        "random_file": str(random_file),
-        "n_train": args.n_train,
-        "n_test": args.n_test,
-        "seed": args.seed,
-        "field_schemas": field_schemas,
+        "suite": config.label,
+        "problem": problem,
     }
-    train_payload = _build_cases_payload(train_cases, source=source | {"split": "train"})
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(train_payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    train_payload, test_payload, field_schemas, type_counts = build_train_test_payloads(
+        edge_file=edge_file,
+        random_file=random_file,
+        n_train=args.n_train,
+        n_test=args.n_test,
+        seed=args.seed,
+        source=source,
+    )
 
+    write_json(out, train_payload)
     if out_test is not None:
-        test_payload = _build_cases_payload(test_cases, source=source | {"split": "test"})
-        out_test.parent.mkdir(parents=True, exist_ok=True)
-        out_test.write_text(json.dumps(test_payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        write_json(out_test, test_payload)
 
-    unsupported_types = sorted(t for t in type_counts.keys() if t not in {"none", "bool", "int", "float", "string", "num_list", "string_list"})
-    summary = {
+    unsupported_types = unsupported_runtime_types(type_counts)
+    summary: Dict[str, Any] = {
         "ok": True,
-        "train_cases": len(train_cases),
-        "test_cases": len(test_cases),
+        "suite": config.label,
+        "problem": problem,
+        "train_cases": len(train_payload["cases"]),
+        "test_cases": len(test_payload["cases"]),
         "type_counts": type_counts,
         "runtime_compatible": len(unsupported_types) == 0,
         "unsupported_types": unsupported_types,
         "out_train": str(out),
         "out_test": (str(out_test) if out_test is not None else ""),
+        "field_schemas": field_schemas,
     }
     if summary_path is not None:
-        summary_path.parent.mkdir(parents=True, exist_ok=True)
-        summary_path.write_text(json.dumps(summary, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        write_json(summary_path, summary)
 
+    print(f"CONVERT_SUITE {config.label}")
+    print(f"CONVERT_PROBLEM {problem}")
     print(f"CONVERT_OUT {out}")
     if out_test is not None:
         print(f"CONVERT_OUT_TEST {out_test}")

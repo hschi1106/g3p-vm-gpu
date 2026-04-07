@@ -206,18 +206,15 @@ Benchmark binaries for runtime-focused measurement.
 ## Tooling And Script Map
 
 ### `tools/`
-- `fetch_psb1_datasets.py`: download PSB1 datasets into `data/psb1_datasets/`
-- `fetch_psb2_datasets.py`: download PSB2 datasets into `data/psb2_datasets/`
-- `audit_psb2_tasks.py`: inspect local PSB2 dataset coverage and shape
-- `convert_psb1_to_fitness_cases.py`: convert PSB1 JSON Lines into `fitness-cases-v1` with schema-aware `num_list` / `string_list` emission
-- `convert_psb2_to_fitness_cases.py`: convert PSB2 JSON into `fitness-cases-v1` with schema-aware `num_list` / `string_list` emission; multi-output rows are not encoded as list values
+- `fetch_psb_datasets.py`: download PSB1/PSB2 JSON Lines datasets into `data/psb1_datasets/` or `data/psb2_datasets/`
+- `convert_psb_to_fitness_cases.py`: convert PSB1/PSB2 JSON Lines into `fitness-cases-v1` fixtures with schema-aware `num_list` / `string_list` emission
 
 ## Data and Tooling Layout
 
 - `data/fixtures/`: canonical benchmark fixtures
 - `data/psb1_datasets/`: PSB1 dataset mirror used by fetch tooling
-- `data/psb2_datasets/`: PSB2 dataset mirror used by fetch/convert/audit utilities
-- `tools/`: dataset fetch, conversion, and audit utilities
+- `data/psb2_datasets/`: PSB2 dataset mirror used by fetch/convert utilities
+- `tools/`: dataset fetch and conversion utilities
 - `logs/`: generated run artifacts, benchmark reports, gate outputs
 - `meeting/`: meeting notes and non-normative discussion artifacts
 

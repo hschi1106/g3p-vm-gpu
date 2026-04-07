@@ -2,11 +2,11 @@
   "ok": true,
   "suite": "psb1",
   "problem": "compare-string-lengths",
-  "train_cases": 64,
-  "test_cases": 64,
+  "train_cases": 1024,
+  "test_cases": 1024,
   "type_counts": {
-    "string": 384,
-    "bool": 128
+    "string": 6144,
+    "bool": 2048
   },
   "runtime_compatible": true,
   "unsupported_types": [],

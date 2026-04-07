@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class TestPsb1Tools(unittest.TestCase):
-    def test_convert_psb1_problem_to_fitness_cases(self):
+    def test_unified_convert_with_psb1_problem_to_fitness_cases(self):
         with tempfile.TemporaryDirectory(prefix="g3p_psb1_conv_") as td:
             td_path = Path(td)
             problem_dir = td_path / "count-odds"
@@ -33,7 +33,9 @@ class TestPsb1Tools(unittest.TestCase):
 
             cmd = [
                 "python3",
-                "tools/convert_psb1_to_fitness_cases.py",
+                "tools/convert_psb_to_fitness_cases.py",
+                "--suite",
+                "psb1",
                 "--problem",
                 "count-odds",
                 "--datasets-root",
@@ -52,7 +54,8 @@ class TestPsb1Tools(unittest.TestCase):
                 str(summary),
             ]
             proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=True)
-            self.assertIn("CONVERT_PSB1_PROBLEM count-odds", proc.stdout)
+            self.assertIn("CONVERT_SUITE psb1", proc.stdout)
+            self.assertIn("CONVERT_PROBLEM count-odds", proc.stdout)
             self.assertIn("CONVERT_RUNTIME_COMPATIBLE 1", proc.stdout)
 
             train = json.loads(out.read_text(encoding="utf-8"))
@@ -67,7 +70,7 @@ class TestPsb1Tools(unittest.TestCase):
             self.assertEqual(s["problem"], "count-odds")
             self.assertTrue(s["runtime_compatible"])
 
-    def test_convert_psb1_multi_output_is_rejected(self):
+    def test_unified_convert_with_psb1_multi_output_is_rejected(self):
         with tempfile.TemporaryDirectory(prefix="g3p_psb1_multiout_") as td:
             td_path = Path(td)
             edge = td_path / "edge.json"
@@ -78,7 +81,9 @@ class TestPsb1Tools(unittest.TestCase):
 
             cmd = [
                 "python3",
-                "tools/convert_psb1_to_fitness_cases.py",
+                "tools/convert_psb_to_fitness_cases.py",
+                "--suite",
+                "psb1",
                 "--edge-file",
                 str(edge),
                 "--random-file",

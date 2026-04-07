@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "suite": "psb1",
+  "problem": "median",
+  "train_cases": 1024,
+  "test_cases": 1024,
+  "type_counts": {
+    "int": 8192
+  },
+  "runtime_compatible": true,
+  "unsupported_types": [],
+  "out_train": "data/fixtures/psb1/median.train.json",
+  "out_test": "data/fixtures/psb1/median.test.json"
+}

@@ -74,7 +74,7 @@ g3p-vm-gpu/
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
-- `tools/`: dataset fetch, conversion, and audit utilities
+- `tools/`: two PSB utilities, one for dataset fetch and one for fitness-case conversion
 - `logs/`: generated artifacts, benchmark reports, and run outputs
 
 ## Spec Roles

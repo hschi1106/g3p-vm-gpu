@@ -59,7 +59,7 @@ Use the documents below as the source of truth.
 - `data/fixtures/`: canonical benchmark and evolution fixtures
 - `data/psb1_datasets/`: mirrored PSB1 datasets
 - `data/psb2_datasets/`: mirrored PSB2 datasets
-- `tools/`: PSB dataset fetch/conversion/audit utilities
+- `tools/`: PSB dataset fetch/conversion utilities
 - `meeting/`: meeting notes and discussion artifacts
 
 ## Quick Start
@@ -142,7 +142,8 @@ For fair comparisons, reuse the same `population-seeds-v1` input across `cpu`, `
 ### Convert PSB1/PSB2 tasks into `fitness-cases-v1`
 
 ```bash
-python3 tools/convert_psb1_to_fitness_cases.py \
+python3 tools/convert_psb_to_fitness_cases.py \
+  --suite psb1 \
   --problem count-odds \
   --datasets-root data/psb1_datasets \
   --out data/fixtures/psb1/count-odds.train.json \
@@ -150,9 +151,10 @@ python3 tools/convert_psb1_to_fitness_cases.py \
 ```
 
 ```bash
-python3 tools/convert_psb2_to_fitness_cases.py \
-  --edge-file data/psb2_datasets/bouncing-balls/bouncing-balls-edge.json \
-  --random-file data/psb2_datasets/bouncing-balls/bouncing-balls-random.json \
+python3 tools/convert_psb_to_fitness_cases.py \
+  --suite psb2 \
+  --problem bouncing-balls \
+  --datasets-root data/psb2_datasets \
   --out logs/psb2/bouncing-balls.train.json
 ```
 
@@ -162,7 +164,7 @@ Multi-output PSB rows are rejected until runtime-level multi-output support is a
 ### Fetch PSB1 datasets
 
 ```bash
-python3 tools/fetch_psb1_datasets.py --out-dir data/psb1_datasets
+python3 tools/fetch_psb_datasets.py --suite psb1 --out-dir data/psb1_datasets
 ```
 
 ## GPU Commands

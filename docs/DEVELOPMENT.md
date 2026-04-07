@@ -177,10 +177,11 @@ cpp/build/g3pvm_evolve_cli \
 
 ## PSB Dataset Workflow
 
-### `tools/fetch_psb1_datasets.py`
+### `tools/fetch_psb_datasets.py`
 
-Dataset-fetch args:
-- `--out-dir PATH`: target datasets directory for PSB1 files
+Unified dataset-fetch args:
+- `--suite psb1|psb2`: dataset suite to fetch
+- `--out-dir PATH`: optional target datasets directory; default depends on `--suite`
 - `--problems LIST|all`: comma-separated task names or `all`
 - `--splits LIST`: comma-separated subset of `edge,random`
 - `--retries N`: retry count per file
@@ -188,42 +189,14 @@ Dataset-fetch args:
 - `--force`: overwrite existing files
 - `--dry-run`: print planned work without downloading
 
-### `tools/fetch_psb2_datasets.py`
+### `tools/convert_psb_to_fitness_cases.py`
 
-Dataset-fetch args:
-- `--out-dir PATH`: target root for downloaded datasets
-- `--problems LIST|all`: comma-separated task names or `all`
-- `--splits LIST`: comma-separated subset of `edge,random`
-- `--retries N`: retry count per file
-- `--timeout-sec N`: per-request timeout
-- `--force`: overwrite existing files
-- `--dry-run`: print planned work without downloading
-
-### `tools/convert_psb1_to_fitness_cases.py`
-
-Dataset-conversion args:
-- `--problem NAME`: PSB1 problem name under `--datasets-root`
-- `--datasets-root PATH`: PSB1 dataset root; default is `data/psb1_datasets`
-- `--edge-file PATH`: explicit PSB1 edge JSONL file; use with `--random-file` instead of `--problem`
-- `--random-file PATH`: explicit PSB1 random JSONL file
-- `--n-train N`: number of training rows to emit; default is `64`
-- `--n-test N`: number of test rows to emit; default is `64`
-- `--seed N`: sampling seed
-- `--out PATH`: output training fixture path
-- `--out-test PATH`: optional test fixture output path
-- `--summary-json PATH`: optional conversion summary JSON path
-
-### `tools/audit_psb2_tasks.py`
-
-Audit args:
-- `--datasets-root PATH`: PSB2 dataset root to inspect
-- `--out-json PATH`: summary JSON output path
-
-### `tools/convert_psb2_to_fitness_cases.py`
-
-Dataset-conversion args:
-- `--edge-file PATH`: PSB2 edge JSONL file
-- `--random-file PATH`: PSB2 random JSONL file
+Unified dataset-conversion args:
+- `--suite psb1|psb2`: dataset suite to convert
+- `--problem NAME`: problem name under `--datasets-root`
+- `--datasets-root PATH`: optional dataset root; default depends on `--suite`
+- `--edge-file PATH`: explicit edge JSONL file; use with `--random-file` instead of `--problem`
+- `--random-file PATH`: explicit random JSONL file
 - `--n-train N`: number of training rows to emit
 - `--n-test N`: number of test rows to emit
 - `--seed N`: sampling seed
