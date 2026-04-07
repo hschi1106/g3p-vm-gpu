@@ -60,9 +60,9 @@ Nested and heterogeneous lists are not part of the public value contract.
 
 ### Evolution grammar configs
 - `grammar-config-v1` files live under `configs/grammar/` and can be passed to the native CLI with `--grammar-config`.
-- The config restricts random genome generation, CPU mutation donor synthesis, and seed replay regeneration.
+- The config restricts random genome generation, CPU mutation donor synthesis, GPU reproduction preprocess candidate/donor generation, and seed replay regeneration.
 - The config does not reject execution of existing ASTs or bytecode that use disabled constructs.
-- Non-default configs currently require CPU reproduction; GPU reproduction rejects them until GPU donor buckets are config-aware.
+- CPU and GPU reproduction both respect non-default grammar configs.
 
 ### Builtins
 Scalar builtins:

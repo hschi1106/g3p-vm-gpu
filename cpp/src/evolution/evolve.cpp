@@ -302,10 +302,6 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
     throw std::invalid_argument("generations must be > 0");
   }
   cfg.grammar.validate();
-  if (cfg.reproduction_backend == repro::ReproductionBackend::Gpu && !cfg.grammar.is_all_enabled()) {
-    throw std::invalid_argument(
-        "non-default grammar configs are not supported with gpu reproduction yet; use --repro-backend cpu");
-  }
 
   const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);

@@ -11,6 +11,7 @@ Grammar config affects:
 - random genome generation
 - Python mutation and crossover fallback generation
 - C++ CPU mutation donor synthesis
+- C++ GPU reproduction candidate filtering and mutation donor pool generation
 - native seed-population replay when replay regenerates genomes from seeds
 
 Grammar config does not affect:
@@ -24,7 +25,7 @@ Grammar config does not affect:
 Current backend support:
 
 - CPU reproduction respects non-default grammar configs.
-- GPU reproduction rejects non-default configs until GPU donor buckets become config-aware.
+- GPU reproduction respects non-default grammar configs during host-side preprocess by filtering typed candidates and building config-aware donor buckets.
 
 ## CLI Usage
 
@@ -34,22 +35,15 @@ Use `--grammar-config PATH` with `g3pvm_evolve_cli`:
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --grammar-config configs/grammar/scalar.json \
-  --engine cpu \
-  --repro-backend cpu \
+  --engine gpu \
+  --repro-backend gpu \
+  --repro-overlap on \
   --population-size 64 \
   --generations 5 \
   --out-json logs/simple_exp_1024.scalar.json
 ```
 
 If `--grammar-config` is omitted, the native CLI uses the embedded all-enabled default. This is equivalent to `configs/grammar/all.json`.
-
-Non-default configs currently require CPU reproduction:
-
-```bash
---repro-backend cpu
-```
-
-Using a non-default config with `--repro-backend gpu` fails fast instead of silently violating the requested grammar.
 
 ## Presets
 
@@ -182,6 +176,8 @@ C++:
 - `cpp/src/evolution/subtree_utils.cpp`
 - `cpp/src/evolution/mutation.cpp`
 - `cpp/src/evolution/repro/backend.cpp`
+- `cpp/src/evolution/repro/prep.cpp`
+- `cpp/src/evolution/repro/gpu.cpp`
 - `cpp/src/evolution/evolve.cpp`
 - `cpp/src/cli/evolve_cli.cpp`
 
@@ -189,3 +185,4 @@ Tests:
 
 - Python generator/config coverage in `python/tests/test_evolution_ops.py`
 - native generator/config coverage in `cpp/tests/evolution/test_genome.cpp`
+- native GPU reproduction preprocess/config coverage in `cpp/tests/evolution/test_repro_prep.cpp`

@@ -53,6 +53,8 @@ It then computes the preprocessing data needed by device kernels:
 - typed crossover candidate ranges
 - typed donor pool entries, bucketed by result type for subtree mutation
 
+If `--grammar-config PATH` is active, this preprocessing stage filters typed candidate ranges to grammar-allowed subtrees and builds the donor pool with the selected `grammar-config-v1`. Runtime execution remains the full public grammar superset; the config only controls search-space generation.
+
 This stage is reported as:
 
 - `repro_prepare_inputs_ms`

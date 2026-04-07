@@ -102,20 +102,21 @@ cpp/build/g3pvm_evolve_cli \
   --out-json logs/simple_exp_1024.run.json
 ```
 
-To restrict the evolution search space, pass a checked-in grammar config. The config affects generation and CPU reproduction, not runtime execution of already-materialized programs:
+To restrict the evolution search space, pass a checked-in grammar config. The config affects generation and reproduction donor synthesis, not runtime execution of already-materialized programs:
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --grammar-config configs/grammar/scalar.json \
-  --engine cpu \
-  --repro-backend cpu \
+  --engine gpu \
+  --repro-backend gpu \
+  --repro-overlap on \
   --population-size 64 \
   --generations 5 \
   --out-json logs/simple_exp_1024.scalar.json
 ```
 
-Non-default grammar configs currently require CPU reproduction; `--repro-backend gpu` rejects them until GPU donor buckets are config-aware.
+CPU and GPU reproduction both respect non-default grammar configs. GPU reproduction applies the config during host-side preprocess by filtering typed candidates and building config-aware donor buckets.
 
 ### Run one fixed-population benchmark
 

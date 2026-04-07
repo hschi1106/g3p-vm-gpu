@@ -62,7 +62,7 @@ GpuReproPreparedData prepare_gpu_repro_backend_inputs(const std::vector<ProgramG
   }
 
   const auto prep_t0 = std::chrono::steady_clock::now();
-  const PreprocessOutput prep = preprocess_population(population, out.config);
+  const PreprocessOutput prep = preprocess_population(population, out.config, cfg.grammar);
   const auto prep_t1 = std::chrono::steady_clock::now();
   if (stats != nullptr) {
     stats->preprocess_ms += std::chrono::duration<double, std::milli>(prep_t1 - prep_t0).count();

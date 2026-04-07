@@ -58,7 +58,7 @@ Core execution args:
 - `--timing {none|summary|per_gen|all}`: timing verbosity from the native CLI
 - `--show-program {none|ast|bytecode|both}`: include final-program dumps in output
 - `--population-json PATH`: load a fixed `population-seeds-v1` initial population instead of generating from `--seed`
-- `--grammar-config PATH`: load a `grammar-config-v1` JSON file that restricts evolution generation and CPU reproduction donor synthesis
+- `--grammar-config PATH`: load a `grammar-config-v1` JSON file that restricts evolution generation and reproduction donor synthesis
 - `--skip-final-eval {on|off}`: skip the post-loop final scoring pass; fixed-population timing runs should set this to `on`
 
 Evolution args:
@@ -96,7 +96,7 @@ The full config schema and replay rules are defined in [GRAMMAR_CONFIG.md](GRAMM
 
 Current backend support:
 - CPU reproduction respects non-default grammar configs.
-- GPU reproduction rejects non-default grammar configs until GPU donor buckets become config-aware.
+- GPU reproduction respects non-default grammar configs during host-side preprocess by filtering typed candidates and building config-aware donor buckets.
 
 Example:
 
@@ -104,8 +104,9 @@ Example:
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --grammar-config configs/grammar/scalar.json \
-  --engine cpu \
-  --repro-backend cpu \
+  --engine gpu \
+  --repro-backend gpu \
+  --repro-overlap on \
   --population-size 64 \
   --generations 5 \
   --out-json logs/simple_exp_1024.scalar.json

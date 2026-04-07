@@ -5,6 +5,7 @@
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
+#include "g3pvm/evolution/grammar_config.hpp"
 #include "g3pvm/evolution/repro/gpu.hpp"
 #include "g3pvm/evolution/repro/pack.hpp"
 #include "g3pvm/evolution/repro/prep.hpp"
@@ -24,7 +25,9 @@ bool check(bool cond, const std::string& msg) {
   return true;
 }
 
-std::vector<g3pvm::evo::ProgramGenome> make_population(int count = 4) {
+std::vector<g3pvm::evo::ProgramGenome> make_population(
+    int count = 4,
+    const g3pvm::evo::GrammarConfig& grammar = g3pvm::evo::GrammarConfig{}) {
   g3pvm::evo::Limits limits;
   limits.max_expr_depth = 5;
   limits.max_stmts_per_block = 6;
@@ -35,9 +38,26 @@ std::vector<g3pvm::evo::ProgramGenome> make_population(int count = 4) {
   std::vector<g3pvm::evo::ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(count));
   for (int seed = 1; seed <= count; ++seed) {
-    out.push_back(g3pvm::evo::generate_random_genome(seed, limits));
+    out.push_back(g3pvm::evo::generate_random_genome(seed, limits, grammar));
   }
   return out;
+}
+
+bool scalar_config_allows_program(const g3pvm::evo::ProgramGenome& genome) {
+  const g3pvm::evo::GrammarConfig grammar = g3pvm::evo::GrammarConfig::scalar();
+  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
+    if (!grammar.allows_node_kind(node.kind)) {
+      return false;
+    }
+  }
+  for (const g3pvm::Value& value : genome.ast.consts) {
+    if (value.tag == g3pvm::ValueTag::String ||
+        value.tag == g3pvm::ValueTag::NumList ||
+        value.tag == g3pvm::ValueTag::StringList) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool test_preprocess_and_pack() {
@@ -55,7 +75,7 @@ bool test_preprocess_and_pack() {
   const g3pvm::evo::repro::GpuReproConfig repro_cfg =
       g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
   const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg);
+      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
 
   if (!check(prep.subtree_ends.size() == population.size(), "subtree_ends size mismatch")) return false;
   if (!check(prep.candidates.size() == population.size(), "candidates size mismatch")) return false;
@@ -90,6 +110,48 @@ bool test_preprocess_and_pack() {
   }
   if (!check(!packed.name_lookup.empty(), "name lookup should not be empty")) {
     return false;
+  }
+  return true;
+}
+
+bool test_preprocess_respects_scalar_grammar_config() {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 8;
+  cfg.selection_pressure = 3;
+  cfg.seed = 42;
+  cfg.grammar = g3pvm::evo::GrammarConfig::scalar();
+  cfg.limits.max_expr_depth = 5;
+  cfg.limits.max_stmts_per_block = 6;
+  cfg.limits.max_total_nodes = 80;
+  cfg.limits.max_for_k = 16;
+  cfg.limits.max_call_args = 3;
+
+  const std::vector<g3pvm::evo::ProgramGenome> population =
+      make_population(cfg.population_size, cfg.grammar);
+  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
+      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
+  const g3pvm::evo::repro::PreprocessOutput prep =
+      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+
+  for (const auto& candidates : prep.candidates) {
+    for (const g3pvm::evo::repro::CandidateRange& candidate : candidates) {
+      const auto type = static_cast<g3pvm::evo::RType>(candidate.aux);
+      if (type != g3pvm::evo::RType::Invalid &&
+          !check(cfg.grammar.allows_type(type), "scalar gpu candidate type should be grammar-allowed")) {
+        return false;
+      }
+    }
+  }
+  for (const g3pvm::evo::repro::DonorProgram& donor : prep.donor_pool) {
+    if (!check(cfg.grammar.allows_type(donor.type), "scalar gpu donor type should be grammar-allowed")) {
+      return false;
+    }
+    g3pvm::evo::ProgramGenome donor_genome;
+    donor_genome.ast = donor.ast;
+    if (!check(scalar_config_allows_program(donor_genome),
+               "scalar gpu donor pool should not contain disabled sequence features")) {
+      return false;
+    }
   }
   return true;
 }
@@ -199,6 +261,61 @@ bool test_gpu_prepared_backend_smoke() {
   return true;
 }
 
+bool test_gpu_prepared_backend_scalar_config_smoke() {
+#ifdef G3PVM_HAS_CUDA
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 4;
+  cfg.selection_pressure = 3;
+  cfg.seed = 42;
+  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.grammar = g3pvm::evo::GrammarConfig::scalar();
+  cfg.limits.max_expr_depth = 5;
+  cfg.limits.max_stmts_per_block = 6;
+  cfg.limits.max_total_nodes = 80;
+  cfg.limits.max_for_k = 16;
+  cfg.limits.max_call_args = 3;
+
+  const std::vector<g3pvm::evo::ProgramGenome> population =
+      make_population(cfg.population_size, cfg.grammar);
+  std::vector<g3pvm::evo::ScoredGenome> scored;
+  scored.reserve(population.size());
+  for (std::size_t i = 0; i < population.size(); ++i) {
+    scored.push_back(g3pvm::evo::ScoredGenome{
+        population[i],
+        static_cast<double>(population.size() - i),
+    });
+  }
+
+  g3pvm::evo::repro::ReproductionStats prep_stats;
+  try {
+    const auto prepared =
+        g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
+    g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
+    const auto reproduction =
+        g3pvm::evo::repro::run_gpu_repro_backend_prepared(scored, cfg, prepared, &run_stats);
+    if (!check(static_cast<int>(reproduction.next_population.size()) == cfg.population_size,
+               "scalar config gpu reproduction child count mismatch")) {
+      return false;
+    }
+    for (const auto& child : reproduction.next_population) {
+      const auto bc = g3pvm::evo::compile_for_eval(child);
+      if (!check(!bc.code.empty(), "scalar config gpu reproduction child should compile")) {
+        return false;
+      }
+    }
+  } catch (const std::runtime_error& err) {
+    const std::string message = err.what();
+    if (message.find("cuda device unavailable") != std::string::npos) {
+      std::cout << "g3pvm_test_repro_prep: SKIP scalar gpu prepared (" << message << ")\n";
+      return true;
+    }
+    std::cerr << "FAIL: scalar config gpu reproduction prepared backend failed: " << message << "\n";
+    return false;
+  }
+#endif
+  return true;
+}
+
 bool test_gpu_selection_preserves_round_based_tournament_invariants() {
 #ifdef G3PVM_HAS_CUDA
   g3pvm::evo::EvolutionConfig cfg;
@@ -278,7 +395,9 @@ bool test_gpu_selection_preserves_round_based_tournament_invariants() {
 
 int main() {
   if (!test_preprocess_and_pack()) return 1;
+  if (!test_preprocess_respects_scalar_grammar_config()) return 1;
   if (!test_gpu_prepared_backend_smoke()) return 1;
+  if (!test_gpu_prepared_backend_scalar_config_smoke()) return 1;
   if (!test_gpu_selection_preserves_round_based_tournament_invariants()) return 1;
   std::cout << "g3pvm_test_repro_prep: OK\n";
   return 0;

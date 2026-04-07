@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/evolve.hpp"
+#include "g3pvm/evolution/grammar_config.hpp"
 #include "../subtree_utils.hpp"
 #include "../typed_expr_analysis.hpp"
 
@@ -53,29 +54,82 @@ RType donor_type_for_bucket(int bucket) {
   }
 }
 
+bool value_allowed_by_grammar(const Value& value, const GrammarConfig& grammar) {
+  switch (value.tag) {
+    case ValueTag::Int:
+      return grammar.value_int;
+    case ValueTag::Float:
+      return grammar.value_float;
+    case ValueTag::Bool:
+      return grammar.value_bool;
+    case ValueTag::None:
+      return grammar.value_none;
+    case ValueTag::String:
+      return grammar.value_string;
+    case ValueTag::NumList:
+      return grammar.value_num_list;
+    case ValueTag::StringList:
+      return grammar.value_string_list;
+    case ValueTag::FallbackToken:
+      return grammar.is_all_enabled();
+  }
+  return false;
+}
+
+bool subtree_allowed_by_grammar(const AstProgram& program,
+                                const typed_expr::TypedExprRoot& root,
+                                const GrammarConfig& grammar) {
+  if (!grammar.allows_type(root.type) || root.start >= root.stop || root.stop > program.nodes.size()) {
+    return false;
+  }
+  for (std::size_t i = root.start; i < root.stop; ++i) {
+    const AstNode& node = program.nodes[i];
+    if (!grammar.allows_node_kind(node.kind)) {
+      return false;
+    }
+    if (node.kind == NodeKind::CONST) {
+      if (node.i0 < 0 || static_cast<std::size_t>(node.i0) >= program.consts.size()) {
+        return false;
+      }
+      if (!value_allowed_by_grammar(program.consts[static_cast<std::size_t>(node.i0)], grammar)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
                                                    const std::vector<std::size_t>& subtree_end,
-                                                   int limit) {
+                                                   int limit,
+                                                   const GrammarConfig& grammar) {
   std::vector<CandidateRange> out;
   if (limit <= 0) {
     return out;
   }
   const std::vector<typed_expr::TypedExprRoot> expr_roots =
       typed_expr::collect_typed_expr_roots(genome.ast, subtree_end);
-  if (expr_roots.empty()) {
+  std::vector<typed_expr::TypedExprRoot> filtered_roots;
+  filtered_roots.reserve(expr_roots.size());
+  for (const typed_expr::TypedExprRoot& root : expr_roots) {
+    if (subtree_allowed_by_grammar(genome.ast, root, grammar)) {
+      filtered_roots.push_back(root);
+    }
+  }
+  if (filtered_roots.empty()) {
     out.push_back(CandidateRange{0, 0, static_cast<int>(CandidateTag::Expr), static_cast<int>(RType::Invalid)});
     return out;
   }
 
-  const int used = std::min<int>(static_cast<int>(expr_roots.size()), limit);
+  const int used = std::min<int>(static_cast<int>(filtered_roots.size()), limit);
   out.reserve(static_cast<std::size_t>(used));
-  const double step = static_cast<double>(expr_roots.size()) / static_cast<double>(used);
+  const double step = static_cast<double>(filtered_roots.size()) / static_cast<double>(used);
   for (int i = 0; i < used; ++i) {
     std::size_t pick = static_cast<std::size_t>(i * step);
-    if (pick >= expr_roots.size()) {
-      pick = expr_roots.size() - 1;
+    if (pick >= filtered_roots.size()) {
+      pick = filtered_roots.size() - 1;
     }
-    const typed_expr::TypedExprRoot& root = expr_roots[pick];
+    const typed_expr::TypedExprRoot& root = filtered_roots[pick];
     out.push_back(CandidateRange{static_cast<int>(root.start),
                                  static_cast<int>(root.stop),
                                  static_cast<int>(CandidateTag::Expr),
@@ -84,16 +138,19 @@ std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
   return out;
 }
 
-DonorProgram make_donor_program(std::uint64_t seed, RType type, const GpuReproConfig& config) {
+DonorProgram make_donor_program(std::uint64_t seed,
+                                RType type,
+                                const GpuReproConfig& config,
+                                const GrammarConfig& grammar) {
   DonorProgram out;
-  out.type = type;
+  out.type = grammar.allows_type(type) ? type : RType::Num;
   out.ast.version = "ast-prefix-v1";
   std::mt19937_64 rng(seed);
   const int donor_depth = std::max(1, std::min(config.max_nodes, config.max_donor_nodes) / 4);
-  out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, type, donor_depth);
+  out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, out.type, donor_depth, grammar);
   if (out.ast.nodes.empty()) {
     out.type = RType::Num;
-    out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, RType::Num, donor_depth);
+    out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, RType::Num, donor_depth, grammar);
   }
   return out;
 }
@@ -125,13 +182,16 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
 }
 
 PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& population,
-                                       const GpuReproConfig& config) {
+                                       const GpuReproConfig& config,
+                                       const GrammarConfig& grammar) {
+  grammar.validate();
   PreprocessOutput out;
   out.subtree_ends.resize(population.size());
   out.candidates.resize(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
     out.subtree_ends[i] = subtree::build_subtree_end(population[i].ast);
-    out.candidates[i] = sample_expr_candidates(population[i], out.subtree_ends[i], config.candidates_per_program);
+    out.candidates[i] = sample_expr_candidates(population[i], out.subtree_ends[i],
+                                               config.candidates_per_program, grammar);
   }
 
   out.donor_pool.reserve(
@@ -141,7 +201,7 @@ PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& populat
     for (int i = 0; i < config.donor_pool_size_per_type; ++i) {
       const std::uint64_t donor_seed = mix_seed(
           config.seed, static_cast<std::uint64_t>(bucket * config.donor_pool_size_per_type + i + 1));
-      out.donor_pool.push_back(make_donor_program(donor_seed, donor_type, config));
+      out.donor_pool.push_back(make_donor_program(donor_seed, donor_type, config, grammar));
     }
   }
   return out;
