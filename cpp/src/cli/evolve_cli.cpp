@@ -43,10 +43,10 @@ struct CliOptions {
   double mutation_rate = 0.5;
   double mutation_subtree_prob = 0.8;
   double penalty = 1.0;
-  int selection_pressure = 3;
+  int selection_pressure = 2;
   std::uint64_t seed = 0;
   int fuel = 20000;
-  int max_expr_depth = 5;
+  int max_expr_depth = 7;
   int max_stmts_per_block = 6;
   int max_total_nodes = 80;
   int max_for_k = 16;

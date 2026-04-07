@@ -26,7 +26,7 @@ class EvolutionConfig:
     mutation_rate: float = 0.5
     mutation_subtree_prob: float = 0.8
     penalty: float = 1.0
-    selection_pressure: int = 3
+    selection_pressure: int = 2
     seed: int = 0
     fuel: int = 20_000
     limits: Limits = Limits()

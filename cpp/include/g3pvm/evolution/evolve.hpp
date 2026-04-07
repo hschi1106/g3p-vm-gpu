@@ -36,7 +36,7 @@ struct EvolutionConfig {
   repro::ReproductionBackend reproduction_backend = repro::ReproductionBackend::Cpu;
   bool repro_overlap = false;
   int gpu_blocksize = 1024;
-  int selection_pressure = 3;
+  int selection_pressure = 2;
   std::uint64_t seed = 0;
   int fuel = 20000;
   Limits limits;

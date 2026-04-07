@@ -72,7 +72,7 @@ struct AstProgram {
 };
 
 struct Limits {
-  int max_expr_depth = 5;
+  int max_expr_depth = 7;
   int max_stmts_per_block = 6;
   int max_total_nodes = 80;
   int max_for_k = 16;

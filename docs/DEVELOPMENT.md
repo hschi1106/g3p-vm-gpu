@@ -67,7 +67,7 @@ Evolution args:
 - selected parent pairs always attempt `typed_subtree` crossover; mutation is applied afterward per child
 - `--mutation-rate F`: probability that a post-crossover child is mutated
 - `--mutation-subtree-prob F`: internal mutation operator mix; probability of typed-subtree mutation instead of constant perturbation
-- `--selection-pressure N`: tournament size for each round-based without-replacement pass; larger values increase selection pressure
+- `--selection-pressure N`: tournament size for each round-based without-replacement pass; larger values increase selection pressure; default is `2`
 - `--seed N`: RNG seed for deterministic replay
 
 Fitness args:
@@ -75,7 +75,7 @@ Fitness args:
 - `--fuel N`: per-program execution budget
 
 Genome-shape args:
-- `--max-expr-depth N`: maximum generated expression depth
+- `--max-expr-depth N`: maximum generated expression depth; default is `7`
 - `--max-stmts-per-block N`: maximum statements per block
 - `--max-total-nodes N`: maximum total AST nodes in one genome
 - `--max-for-k N`: maximum integer constant used when the random generator seeds `ForRange(x, e, ...)` bounds with `Const(K)`; it is a generator limit, not a general static bound on every loop expression

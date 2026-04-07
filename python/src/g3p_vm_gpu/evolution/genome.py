@@ -9,7 +9,7 @@ from ..runtime.compiler import BytecodeProgram, compile_program
 
 @dataclass(frozen=True)
 class Limits:
-    max_expr_depth: int = 5
+    max_expr_depth: int = 7
     max_stmts_per_block: int = 6
     max_total_nodes: int = 80
     max_for_k: int = 16
