@@ -45,7 +45,7 @@ Measure performance on the same fixed workload without closed-loop trajectory dr
   - `g3pvm_evolve_cli --generations 1 --population-json ... --skip-final-eval on --timing all --out-json ...`
 - Driver:
   - any wrapper is acceptable as long as it produces the same fixed populations, runs the same four modes, and aggregates results according to this section
-- Fixture: `data/fixtures/bouncing_balls_1024.json`
+- Fixture: `data/fixtures/simple_exp_1024.json`
 - Modes:
   - `cpu`
   - `gpu_eval`
@@ -173,14 +173,14 @@ Compare real evolution quality and efficiency under closed-loop runs without req
 ### Tasks
 
 - `data/fixtures/simple_exp_1024.json`
-- `data/fixtures/solve_boolean_1024.json`
-- `data/fixtures/middle_character_1024.json`
+- `data/fixtures/psb1/compare-string-lengths.train.json`
+- `data/fixtures/psb1/count-odds.train.json`
 
 ### Rationale
 
 - `simple_exp_1024`: numeric / non-binary task
-- `solve_boolean_1024`: binary / boolean task
-- `middle_character_1024`: string / payload task
+- `compare-string-lengths.train`: string / boolean task
+- `count-odds.train`: typed numeric-list task
 
 ### Sampling Plan
 

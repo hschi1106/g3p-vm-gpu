@@ -89,7 +89,7 @@
 - Recommended examples:
   ```bash
   ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
-  cpp/build/g3pvm_evolve_cli --cases data/fixtures/bouncing_balls_1024.json --engine gpu --repro-backend gpu --repro-overlap on --blocksize 1024 --population-size 64 --generations 2 --out-json logs/bouncing_balls_1024.run.json
+  cpp/build/g3pvm_evolve_cli --cases data/fixtures/simple_exp_1024.json --engine gpu --repro-backend gpu --repro-overlap on --blocksize 1024 --population-size 64 --generations 2 --out-json logs/simple_exp_1024.run.json
   ```
 
 ## Commit & Pull Request Guidelines

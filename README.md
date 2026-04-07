@@ -124,7 +124,7 @@ Use one prepared `population-seeds-v1` file and run one generation per mode:
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
+  --cases data/fixtures/simple_exp_1024.json \
   --population-json logs/fixed_population.seeds.json \
   --engine gpu \
   --repro-backend gpu \

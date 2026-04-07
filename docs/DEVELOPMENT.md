@@ -118,7 +118,7 @@ The supported fixed-population benchmark workflow is:
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
+  --cases data/fixtures/simple_exp_1024.json \
   --population-json logs/fixed_population.seeds.json \
   --engine gpu \
   --repro-backend gpu \
@@ -163,7 +163,7 @@ cpp/build/g3pvm_evolve_cli \
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
-  --cases data/fixtures/bouncing_balls_1024.json \
+  --cases data/fixtures/simple_exp_1024.json \
   --population-json logs/fixed_population.seeds.json \
   --engine gpu \
   --repro-backend gpu \
