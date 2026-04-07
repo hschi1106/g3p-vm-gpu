@@ -85,15 +85,17 @@ __global__ void evaluate_fitness_programs(
     for (int i = warp_base; i < warp_end; ++i) {
       warp_score = d_canonicalize_fitness_accumulator(warp_score + partial_scores[i]);
     }
-    partial_scores[warp_id] = warp_score;
+    // Store the warp reduction in its own warp's first slot. Writing to
+    // partial_scores[warp_id] races with warp 0 reading partial_scores[1..31].
+    partial_scores[warp_base] = warp_score;
   }
   __syncthreads();
 
   if (tid == 0) {
     double total_score = 0.0;
     const int warp_count = (static_cast<int>(blockDim.x) + 31) >> 5;
-    for (int i = 0; i < warp_count; ++i) {
-      total_score = d_canonicalize_fitness_accumulator(total_score + partial_scores[i]);
+    for (int warp = 0; warp < warp_count; ++warp) {
+      total_score = d_canonicalize_fitness_accumulator(total_score + partial_scores[warp << 5]);
     }
     fitness_out[prog_idx] = total_score;
   }

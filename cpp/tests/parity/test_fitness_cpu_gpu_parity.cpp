@@ -51,6 +51,13 @@ BytecodeProgram make_return_const_program(int v) {
   return p;
 }
 
+BytecodeProgram make_return_bool_program(bool v) {
+  BytecodeProgram p;
+  p.consts = {Value::from_bool(v)};
+  p.code = {ins_a(Opcode::PushConst, 0), ins(Opcode::Return)};
+  return p;
+}
+
 BytecodeProgram make_return_huge_int_program() {
   BytecodeProgram p;
   p.consts = {Value::from_int(4617273859665047847LL)};
@@ -154,6 +161,19 @@ BytecodeProgram make_exact_string_index_program(const Value& s, int idx) {
       ins_a(Opcode::PushConst, 0),
       ins_a(Opcode::PushConst, 1),
       ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
+      ins(Opcode::Return),
+  };
+  return p;
+}
+
+BytecodeProgram make_contains_string_const_program(const Value& needle) {
+  BytecodeProgram p;
+  p.n_locals = 1;
+  p.consts = {needle};
+  p.code = {
+      ins_a(Opcode::Load, 0),
+      ins_a(Opcode::PushConst, 0),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Contains), 2),
       ins(Opcode::Return),
   };
   return p;
@@ -305,6 +325,58 @@ int main() {
     }
     if (!approx(cpu_fit[2], -16.0 * penalty)) {
       std::cerr << "FAIL: runtime errors on binary cases should accumulate penalty\n";
+      return 1;
+    }
+  }
+
+  {
+    g3pvm::payload::clear();
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_return_bool_program(false));
+    programs.push_back(make_return_bool_program(true));
+    programs.push_back(make_contains_string_const_program(g3pvm::payload::make_string_value("a")));
+
+    std::vector<CaseBindings> shared_cases;
+    std::vector<Value> shared_answer;
+    shared_cases.reserve(64);
+    shared_answer.reserve(64);
+    for (int i = 0; i < 64; ++i) {
+      shared_cases.push_back(CaseBindings{InputBinding{
+          0, g3pvm::payload::make_string_value((i % 2 == 0) ? "a" : "b")}});
+      shared_answer.push_back(Value::from_bool(i % 2 == 0));
+    }
+
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, 1024);
+    const g3pvm::FitnessEvalResult gpu_fit =
+        eval_gpu_via_session(programs, shared_cases, shared_answer, 64, 1024, penalty);
+
+    if (!gpu_fit.ok) {
+      if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu fitness run failed on bool exact string cases: " << gpu_fit.err.message << "\n";
+      return 1;
+    }
+
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on bool exact string cases\n";
+      return 1;
+    }
+    for (std::size_t i = 0; i < cpu_fit.size(); ++i) {
+      if (!exact(cpu_fit[i], gpu_fit.fitness[i])) {
+        std::cerr << "FAIL: cpu/gpu fitness mismatch on bool exact string cases at " << i
+                  << " cpu=" << cpu_fit[i] << " gpu=" << gpu_fit.fitness[i] << "\n";
+        return 1;
+      }
+      if (gpu_fit.fitness[i] > static_cast<double>(shared_cases.size())) {
+        std::cerr << "FAIL: bool exact string fitness exceeded case count at " << i << "\n";
+        return 1;
+      }
+    }
+    if (!approx(cpu_fit[0], 32.0) || !approx(cpu_fit[1], 32.0) || !approx(cpu_fit[2], 64.0)) {
+      std::cerr << "FAIL: bool exact string fitness should be bounded by case count\n";
       return 1;
     }
   }
