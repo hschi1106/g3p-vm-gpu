@@ -17,6 +17,7 @@
 #include "g3pvm/evolution/repro/gpu.hpp"
 #include "g3pvm/evolution/selection.hpp"
 #include "g3pvm/runtime/cpu/fitness_cpu.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 #ifdef G3PVM_HAS_CUDA
 #include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 #endif
@@ -106,6 +107,73 @@ std::vector<Value> build_expected_values(const std::vector<EvalCase>& cases) {
     out.push_back(one_case.expected);
   }
   return out;
+}
+
+void append_payload_root_if_needed(const Value& value, std::vector<Value>* roots) {
+  if (roots == nullptr) {
+    return;
+  }
+  if (value.tag == ValueTag::String || value.tag == ValueTag::NumList || value.tag == ValueTag::StringList) {
+    roots->push_back(value);
+  }
+}
+
+void append_payload_roots_from_cases(const std::vector<EvalCase>& cases, std::vector<Value>* roots) {
+  if (roots == nullptr) {
+    return;
+  }
+  for (const EvalCase& one_case : cases) {
+    for (const auto& kv : one_case.inputs) {
+      append_payload_root_if_needed(kv.second, roots);
+    }
+    append_payload_root_if_needed(one_case.expected, roots);
+  }
+}
+
+void append_payload_roots_from_genome(const ProgramGenome& genome, std::vector<Value>* roots) {
+  if (roots == nullptr) {
+    return;
+  }
+  for (const Value& value : genome.ast.consts) {
+    append_payload_root_if_needed(value, roots);
+  }
+}
+
+void append_payload_roots_from_population(const std::vector<ProgramGenome>& population, std::vector<Value>* roots) {
+  if (roots == nullptr) {
+    return;
+  }
+  for (const ProgramGenome& genome : population) {
+    append_payload_roots_from_genome(genome, roots);
+  }
+}
+
+void append_payload_roots_from_scored(const std::vector<ScoredGenome>& scored, std::vector<Value>* roots) {
+  if (roots == nullptr) {
+    return;
+  }
+  for (const ScoredGenome& one : scored) {
+    append_payload_roots_from_genome(one.genome, roots);
+  }
+}
+
+std::vector<Value> build_live_payload_roots(const std::vector<Value>& case_payload_roots,
+                                            const std::vector<ProgramGenome>& population,
+                                            const std::vector<ScoredGenome>& history_best,
+                                            const ScoredGenome* best,
+                                            const std::vector<ScoredGenome>* final_population) {
+  std::vector<Value> roots;
+  roots.reserve(case_payload_roots.size() + population.size() * 8U + history_best.size() * 8U + 16U);
+  roots.insert(roots.end(), case_payload_roots.begin(), case_payload_roots.end());
+  append_payload_roots_from_population(population, &roots);
+  append_payload_roots_from_scored(history_best, &roots);
+  if (best != nullptr) {
+    append_payload_roots_from_genome(best->genome, &roots);
+  }
+  if (final_population != nullptr) {
+    append_payload_roots_from_scored(*final_population, &roots);
+  }
+  return roots;
 }
 
 struct CompileCache {
@@ -447,6 +515,8 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
   const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
   const std::vector<Value> expected_values = build_expected_values(cases);
+  std::vector<Value> case_payload_roots;
+  append_payload_roots_from_cases(cases, &case_payload_roots);
   const auto init_t0 = std::chrono::steady_clock::now();
   std::vector<ProgramGenome> population;
   if (initial_population == nullptr) {
@@ -505,6 +575,9 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
 #endif
   }
 
+  g3pvm::payload::retain_only(build_live_payload_roots(case_payload_roots, population, result.history_best,
+                                                       nullptr, nullptr));
+
   for (int gen = 0; gen < cfg.generations; ++gen) {
     const auto gen_t0 = std::chrono::steady_clock::now();
     const auto eval_t0 = std::chrono::steady_clock::now();
@@ -560,6 +633,8 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
     const auto repro_t1 = std::chrono::steady_clock::now();
 
     population = std::move(reproduction.next_population);
+    g3pvm::payload::retain_only(build_live_payload_roots(case_payload_roots, population, result.history_best,
+                                                         nullptr, nullptr));
     const auto gen_t1 = std::chrono::steady_clock::now();
 
     result.generations_selection_ms_total += reproduction.stats.selection_ms;
@@ -603,24 +678,50 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   if (cfg.skip_final_eval) {
     result.final_eval_skipped = true;
     result.final_eval_ms = 0.0;
+    const std::vector<ProgramGenome> empty_population;
+    g3pvm::payload::retain_only(build_live_payload_roots(case_payload_roots, empty_population, result.history_best,
+                                                         nullptr, nullptr));
   } else {
     const auto final_eval_t0 = std::chrono::steady_clock::now();
     if (cfg.eval_engine == EvalEngine::GPU) {
 #ifdef G3PVM_HAS_CUDA
-      result.final_population =
-          score_population_gpu(population, canonical_input_names, &gpu_session, &compile_cache, &result, false,
-                               nullptr, nullptr);
+      if (cfg.retain_final_population) {
+        result.final_population =
+            score_population_gpu(population, canonical_input_names, &gpu_session, nullptr, &result, false,
+                                 nullptr, nullptr);
+        result.best = result.final_population.front();
+      } else {
+        const std::vector<ScoredGenomeRef> final_scored =
+            score_population_gpu_refs(population, canonical_input_names, &gpu_session, nullptr, &result, false,
+                                      nullptr, nullptr, true);
+        result.final_population.clear();
+        result.best = materialize_scored_genome(final_scored.front());
+      }
 #else
       throw std::runtime_error("gpu evaluation requested but CUDA is unavailable in this build");
 #endif
     } else {
-      result.final_population = score_population_cpu(population, canonical_input_names, shared_case_bindings,
-                                                     expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
-                                                     &compile_cache, &result, false, nullptr, nullptr);
+      if (cfg.retain_final_population) {
+        result.final_population = score_population_cpu(population, canonical_input_names, shared_case_bindings,
+                                                       expected_values, cfg.fuel, cfg.penalty, cfg.gpu_blocksize,
+                                                       nullptr, &result, false, nullptr, nullptr);
+        result.best = result.final_population.front();
+      } else {
+        const std::vector<ScoredGenomeRef> final_scored =
+            score_population_cpu_refs(population, canonical_input_names, shared_case_bindings, expected_values,
+                                      cfg.fuel, cfg.penalty, cfg.gpu_blocksize, nullptr, &result, false,
+                                      nullptr, nullptr, true);
+        result.final_population.clear();
+        result.best = materialize_scored_genome(final_scored.front());
+      }
     }
     const auto final_eval_t1 = std::chrono::steady_clock::now();
-    result.best = result.final_population.front();
     result.final_eval_ms = std::chrono::duration<double, std::milli>(final_eval_t1 - final_eval_t0).count();
+    const std::vector<ProgramGenome> empty_population;
+    const std::vector<ProgramGenome>& retained_population = cfg.retain_final_population ? population : empty_population;
+    g3pvm::payload::retain_only(build_live_payload_roots(case_payload_roots, retained_population, result.history_best,
+                                                         &result.best,
+                                                         cfg.retain_final_population ? &result.final_population : nullptr));
   }
   result.total_ms =
       std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - all_t0).count();

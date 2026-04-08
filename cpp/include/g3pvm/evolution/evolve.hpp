@@ -42,6 +42,7 @@ struct EvolutionConfig {
   Limits limits;
   GrammarConfig grammar;
   bool skip_final_eval = false;
+  bool retain_final_population = true;
 };
 
 struct EvolutionResult {

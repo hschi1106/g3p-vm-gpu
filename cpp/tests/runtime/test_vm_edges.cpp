@@ -449,6 +449,46 @@ bool test_first_wave_sequence_builtins_payload_exact_ok() {
   return true;
 }
 
+bool test_payload_retain_only_keeps_live_closure() {
+  g3pvm::payload::clear();
+  const Value keep_a = g3pvm::payload::make_string_value("keep-a");
+  const Value keep_b = g3pvm::payload::make_string_value("keep-b");
+  const Value drop_s = g3pvm::payload::make_string_value("drop-s");
+  const Value keep_list = g3pvm::payload::make_string_list_value({keep_a, keep_b});
+  const Value drop_list = g3pvm::payload::make_num_list_value({Value::from_int(7), Value::from_int(9)});
+
+  g3pvm::payload::retain_only({keep_list});
+
+  std::string exact;
+  if (!check(g3pvm::payload::lookup_string(keep_a, &exact) && exact == "keep-a",
+             "retain_only should keep transitive string payloads")) {
+    return false;
+  }
+  if (!check(g3pvm::payload::lookup_string(keep_b, &exact) && exact == "keep-b",
+             "retain_only should keep all transitive string payloads")) {
+    return false;
+  }
+  if (!check(!g3pvm::payload::lookup_string(drop_s, &exact),
+             "retain_only should drop unreferenced string payloads")) {
+    return false;
+  }
+
+  std::vector<Value> elems;
+  if (!check(g3pvm::payload::lookup_list(keep_list, &elems) && elems.size() == 2,
+             "retain_only should keep live list payloads")) {
+    return false;
+  }
+  if (!check(!g3pvm::payload::lookup_list(drop_list, &elems),
+             "retain_only should drop unreferenced list payloads")) {
+    return false;
+  }
+
+  const g3pvm::payload::PayloadStats stats = g3pvm::payload::stats();
+  if (!check(stats.string_entries == 2, "retain_only stats string_entries mismatch")) return false;
+  if (!check(stats.list_entries == 1, "retain_only stats list_entries mismatch")) return false;
+  return true;
+}
+
 }  // namespace
 
 int main() {
@@ -475,6 +515,7 @@ int main() {
   if (!test_builtin_index_string_payload_exact_ok()) return 1;
   if (!test_builtin_index_list_payload_exact_ok()) return 1;
   if (!test_first_wave_sequence_builtins_payload_exact_ok()) return 1;
+  if (!test_payload_retain_only_keeps_live_closure()) return 1;
   std::cout << "g3pvm_test_vm_edges: OK\n";
   return 0;
 }

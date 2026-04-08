@@ -60,6 +60,7 @@ Core execution args:
 - `--population-json PATH`: load a fixed `population-seeds-v1` initial population instead of generating from `--seed`
 - `--grammar-config PATH`: load a `grammar-config-v1` JSON file that restricts evolution generation and reproduction donor synthesis
 - `--skip-final-eval {on|off}`: skip the post-loop final scoring pass; fixed-population timing runs should set this to `on`
+- `--retain-final-population {on|off}`: when `off`, keep only `result.best` after the final scoring pass instead of materializing the full final scored population; the native CLI default is `off`
 
 Evolution args:
 - `--population-size N`: individuals per generation

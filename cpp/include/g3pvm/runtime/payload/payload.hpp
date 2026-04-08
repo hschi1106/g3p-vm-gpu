@@ -8,6 +8,13 @@
 
 namespace g3pvm::payload {
 
+struct PayloadStats {
+  std::size_t string_entries = 0;
+  std::size_t list_entries = 0;
+  std::size_t string_bytes = 0;
+  std::size_t list_value_count = 0;
+};
+
 struct StringSnapshot {
   Value key = Value::none();
   std::string data;
@@ -19,6 +26,8 @@ struct ListSnapshot {
 };
 
 void clear();
+void retain_only(const std::vector<Value>& roots);
+PayloadStats stats();
 
 void register_string(const Value& key, const std::string& s);
 void register_list(const Value& key, const std::vector<Value>& elems);

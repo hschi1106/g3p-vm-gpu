@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <mutex>
 #include <stdexcept>
+#include <unordered_set>
 #include <unordered_map>
 #include <utility>
 
@@ -89,12 +90,79 @@ bool validate_string_list_elems(const std::vector<Value>& elems) {
   return true;
 }
 
+void mark_live_payload_locked(const Value& value,
+                              std::unordered_set<PayloadKey, PayloadKeyHash>* live_keys) {
+  if (live_keys == nullptr) {
+    return;
+  }
+  if (value.tag == ValueTag::String) {
+    live_keys->insert(key_of(value));
+    return;
+  }
+  if (value.tag != ValueTag::NumList && value.tag != ValueTag::StringList) {
+    return;
+  }
+
+  const PayloadKey key = key_of(value);
+  auto [it, inserted] = live_keys->insert(key);
+  (void)it;
+  if (!inserted) {
+    return;
+  }
+
+  auto list_it = g_lists.find(key);
+  if (list_it == g_lists.end()) {
+    return;
+  }
+  for (const Value& elem : list_it->second) {
+    mark_live_payload_locked(elem, live_keys);
+  }
+}
+
 }  // namespace
 
 void clear() {
   std::lock_guard<std::mutex> lock(g_mu);
   g_strings.clear();
   g_lists.clear();
+}
+
+void retain_only(const std::vector<Value>& roots) {
+  std::lock_guard<std::mutex> lock(g_mu);
+  std::unordered_set<PayloadKey, PayloadKeyHash> live_keys;
+  live_keys.reserve(roots.size() * 2U + 8U);
+  for (const Value& root : roots) {
+    mark_live_payload_locked(root, &live_keys);
+  }
+
+  for (auto it = g_strings.begin(); it != g_strings.end();) {
+    if (live_keys.find(it->first) == live_keys.end()) {
+      it = g_strings.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  for (auto it = g_lists.begin(); it != g_lists.end();) {
+    if (live_keys.find(it->first) == live_keys.end()) {
+      it = g_lists.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
+PayloadStats stats() {
+  std::lock_guard<std::mutex> lock(g_mu);
+  PayloadStats out;
+  out.string_entries = g_strings.size();
+  out.list_entries = g_lists.size();
+  for (const auto& kv : g_strings) {
+    out.string_bytes += kv.second.size();
+  }
+  for (const auto& kv : g_lists) {
+    out.list_value_count += kv.second.size();
+  }
+  return out;
 }
 
 void register_string(const Value& key, const std::string& s) {

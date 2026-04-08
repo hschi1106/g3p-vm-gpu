@@ -37,6 +37,7 @@ struct CliOptions {
   std::string repro_backend = "cpu";
   bool repro_overlap = false;
   bool skip_final_eval = false;
+  bool retain_final_population = false;
   int blocksize = 1024;
   int population_size = 64;
   int generations = 40;
@@ -456,6 +457,9 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.repro_overlap = parse_on_off(need_value("--repro-overlap"), "--repro-overlap");
     } else if (arg == "--skip-final-eval") {
       opts.skip_final_eval = parse_on_off(need_value("--skip-final-eval"), "--skip-final-eval");
+    } else if (arg == "--retain-final-population") {
+      opts.retain_final_population =
+          parse_on_off(need_value("--retain-final-population"), "--retain-final-population");
     } else if (arg == "--blocksize") {
       opts.blocksize = std::stoi(need_value("--blocksize"));
     } else if (arg == "--population-size") {
@@ -566,6 +570,7 @@ int main(int argc, char** argv) {
     cfg.seed = args.seed;
     cfg.fuel = args.fuel;
     cfg.skip_final_eval = args.skip_final_eval;
+    cfg.retain_final_population = args.retain_final_population;
     cfg.grammar = grammar_config;
 
     std::vector<g3pvm::evo::ProgramGenome> initial_population;
@@ -791,6 +796,7 @@ int main(int argc, char** argv) {
           << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend) << "\",\n";
       out << "    \"repro_overlap\": " << (cfg.repro_overlap ? "true" : "false") << ",\n";
       out << "    \"skip_final_eval\": " << (cfg.skip_final_eval ? "true" : "false") << ",\n";
+      out << "    \"retain_final_population\": " << (cfg.retain_final_population ? "true" : "false") << ",\n";
       out << "    \"gpu_blocksize\": " << cfg.gpu_blocksize << ",\n";
       out << "    \"seed\": " << cfg.seed << ",\n";
       out << "    \"timing\": {\n";

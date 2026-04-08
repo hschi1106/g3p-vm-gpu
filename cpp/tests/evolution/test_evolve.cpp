@@ -144,6 +144,29 @@ bool test_skip_final_eval() {
   return true;
 }
 
+bool test_retain_final_population_off_keeps_best_only() {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 12;
+  cfg.generations = 3;
+  cfg.seed = 777;
+  cfg.selection_pressure = 3;
+  cfg.retain_final_population = false;
+
+  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+  if (!check(!result.final_eval_skipped, "retain_final_population off should still run final eval")) {
+    return false;
+  }
+  if (!check(result.final_population.empty(),
+             "retain_final_population off should not materialize final_population")) {
+    return false;
+  }
+  if (!check(!result.best.genome.meta.program_key.empty(),
+             "retain_final_population off should still materialize result.best")) {
+    return false;
+  }
+  return true;
+}
+
 bool test_initial_population_override() {
   g3pvm::evo::EvolutionConfig cfg_a;
   cfg_a.population_size = 6;
@@ -353,6 +376,7 @@ int main() {
   if (!test_selection_pressure_variants()) return 1;
   if (!test_determinism_seed()) return 1;
   if (!test_skip_final_eval()) return 1;
+  if (!test_retain_final_population_off_keeps_best_only()) return 1;
   if (!test_initial_population_override()) return 1;
   if (!test_nonfinite_fitness_is_clamped_to_penalty()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;

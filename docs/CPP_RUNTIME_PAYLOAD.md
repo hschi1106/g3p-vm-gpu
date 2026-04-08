@@ -78,8 +78,11 @@ Use these when exact container behavior should be available later.
 - `lookup_string()`
 - `lookup_list()`
 - `clear()`
+- `retain_only()`
+- `stats()`
 
 `clear()` drops the registry contents without invalidating existing `Value` tokens. After that, the same `Value` may still exist, but exact payload lookup will fail.
+`retain_only()` keeps only the live payload-token closure reachable from a root value set; for list payloads this recursively keeps any referenced element payloads such as strings inside a `StringList`.
 
 ### Snapshot export
 
@@ -179,6 +182,7 @@ Common cases:
 - tests or helper code directly create `Value::from_string_hash_len()` / `Value::from_num_list_hash_len()` / `Value::from_string_list_hash_len()` without calling `payload::make_*()`
 - random constant generation creates container tokens directly
 - registry state was cleared with `payload::clear()`
+- registry state was pruned with `payload::retain_only()` and the token was not part of the retained live-root closure
 - GPU exact materialization exceeds bounded per-thread scratch and returns `FallbackToken`
 
 Because of this, callers must not assume every `String`, `NumList`, or `StringList` value has a recoverable payload behind it.

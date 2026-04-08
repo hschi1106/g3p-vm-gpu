@@ -86,11 +86,13 @@ Container builtins:
 ### Payload execution
 Container values use payload-backed execution.
 - CPU runtime keeps decoded `String`, `NumList`, and `StringList` payloads in a registry.
+- The CPU payload registry can be swept down to a live-root closure between generations so dead container payloads from discarded individuals do not accumulate indefinitely.
 - GPU runtime keeps a session-local host payload cache, lazily fills it by packed token from the process-global registry, and then builds compact per-eval payload packs for only the tokens needed by the current accepted population plus shared cases.
 - GPU payload evaluation always launches one production `Mixed` eval kernel across the full accepted population.
 - the finer `StringOnly` / `ListOnly` / `Mixed` flavor classifier is still kept for experiment tooling and offline bucketing studies
 - GPU exact payload operations use bounded per-thread scratch.
 - When exact payload materialization does not fit, GPU falls back to deterministic compact transport instead of aborting the full evaluation.
+- The native CLI defaults `retain_final_population` to `off`; the final scored population is not materialized unless explicitly requested, but `result.best` and history remain available.
 
 See also:
 - [CPP_RUNTIME_PAYLOAD.md](CPP_RUNTIME_PAYLOAD.md) for the C++ container token, payload registry, exact/fallback split, and collision tradeoffs.
