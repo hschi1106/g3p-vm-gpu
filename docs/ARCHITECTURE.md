@@ -35,6 +35,8 @@ These are the current 1.0 invariants.
 - Public fixture schema is `fitness-cases-v1`
 - Public runners do not expose heavyweight validate modes
 - CPU and GPU must preserve fitness parity for the same inputs and configuration
+- The CPU reproduction backend selects parent indices and streams children into `next_population`; it does not materialize extra full-population `selected_parents` or `offspring` copies
+- The evolution loop ranks the current population with lightweight scored references during each generation; it only materializes owned `ScoredGenome` values for public outputs such as history snapshots and final evaluated populations
 
 ## Runtime Model
 

@@ -94,6 +94,16 @@ const ProgramGenome& fallback_parent_for_child(const std::vector<ScoredGenome>& 
   return scored[static_cast<std::size_t>(selection.parent_b[static_cast<std::size_t>(pair_index)])].genome;
 }
 
+const ProgramGenome& fallback_parent_for_child(const std::vector<ScoredGenomeRef>& scored,
+                                               const GpuReproChildView& selection,
+                                               int child_index) {
+  const int pair_index = child_index / 2;
+  if ((child_index & 1) == 0) {
+    return *scored[static_cast<std::size_t>(selection.parent_a[static_cast<std::size_t>(pair_index)])].genome;
+  }
+  return *scored[static_cast<std::size_t>(selection.parent_b[static_cast<std::size_t>(pair_index)])].genome;
+}
+
 }  // namespace
 
 PackedHostData pack_population(const std::vector<ProgramGenome>& population,
@@ -184,6 +194,18 @@ std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packe
                                                      const GpuReproChildView& copyback,
                                                      const std::vector<ScoredGenome>& scored,
                                                      const EvolutionConfig& cfg) {
+  std::vector<ScoredGenomeRef> scored_refs;
+  scored_refs.reserve(scored.size());
+  for (const ScoredGenome& one : scored) {
+    scored_refs.push_back(ScoredGenomeRef{&one.genome, one.fitness});
+  }
+  return decode_gpu_repro_children(packed, copyback, scored_refs, cfg);
+}
+
+std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packed,
+                                                     const GpuReproChildView& copyback,
+                                                     const std::vector<ScoredGenomeRef>& scored,
+                                                     const EvolutionConfig& cfg) {
   std::vector<ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(cfg.population_size));
   const int total_children = std::min<int>(cfg.population_size,
@@ -201,7 +223,7 @@ std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packe
     out.push_back(std::move(next));
   }
   while (static_cast<int>(out.size()) < cfg.population_size) {
-    out.push_back(scored.front().genome);
+    out.push_back(*scored.front().genome);
   }
   return out;
 }

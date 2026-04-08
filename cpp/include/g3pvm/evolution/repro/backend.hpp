@@ -31,5 +31,8 @@ ReproductionBackend parse_reproduction_backend_name(const std::string& raw);
 ReproductionResult run_reproduction_backend(const std::vector<ScoredGenome>& scored,
                                             const EvolutionConfig& cfg,
                                             std::mt19937_64& rng);
+ReproductionResult run_reproduction_backend(const std::vector<ScoredGenomeRef>& scored,
+                                            const EvolutionConfig& cfg,
+                                            std::mt19937_64& rng);
 
 }  // namespace g3pvm::evo::repro

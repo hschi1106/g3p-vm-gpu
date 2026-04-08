@@ -26,8 +26,15 @@ ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenome
                                                   const EvolutionConfig& cfg,
                                                   const GpuReproPreparedData& prepared,
                                                   ReproductionStats* stats = nullptr);
+ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenomeRef>& scored,
+                                                  const EvolutionConfig& cfg,
+                                                  const GpuReproPreparedData& prepared,
+                                                  ReproductionStats* stats = nullptr);
 
 ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenome>& scored,
+                                         const EvolutionConfig& cfg,
+                                         std::mt19937_64& rng);
+ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenomeRef>& scored,
                                          const EvolutionConfig& cfg,
                                          std::mt19937_64& rng);
 

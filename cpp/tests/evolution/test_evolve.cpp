@@ -222,14 +222,14 @@ bool test_round_based_tournament_selection_without_replacement_repeats_winners()
   scored.push_back(ScoredGenome{make_dummy_genome("worst"), 1.0});
 
   std::mt19937_64 rng(123);
-  const std::vector<g3pvm::evo::ProgramGenome> selected =
-      g3pvm::evo::tournament_selection_without_replacement(scored, rng, 4, 4);
+  const std::vector<std::size_t> selected =
+      g3pvm::evo::tournament_selection_indices_without_replacement(scored, rng, 4, 4);
 
   if (!check(selected.size() == 4, "selection_count size mismatch")) {
     return false;
   }
-  for (const auto& genome : selected) {
-    if (!check(genome.meta.program_key == "best",
+  for (std::size_t winner_index : selected) {
+    if (!check(scored[winner_index].genome.meta.program_key == "best",
                "full-pressure round-based tournament should repeatedly select the best genome")) {
       return false;
     }
@@ -249,16 +249,16 @@ bool test_round_based_tournament_selection_without_replacement_visits_each_genom
   scored.push_back(ScoredGenome{make_dummy_genome("f"), 6.0});
 
   std::mt19937_64 rng(321);
-  const std::vector<g3pvm::evo::ProgramGenome> selected =
-      g3pvm::evo::tournament_selection_without_replacement(scored, rng, 1, 6);
+  const std::vector<std::size_t> selected =
+      g3pvm::evo::tournament_selection_indices_without_replacement(scored, rng, 1, 6);
   if (!check(selected.size() == 6, "selection_count mismatch at k=1")) {
     return false;
   }
 
   std::vector<std::string> keys;
   keys.reserve(selected.size());
-  for (const auto& genome : selected) {
-    keys.push_back(genome.meta.program_key);
+  for (std::size_t winner_index : selected) {
+    keys.push_back(scored[winner_index].genome.meta.program_key);
   }
   std::sort(keys.begin(), keys.end());
   const std::vector<std::string> expected = {"a", "b", "c", "d", "e", "f"};

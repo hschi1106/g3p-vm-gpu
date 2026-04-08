@@ -41,6 +41,24 @@ std::vector<double> extract_fitness(const std::vector<ScoredGenome>& scored) {
   return fitness;
 }
 
+std::vector<double> extract_fitness(const std::vector<ScoredGenomeRef>& scored) {
+  std::vector<double> fitness;
+  fitness.reserve(scored.size());
+  for (const ScoredGenomeRef& one : scored) {
+    fitness.push_back(canonicalize_fitness_for_ranking(one.fitness));
+  }
+  return fitness;
+}
+
+std::vector<ScoredGenomeRef> make_scored_refs(const std::vector<ScoredGenome>& scored) {
+  std::vector<ScoredGenomeRef> refs;
+  refs.reserve(scored.size());
+  for (const ScoredGenome& one : scored) {
+    refs.push_back(ScoredGenomeRef{&one.genome, one.fitness});
+  }
+  return refs;
+}
+
 }  // namespace
 
 GpuReproPreparedData prepare_gpu_repro_backend_inputs(const std::vector<ProgramGenome>& population,
@@ -78,6 +96,14 @@ GpuReproPreparedData prepare_gpu_repro_backend_inputs(const std::vector<ProgramG
 }
 
 ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenome>& scored,
+                                                  const EvolutionConfig& cfg,
+                                                  const GpuReproPreparedData& prepared,
+                                                  ReproductionStats* stats) {
+  const std::vector<ScoredGenomeRef> scored_refs = make_scored_refs(scored);
+  return run_gpu_repro_backend_prepared(scored_refs, cfg, prepared, stats);
+}
+
+ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenomeRef>& scored,
                                                   const EvolutionConfig& cfg,
                                                   const GpuReproPreparedData& prepared,
                                                   ReproductionStats* stats) {
@@ -127,6 +153,13 @@ ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenome
 ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenome>& scored,
                                          const EvolutionConfig& cfg,
                                          std::mt19937_64& rng) {
+  const std::vector<ScoredGenomeRef> scored_refs = make_scored_refs(scored);
+  return run_gpu_repro_backend(scored_refs, cfg, rng);
+}
+
+ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenomeRef>& scored,
+                                         const EvolutionConfig& cfg,
+                                         std::mt19937_64& rng) {
 #ifndef G3PVM_HAS_CUDA
   (void)scored;
   (void)cfg;
@@ -139,8 +172,8 @@ ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenome>& scored
 
   std::vector<ProgramGenome> population;
   population.reserve(scored.size());
-  for (const ScoredGenome& one : scored) {
-    population.push_back(one.genome);
+  for (const ScoredGenomeRef& one : scored) {
+    population.push_back(*one.genome);
   }
   ReproductionStats prep_stats;
   const GpuReproPreparedData prepared = prepare_gpu_repro_backend_inputs(population, cfg, rng(), &prep_stats);
