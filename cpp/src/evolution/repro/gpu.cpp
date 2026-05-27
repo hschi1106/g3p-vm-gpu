@@ -67,7 +67,8 @@ GpuReproPreparedData prepare_gpu_repro_backend_inputs(const std::vector<ProgramG
                                                       ReproductionStats* stats) {
   GpuReproPreparedData out;
   const auto prepare_t0 = std::chrono::steady_clock::now();
-  out.config = make_gpu_repro_config(population, cfg);
+  const std::vector<ProgramGenome> packed_population = compact_population_tables(population);
+  out.config = make_gpu_repro_config(packed_population, cfg);
   out.config.seed = seed;
   if (out.config.max_names > kGpuReproMaxNames || out.config.max_consts > kGpuReproMaxConsts ||
       out.config.max_nodes > kGpuReproKernelMaxNodes) {
@@ -80,14 +81,14 @@ GpuReproPreparedData prepare_gpu_repro_backend_inputs(const std::vector<ProgramG
   }
 
   const auto prep_t0 = std::chrono::steady_clock::now();
-  const PreprocessOutput prep = preprocess_population(population, out.config, cfg.grammar);
+  const PreprocessOutput prep = preprocess_population(packed_population, out.config, cfg.grammar);
   const auto prep_t1 = std::chrono::steady_clock::now();
   if (stats != nullptr) {
     stats->preprocess_ms += std::chrono::duration<double, std::milli>(prep_t1 - prep_t0).count();
   }
 
   const auto pack_t0 = std::chrono::steady_clock::now();
-  out.packed = pack_population(population, prep, out.config);
+  out.packed = pack_population(packed_population, prep, out.config);
   const auto pack_t1 = std::chrono::steady_clock::now();
   if (stats != nullptr) {
     stats->pack_ms += std::chrono::duration<double, std::milli>(pack_t1 - pack_t0).count();

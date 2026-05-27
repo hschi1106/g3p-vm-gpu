@@ -16,6 +16,9 @@ PackedHostData pack_population(const std::vector<ProgramGenome>& population,
                                const PreprocessOutput& prep,
                                const GpuReproConfig& config);
 
+ProgramGenome compact_genome_tables(const ProgramGenome& genome);
+std::vector<ProgramGenome> compact_population_tables(const std::vector<ProgramGenome>& population);
+
 std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packed,
                                                      const GpuReproChildView& copyback,
                                                      const std::vector<ScoredGenome>& scored,

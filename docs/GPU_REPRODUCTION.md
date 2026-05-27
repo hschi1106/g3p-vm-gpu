@@ -86,6 +86,7 @@ Source files:
 - [launch.cu](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/launch.cu)
 
 Packed host buffers are uploaded into a reusable device arena. The same arena is retained inside the process and grown only when capacity is insufficient.
+Before sizing and packing, GPU reproduction compacts each AST's name and constant tables to entries referenced by live nodes. Decoded children and fallback parents are compacted again before becoming the next population so stale table entries from prior crossover or mutation rounds cannot accumulate past fixed kernel scratch limits.
 
 This stage is reported as `repro_upload_ms`.
 

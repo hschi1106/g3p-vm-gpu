@@ -106,6 +106,70 @@ const ProgramGenome& fallback_parent_for_child(const std::vector<ScoredGenomeRef
 
 }  // namespace
 
+ProgramGenome compact_genome_tables(const ProgramGenome& genome) {
+  ProgramGenome out;
+  out.ast.version = genome.ast.version;
+  out.ast.nodes = genome.ast.nodes;
+
+  std::vector<int> name_map(genome.ast.names.size(), -1);
+  std::vector<int> const_map(genome.ast.consts.size(), -1);
+
+  auto map_name = [&](int old_index, int* new_index) -> bool {
+    if (old_index < 0 || static_cast<std::size_t>(old_index) >= genome.ast.names.size()) {
+      return false;
+    }
+    int& mapped = name_map[static_cast<std::size_t>(old_index)];
+    if (mapped < 0) {
+      mapped = static_cast<int>(out.ast.names.size());
+      out.ast.names.push_back(genome.ast.names[static_cast<std::size_t>(old_index)]);
+    }
+    *new_index = mapped;
+    return true;
+  };
+
+  auto map_const = [&](int old_index, int* new_index) -> bool {
+    if (old_index < 0 || static_cast<std::size_t>(old_index) >= genome.ast.consts.size()) {
+      return false;
+    }
+    int& mapped = const_map[static_cast<std::size_t>(old_index)];
+    if (mapped < 0) {
+      mapped = static_cast<int>(out.ast.consts.size());
+      out.ast.consts.push_back(genome.ast.consts[static_cast<std::size_t>(old_index)]);
+    }
+    *new_index = mapped;
+    return true;
+  };
+
+  for (AstNode& node : out.ast.nodes) {
+    if (node.kind == NodeKind::CONST) {
+      if (!map_const(node.i0, &node.i0)) {
+        ProgramGenome rebuilt = genome;
+        rebuilt.meta = build_genome_meta(rebuilt.ast);
+        return rebuilt;
+      }
+    } else if (node.kind == NodeKind::VAR || node.kind == NodeKind::ASSIGN ||
+               node.kind == NodeKind::FOR_RANGE) {
+      if (!map_name(node.i0, &node.i0)) {
+        ProgramGenome rebuilt = genome;
+        rebuilt.meta = build_genome_meta(rebuilt.ast);
+        return rebuilt;
+      }
+    }
+  }
+
+  out.meta = build_genome_meta(out.ast);
+  return out;
+}
+
+std::vector<ProgramGenome> compact_population_tables(const std::vector<ProgramGenome>& population) {
+  std::vector<ProgramGenome> out;
+  out.reserve(population.size());
+  for (const ProgramGenome& genome : population) {
+    out.push_back(compact_genome_tables(genome));
+  }
+  return out;
+}
+
 PackedHostData pack_population(const std::vector<ProgramGenome>& population,
                                const PreprocessOutput& prep,
                                const GpuReproConfig& config) {
@@ -220,10 +284,10 @@ std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packe
         next = fallback_parent_for_child(scored, copyback, child_index);
       }
     }
-    out.push_back(std::move(next));
+    out.push_back(compact_genome_tables(next));
   }
   while (static_cast<int>(out.size()) < cfg.population_size) {
-    out.push_back(*scored.front().genome);
+    out.push_back(compact_genome_tables(*scored.front().genome));
   }
   return out;
 }

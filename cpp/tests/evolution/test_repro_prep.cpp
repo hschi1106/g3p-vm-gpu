@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "g3pvm/evolution/compiler.hpp"
@@ -152,6 +153,68 @@ bool test_preprocess_respects_scalar_grammar_config() {
                "scalar gpu donor pool should not contain disabled sequence features")) {
       return false;
     }
+  }
+  return true;
+}
+
+g3pvm::evo::ProgramGenome make_bloated_const_table_genome() {
+  g3pvm::evo::AstProgram ast;
+  ast.version = "ast-prefix-v1";
+  ast.names = {"unused_name"};
+  ast.consts.reserve(static_cast<std::size_t>(160));
+  ast.consts.push_back(g3pvm::Value::from_int(7));
+  for (int i = 1; i < 160; ++i) {
+    ast.consts.push_back(g3pvm::Value::from_int(1000 + i));
+  }
+  ast.nodes = {
+      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::PROGRAM, 0, 0},
+      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::BLOCK_CONS, 0, 0},
+      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::RETURN, 0, 0},
+      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::CONST, 0, 0},
+      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::BLOCK_NIL, 0, 0},
+  };
+  g3pvm::evo::ProgramGenome genome;
+  genome.ast = std::move(ast);
+  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  return genome;
+}
+
+bool test_gpu_repro_compacts_dead_tables_before_pack() {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 2;
+  cfg.selection_pressure = 2;
+  cfg.seed = 42;
+  cfg.limits.max_expr_depth = 5;
+  cfg.limits.max_stmts_per_block = 6;
+  cfg.limits.max_total_nodes = 80;
+  cfg.limits.max_for_k = 16;
+  cfg.limits.max_call_args = 3;
+
+  std::vector<g3pvm::evo::ProgramGenome> population = {
+      make_bloated_const_table_genome(),
+      make_bloated_const_table_genome(),
+  };
+  if (!check(population.front().ast.consts.size() > g3pvm::evo::repro::kGpuReproMaxConsts,
+             "test setup should exceed gpu repro const scratch")) {
+    return false;
+  }
+
+  const g3pvm::evo::ProgramGenome compacted =
+      g3pvm::evo::repro::compact_genome_tables(population.front());
+  if (!check(compacted.ast.names.empty(), "compaction should remove unused names")) return false;
+  if (!check(compacted.ast.consts.size() == 1, "compaction should remove unused consts")) return false;
+  if (!check(compacted.ast.nodes[3].i0 == 0, "compaction should remap const node")) return false;
+
+  g3pvm::evo::repro::ReproductionStats stats;
+  const g3pvm::evo::repro::GpuReproPreparedData prepared =
+      g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &stats);
+  if (!check(prepared.config.max_consts <= g3pvm::evo::repro::kGpuReproMaxConsts,
+             "prepare should compact dead consts before scratch-capacity checks")) {
+    return false;
+  }
+  if (!check(prepared.config.max_names <= g3pvm::evo::repro::kGpuReproMaxNames,
+             "prepare should compact dead names before scratch-capacity checks")) {
+    return false;
   }
   return true;
 }
@@ -396,6 +459,7 @@ bool test_gpu_selection_preserves_round_based_tournament_invariants() {
 int main() {
   if (!test_preprocess_and_pack()) return 1;
   if (!test_preprocess_respects_scalar_grammar_config()) return 1;
+  if (!test_gpu_repro_compacts_dead_tables_before_pack()) return 1;
   if (!test_gpu_prepared_backend_smoke()) return 1;
   if (!test_gpu_prepared_backend_scalar_config_smoke()) return 1;
   if (!test_gpu_selection_preserves_round_based_tournament_invariants()) return 1;
