@@ -20,6 +20,13 @@ enum class ReproductionBackend {
   Gpu,
 };
 
+enum class CpuReproAblation {
+  None,
+  GpuSelection,
+  GpuCandidates,
+  GpuCoupledDonor,
+};
+
 struct ReproductionResult {
   std::vector<ProgramGenome> next_population;
   ReproductionStats stats;
@@ -27,6 +34,8 @@ struct ReproductionResult {
 
 std::string reproduction_backend_name(ReproductionBackend backend);
 ReproductionBackend parse_reproduction_backend_name(const std::string& raw);
+std::string cpu_repro_ablation_name(CpuReproAblation ablation);
+CpuReproAblation parse_cpu_repro_ablation_name(const std::string& raw);
 
 ReproductionResult run_reproduction_backend(const std::vector<ScoredGenome>& scored,
                                             const EvolutionConfig& cfg,

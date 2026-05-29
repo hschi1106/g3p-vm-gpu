@@ -2,6 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -229,6 +230,63 @@ bool test_nonfinite_fitness_is_clamped_to_penalty() {
   return true;
 }
 
+bool test_cpu_repro_ablation_modes_smoke_and_determinism() {
+  for (const auto ablation : {g3pvm::evo::repro::CpuReproAblation::GpuSelection,
+                              g3pvm::evo::repro::CpuReproAblation::GpuCandidates,
+                              g3pvm::evo::repro::CpuReproAblation::GpuCoupledDonor}) {
+    g3pvm::evo::EvolutionConfig cfg;
+    cfg.population_size = 16;
+    cfg.generations = 4;
+    cfg.seed = 2024;
+    cfg.selection_pressure = 3;
+    cfg.mutation_rate = 0.7;
+    cfg.mutation_subtree_prob = 0.6;
+    cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Cpu;
+    cfg.cpu_repro_ablation = ablation;
+    cfg.grammar = g3pvm::evo::GrammarConfig::scalar();
+
+    const auto a = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    const auto b = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    if (!check(static_cast<int>(a.history_best_fitness.size()) == cfg.generations,
+               "cpu repro ablation history_best_fitness length mismatch")) {
+      return false;
+    }
+    if (!check(static_cast<int>(a.history_mean_fitness.size()) == cfg.generations,
+               "cpu repro ablation history_mean_fitness length mismatch")) {
+      return false;
+    }
+    if (!check(static_cast<int>(a.final_population.size()) == cfg.population_size,
+               "cpu repro ablation final_population length mismatch")) {
+      return false;
+    }
+    if (!check(a.history_best_fitness == b.history_best_fitness,
+               "cpu repro ablation best history should be deterministic")) {
+      return false;
+    }
+    if (!check(a.history_mean_fitness == b.history_mean_fitness,
+               "cpu repro ablation mean history should be deterministic")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool test_cpu_repro_ablation_rejects_gpu_backend() {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 8;
+  cfg.generations = 2;
+  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.cpu_repro_ablation = g3pvm::evo::repro::CpuReproAblation::GpuSelection;
+
+  try {
+    (void)g3pvm::evo::evolve_population(simple_cases(), cfg);
+  } catch (const std::invalid_argument& err) {
+    return std::string(err.what()).find("cpu_repro_ablation") != std::string::npos;
+  }
+  std::cerr << "FAIL: cpu repro ablation should reject gpu reproduction backend\n";
+  return false;
+}
+
 g3pvm::evo::ProgramGenome make_dummy_genome(const std::string& key) {
   g3pvm::evo::ProgramGenome genome;
   genome.meta.program_key = key;
@@ -379,6 +437,8 @@ int main() {
   if (!test_retain_final_population_off_keeps_best_only()) return 1;
   if (!test_initial_population_override()) return 1;
   if (!test_nonfinite_fitness_is_clamped_to_penalty()) return 1;
+  if (!test_cpu_repro_ablation_modes_smoke_and_determinism()) return 1;
+  if (!test_cpu_repro_ablation_rejects_gpu_backend()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one()) return 1;
   if (!test_gpu_backend_smoke()) return 1;

@@ -53,6 +53,7 @@ Core execution args:
 - `--engine {cpu|gpu}`: evaluation backend
 - `--repro-backend {cpu|gpu}`: reproduction backend; `gpu` is the formal GPU reproduction path and does not promise CPU child identity
 - `--repro-overlap {on|off}`: when `--engine gpu --repro-backend gpu`, overlap reproduction input prep with GPU evaluation
+- `--cpu-repro-ablation {none|gpu_selection|gpu_candidates|gpu_coupled_donor}`: experimental CPU reproduction ablation flag for isolating GPU reproduction behaviors; valid only with `--repro-backend cpu`
 - `--blocksize N`: CUDA block size for GPU evaluation; current native CLI default is `1024`
 - `--out-json PATH`: write evolution history JSON
 - `--timing {none|summary|per_gen|all}`: timing verbosity from the native CLI

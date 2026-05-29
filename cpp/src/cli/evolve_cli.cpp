@@ -35,6 +35,7 @@ struct CliOptions {
   std::string grammar_config_path;
   std::string engine = "cpu";
   std::string repro_backend = "cpu";
+  std::string cpu_repro_ablation = "none";
   bool repro_overlap = false;
   bool skip_final_eval = false;
   bool retain_final_population = false;
@@ -453,6 +454,8 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.engine = need_value("--engine");
     } else if (arg == "--repro-backend") {
       opts.repro_backend = need_value("--repro-backend");
+    } else if (arg == "--cpu-repro-ablation") {
+      opts.cpu_repro_ablation = need_value("--cpu-repro-ablation");
     } else if (arg == "--repro-overlap") {
       opts.repro_overlap = parse_on_off(need_value("--repro-overlap"), "--repro-overlap");
     } else if (arg == "--skip-final-eval") {
@@ -507,6 +510,14 @@ CliOptions parse_cli(int argc, char** argv) {
   }
   if (opts.repro_backend != "cpu" && opts.repro_backend != "gpu") {
     throw std::runtime_error("--repro-backend must be cpu or gpu");
+  }
+  if (opts.cpu_repro_ablation != "none" && opts.cpu_repro_ablation != "gpu_selection" &&
+      opts.cpu_repro_ablation != "gpu_candidates" && opts.cpu_repro_ablation != "gpu_coupled_donor") {
+    throw std::runtime_error(
+        "--cpu-repro-ablation must be one of: none|gpu_selection|gpu_candidates|gpu_coupled_donor");
+  }
+  if (opts.repro_backend != "cpu" && opts.cpu_repro_ablation != "none") {
+    throw std::runtime_error("--cpu-repro-ablation requires --repro-backend cpu");
   }
   if (opts.blocksize <= 0) {
     throw std::runtime_error("--blocksize must be > 0");
@@ -564,6 +575,7 @@ int main(int argc, char** argv) {
     cfg.penalty = args.penalty;
     cfg.eval_engine = (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
     cfg.reproduction_backend = g3pvm::evo::repro::parse_reproduction_backend_name(args.repro_backend);
+    cfg.cpu_repro_ablation = g3pvm::evo::repro::parse_cpu_repro_ablation_name(args.cpu_repro_ablation);
     cfg.repro_overlap = args.repro_overlap;
     cfg.gpu_blocksize = args.blocksize;
     cfg.selection_pressure = args.selection_pressure;
@@ -645,6 +657,7 @@ int main(int argc, char** argv) {
                 << canonicalize_metric(last.best_fitness)
                 << " program_key=" << last.program_key
                 << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+                << " cpu_repro_ablation=" << g3pvm::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation)
                 << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
                 << " selection=" << selection_label
                 << " crossover=" << crossover_label << "\n";
@@ -652,6 +665,7 @@ int main(int argc, char** argv) {
       std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << canonicalize_metric(result.best.fitness)
                 << " program_key=" << result.best.genome.meta.program_key
                 << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+                << " cpu_repro_ablation=" << g3pvm::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation)
                 << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
                 << " selection=" << selection_label
                 << " crossover=" << crossover_label << "\n";
@@ -794,6 +808,8 @@ int main(int argc, char** argv) {
       out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
       out << "    \"reproduction_backend\": \""
           << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend) << "\",\n";
+      out << "    \"cpu_repro_ablation\": \""
+          << g3pvm::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation) << "\",\n";
       out << "    \"repro_overlap\": " << (cfg.repro_overlap ? "true" : "false") << ",\n";
       out << "    \"skip_final_eval\": " << (cfg.skip_final_eval ? "true" : "false") << ",\n";
       out << "    \"retain_final_population\": " << (cfg.retain_final_population ? "true" : "false") << ",\n";

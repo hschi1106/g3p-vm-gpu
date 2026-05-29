@@ -224,5 +224,8 @@ scripts/speedup_experiment.json
 # Local benchmark logs
 logs/
 
+# Local paper workspace
+paper/
+
 # Local C++ build artifacts
 cpp/build_release/

@@ -507,6 +507,10 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   if (cfg.generations <= 0) {
     throw std::invalid_argument("generations must be > 0");
   }
+  if (cfg.reproduction_backend != repro::ReproductionBackend::Cpu &&
+      cfg.cpu_repro_ablation != repro::CpuReproAblation::None) {
+    throw std::invalid_argument("cpu_repro_ablation requires cpu reproduction backend");
+  }
   cfg.grammar.validate();
 
   const auto all_t0 = std::chrono::steady_clock::now();
