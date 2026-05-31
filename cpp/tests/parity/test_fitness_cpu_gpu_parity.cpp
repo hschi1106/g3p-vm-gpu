@@ -179,6 +179,27 @@ BytecodeProgram make_contains_string_const_program(const Value& needle) {
   return p;
 }
 
+BytecodeProgram make_repeated_list_append_len_program() {
+  BytecodeProgram p;
+  p.consts = {
+      g3pvm::payload::make_num_list_value({
+          Value::from_int(1),
+          Value::from_int(2),
+          Value::from_int(3),
+          Value::from_int(4),
+      }),
+      Value::from_int(0),
+  };
+  for (int i = 0; i < 40; ++i) {
+    p.code.push_back(ins_a(Opcode::PushConst, 0));
+    p.code.push_back(ins_a(Opcode::PushConst, 1));
+    p.code.push_back(ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Append), 2));
+    p.code.push_back(ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Len), 1));
+  }
+  p.code.push_back(ins(Opcode::Return));
+  return p;
+}
+
 bool approx(double a, double b) {
   return std::fabs(a - b) <= 1e-9;
 }
@@ -535,6 +556,44 @@ int main() {
     }
     if (!approx(cpu_fit[0], 1.0 * static_cast<double>(shared_cases.size()))) {
       std::cerr << "FAIL: late payload exact string index should score exact-match fitness\n";
+      return 1;
+    }
+  }
+
+  {
+    g3pvm::payload::clear();
+    std::vector<BytecodeProgram> programs;
+    programs.push_back(make_repeated_list_append_len_program());
+
+    std::vector<CaseBindings> shared_cases(1);
+    std::vector<Value> shared_answer(1, Value::from_int(5));
+
+    const std::vector<double> cpu_fit =
+        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 512, penalty, kParityBlocksize);
+    const g3pvm::FitnessEvalResult gpu_fit =
+        eval_gpu_via_session(programs, shared_cases, shared_answer, 512, kParityBlocksize, penalty);
+
+    if (!gpu_fit.ok) {
+      if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
+        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        return 0;
+      }
+      std::cerr << "FAIL: gpu fitness run failed on repeated append-len case: "
+                << gpu_fit.err.message << "\n";
+      return 1;
+    }
+    if (cpu_fit.size() != gpu_fit.fitness.size()) {
+      std::cerr << "FAIL: cpu/gpu fitness size mismatch on repeated append-len case\n";
+      return 1;
+    }
+    if (!approx(cpu_fit[0], 0.0)) {
+      std::cerr << "FAIL: CPU repeated append-len should preserve host typed-list length semantics"
+                << " cpu=" << cpu_fit[0] << "\n";
+      return 1;
+    }
+    if (!approx(gpu_fit.fitness[0], -penalty)) {
+      std::cerr << "FAIL: GPU repeated append-len should take bounded-overflow fallback path"
+                << " cpu=" << cpu_fit[0] << " gpu=" << gpu_fit.fitness[0] << "\n";
       return 1;
     }
   }

@@ -136,16 +136,16 @@ The current production GPU fitness path always launches a single `Mixed` eval ke
 
 The finer `StringOnly` / `ListOnly` labels are kept for experiment tooling and offline bucket studies rather than the production eval dispatch tree.
 
-Exact string/typed-list builtins still use bounded per-thread scratch and still fall back to compact transport when exact materialization does not fit.
+Exact string/typed-list builtins still use bounded per-thread scratch. When an exact output payload will not fit in GPU per-thread scratch, GPU `concat`, `slice`, `append`, and `reverse` use the fallback path instead of returning a typed container token without recoverable payload. CPU may still materialize larger host payloads, so CPU/GPU parity is guaranteed for payload programs only while GPU exact materialization stays within device limits.
 
 Operationally, this means production GPU eval no longer maintains a runtime dispatch split between payload-free and payload-bearing programs. Timing and benchmark analysis should treat `gpu_eval_kernel_ms` as one kernel family rather than reconstructing legacy `None` / `Mixed` launch buckets.
 
 ## Exact Path vs Fallback Path
 
-Container builtins in the CPU and GPU runtimes follow the same high-level policy:
+Container builtins in the CPU and GPU runtimes follow the same high-level policy while exact materialization is available:
 
 1. try exact payload lookup
-2. if lookup or exact materialization is not available, return an opaque fallback result
+2. if exact input lookup or exact output materialization is unavailable, return an opaque fallback result
 
 Exact path:
 
@@ -171,7 +171,8 @@ This fallback is deterministic and parity-friendly, but not fully semantics-pres
 The design target is:
 
 - exact CPU/GPU parity when both sides have exact payload access
-- deterministic fallback parity when exact payload access or materialization is unavailable
+- deterministic GPU fallback when exact payload access or materialization is unavailable
+- CPU/GPU parity is not required for payloads that exceed bounded GPU materialization capacity; this is treated as backend-specific overflow behavior.
 
 ## When Exact Payload Can Be Missing
 
@@ -183,7 +184,7 @@ Common cases:
 - random constant generation creates container tokens directly
 - registry state was cleared with `payload::clear()`
 - registry state was pruned with `payload::retain_only()` and the token was not part of the retained live-root closure
-- GPU exact materialization exceeds bounded per-thread scratch and returns `FallbackToken`
+- GPU exact output materialization exceeds bounded per-thread scratch
 
 Because of this, callers must not assume every `String`, `NumList`, or `StringList` value has a recoverable payload behind it.
 

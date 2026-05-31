@@ -34,7 +34,8 @@ These are the current 1.0 invariants.
 - Evolution grammar configs are search-space controls only; runtime/VM execution remains the all-enabled public grammar superset
 - Public fixture schema is `fitness-cases-v1`
 - Public runners do not expose heavyweight validate modes
-- CPU and GPU must preserve fitness parity for the same inputs and configuration
+- CPU and GPU must preserve fitness parity for the same inputs and configuration while exact GPU payload materialization stays within bounded device limits; payload overflow is backend-specific and may diverge.
+- Generated initial populations are expected-output-aware for payload return types: when all fixture cases have the same `String`, `NumList`, or `StringList` expected output type and the active grammar allows that type, the native generator forces the top-level return type for generation 0. Other expected output types, mixed expected output types, unsupported expected values, disabled grammar types, and fixed `population-seeds-v1` replay use the generic generation/replay path.
 - The CPU reproduction backend selects parent indices and streams children into `next_population`; it does not materialize extra full-population `selected_parents` or `offspring` copies
 - The evolution loop ranks the current population with lightweight scored references during each generation; it only materializes owned `ScoredGenome` values for public outputs such as history snapshots and final evaluated populations
 
@@ -91,7 +92,7 @@ Container values use payload-backed execution.
 - GPU payload evaluation always launches one production `Mixed` eval kernel across the full accepted population.
 - the finer `StringOnly` / `ListOnly` / `Mixed` flavor classifier is still kept for experiment tooling and offline bucketing studies
 - GPU exact payload operations use bounded per-thread scratch.
-- When exact payload materialization does not fit, GPU falls back to deterministic compact transport instead of aborting the full evaluation.
+- When exact output materialization does not fit, GPU transform builtins return deterministic fallback transport instead of aborting the full evaluation. CPU may still materialize larger host payloads, so CPU/GPU parity is guaranteed only within GPU payload limits.
 - The native CLI defaults `retain_final_population` to `off`; the final scored population is not materialized unless explicitly requested, but `result.best` and history remain available.
 
 See also:

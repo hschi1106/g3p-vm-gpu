@@ -63,6 +63,8 @@ Core execution args:
 - `--skip-final-eval {on|off}`: skip the post-loop final scoring pass; fixed-population timing runs should set this to `on`
 - `--retain-final-population {on|off}`: when `off`, keep only `result.best` after the final scoring pass instead of materializing the full final scored population; the native CLI default is `off`
 
+When `--population-json` is not supplied, native evolution infers a homogeneous expected output type from the loaded `fitness-cases-v1` cases. Generation 0 is seeded with that return type only for payload return types (`String`, `NumList`, and `StringList`) when the active grammar allows the inferred type. Other expected output types, mixed or unsupported expected output types, and grammar configs that disable the inferred payload type use generic random generation. A fixed `--population-json` file bypasses this inference and is replayed exactly.
+
 Evolution args:
 - `--population-size N`: individuals per generation
 - `--generations N`: number of generations to run

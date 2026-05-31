@@ -698,7 +698,9 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
                                                      const GrammarConfig& grammar) {
   grammar.validate();
   std::mt19937_64 rng(seed);
-  for (int i = 0; i < 128; ++i) {
+  const int typed_depth = std::max(0, std::min(limits.max_expr_depth, 4));
+  const int typed_max_stmts = std::max(1, std::min(limits.max_stmts_per_block, 3));
+  for (int i = 0; i < 16; ++i) {
     AstProgram program;
     program.version = "ast-prefix-v1";
     program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
@@ -707,15 +709,15 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
     emit_random_block(rng,
                       program,
                       ctx,
-                      limits.max_expr_depth,
+                      typed_depth,
                       limits,
                       true,
                       grammar,
-                      -1,
+                      typed_max_stmts,
                       false,
                       return_type);
     ProgramGenome genome = as_genome_prefix(program);
-    if (genome.meta.node_count <= limits.max_total_nodes && genome.meta.max_depth <= limits.max_expr_depth) {
+    if (genome.meta.node_count <= limits.max_total_nodes) {
       return genome;
     }
   }

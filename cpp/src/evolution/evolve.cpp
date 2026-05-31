@@ -44,6 +44,40 @@ RType merge_input_rtype(RType a, RType b) {
   return RType::Any;
 }
 
+RType infer_expected_rtype(const Value& value) {
+  if (value.tag == ValueTag::Int || value.tag == ValueTag::Float) return RType::Num;
+  if (value.tag == ValueTag::Bool) return RType::Bool;
+  if (value.tag == ValueTag::None) return RType::NoneType;
+  if (value.tag == ValueTag::String) return RType::String;
+  if (value.tag == ValueTag::NumList) return RType::NumList;
+  if (value.tag == ValueTag::StringList) return RType::StringList;
+  return RType::Invalid;
+}
+
+RType infer_expected_return_rtype(const std::vector<EvalCase>& cases) {
+  RType inferred = RType::Invalid;
+  bool seen = false;
+  for (const EvalCase& one_case : cases) {
+    const RType case_type = infer_expected_rtype(one_case.expected);
+    if (case_type == RType::Invalid) {
+      return RType::Invalid;
+    }
+    if (!seen) {
+      inferred = case_type;
+      seen = true;
+      continue;
+    }
+    if (inferred != case_type) {
+      return RType::Invalid;
+    }
+  }
+  return seen ? inferred : RType::Invalid;
+}
+
+bool should_seed_for_expected_return_type(RType type) {
+  return type == RType::String || type == RType::NumList || type == RType::StringList;
+}
+
 std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& cases) {
   const std::vector<std::string> input_names = build_canonical_input_names(cases);
   std::vector<InputSpec> specs;
@@ -63,11 +97,20 @@ std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& 
 }
 
 std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg,
-                                           const std::vector<InputSpec>& input_specs) {
+                                           const std::vector<InputSpec>& input_specs,
+                                           RType expected_return_type) {
   std::vector<ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(cfg.population_size));
+  const bool use_expected_return_type =
+      should_seed_for_expected_return_type(expected_return_type) && cfg.grammar.allows_type(expected_return_type);
   for (int i = 0; i < cfg.population_size; ++i) {
-    out.push_back(generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits, input_specs, cfg.grammar));
+    const std::uint64_t seed = cfg.seed + static_cast<std::uint64_t>(i);
+    if (use_expected_return_type) {
+      out.push_back(generate_random_genome_for_return_type(
+          seed, expected_return_type, cfg.limits, input_specs, cfg.grammar));
+    } else {
+      out.push_back(generate_random_genome(seed, cfg.limits, input_specs, cfg.grammar));
+    }
   }
   return out;
 }
@@ -519,12 +562,13 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
   const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
   const std::vector<Value> expected_values = build_expected_values(cases);
+  const RType expected_return_type = infer_expected_return_rtype(cases);
   std::vector<Value> case_payload_roots;
   append_payload_roots_from_cases(cases, &case_payload_roots);
   const auto init_t0 = std::chrono::steady_clock::now();
   std::vector<ProgramGenome> population;
   if (initial_population == nullptr) {
-    population = init_population(cfg, canonical_input_specs);
+    population = init_population(cfg, canonical_input_specs, expected_return_type);
   } else {
     population = *initial_population;
   }

@@ -9,6 +9,7 @@
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/selection.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 
 namespace {
 
@@ -52,6 +53,64 @@ std::vector<g3pvm::evo::EvalCase> simple_cases() {
       EvalCase{{{"x", Value::from_int(-1)}, {"y", Value::from_int(4)}}, Value::from_int(3)},
       EvalCase{{{"x", Value::from_int(3)}, {"y", Value::from_int(-2)}}, Value::from_int(1)},
   };
+}
+
+g3pvm::evo::GrammarConfig const_return_grammar() {
+  g3pvm::evo::GrammarConfig grammar = g3pvm::evo::GrammarConfig::all_enabled();
+  grammar.statement_assign = false;
+  grammar.statement_if_stmt = false;
+  grammar.statement_for_range = false;
+  grammar.expression_var = false;
+  grammar.expression_if_expr = false;
+  grammar.unary_neg = false;
+  grammar.unary_not = false;
+  grammar.binary_add = false;
+  grammar.binary_sub = false;
+  grammar.binary_mul = false;
+  grammar.binary_div = false;
+  grammar.binary_mod = false;
+  grammar.binary_lt = false;
+  grammar.binary_le = false;
+  grammar.binary_gt = false;
+  grammar.binary_ge = false;
+  grammar.binary_eq = false;
+  grammar.binary_ne = false;
+  grammar.binary_and = false;
+  grammar.binary_or = false;
+  grammar.builtin_abs = false;
+  grammar.builtin_min = false;
+  grammar.builtin_max = false;
+  grammar.builtin_clip = false;
+  grammar.builtin_len = false;
+  grammar.builtin_concat = false;
+  grammar.builtin_slice = false;
+  grammar.builtin_index = false;
+  grammar.builtin_append = false;
+  grammar.builtin_reverse = false;
+  grammar.builtin_find = false;
+  grammar.builtin_contains = false;
+  return grammar;
+}
+
+bool expected_type_seed_case_has_no_type_penalty(const g3pvm::Value& expected,
+                                                 const std::string& label) {
+  g3pvm::evo::EvolutionConfig cfg;
+  cfg.population_size = 8;
+  cfg.generations = 1;
+  cfg.seed = 555;
+  cfg.selection_pressure = 1;
+  cfg.skip_final_eval = true;
+  cfg.grammar = const_return_grammar();
+
+  const auto result = g3pvm::evo::evolve_population({g3pvm::evo::EvalCase{{}, expected}}, cfg);
+  if (!check(result.history_mean_fitness.size() == 1, label + " history_mean_fitness length mismatch")) {
+    return false;
+  }
+  if (!check(result.history_mean_fitness[0] >= 0.0,
+             label + " initial population should avoid return-type penalties")) {
+    return false;
+  }
+  return true;
 }
 
 bool run_one(int selection_pressure) {
@@ -197,6 +256,24 @@ bool test_initial_population_override() {
   }
   if (!check(a.history_best_fitness[0] == b.history_best_fitness[0],
              "initial_population should preserve generation-0 fitness")) {
+    return false;
+  }
+  return true;
+}
+
+bool test_generated_initial_population_uses_expected_return_type() {
+  using g3pvm::Value;
+  if (!expected_type_seed_case_has_no_type_penalty(
+          g3pvm::payload::make_string_value("target"), "string expected")) {
+    return false;
+  }
+  if (!expected_type_seed_case_has_no_type_penalty(
+          g3pvm::payload::make_num_list_value({Value::from_int(42)}), "num list expected")) {
+    return false;
+  }
+  if (!expected_type_seed_case_has_no_type_penalty(
+          g3pvm::payload::make_string_list_value({g3pvm::payload::make_string_value("x")}),
+          "string list expected")) {
     return false;
   }
   return true;
@@ -436,6 +513,7 @@ int main() {
   if (!test_skip_final_eval()) return 1;
   if (!test_retain_final_population_off_keeps_best_only()) return 1;
   if (!test_initial_population_override()) return 1;
+  if (!test_generated_initial_population_uses_expected_return_type()) return 1;
   if (!test_nonfinite_fitness_is_clamped_to_penalty()) return 1;
   if (!test_cpu_repro_ablation_modes_smoke_and_determinism()) return 1;
   if (!test_cpu_repro_ablation_rejects_gpu_backend()) return 1;

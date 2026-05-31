@@ -14,6 +14,8 @@ Grammar config affects:
 - C++ GPU reproduction candidate filtering and mutation donor pool generation
 - native seed-population replay when replay regenerates genomes from seeds
 
+For generated native initial populations, the evolution loop first infers the homogeneous expected output type from `fitness-cases-v1`. For payload return types (`String`, `NumList`, and `StringList`), it asks random genome generation for that return type when the active grammar allows it. Other inferred types, mixed expected output types, unsupported expected values, or grammar configs that disable the inferred payload type use the normal generic random-generation path.
+
 Grammar config does not affect:
 
 - execution of already-materialized AST programs
