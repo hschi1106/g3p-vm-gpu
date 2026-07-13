@@ -10,7 +10,7 @@ Prefix-AST genetic programming system with:
 The current public contract is:
 - program representation: prefix `AstProgram`
 - control flow grammar: `ForRange(x, e, body)` with evaluate-once non-negative integer bounds
-- fixture schema: `fitness-cases-v1`
+- fixture schema: `fitness-cases`
 - crossover: `typed_subtree`
 - reproduction order: selected parent pairs always attempt `typed_subtree` crossover before child-level mutation
 - default reproduction backend: `cpu`
@@ -19,7 +19,7 @@ The current public contract is:
 - fitness:
   - numeric expected + numeric actual => `-abs(actual - expected)`
   - numeric expected + non-numeric actual => `-penalty`
-  - `Bool` / `None` / `String` / `NumList` / `StringList` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
+  - `Bool` / `Char` / `String` / `IntList` / `FloatList` / `StringList` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
   - runtime error => `-penalty`
 
 ## Document Map
@@ -27,12 +27,17 @@ The current public contract is:
 Use the documents below as the source of truth.
 
 ### Specs
-- [grammar_v1_0.md](spec/grammar_v1_0.md): language grammar, typing rules, control flow, evaluation order
-- [bytecode_isa_v1_0.md](spec/bytecode_isa_v1_0.md): bytecode execution contract
-- [bytecode_format_v1_0.md](spec/bytecode_format_v1_0.md): internal JSON harness format used by bytecode parity tooling
-- [builtins_base_v1_0.md](spec/builtins_base_v1_0.md): scalar builtins
-- [builtins_runtime_v1_0.md](spec/builtins_runtime_v1_0.md): container builtins and payload behavior
-- [fitness_v1_0.md](spec/fitness_v1_0.md): scoring rules and solved criteria
+- [grammar.md](spec/grammar.md): current language grammar, typing rules, control flow, evaluation order
+- [bytecode_isa.md](spec/bytecode_isa.md): current bytecode execution contract
+- [bytecode_format.md](spec/bytecode_format.md): current JSON value and bytecode harness format
+- [builtins_base.md](spec/builtins_base.md): current scalar and char builtins
+- [builtins_runtime.md](spec/builtins_runtime.md): current container builtins and payload behavior
+- [fitness.md](spec/fitness.md): current scoring rules and solved criteria
+- [fitness_cases.md](spec/fitness_cases.md): current fixture schema
+- [grammar_config.md](spec/grammar_config.md): current search-space config contract
+
+Historical spec files are intentionally not kept in-tree after the breaking
+refactor. The current release details are recorded only in [VERSION.md](VERSION.md).
 
 ### Docs
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md): system structure, module map, invariants
@@ -120,7 +125,7 @@ CPU and GPU reproduction both respect non-default grammar configs. GPU reproduct
 
 ### Run one fixed-population benchmark
 
-Use one prepared `population-seeds-v1` file and run one generation per mode:
+Use one prepared `population-seeds` file and run one generation per mode:
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
@@ -136,14 +141,15 @@ cpp/build/g3pvm_evolve_cli \
   --out-json logs/fixed_population.run.json
 ```
 
-For fair comparisons, reuse the same `population-seeds-v1` input across `cpu`, `gpu_eval`,
+For fair comparisons, reuse the same `population-seeds` input across `cpu`, `gpu_eval`,
 `gpu_repro`, and `gpu_repro_overlap` runs, then compare generation-0 timing fields.
 
-### Convert PSB1/PSB2 tasks into `fitness-cases-v1`
+### Convert PSB1/PSB2 tasks into fitness cases
 
 ```bash
 python3 tools/convert_psb_to_fitness_cases.py \
   --suite psb1 \
+  --format-version fitness-cases \
   --problem count-odds \
   --datasets-root data/psb1_datasets \
   --out data/fixtures/psb1/count-odds.train.json \
@@ -153,12 +159,15 @@ python3 tools/convert_psb_to_fitness_cases.py \
 ```bash
 python3 tools/convert_psb_to_fitness_cases.py \
   --suite psb2 \
+  --format-version fitness-cases \
   --problem bouncing-balls \
   --datasets-root data/psb2_datasets \
   --out logs/psb2/bouncing-balls.train.json
 ```
 
-The converters emit typed sequence values as `num_list` or `string_list` so empty list fields remain unambiguous.
+The converters emit `fitness-cases` direct-list values by default in current
+workflows. Use `--format-version fitness-cases` only for baseline
+compatibility runs.
 Multi-output PSB rows are rejected until runtime-level multi-output support is added; they are not encoded as fake list outputs.
 
 ### Fetch PSB1 datasets
@@ -179,8 +188,8 @@ G3PVM_CUDA_DEVICE=0
 ## Change Discipline
 
 If you change code, update the matching documents in the same change:
-- language or AST semantics => `spec/grammar_v1_0.md`, `spec/bytecode_isa_v1_0.md`, `docs/ARCHITECTURE.md`
-- builtin or payload semantics => `spec/builtins_base_v1_0.md` or `spec/builtins_runtime_v1_0.md`, plus `docs/ARCHITECTURE.md`
-- fitness semantics or adjustable scoring args => `spec/fitness_v1_0.md`, `docs/DEVELOPMENT.md`, `README.md`
+- language or AST semantics => `spec/grammar.md`, `spec/bytecode_isa.md`, `docs/ARCHITECTURE.md`
+- builtin or payload semantics => `spec/builtins_base.md` or `spec/builtins_runtime.md`, plus `docs/ARCHITECTURE.md`
+- fitness semantics or adjustable scoring args => `spec/fitness.md`, `docs/DEVELOPMENT.md`, `README.md`
 - public CLI/tool args => `docs/DEVELOPMENT.md`, `README.md` if it changes the main workflow
 - repo structure or module ownership => `docs/ARCHITECTURE.md`, `docs/FILE_STRUCTURE.md`, repo skill references

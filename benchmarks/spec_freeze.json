@@ -1,0 +1,44 @@
+{
+  "authoritative_entrypoint": "spec/grammar.md",
+  "format_version": "spec-freeze",
+  "generated_at": "2026-07-13",
+  "notes": [
+    "This manifest records the current normative spec set used by the breaking grammar refactor.",
+    "The hash gate is intentionally mechanical: if a listed spec changes, update this manifest in the same semantic change."
+  ],
+  "specs": [
+    {
+      "path": "spec/grammar.md",
+      "sha256": "f4d3bed1c799231a4144ab85020e7c19d6323221e6b750dcefc01db83aa70bb9"
+    },
+    {
+      "path": "spec/bytecode_isa.md",
+      "sha256": "f8c096e8f2f9e1c3eee1069b89c112e0f6c692aa3fe08233dc5ccd8530909d19"
+    },
+    {
+      "path": "spec/bytecode_format.md",
+      "sha256": "f685429d1fe483672660b1eab5ffa74791295abf1e6b0e5c1df2a722b74ef086"
+    },
+    {
+      "path": "spec/builtins_base.md",
+      "sha256": "f2e4927d80d3accd31f6ffec73aba3171f3d8261a200b84677ec14b3f0e94878"
+    },
+    {
+      "path": "spec/builtins_runtime.md",
+      "sha256": "6795c0cd17c9a5598aa9a078563f861dd143f858a9a98eb2b3e72aa4181ff561"
+    },
+    {
+      "path": "spec/fitness.md",
+      "sha256": "230569cc95925ebb84f466cd98901874ab00c4f1e78e41873a6e4482c3a21e05"
+    },
+    {
+      "path": "spec/fitness_cases.md",
+      "sha256": "5d9a696d4f95fac22680cb4800d2e0e5597e8f250d27ea87ab00895d1fb8a7c5"
+    },
+    {
+      "path": "spec/grammar_config.md",
+      "sha256": "2b6580206dcbf340284c3697165fe406b6feb4c9e6c438cd7883dc431cecdd61"
+    }
+  ],
+  "status": "frozen"
+}

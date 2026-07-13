@@ -13,14 +13,14 @@ This document explains how C++ runtime container values work under `cpp/` and ho
 
 That means `Value` does not directly own `std::string` or `std::vector<Value>` payloads.
 
-Instead, `String`, `NumList`, and `StringList` values use a two-layer model:
+Instead, `String`, `IntList`, `FloatList`, and `StringList` values use a two-layer model:
 
 1. `Value` stores a compact packed token
 2. the payload registry stores the real host-side container contents keyed by that token
 
 ## Base Container Representation
 
-In [cpp/include/g3pvm/core/value.hpp](../cpp/include/g3pvm/core/value.hpp), `String`, `NumList`, and `StringList` use `Value.i` as:
+In [cpp/include/g3pvm/core/value.hpp](../cpp/include/g3pvm/core/value.hpp), `String`, `IntList`, `FloatList`, and `StringList` use `Value.i` as:
 
 - upper 16 bits: saturated length
 - lower 48 bits: deterministic hash
@@ -31,7 +31,8 @@ Helpers:
 - `container_len()`
 - `container_hash48()`
 - `from_string_hash_len()`
-- `from_num_list_hash_len()`
+- `from_int_list_hash_len()`
+- `from_float_list_hash_len()`
 - `from_string_list_hash_len()`
 
 This compact representation is the public runtime transport form for containers.
@@ -60,7 +61,8 @@ The registry is process-global and protected by a single mutex.
 ### Construction
 
 - `payload::make_string_value(s)`
-- `payload::make_num_list_value(elems)`
+- `payload::make_int_list_value(elems)`
+- `payload::make_float_list_value(elems)`
 - `payload::make_string_list_value(elems)`
 
 These functions:
@@ -68,6 +70,11 @@ These functions:
 1. compute the packed token
 2. register the real payload in the host registry
 3. return the compact `Value`
+
+The typed-list constructors are strict: `make_int_list_value()` accepts only
+`Int` elements, `make_float_list_value()` accepts only `Float` elements, and
+`make_string_list_value()` accepts only `String` elements. Construction fails
+instead of silently widening, narrowing, or creating a public generic list.
 
 Use these when exact container behavior should be available later.
 
@@ -97,7 +104,7 @@ They remain useful for diagnostics and offline tooling, but the production GPU f
 - `lookup_string_packed()`
 - `lookup_list_packed()`
 
-`lookup_list_packed()` takes the typed-list `ValueTag` as part of the lookup key, so `NumList` and `StringList` payloads with the same compact token do not alias across tags.
+`lookup_list_packed()` takes the typed-list `ValueTag` as part of the lookup key, so `IntList`, `FloatList`, and `StringList` payloads with the same compact token do not alias across tags.
 These let the GPU fitness session lazily fetch only the payload tokens it actually needs for the current accepted population.
 
 ## GPU Session Handoff
@@ -113,6 +120,11 @@ Instead:
    - `DStringPayloadEntry` plus one contiguous byte buffer
    - `DListPayloadEntry` plus one contiguous `Value` buffer
 5. the compact pack is uploaded for the current evaluation run
+
+The needed-token closure includes strings referenced from exact `StringList`
+payloads. This is required because `index(StringList, i)` returns a `String`
+value that later string operations such as `concat` may need to materialize on
+device.
 
 This separation is important:
 
@@ -136,7 +148,7 @@ The current production GPU fitness path always launches a single `Mixed` eval ke
 
 The finer `StringOnly` / `ListOnly` labels are kept for experiment tooling and offline bucket studies rather than the production eval dispatch tree.
 
-Exact string/typed-list builtins still use bounded per-thread scratch. When an exact output payload will not fit in GPU per-thread scratch, GPU `concat`, `slice`, `append`, and `reverse` use the fallback path instead of returning a typed container token without recoverable payload. CPU may still materialize larger host payloads, so CPU/GPU parity is guaranteed for payload programs only while GPU exact materialization stays within device limits.
+Exact string/typed-list builtins still use bounded per-thread scratch. CPU and GPU now share the current direct-list tags (`IntList`, `FloatList`, `StringList`) for the current runtime subset. When exact string output materialization will not fit in GPU per-thread scratch, GPU string operations use the fallback path. Direct-list operations preserve the list tag and compact hash/length token even when the exact expanded payload cannot be materialized in thread-local scratch.
 
 Operationally, this means production GPU eval no longer maintains a runtime dispatch split between payload-free and payload-bearing programs. Timing and benchmark analysis should treat `gpu_eval_kernel_ms` as one kernel family rather than reconstructing legacy `None` / `Mixed` launch buckets.
 
@@ -154,16 +166,15 @@ Exact path:
 - `append` builds the real typed list with one additional element
 - `reverse` builds the real reversed string or typed list
 - `find` and `contains` inspect exact string payloads
-- `index(string, i)` returns a length-1 `String`
-- `index(NumList, i)` returns the numeric element value
+- `index(String, i)` returns `Char`
+- `index(IntList, i)` returns the integer element value
+- `index(FloatList, i)` returns the float element value
 - `index(StringList, i)` returns the string element value
 
 Fallback path:
 
-- `concat` returns `FallbackToken`
-- `slice` returns `FallbackToken`
-- `append` returns `FallbackToken`
-- `reverse` returns `FallbackToken`
+- string `concat`, `slice`, and `reverse` return `FallbackToken`
+- list `concat`, `slice`, `append`, `prepend`, and `reverse` return the corresponding direct-list tag with deterministic hash/length
 - `index` returns `FallbackToken`
 - `find` and `contains` return `ValueError` when exact string payload lookup is unavailable
 
@@ -171,8 +182,8 @@ This fallback is deterministic and parity-friendly, but not fully semantics-pres
 The design target is:
 
 - exact CPU/GPU parity when both sides have exact payload access
-- deterministic GPU fallback when exact payload access or materialization is unavailable
-- CPU/GPU parity is not required for payloads that exceed bounded GPU materialization capacity; this is treated as backend-specific overflow behavior.
+- deterministic fallback when exact payload access or materialization is unavailable
+- CPU/GPU parity for compact direct-list hash/length results even when expanded list payloads exceed bounded GPU materialization capacity.
 
 ## When Exact Payload Can Be Missing
 
@@ -180,13 +191,13 @@ Exact payload lookup is not guaranteed.
 
 Common cases:
 
-- tests or helper code directly create `Value::from_string_hash_len()` / `Value::from_num_list_hash_len()` / `Value::from_string_list_hash_len()` without calling `payload::make_*()`
+- tests or helper code directly create `Value::from_string_hash_len()` / `Value::from_int_list_hash_len()` / `Value::from_float_list_hash_len()` / `Value::from_string_list_hash_len()` without calling `payload::make_*()`
 - random constant generation creates container tokens directly
 - registry state was cleared with `payload::clear()`
 - registry state was pruned with `payload::retain_only()` and the token was not part of the retained live-root closure
 - GPU exact output materialization exceeds bounded per-thread scratch
 
-Because of this, callers must not assume every `String`, `NumList`, or `StringList` value has a recoverable payload behind it.
+Because of this, callers must not assume every `String`, `IntList`, `FloatList`, or `StringList` value has a recoverable payload behind it.
 
 ## `index` Return Type Behavior
 
@@ -194,8 +205,9 @@ Because of this, callers must not assume every `String`, `NumList`, or `StringLi
 
 On exact payload lookup:
 
-- `index(string, i)` returns `String`
-- `index(NumList, i)` returns `Int` or `Float`
+- `index(String, i)` returns `Char`
+- `index(IntList, i)` returns `Int`
+- `index(FloatList, i)` returns `Float`
 - `index(StringList, i)` returns `String`
 
 On fallback:
@@ -206,7 +218,7 @@ This means the exact result type is predictable from the typed-list tag, while m
 
 ## Typed-List Hashing Is Shallow
 
-`payload::make_num_list_value()` and `payload::make_string_list_value()` hash list elements with a shallow helper.
+`payload::make_int_list_value()`, `payload::make_float_list_value()`, and `payload::make_string_list_value()` hash list elements with a shallow helper.
 
 Nested lists are not part of the public typed-list contract. If helper or compatibility code ever constructs container-valued elements, the hash includes the nested container's packed token rather than a recursive deep re-hash of the full nested payload.
 

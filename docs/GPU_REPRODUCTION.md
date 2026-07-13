@@ -53,7 +53,17 @@ It then computes the preprocessing data needed by device kernels:
 - typed crossover candidate ranges
 - typed donor pool entries, bucketed by result type for subtree mutation
 
-If `--grammar-config PATH` is active, this preprocessing stage filters typed candidate ranges to grammar-allowed subtrees and builds the donor pool with the selected `grammar-config-v1`. Runtime execution remains the full public grammar superset; the config only controls search-space generation.
+If `--grammar-config PATH` is active, this preprocessing stage filters typed candidate ranges to grammar-allowed subtrees and builds the donor pool with the selected `grammar-config` search-space controls. Checked-in `grammar-config` presets remain accepted as compatibility input and are translated before use. Generated `compact` configs with legacy `num_list_mode=both` also seed exact numeric-list fixture inputs as `Any` for search-space compatibility. Runtime execution remains the full public grammar superset with exact current fixture values; the config only controls search-space generation.
+
+When ASGP forms are enabled by the grammar config, donor preprocessing may
+synthesize conservative ASGP donors. ASGP-DC donors may appear in the `Int`,
+`Float`, and `String` donor buckets; the `String` slice traverses a `String`
+source as chars and rebuilds strings with `singleton(index(...))` and
+`concat`. ASGP-DP1D and ASGP-DP2D donors may appear in the `Int`, `Float`,
+and `String` donor buckets; the `String` DP slices use `concat` transitions
+over memoized dependency results. These donors use the same host-side typed expression generator
+as CPU subtree mutation and are still subject to normal donor-size,
+grammar-config, and metadata packing limits.
 
 This stage is reported as:
 
@@ -74,6 +84,9 @@ The host flattens the typed AST population into bounded GPU-friendly arrays:
 - candidate tables
 - compact name id tables
 - compact constant tables
+- `LinearRec` binder side tables for parent and donor programs
+- ASGP-DC, ASGP-DP1D, and ASGP-DP2D binder/spec side tables for parent and
+  donor programs
 - donor pool buffers
 
 This stage is reported as `repro_pack_ms`.
@@ -86,7 +99,7 @@ Source files:
 - [launch.cu](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/launch.cu)
 
 Packed host buffers are uploaded into a reusable device arena. The same arena is retained inside the process and grown only when capacity is insufficient.
-Before sizing and packing, GPU reproduction compacts each AST's name and constant tables to entries referenced by live nodes. Decoded children and fallback parents are compacted again before becoming the next population so stale table entries from prior crossover or mutation rounds cannot accumulate past fixed kernel scratch limits.
+Before sizing and packing, GPU reproduction compacts each AST's name and constant tables to entries referenced by live nodes. Decoded children and fallback parents are compacted again before becoming the next population so stale table entries from prior crossover or mutation rounds cannot accumulate past fixed kernel scratch limits. A decoded child is also rejected and replaced by its selected fallback parent if any live `String` or typed-list constant lacks a host payload, preventing payload-token-only ASTs from entering later fitness or replay output.
 
 This stage is reported as `repro_upload_ms`.
 
@@ -111,7 +124,7 @@ Selection preserves the same high-level tournament semantics as the CPU path:
 
 The GPU kernel still emits one mating pair per thread, but its per-round permutation is an internal device implementation detail rather than a shared host/device plan. CPU and GPU are not required to use identical RNG streams or identical within-round permutations as long as they preserve the same public tournament contract.
 
-Selection also chooses a typed crossover site pair for each mating pair by scanning the bounded candidate tables for parent A and parent B, finding a common result type, and picking one candidate of that type from each parent.
+Selection also chooses a typed crossover site pair for each mating pair by scanning the bounded candidate tables for parent A and parent B, finding a compatible current typed-subtree key, and picking one candidate with that key from each parent. The packed key includes result type, visible scope signature, binder/scheme identity, ASGP phase identity, and ASGP-DP dependency arity so device-side crossover does not exchange same-result-type roots from incompatible lexical or phase contexts.
 
 Variation then applies the same high-level order as the CPU backend:
 
@@ -119,7 +132,14 @@ Variation then applies the same high-level order as the CPU backend:
 - each resulting child independently samples mutation from `mutation_rate`
 - if a child mutates, `mutation_subtree_prob` chooses subtree mutation vs constant perturbation
 
-GPU subtree mutation uses a type-bucketed donor pool keyed by the selected crossover-site type. Constant perturbation is applied directly to the packed child constant table after crossover.
+GPU subtree mutation uses a type-bucketed donor pool keyed by the selected
+crossover-site type. The donor pool can include conservative ASGP-DC,
+ASGP-DP1D, and ASGP-DP2D donors when the active grammar config enables the
+matching ASGP form and its required value, list, or builtin features. ASGP-DC,
+ASGP-DP1D, and ASGP-DP2D currently cover conservative `Int`, `Float`, and
+`String` targets. Constant
+perturbation is applied directly to the packed child constant table after
+crossover.
 
 Variation produces packed child buffers plus child metadata such as:
 
@@ -127,6 +147,8 @@ Variation produces packed child buffers plus child metadata such as:
 - max depth
 - builtin usage marker
 - validity bit
+
+The device-side child metadata parser understands the current structured-expression node set (`BoundVar`, `MapList`, `FilterList`, `LinearRec`, ASGP-DC, ASGP-DP1D, and ASGP-DP2D) so valid structured children are not rejected solely because they contain current structured forms.
 
 These kernels are reported as:
 
@@ -142,6 +164,8 @@ Source files:
 
 The backend copies back only live child regions rather than fixed-capacity slabs. Host-side pinned staging is reused across generations to keep D2H cost stable.
 
+Copyback also returns the selected parent and candidate indices for each pair. Decode uses this context to rebuild structured side-table metadata that is not represented directly in `PlainNode`.
+
 This stage is reported as `repro_copyback_ms`.
 
 ### 6. Decode
@@ -155,8 +179,21 @@ The host rebuilds `ProgramGenome` children from copied-back packed buffers. This
 - name id lookup
 - AST node reconstruction
 - constant reconstruction
+- `LinearRec` binder side-table reconstruction
+- ASGP-DC, ASGP-DP1D, and ASGP-DP2D binder/spec side-table reconstruction
 - program key regeneration
 - fallback to the selected parent if the child is marked invalid or decode fails
+- fallback to the selected parent if host-side lexical binder validation finds
+  an escaped `BoundVar` or missing structured-expression metadata
+
+For `LinearRec`, decode keeps base binders outside the replaced range, shifts base binders after the replaced range, and inserts donor binders whose root lies inside the donor range. Donor binder names are remapped through the copied child name table, and binder-only names are appended on the host when they were not referenced by any copied AST node.
+
+ASGP metadata decode follows the same replacement context. It keeps ASGP
+side-table entries outside the replaced range, shifts surviving entries after
+the replaced range, inserts donor entries whose root lies inside the donor
+range, and remaps binder names and DP boundary constants through the copied
+child tables. The same path handles donor-pool ASGP-DC, ASGP-DP1D, and
+ASGP-DP2D donors produced by GPU subtree mutation.
 
 This stage is reported as `repro_decode_ms`.
 

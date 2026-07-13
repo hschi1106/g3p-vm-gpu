@@ -39,7 +39,8 @@ g3p-vm-gpu/
 │   │   └── runtime/
 │   └── CMakeLists.txt
 ├── configs/
-│   └── grammar/
+│   ├── grammar/
+│   └── psb_tolerances/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── CPP_RUNTIME_PAYLOAD.md
@@ -64,7 +65,8 @@ g3p-vm-gpu/
 - `README.md`: entrypoint and quick workflow
 - `python/`: reference semantics and Python-side tests
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests
-- `configs/grammar/`: checked-in `grammar-config-v1` presets for evolution search-space control
+- `configs/grammar/`: checked-in legacy grammar presets; Python current loader translates `grammar-config` files for compatibility comparisons
+- `configs/psb_tolerances/`: versioned problem-specific PSB quality tolerance policies used by comparison gates
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
@@ -74,14 +76,19 @@ g3p-vm-gpu/
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
-- `tools/`: two PSB utilities, one for dataset fetch and one for fitness-case conversion
+- `tools/`: dataset, fixture, grammar-profile, fixed-population, and PSB
+  regression utilities
 - `logs/`: generated artifacts, benchmark reports, and run outputs
 
 ## Spec Roles
 
-- `spec/grammar_v1_0.md`: language grammar and evaluation rules
-- `spec/bytecode_isa_v1_0.md`: VM instruction contract
-- `spec/bytecode_format_v1_0.md`: JSON wire format
-- `spec/builtins_base_v1_0.md`: scalar builtins
-- `spec/builtins_runtime_v1_0.md`: container builtins and payload rules
-- `spec/fitness_v1_0.md`: scoring formulas and solved criteria
+- `spec/grammar.md`: current grammar and evaluation rules
+- `spec/bytecode_isa.md`: current VM instruction contract
+- `spec/bytecode_format.md`: current JSON wire format
+- `spec/builtins_base.md`: current scalar and char builtins
+- `spec/builtins_runtime.md`: current container builtins and payload rules
+- `spec/fitness.md`: current scoring formulas and solved criteria
+- `spec/fitness_cases.md`: current fixture schema
+- `spec/grammar_config.md`: current search-space config contract
+- Historical spec files are intentionally not kept in-tree. Release details are
+  recorded only in `VERSION.md`.

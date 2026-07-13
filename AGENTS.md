@@ -16,13 +16,17 @@
 - Tests live in `python/tests/`.
 - Native tests live in `cpp/tests/`.
 - Normative behavior is documented in `spec/`:
-  - `grammar_v1_0.md`
-  - `bytecode_isa_v1_0.md`
-  - `bytecode_format_v1_0.md`
-  - `builtins_base_v1_0.md`
-  - `builtins_runtime_v1_0.md`
-  - `fitness_v1_0.md`
-  Treat these files as the behavioral source of truth.
+  - `grammar.md`
+  - `bytecode_isa.md`
+  - `bytecode_format.md`
+  - `builtins_base.md`
+  - `builtins_runtime.md`
+  - `fitness.md`
+  - `fitness_cases.md`
+  - `grammar_config.md`
+  Treat these files as the current behavioral source of truth. Historical spec
+  files are not kept in-tree after the breaking refactor. Release details are
+  recorded only in `VERSION.md`.
 - Operational and structural docs live in:
   - `docs/ARCHITECTURE.md`
   - `docs/DEVELOPMENT.md`
@@ -73,8 +77,8 @@
   - error code behavior (`ErrCode` paths),
   - interpreter vs VM parity,
   - CPU vs GPU fitness parity when touching runtime, payload, or GPU execution,
-  - `NumList` / `StringList` typed-list behavior when touching sequence values, fixture conversion, payloads, or generation,
-  - `grammar-config-v1` search-space behavior when touching generation, mutation, reproduction, or seed replay,
+  - `IntList` / `FloatList` / `StringList` typed-list behavior when touching sequence values, fixture conversion, payloads, or generation,
+  - `grammar-config` search-space behavior when touching generation, mutation, reproduction, or seed replay,
   - edge cases around fuel/timeouts and numeric/type operations.
 
 ## Profiling Guidelines
