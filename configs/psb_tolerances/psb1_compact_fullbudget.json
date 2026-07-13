@@ -1,0 +1,45 @@
+{
+  "default": {
+    "median_fitness_tolerance": 0.0,
+    "test_median_fitness_tolerance": 0.0
+  },
+  "format_version": "psb-problem-tolerances",
+  "notes": [
+    "Used for full-budget PSB1 baseline vs compact compatibility comparison.",
+    "Each non-zero tolerance is bounded by observed 8192/100 x 5-seed evidence and must be revisited if the comparison corpus or benchmark settings change.",
+    "Speed thresholds remain controlled by compare_psb_baseline.py runtime ratio arguments."
+  ],
+  "problems": {
+    "compare-string-lengths": {
+      "median_fitness_tolerance": 1.0,
+      "reason": "Full-budget compact train median regressed by 1 while test median improved by 2; no solved-count or speed regression.",
+      "test_median_fitness_tolerance": 0.0
+    },
+    "super-anagrams": {
+      "median_fitness_tolerance": 1.0,
+      "reason": "Full-budget compact train median regressed by 1 and test median regressed by 4 with matching solved counts and speed within gate.",
+      "test_median_fitness_tolerance": 4.0
+    },
+    "wallis-pi": {
+      "median_fitness_tolerance": 0.0,
+      "reason": "Full-budget compact train median matched; test median differed by about 0.0013989475 on a float-valued task with speed within gate.",
+      "test_median_fitness_tolerance": 0.002
+    }
+  },
+  "scope": {
+    "baseline": "logs/psb_all_config_supported_fullbudget_merged/summary.json",
+    "candidate_profile": "compact",
+    "cases_root": "logs/psb1_materialized_256_64",
+    "generations": 100,
+    "base_grammar_config": "configs/grammar/all.json",
+    "population_size": 8192,
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "suite": "psb1"
+  }
+}

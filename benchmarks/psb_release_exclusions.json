@@ -1,0 +1,57 @@
+{
+  "format_version": "psb-release-exclusions",
+  "generated_at": "2026-07-13",
+  "status": "recorded",
+  "summary": {
+    "excluded_problem_count": 5,
+    "supported_problem_count": 49,
+    "suite_count": 2,
+    "total_problem_count": 54
+  },
+  "suites": {
+    "psb1": {
+      "fixture_format_version": "fitness-cases",
+      "manifest": "logs/psb1_materialized_256_64/manifest.json",
+      "problem_count": 29,
+      "supported_count": 28,
+      "excluded_count": 1,
+      "gate_manifest": "benchmarks/psb1_supported_compact_fullbudget.json",
+      "exclusions": {
+        "replace-space-with-newline": {
+          "category": "multi_output",
+          "reason": "multi-output rows are not runtime-compatible yet; do not encode them as list values"
+        }
+      }
+    },
+    "psb2": {
+      "fixture_format_version": "fitness-cases",
+      "manifest": "logs/psb2_current_materialized_256_64/manifest.json",
+      "problem_count": 25,
+      "supported_count": 21,
+      "excluded_count": 4,
+      "gate_manifest": "",
+      "exclusions": {
+        "coin-sums": {
+          "category": "multi_output",
+          "reason": "multi-output rows are not runtime-compatible yet; do not encode them as list values"
+        },
+        "cut-vector": {
+          "category": "multi_output",
+          "reason": "multi-output rows are not runtime-compatible yet; do not encode them as list values"
+        },
+        "find-pair": {
+          "category": "multi_output",
+          "reason": "multi-output rows are not runtime-compatible yet; do not encode them as list values"
+        },
+        "mastermind": {
+          "category": "multi_output",
+          "reason": "multi-output rows are not runtime-compatible yet; do not encode them as list values"
+        }
+      }
+    }
+  },
+  "policy": {
+    "multi_output": "Excluded until the public current fixture/runtime contract defines first-class multi-output scoring or an explicit tuple/product value representation. Multi-output PSB rows must not be silently encoded as list values because that would change the behavioral target and make old-vs-current comparisons unfair.",
+    "release_gate_use": "This manifest records unresolved PSB1/PSB2 exclusions for Grammar release-gate auditing. Supported PSB1 quality/speed evidence remains in benchmarks/psb1_supported_compact_fullbudget.json."
+  }
+}

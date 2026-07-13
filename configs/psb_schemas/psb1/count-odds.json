@@ -1,0 +1,8 @@
+{
+  "suite": "psb1",
+  "problem": "count-odds",
+  "field_schemas": {
+    "input1": "int_list",
+    "output1": "int"
+  }
+}
