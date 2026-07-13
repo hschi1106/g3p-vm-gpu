@@ -13,6 +13,76 @@
 #include "../../src/cli/json.cpp"
 #include "../../src/cli/codec.cpp"
 
+namespace {
+
+std::vector<std::pair<int, g3pvm::Value>> to_vm_inputs(const g3pvm::CaseBindings& one_case) {
+  std::vector<std::pair<int, g3pvm::Value>> inputs;
+  inputs.reserve(one_case.size());
+  for (const auto& binding : one_case) {
+    inputs.push_back({binding.idx, binding.value});
+  }
+  return inputs;
+}
+
+bool exact_value_equal(const g3pvm::Value& a, const g3pvm::Value& b) {
+  if (a.tag != b.tag) {
+    return false;
+  }
+  switch (a.tag) {
+    case g3pvm::ValueTag::Int:
+    case g3pvm::ValueTag::Char:
+    case g3pvm::ValueTag::String:
+    case g3pvm::ValueTag::IntList:
+    case g3pvm::ValueTag::FloatList:
+    case g3pvm::ValueTag::StringList:
+    case g3pvm::ValueTag::FallbackToken:
+      return a.i == b.i;
+    case g3pvm::ValueTag::Float:
+      return a.f == b.f;
+    case g3pvm::ValueTag::Bool:
+      return a.b == b.b;
+    case g3pvm::ValueTag::Invalid:
+      return true;
+  }
+  return false;
+}
+
+int run_fixture(const g3pvm::cli_detail::JsonValue& root, int fuel) {
+  const g3pvm::BytecodeProgram program =
+      g3pvm::cli_detail::decode_program(g3pvm::cli_detail::require_object_field(root, "program"));
+  const g3pvm::cli_detail::JsonValue& cases =
+      g3pvm::cli_detail::require_object_field(root, "cases");
+  if (cases.kind != g3pvm::cli_detail::JsonValue::Kind::Array) {
+    throw std::runtime_error("fixture cases must be array");
+  }
+
+  int total = 0;
+  int passed = 0;
+  int failed = 0;
+  int err = 0;
+  for (const g3pvm::cli_detail::JsonValue& one_case : cases.array_v) {
+    const g3pvm::CaseBindings bindings =
+        g3pvm::cli_detail::decode_input_case(g3pvm::cli_detail::require_object_field(one_case, "inputs"));
+    const g3pvm::Value expected =
+        g3pvm::cli_detail::decode_typed_value(g3pvm::cli_detail::require_object_field(one_case, "expected"));
+    const g3pvm::ExecResult result = g3pvm::execute_bytecode_cpu(program, to_vm_inputs(bindings), fuel);
+    total += 1;
+    if (result.is_error) {
+      err += 1;
+    } else if (exact_value_equal(result.value, expected)) {
+      passed += 1;
+    } else {
+      failed += 1;
+    }
+  }
+
+  std::cout << "OK fixture cases " << total << " passed " << passed << " failed " << failed
+            << " error " << err << "\n";
+  return 0;
+}
+
+}  // namespace
+
 int main() {
   std::ios::sync_with_stdio(false);
   std::cin.tie(nullptr);
@@ -32,15 +102,20 @@ int main() {
     }
 
     auto format_it = root.object_v.find("format_version");
-    if (format_it != root.object_v.end()) {
-      const std::string format = g3pvm::cli_detail::require_string(format_it->second, "format_version");
-      if (format != "bytecode-json-v0.1") {
-        throw std::runtime_error("unsupported format_version");
-      }
+    if (format_it == root.object_v.end()) {
+      throw std::runtime_error("missing format_version");
+    }
+    const std::string format = g3pvm::cli_detail::require_string(format_it->second, "format_version");
+    if (format != "bytecode-json" && format != "bytecode-fixture") {
+      throw std::runtime_error("unsupported format_version");
     }
 
     const int fuel = g3pvm::cli_detail::require_int(
         g3pvm::cli_detail::require_object_field(root, "fuel"), "fuel");
+    if (format == "bytecode-fixture") {
+      return run_fixture(root, fuel);
+    }
+
     const std::vector<g3pvm::BytecodeProgram> programs =
         g3pvm::cli_detail::decode_programs(g3pvm::cli_detail::require_object_field(root, "programs"));
     const std::vector<g3pvm::CaseBindings> shared_cases =
@@ -58,12 +133,7 @@ int main() {
       auto& per_prog = out[p];
       per_prog.reserve(shared_cases.size());
       for (const auto& one_case : shared_cases) {
-        std::vector<std::pair<int, g3pvm::Value>> inputs;
-        inputs.reserve(one_case.size());
-        for (const auto& binding : one_case) {
-          inputs.push_back({binding.idx, binding.value});
-        }
-        per_prog.push_back(g3pvm::execute_bytecode_cpu(programs[p], inputs, fuel));
+        per_prog.push_back(g3pvm::execute_bytecode_cpu(programs[p], to_vm_inputs(one_case), fuel));
       }
     }
 

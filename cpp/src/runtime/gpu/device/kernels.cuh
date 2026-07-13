@@ -16,8 +16,8 @@ __device__ inline double d_canonicalize_fitness_accumulator(double value) {
   return ldexp(static_cast<double>(quantized_mantissa), exponent - kMantissaBits);
 }
 
-template <DPayloadFlavor Flavor>
-__global__ void evaluate_fitness_programs(
+template <DPayloadFlavor Flavor, bool EnableAsgp>
+__global__ void evaluate_fitness_programs_impl(
     int program_count,
     const Value* all_consts, const DInstr* all_code, const DProgramMeta* metas,
     const Value* shared_case_local_vals, const unsigned char* shared_case_local_set,
@@ -26,6 +26,14 @@ __global__ void evaluate_fitness_programs(
     const char* string_payload_bytes,
     const DListPayloadEntry* list_payload_entries, int list_payload_entry_count,
     const Value* list_payload_values,
+    const DInstr* phase_code,
+    const Value* phase_consts,
+    const DAsgpDcSegment* asgp_dc_segments,
+    int asgp_dc_segment_count,
+    const DAsgpDp1dSegment* asgp_dp1d_segments,
+    int asgp_dp1d_segment_count,
+    const DAsgpDp2dSegment* asgp_dp2d_segments,
+    int asgp_dp2d_segment_count,
     int fuel, double penalty, double* fitness_out) {
   const int prog_idx = static_cast<int>(blockIdx.x);
   const int tid = static_cast<int>(threadIdx.x);
@@ -39,6 +47,16 @@ __global__ void evaluate_fitness_programs(
       list_payload_entries,
       list_payload_entry_count,
       list_payload_values,
+  };
+  const DAsgpTables asgp_tables{
+      phase_code,
+      phase_consts,
+      asgp_dc_segments,
+      asgp_dc_segment_count,
+      asgp_dp1d_segments,
+      asgp_dp1d_segment_count,
+      asgp_dp2d_segments,
+      asgp_dp2d_segment_count,
   };
 
   extern __shared__ DInstr shared_code[];
@@ -59,8 +77,9 @@ __global__ void evaluate_fitness_programs(
   const int chunk_start = (meta.case_count * tid) / static_cast<int>(blockDim.x);
   const int chunk_end = (meta.case_count * (tid + 1)) / static_cast<int>(blockDim.x);
   for (int local_case = chunk_start; local_case < chunk_end; ++local_case) {
-    const DResult result = d_execute_bytecode<Flavor>(
-        meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set, payload_tables, local_case, fuel);
+    const DResult result = d_execute_bytecode_impl<Flavor, EnableAsgp>(
+        meta, shared_code, all_consts, shared_case_local_vals, shared_case_local_set,
+        payload_tables, asgp_tables, local_case, fuel);
     if (result.is_error) {
       local_score = d_canonicalize_fitness_accumulator(local_score - fabs(penalty));
       continue;

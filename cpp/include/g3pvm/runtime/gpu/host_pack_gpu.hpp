@@ -15,6 +15,11 @@ struct PackResult {
   std::vector<DProgramMeta> metas;
   std::vector<DInstr> all_code;
   std::vector<Value> all_consts;
+  std::vector<DInstr> all_phase_code;
+  std::vector<Value> all_phase_consts;
+  std::vector<DAsgpDcSegment> asgp_dc_segments;
+  std::vector<DAsgpDp1dSegment> asgp_dp1d_segments;
+  std::vector<DAsgpDp2dSegment> asgp_dp2d_segments;
   std::vector<Value> packed_case_local_vals;
   std::vector<unsigned char> packed_case_local_set;
   std::size_t total_cases = 0;
@@ -31,6 +36,11 @@ void pack_shared_cases_only(const std::vector<CaseBindings>& shared_cases,
 struct DeviceArena {
   Value* d_consts = nullptr;
   DInstr* d_code = nullptr;
+  Value* d_phase_consts = nullptr;
+  DInstr* d_phase_code = nullptr;
+  DAsgpDcSegment* d_asgp_dc_segments = nullptr;
+  DAsgpDp1dSegment* d_asgp_dp1d_segments = nullptr;
+  DAsgpDp2dSegment* d_asgp_dp2d_segments = nullptr;
   DProgramMeta* d_metas = nullptr;
   Value* d_shared_case_local_vals = nullptr;
   unsigned char* d_shared_case_local_set = nullptr;

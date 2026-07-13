@@ -169,26 +169,42 @@ ProgramGenome build_valid_child(const AstProgram& candidate,
 
 bool candidate_is_valid(const CandidateRange& candidate) {
   return candidate.start >= 0 && candidate.stop > candidate.start &&
-         candidate.aux >= static_cast<int>(RType::Num) &&
+         candidate.aux >= static_cast<int>(RType::Int) &&
          candidate.aux <= static_cast<int>(RType::Any);
+}
+
+bool candidate_keys_compatible(const CandidateRange& a, const CandidateRange& b) {
+  return candidate_is_valid(a) &&
+         candidate_is_valid(b) &&
+         a.aux == b.aux &&
+         a.scope_signature == b.scope_signature &&
+         a.binder_signature == b.binder_signature &&
+         a.scheme_kind == b.scheme_kind &&
+         a.phase_name == b.phase_name &&
+         a.visible_env_signature == b.visible_env_signature &&
+         a.dp_dependency_arity == b.dp_dependency_arity;
 }
 
 unsigned int type_bit(RType type) {
   switch (type) {
-    case RType::Num:
+    case RType::Int:
       return 1u << 0;
-    case RType::Bool:
+    case RType::Float:
       return 1u << 1;
-    case RType::NoneType:
+    case RType::Bool:
       return 1u << 2;
-    case RType::String:
+    case RType::Char:
       return 1u << 3;
-    case RType::NumList:
+    case RType::String:
       return 1u << 4;
-    case RType::StringList:
+    case RType::IntList:
       return 1u << 5;
-    case RType::Any:
+    case RType::FloatList:
       return 1u << 6;
+    case RType::StringList:
+      return 1u << 7;
+    case RType::Any:
+      return 1u << 8;
     default:
       return 0u;
   }
@@ -197,18 +213,22 @@ unsigned int type_bit(RType type) {
 RType type_from_bit(int bit) {
   switch (bit) {
     case 0:
-      return RType::Num;
+      return RType::Int;
     case 1:
-      return RType::Bool;
+      return RType::Float;
     case 2:
-      return RType::NoneType;
+      return RType::Bool;
     case 3:
-      return RType::String;
+      return RType::Char;
     case 4:
-      return RType::NumList;
+      return RType::String;
     case 5:
-      return RType::StringList;
+      return RType::IntList;
     case 6:
+      return RType::FloatList;
+    case 7:
+      return RType::StringList;
+    case 8:
       return RType::Any;
     default:
       return RType::Invalid;
@@ -253,58 +273,33 @@ struct CandidatePair {
 CandidatePair choose_gpu_candidate_pair(const std::vector<CandidateRange>& candidates_a,
                                         const std::vector<CandidateRange>& candidates_b,
                                         std::uint64_t seed) {
-  unsigned int mask_a = 0u;
-  unsigned int mask_b = 0u;
-  for (const CandidateRange& candidate : candidates_a) {
-    if (candidate_is_valid(candidate)) {
-      mask_a |= type_bit(static_cast<RType>(candidate.aux));
+  int compatible_count = 0;
+  for (const CandidateRange& a : candidates_a) {
+    for (const CandidateRange& b : candidates_b) {
+      if (candidate_keys_compatible(a, b)) {
+        ++compatible_count;
+      }
     }
   }
-  for (const CandidateRange& candidate : candidates_b) {
-    if (candidate_is_valid(candidate)) {
-      mask_b |= type_bit(static_cast<RType>(candidate.aux));
-    }
-  }
-
-  const unsigned int common_mask = mask_a & mask_b;
-  if (common_mask == 0u) {
-    return CandidatePair{};
-  }
-
-  int common_count = 0;
-  for (int bit = 0; bit < 6; ++bit) {
-    if ((common_mask & (1u << bit)) != 0u) {
-      ++common_count;
-    }
-  }
-  if (common_count <= 0) {
+  if (compatible_count <= 0) {
     return CandidatePair{};
   }
 
   const int chosen_rank = static_cast<int>(hash64_host(seed ^ 0x517cc1b727220a95ULL) %
-                                           static_cast<std::uint64_t>(common_count));
+                                           static_cast<std::uint64_t>(compatible_count));
   int seen = 0;
-  int chosen_bit = 0;
-  for (int bit = 0; bit < 6; ++bit) {
-    if ((common_mask & (1u << bit)) == 0u) {
-      continue;
+  for (const CandidateRange& a : candidates_a) {
+    for (const CandidateRange& b : candidates_b) {
+      if (!candidate_keys_compatible(a, b)) {
+        continue;
+      }
+      if (seen == chosen_rank) {
+        return CandidatePair{true, a, b, static_cast<RType>(a.aux)};
+      }
+      ++seen;
     }
-    if (seen == chosen_rank) {
-      chosen_bit = bit;
-      break;
-    }
-    ++seen;
   }
-
-  const RType chosen_type = type_from_bit(chosen_bit);
-  const int idx_a = pick_candidate_index_for_type(
-      candidates_a, chosen_type, hash64_host(seed ^ 0x243f6a8885a308d3ULL));
-  const int idx_b = pick_candidate_index_for_type(
-      candidates_b, chosen_type, hash64_host(seed ^ 0x13198a2e03707344ULL));
-  return CandidatePair{true,
-                       candidates_a[static_cast<std::size_t>(idx_a)],
-                       candidates_b[static_cast<std::size_t>(idx_b)],
-                       chosen_type};
+  return CandidatePair{};
 }
 
 template <typename T>
@@ -324,37 +319,50 @@ CandidatePair choose_cpu_candidate_pair(const ProgramGenome& parent_a,
       typed_expr::collect_typed_expr_roots(parent_a.ast, end_a);
   const std::vector<typed_expr::TypedExprRoot> expr_b =
       typed_expr::collect_typed_expr_roots(parent_b.ast, end_b);
-  if (expr_a.empty() || expr_b.empty()) {
-    return CandidatePair{};
-  }
-
-  std::vector<RType> common_types;
-  common_types.reserve(expr_a.size());
-  for (const typed_expr::TypedExprRoot& root_a : expr_a) {
-    const bool in_b = std::any_of(expr_b.begin(), expr_b.end(), [&](const typed_expr::TypedExprRoot& root_b) {
-      return root_b.type == root_a.type;
-    });
-    const bool already_seen = std::find(common_types.begin(), common_types.end(), root_a.type) != common_types.end();
-    if (in_b && !already_seen) {
-      common_types.push_back(root_a.type);
-    }
-  }
-  if (common_types.empty()) {
-    return CandidatePair{};
-  }
-
-  const RType chosen_type = choose_one(rng, common_types);
-  std::vector<typed_expr::TypedExprRoot> roots_a;
-  std::vector<typed_expr::TypedExprRoot> roots_b;
-  roots_a.reserve(expr_a.size());
-  roots_b.reserve(expr_b.size());
+  std::vector<typed_expr::TypedExprRoot> filtered_expr_a;
+  std::vector<typed_expr::TypedExprRoot> filtered_expr_b;
+  filtered_expr_a.reserve(expr_a.size());
+  filtered_expr_b.reserve(expr_b.size());
   for (const typed_expr::TypedExprRoot& root : expr_a) {
-    if (root.type == chosen_type) {
-      roots_a.push_back(root);
+    if (!typed_expr::is_asgp_phase_body_root(parent_a.ast, end_a, root)) {
+      filtered_expr_a.push_back(root);
     }
   }
   for (const typed_expr::TypedExprRoot& root : expr_b) {
-    if (root.type == chosen_type) {
+    if (!typed_expr::is_asgp_phase_body_root(parent_b.ast, end_b, root)) {
+      filtered_expr_b.push_back(root);
+    }
+  }
+  if (filtered_expr_a.empty() || filtered_expr_b.empty()) {
+    return CandidatePair{};
+  }
+
+  std::vector<typed_expr::TypedExprRoot> compatible_a;
+  compatible_a.reserve(filtered_expr_a.size());
+  for (const typed_expr::TypedExprRoot& root_a : filtered_expr_a) {
+    const bool in_b = std::any_of(filtered_expr_b.begin(), filtered_expr_b.end(), [&](const typed_expr::TypedExprRoot& root_b) {
+      return typed_expr::typed_subtree_keys_compatible(root_a, root_b);
+    });
+    if (in_b) {
+      compatible_a.push_back(root_a);
+    }
+  }
+  if (compatible_a.empty()) {
+    return CandidatePair{};
+  }
+
+  const typed_expr::TypedExprRoot& chosen_a = choose_one(rng, compatible_a);
+  std::vector<typed_expr::TypedExprRoot> roots_a;
+  std::vector<typed_expr::TypedExprRoot> roots_b;
+  roots_a.reserve(filtered_expr_a.size());
+  roots_b.reserve(filtered_expr_b.size());
+  for (const typed_expr::TypedExprRoot& root : filtered_expr_a) {
+    if (typed_expr::typed_subtree_keys_compatible(chosen_a, root)) {
+      roots_a.push_back(root);
+    }
+  }
+  for (const typed_expr::TypedExprRoot& root : filtered_expr_b) {
+    if (typed_expr::typed_subtree_keys_compatible(chosen_a, root)) {
       roots_b.push_back(root);
     }
   }
@@ -368,12 +376,12 @@ CandidatePair choose_cpu_candidate_pair(const ProgramGenome& parent_a,
                        CandidateRange{static_cast<int>(target_a.start),
                                       static_cast<int>(target_a.stop),
                                       static_cast<int>(CandidateTag::Expr),
-                                      static_cast<int>(chosen_type)},
+                                      static_cast<int>(target_a.type)},
                        CandidateRange{static_cast<int>(target_b.start),
                                       static_cast<int>(target_b.stop),
                                       static_cast<int>(CandidateTag::Expr),
-                                      static_cast<int>(chosen_type)},
-                       chosen_type};
+                                      static_cast<int>(target_b.type)},
+                       target_a.type};
 }
 
 std::pair<ProgramGenome, ProgramGenome> crossover_from_candidate_pair(const ProgramGenome& parent_a,
@@ -404,20 +412,24 @@ std::vector<ProgramGenome> materialize_population(const std::vector<ScoredGenome
 
 int donor_bucket_for_type(RType type) {
   switch (type) {
-    case RType::Num:
+    case RType::Int:
       return 0;
-    case RType::Bool:
+    case RType::Float:
       return 1;
-    case RType::NoneType:
+    case RType::Bool:
       return 2;
-    case RType::String:
+    case RType::Char:
       return 3;
-    case RType::NumList:
+    case RType::String:
       return 4;
-    case RType::StringList:
+    case RType::IntList:
       return 5;
-    case RType::Any:
+    case RType::FloatList:
       return 6;
+    case RType::StringList:
+      return 7;
+    case RType::Any:
+      return 8;
     default:
       return 0;
   }

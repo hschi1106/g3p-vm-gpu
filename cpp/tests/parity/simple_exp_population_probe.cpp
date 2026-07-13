@@ -45,12 +45,16 @@ std::string value_debug_string(const Value& v) {
     oss << "float(" << v.f << ")";
   } else if (v.tag == g3pvm::ValueTag::Bool) {
     oss << "bool(" << (v.b ? "true" : "false") << ")";
-  } else if (v.tag == g3pvm::ValueTag::None) {
-    oss << "none";
+  } else if (v.tag == g3pvm::ValueTag::Invalid) {
+    oss << "invalid";
   } else if (v.tag == g3pvm::ValueTag::String) {
     oss << "string(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
-  } else if (v.tag == g3pvm::ValueTag::NumList) {
-    oss << "num_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
+  } else if (v.tag == g3pvm::ValueTag::Char) {
+    oss << "char(" << v.i << ")";
+  } else if (v.tag == g3pvm::ValueTag::IntList) {
+    oss << "int_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
+  } else if (v.tag == g3pvm::ValueTag::FloatList) {
+    oss << "float_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
   } else if (v.tag == g3pvm::ValueTag::StringList) {
     oss << "string_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
   }
@@ -69,7 +73,7 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
                     int fuel) {
   struct LocalSlot {
     bool is_set = false;
-    Value value = Value::none();
+    Value value = Value::invalid();
   };
 
   std::vector<Value> stack;
@@ -266,7 +270,7 @@ Value decode_typed_or_raw_value(const JsonValue& v) {
     }
   }
   if (v.kind == JsonValue::Kind::Null) {
-    return Value::none();
+    return Value::invalid();
   }
   if (v.kind == JsonValue::Kind::Bool) {
     return Value::from_bool(v.bool_v);
@@ -291,12 +295,12 @@ g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   return out;
 }
 
-std::vector<EvalCase> load_cases_v1(const std::string& path) {
+std::vector<EvalCase> load_cases(const std::string& path) {
   const JsonValue payload = JsonParser(read_text_file(path)).parse();
   const auto fv_it = payload.object_v.find("format_version");
   if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
-      fv_it->second.string_v != "fitness-cases-v1") {
-    throw std::runtime_error("input JSON must include format_version=fitness-cases-v1");
+      fv_it->second.string_v != "fitness-cases") {
+    throw std::runtime_error("input JSON must include format_version=fitness-cases");
   }
   const auto cases_it = payload.object_v.find("cases");
   if (cases_it == payload.object_v.end() || cases_it->second.kind != JsonValue::Kind::Array) {
@@ -375,7 +379,7 @@ g3pvm::CaseBindings to_case_inputs(const EvalCase& one_case,
 }  // namespace
 
 int main() {
-  const std::vector<EvalCase> cases = load_cases_v1("data/fixtures/simple_exp_1024.json");
+  const std::vector<EvalCase> cases = load_cases("data/fixtures/simple_exp_1024.json");
 
   EvolutionConfig cpu_cfg;
   cpu_cfg.population_size = 2048;

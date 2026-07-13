@@ -59,12 +59,12 @@ class TestPsb1Tools(unittest.TestCase):
             self.assertIn("CONVERT_RUNTIME_COMPATIBLE 1", proc.stdout)
 
             train = json.loads(out.read_text(encoding="utf-8"))
-            self.assertEqual(train["format_version"], "fitness-cases-v1")
+            self.assertEqual(train["format_version"], "fitness-cases")
             self.assertEqual(train["source"]["suite"], "psb1")
             self.assertEqual(train["source"]["problem"], "count-odds")
-            self.assertEqual(train["source"]["field_schemas"]["input1"], "num_list")
+            self.assertEqual(train["source"]["field_schemas"]["input1"], "int_list")
             self.assertEqual(len(train["cases"]), 3)
-            self.assertTrue(all(row["inputs"]["input1"]["type"] == "num_list" for row in train["cases"]))
+            self.assertTrue(all(row["inputs"]["input1"]["type"] == "int_list" for row in train["cases"]))
 
             s = json.loads(summary.read_text(encoding="utf-8"))
             self.assertEqual(s["problem"], "count-odds")
@@ -98,6 +98,64 @@ class TestPsb1Tools(unittest.TestCase):
             proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True)
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("multi-output", proc.stderr)
+
+    def test_current_convert_emits_direct_int_list_schema(self):
+        with tempfile.TemporaryDirectory(prefix="g3p_psb1_current_conv_") as td:
+            td_path = Path(td)
+            problem_dir = td_path / "count-odds"
+            problem_dir.mkdir(parents=True)
+            edge = problem_dir / "count-odds-edge.json"
+            rnd = problem_dir / "count-odds-random.json"
+            out = td_path / "train.current.json"
+            summary = td_path / "summary.json"
+
+            edge.write_text(
+                '{"input1":[],"output1":0}\n'
+                '{"input1":[1,2,3],"output1":2}\n',
+                encoding="utf-8",
+            )
+            rnd.write_text(
+                '{"input1":[4,5],"output1":1}\n'
+                '{"input1":[],"output1":0}\n',
+                encoding="utf-8",
+            )
+
+            cmd = [
+                "python3",
+                "tools/convert_psb_to_fitness_cases.py",
+                "--suite",
+                "psb1",
+                "--problem",
+                "count-odds",
+                "--datasets-root",
+                str(td_path),
+                "--format-version",
+                "fitness-cases",
+                "--n-train",
+                "3",
+                "--n-test",
+                "2",
+                "--seed",
+                "7",
+                "--out",
+                str(out),
+                "--summary-json",
+                str(summary),
+            ]
+            proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=True)
+            self.assertIn("CONVERT_FORMAT fitness-cases", proc.stdout)
+            payload = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(payload["format_version"], "fitness-cases")
+            self.assertEqual(payload["schema"]["inputs"]["input1"], "int_list")
+            self.assertEqual(payload["schema"]["expected"], "int")
+            self.assertTrue(payload["meta"]["schema_hash"].startswith("sha256:"))
+            self.assertTrue(all(row["inputs"]["input1"]["type"] == "int_list" for row in payload["cases"]))
+            self.assertNotIn("num_list", out.read_text(encoding="utf-8"))
+
+            s = json.loads(summary.read_text(encoding="utf-8"))
+            self.assertEqual(s["format_version"], "fitness-cases")
+            self.assertEqual(s["field_schemas"]["input1"], "int_list")
+            self.assertEqual(s["schema_hash"], payload["meta"]["schema_hash"])
 
 
 if __name__ == "__main__":

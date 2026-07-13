@@ -50,44 +50,57 @@ std::pair<ProgramGenome, ProgramGenome> crossover(const ProgramGenome& parent_a,
   const std::vector<std::size_t> end_a = subtree::build_subtree_end(parent_a.ast);
   const std::vector<std::size_t> end_b = subtree::build_subtree_end(parent_b.ast);
 
-  const std::vector<typed_expr::TypedExprRoot> expr_a =
+  const std::vector<typed_expr::TypedExprRoot> all_expr_a =
       typed_expr::collect_typed_expr_roots(parent_a.ast, end_a);
-  const std::vector<typed_expr::TypedExprRoot> expr_b =
+  const std::vector<typed_expr::TypedExprRoot> all_expr_b =
       typed_expr::collect_typed_expr_roots(parent_b.ast, end_b);
+  std::vector<typed_expr::TypedExprRoot> expr_a;
+  std::vector<typed_expr::TypedExprRoot> expr_b;
+  expr_a.reserve(all_expr_a.size());
+  expr_b.reserve(all_expr_b.size());
+  for (const typed_expr::TypedExprRoot& root : all_expr_a) {
+    if (!typed_expr::is_asgp_phase_body_root(parent_a.ast, end_a, root)) {
+      expr_a.push_back(root);
+    }
+  }
+  for (const typed_expr::TypedExprRoot& root : all_expr_b) {
+    if (!typed_expr::is_asgp_phase_body_root(parent_b.ast, end_b, root)) {
+      expr_b.push_back(root);
+    }
+  }
 
   if (expr_a.empty() || expr_b.empty()) {
     return {parent_a, parent_b};
   }
 
-  std::vector<RType> common_types;
-  common_types.reserve(expr_a.size());
+  std::vector<typed_expr::TypedExprRoot> compatible_a;
+  compatible_a.reserve(expr_a.size());
   for (const typed_expr::TypedExprRoot& root_a : expr_a) {
     const bool in_b = std::any_of(
         expr_b.begin(), expr_b.end(), [&](const typed_expr::TypedExprRoot& root_b) {
-          return root_b.type == root_a.type;
+          return typed_expr::typed_subtree_keys_compatible(root_a, root_b);
         });
-    const bool already_seen = std::find(common_types.begin(), common_types.end(), root_a.type) != common_types.end();
-    if (in_b && !already_seen) {
-      common_types.push_back(root_a.type);
+    if (in_b) {
+      compatible_a.push_back(root_a);
     }
   }
 
-  if (common_types.empty()) {
+  if (compatible_a.empty()) {
     return {parent_a, parent_b};
   }
 
-  const RType chosen_type = choose_one(rng, common_types);
+  const typed_expr::TypedExprRoot& chosen_a = choose_one(rng, compatible_a);
   std::vector<typed_expr::TypedExprRoot> roots_a;
   std::vector<typed_expr::TypedExprRoot> roots_b;
   roots_a.reserve(expr_a.size());
   roots_b.reserve(expr_b.size());
   for (const typed_expr::TypedExprRoot& root : expr_a) {
-    if (root.type == chosen_type) {
+    if (typed_expr::typed_subtree_keys_compatible(chosen_a, root)) {
       roots_a.push_back(root);
     }
   }
   for (const typed_expr::TypedExprRoot& root : expr_b) {
-    if (root.type == chosen_type) {
+    if (typed_expr::typed_subtree_keys_compatible(chosen_a, root)) {
       roots_b.push_back(root);
     }
   }

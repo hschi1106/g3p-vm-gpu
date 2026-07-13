@@ -39,7 +39,7 @@ struct HostPayloadPack {
 
 using HostStringPayloadLookup = std::unordered_map<std::int64_t, std::string>;
 struct HostListPayloadKey {
-  ValueTag tag = ValueTag::None;
+  ValueTag tag = ValueTag::Invalid;
   std::int64_t packed = 0;
 
   bool operator==(const HostListPayloadKey& other) const {
@@ -62,7 +62,9 @@ constexpr unsigned kPayloadMaskList = 1U << 1;
 
 unsigned value_payload_mask(const Value& v) {
   if (v.tag == ValueTag::String) return kPayloadMaskString;
-  if (v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) return kPayloadMaskList;
+  if (v.tag == ValueTag::IntList || v.tag == ValueTag::FloatList || v.tag == ValueTag::StringList) {
+    return kPayloadMaskList;
+  }
   return 0U;
 }
 
@@ -88,8 +90,18 @@ void append_payload_tokens_from_values(const std::vector<Value>& values,
   for (const Value& v : values) {
     if (v.tag == ValueTag::String) {
       string_tokens->push_back(v.i);
-    } else if (v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) {
+    } else if (v.tag == ValueTag::IntList || v.tag == ValueTag::FloatList || v.tag == ValueTag::StringList) {
       list_tokens->push_back(v);
+      if (v.tag == ValueTag::StringList) {
+        std::vector<Value> elems;
+        if (payload::lookup_list(v, &elems)) {
+          for (const Value& elem : elems) {
+            if (elem.tag == ValueTag::String) {
+              string_tokens->push_back(elem.i);
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -336,7 +348,6 @@ FitnessSessionInitResult FitnessSessionGpu::init(const std::vector<CaseBindings>
   if (blocksize > impl_->props.maxThreadsPerBlock) {
     return fitness_init_single_error(ErrCode::Value, "gpu blocksize exceeds maxThreadsPerBlock");
   }
-
   int device_id = -1;
   if (cudaGetDevice(&device_id) != cudaSuccess) {
     return fitness_init_single_error(ErrCode::Value, "cuda device query failure");
@@ -414,6 +425,13 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   for (const BytecodeProgram& program : programs) {
     append_payload_tokens_from_values(program.consts, &needed_string_tokens, &needed_list_tokens);
   }
+  append_payload_tokens_from_values(packed.all_phase_consts, &needed_string_tokens, &needed_list_tokens);
+  for (const gpu_detail::DAsgpDp1dSegment& segment : packed.asgp_dp1d_segments) {
+    append_payload_tokens_from_values({segment.boundary_value}, &needed_string_tokens, &needed_list_tokens);
+  }
+  for (const gpu_detail::DAsgpDp2dSegment& segment : packed.asgp_dp2d_segments) {
+    append_payload_tokens_from_values({segment.boundary_value}, &needed_string_tokens, &needed_list_tokens);
+  }
   sort_and_unique_tokens(&needed_string_tokens);
   sort_and_unique_list_tokens(&needed_list_tokens);
   populate_payload_cache(needed_string_tokens, needed_list_tokens, &impl_->host_string_payloads, &impl_->host_list_payloads);
@@ -427,6 +445,8 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   if (shared_bytes > static_cast<std::size_t>(impl_->props.sharedMemPerBlock)) {
     return fitness_eval_single_error(ErrCode::Value, "shared memory requirement exceeded");
   }
+  const bool has_asgp = !packed.asgp_dc_segments.empty() || !packed.asgp_dp1d_segments.empty() ||
+                        !packed.asgp_dp2d_segments.empty();
   const auto launch_prep_t1 = std::chrono::steady_clock::now();
 
   FitnessEvalResult out;
@@ -436,6 +456,11 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
     const auto upload_t0 = std::chrono::steady_clock::now();
     if (!gpu_detail::cuda_alloc_and_copy_in(packed.all_consts, &dev.d_consts) ||
         !gpu_detail::cuda_alloc_and_copy_in(packed.all_code, &dev.d_code) ||
+        !gpu_detail::cuda_alloc_and_copy_in(packed.all_phase_consts, &dev.d_phase_consts) ||
+        !gpu_detail::cuda_alloc_and_copy_in(packed.all_phase_code, &dev.d_phase_code) ||
+        !gpu_detail::cuda_alloc_and_copy_in(packed.asgp_dc_segments, &dev.d_asgp_dc_segments) ||
+        !gpu_detail::cuda_alloc_and_copy_in(packed.asgp_dp1d_segments, &dev.d_asgp_dp1d_segments) ||
+        !gpu_detail::cuda_alloc_and_copy_in(packed.asgp_dp2d_segments, &dev.d_asgp_dp2d_segments) ||
         !gpu_detail::cuda_alloc_and_copy_in(packed.metas, &dev.d_metas) ||
         !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_entries, &dev.d_string_payload_entries) ||
         !gpu_detail::cuda_alloc_and_copy_in(payload_pack.string_bytes, &dev.d_string_payload_bytes) ||
@@ -452,13 +477,31 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
     const auto upload_t1 = std::chrono::steady_clock::now();
 
     const auto kernel_t0 = std::chrono::steady_clock::now();
-    gpu_detail::evaluate_fitness_programs<gpu_detail::DPayloadFlavor::Mixed>
-        <<<static_cast<unsigned int>(programs.size()), impl_->blocksize, shared_bytes>>>(
-            static_cast<int>(programs.size()), dev.d_consts, dev.d_code, dev.d_metas,
-            impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
-            dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
-            dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
-            impl_->fuel, impl_->penalty, dev.d_fitness);
+    if (has_asgp) {
+      gpu_detail::evaluate_fitness_programs_impl<gpu_detail::DPayloadFlavor::Mixed, true>
+          <<<static_cast<unsigned int>(programs.size()), impl_->blocksize, shared_bytes>>>(
+              static_cast<int>(programs.size()), dev.d_consts, dev.d_code, dev.d_metas,
+              impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
+              dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+              dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
+              dev.d_phase_code, dev.d_phase_consts, dev.d_asgp_dc_segments,
+              static_cast<int>(packed.asgp_dc_segments.size()), dev.d_asgp_dp1d_segments,
+              static_cast<int>(packed.asgp_dp1d_segments.size()), dev.d_asgp_dp2d_segments,
+              static_cast<int>(packed.asgp_dp2d_segments.size()),
+              impl_->fuel, impl_->penalty, dev.d_fitness);
+    } else {
+      gpu_detail::evaluate_fitness_programs_impl<gpu_detail::DPayloadFlavor::Mixed, false>
+          <<<static_cast<unsigned int>(programs.size()), impl_->blocksize, shared_bytes>>>(
+              static_cast<int>(programs.size()), dev.d_consts, dev.d_code, dev.d_metas,
+              impl_->d_shared_case_local_vals, impl_->d_shared_case_local_set, impl_->d_expected,
+              dev.d_string_payload_entries, static_cast<int>(payload_pack.string_entries.size()), dev.d_string_payload_bytes,
+              dev.d_list_payload_entries, static_cast<int>(payload_pack.list_entries.size()), dev.d_list_payload_values,
+              dev.d_phase_code, dev.d_phase_consts, dev.d_asgp_dc_segments,
+              static_cast<int>(packed.asgp_dc_segments.size()), dev.d_asgp_dp1d_segments,
+              static_cast<int>(packed.asgp_dp1d_segments.size()), dev.d_asgp_dp2d_segments,
+              static_cast<int>(packed.asgp_dp2d_segments.size()),
+              impl_->fuel, impl_->penalty, dev.d_fitness);
+    }
     const cudaError_t launch_err = cudaGetLastError();
     const cudaError_t sync_err = cudaDeviceSynchronize();
     if (launch_err != cudaSuccess || sync_err != cudaSuccess) {

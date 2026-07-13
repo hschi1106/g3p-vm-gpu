@@ -1,5 +1,9 @@
 #include "g3pvm/evolution/genome.hpp"
 
+#include <algorithm>
+
+#include "subtree_utils.hpp"
+
 namespace g3pvm::evo {
 
 namespace {
@@ -14,15 +18,23 @@ bool is_binary_expr(NodeKind kind) {
          kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
          kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
          kind == NodeKind::OR || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
+         kind == NodeKind::CALL_IDIV0 || kind == NodeKind::CALL_IMOD0 ||
          kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
-         kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS;
+         kind == NodeKind::CALL_PREPEND || kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS;
 }
 
 bool is_expr_kind(NodeKind kind) {
   return kind == NodeKind::CONST || kind == NodeKind::VAR || kind == NodeKind::NEG || kind == NodeKind::NOT ||
          kind == NodeKind::IF_EXPR || is_binary_expr(kind) || kind == NodeKind::CALL_ABS ||
          kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_SLICE ||
-         kind == NodeKind::CALL_REVERSE;
+         kind == NodeKind::CALL_REVERSE || kind == NodeKind::CALL_CHAR_TO_STRING ||
+         kind == NodeKind::CALL_STRING_TO_CHAR || kind == NodeKind::CALL_ORD || kind == NodeKind::CALL_CHR ||
+         kind == NodeKind::CALL_IS_LETTER || kind == NodeKind::CALL_IS_DIGIT || kind == NodeKind::CALL_IS_SPACE ||
+         kind == NodeKind::CALL_IS_VOWEL || kind == NodeKind::CALL_TO_LOWER || kind == NodeKind::CALL_TO_UPPER ||
+         kind == NodeKind::CALL_TO_STRING || kind == NodeKind::CALL_SINGLETON ||
+         kind == NodeKind::BOUND_VAR || kind == NodeKind::MAP_LIST ||
+         kind == NodeKind::FILTER_LIST || kind == NodeKind::LINEAR_REC || kind == NodeKind::ASGP_DC ||
+         kind == NodeKind::ASGP_DP1D || kind == NodeKind::ASGP_DP2D;
 }
 
 DepthResult compute_expr_depth_prefix(const AstProgram& program, std::size_t idx);
@@ -67,25 +79,16 @@ DepthResult compute_block_depth_prefix(const AstProgram& program, std::size_t id
 DepthResult compute_expr_depth_prefix(const AstProgram& program, std::size_t idx) {
   if (idx >= program.nodes.size()) return {idx, 0};
   const AstNode& node = program.nodes[idx];
-  if (node.kind == NodeKind::CONST || node.kind == NodeKind::VAR) {
-    return {idx + 1, 1};
-  }
-  if (node.kind == NodeKind::NEG || node.kind == NodeKind::NOT || node.kind == NodeKind::CALL_ABS ||
-      node.kind == NodeKind::CALL_LEN || node.kind == NodeKind::CALL_REVERSE) {
-    const DepthResult child = compute_expr_depth_prefix(program, idx + 1);
-    return {child.next, 1 + child.max_expr_depth};
-  }
-  if (is_binary_expr(node.kind)) {
-    const DepthResult lhs = compute_expr_depth_prefix(program, idx + 1);
-    const DepthResult rhs = compute_expr_depth_prefix(program, lhs.next);
-    return {rhs.next, 1 + std::max(lhs.max_expr_depth, rhs.max_expr_depth)};
-  }
-  if (node.kind == NodeKind::IF_EXPR || node.kind == NodeKind::CALL_CLIP || node.kind == NodeKind::CALL_SLICE) {
-    const DepthResult first = compute_expr_depth_prefix(program, idx + 1);
-    const DepthResult second = compute_expr_depth_prefix(program, first.next);
-    const DepthResult third = compute_expr_depth_prefix(program, second.next);
-    return {third.next, 1 + std::max(first.max_expr_depth,
-                                     std::max(second.max_expr_depth, third.max_expr_depth))};
+  if (is_expr_kind(node.kind)) {
+    const int arity = subtree::node_arity(node.kind);
+    std::size_t cur = idx + 1;
+    int child_max = 0;
+    for (int i = 0; i < arity; ++i) {
+      const DepthResult child = compute_expr_depth_prefix(program, cur);
+      cur = child.next;
+      child_max = std::max(child_max, child.max_expr_depth);
+    }
+    return {cur, 1 + child_max};
   }
   return {idx + 1, 0};
 }
@@ -110,9 +113,17 @@ GenomeMeta build_genome_meta(const AstProgram& ast) {
   meta.uses_builtins = false;
   for (const AstNode& node : ast.nodes) {
     if (node.kind == NodeKind::CALL_ABS || node.kind == NodeKind::CALL_MIN || node.kind == NodeKind::CALL_MAX ||
-        node.kind == NodeKind::CALL_CLIP || node.kind == NodeKind::CALL_LEN || node.kind == NodeKind::CALL_CONCAT ||
+        node.kind == NodeKind::CALL_CLIP || node.kind == NodeKind::CALL_IDIV0 || node.kind == NodeKind::CALL_IMOD0 ||
+        node.kind == NodeKind::CALL_LEN || node.kind == NodeKind::CALL_CONCAT ||
         node.kind == NodeKind::CALL_SLICE || node.kind == NodeKind::CALL_INDEX || node.kind == NodeKind::CALL_APPEND ||
-        node.kind == NodeKind::CALL_REVERSE || node.kind == NodeKind::CALL_FIND || node.kind == NodeKind::CALL_CONTAINS) {
+        node.kind == NodeKind::CALL_PREPEND || node.kind == NodeKind::CALL_REVERSE ||
+        node.kind == NodeKind::CALL_FIND || node.kind == NodeKind::CALL_CONTAINS ||
+        node.kind == NodeKind::CALL_CHAR_TO_STRING || node.kind == NodeKind::CALL_STRING_TO_CHAR ||
+        node.kind == NodeKind::CALL_ORD || node.kind == NodeKind::CALL_CHR ||
+        node.kind == NodeKind::CALL_IS_LETTER || node.kind == NodeKind::CALL_IS_DIGIT ||
+        node.kind == NodeKind::CALL_IS_SPACE || node.kind == NodeKind::CALL_IS_VOWEL ||
+        node.kind == NodeKind::CALL_TO_LOWER || node.kind == NodeKind::CALL_TO_UPPER ||
+        node.kind == NodeKind::CALL_TO_STRING || node.kind == NodeKind::CALL_SINGLETON) {
       meta.uses_builtins = true;
       break;
     }

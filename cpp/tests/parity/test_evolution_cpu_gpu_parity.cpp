@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "g3pvm/core/value.hpp"
@@ -27,6 +28,52 @@ std::vector<g3pvm::evo::EvalCase> simple_cases() {
       EvalCase{{{"x", Value::from_int(2)}}, Value::from_int(3)},
       EvalCase{{{"x", Value::from_int(3)}}, Value::from_int(4)},
   };
+}
+
+bool genome_contains_asgp(const g3pvm::evo::ProgramGenome& genome) {
+  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
+    if (node.kind == g3pvm::evo::NodeKind::ASGP_DC ||
+        node.kind == g3pvm::evo::NodeKind::ASGP_DP1D ||
+        node.kind == g3pvm::evo::NodeKind::ASGP_DP2D) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void diagnose_generation_population(const std::vector<g3pvm::evo::EvalCase>& cases,
+                                    g3pvm::evo::EvolutionConfig cpu_cfg,
+                                    g3pvm::evo::EvolutionConfig gpu_cfg,
+                                    int generation) {
+  cpu_cfg.generations = generation;
+  gpu_cfg.generations = generation;
+  cpu_cfg.retain_final_population = true;
+  gpu_cfg.retain_final_population = true;
+  const auto cpu = g3pvm::evo::evolve_population(cases, cpu_cfg);
+  const auto gpu = g3pvm::evo::evolve_population(cases, gpu_cfg);
+
+  std::unordered_map<std::string, const g3pvm::evo::ScoredGenome*> gpu_by_key;
+  for (const g3pvm::evo::ScoredGenome& one : gpu.final_population) {
+    gpu_by_key[one.genome.meta.program_key] = &one;
+  }
+  for (const g3pvm::evo::ScoredGenome& one : cpu.final_population) {
+    auto it = gpu_by_key.find(one.genome.meta.program_key);
+    if (it == gpu_by_key.end()) {
+      std::cerr << "DIAG: missing gpu program key at generation " << generation
+                << " key=" << one.genome.meta.program_key
+                << " asgp=" << (genome_contains_asgp(one.genome) ? "true" : "false") << "\n";
+      return;
+    }
+    if (one.fitness != it->second->fitness) {
+      std::cerr << "DIAG: fitness mismatch at generation " << generation
+                << " key=" << one.genome.meta.program_key
+                << " cpu=" << one.fitness
+                << " gpu=" << it->second->fitness
+                << " asgp=" << (genome_contains_asgp(one.genome) ? "true" : "false")
+                << " nodes=" << one.genome.meta.node_count << "\n";
+      return;
+    }
+  }
 }
 
 bool same_history(const g3pvm::evo::EvolutionResult& cpu, const g3pvm::evo::EvolutionResult& gpu) {
@@ -57,7 +104,9 @@ bool same_history(const g3pvm::evo::EvolutionResult& cpu, const g3pvm::evo::Evol
       return false;
     }
     if (!check(cpu.history_mean_fitness[i] == gpu.history_mean_fitness[i],
-               "history_mean_fitness mismatch at generation " + std::to_string(i))) {
+               "history_mean_fitness mismatch at generation " + std::to_string(i) +
+                   " cpu=" + std::to_string(cpu.history_mean_fitness[i]) +
+                   " gpu=" + std::to_string(gpu.history_mean_fitness[i]))) {
       return false;
     }
   }
@@ -94,6 +143,7 @@ int main() {
   try {
     const auto gpu = g3pvm::evo::evolve_population(simple_cases(), gpu_cfg);
     if (!same_history(cpu, gpu)) {
+      diagnose_generation_population(simple_cases(), cpu_cfg, gpu_cfg, 4);
       return 1;
     }
   } catch (const std::runtime_error& err) {

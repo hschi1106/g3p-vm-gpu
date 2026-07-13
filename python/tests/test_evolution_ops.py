@@ -1,9 +1,10 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from src.g3p_vm_gpu.core.ast import NodeKind, NumList, StringList
+from src.g3p_vm_gpu.core.ast import BUILTIN_NODE_BY_NAME, Char, FloatList, IntList, NodeKind, StringList
 from src.g3p_vm_gpu.core.errors import Failed, Returned
 from src.g3p_vm_gpu.evolution.crossover import crossover
 from src.g3p_vm_gpu.evolution.genome import Limits, compile_for_eval
@@ -16,22 +17,106 @@ from src.g3p_vm_gpu.runtime.interp import run_program
 from src.g3p_vm_gpu.runtime.vm import ExecError, ExecReturn, exec_bytecode
 
 
+def _spec_current_grammar_config():
+    return {
+        "format_version": "grammar-config",
+        "profile": "test_current",
+        "values": {
+            "int": True,
+            "float": True,
+            "bool": True,
+            "char": True,
+            "string": True,
+            "int_list": True,
+            "float_list": True,
+            "string_list": True,
+        },
+        "statements": {
+            "assign": True,
+            "if_stmt": True,
+            "for_range": True,
+            "return": True,
+        },
+        "expressions": {
+            "const": True,
+            "var": True,
+            "bound_var": True,
+            "unary": True,
+            "binary": True,
+            "if_expr": True,
+            "call": True,
+            "map_list": False,
+            "filter_list": False,
+            "linear_rec": False,
+            "asgp_dc": False,
+            "asgp_dp1d": False,
+            "asgp_dp2d": False,
+        },
+        "builtins": {
+            "abs": True,
+            "min": True,
+            "max": True,
+            "clip": True,
+            "idiv0": True,
+            "imod0": True,
+            "len": True,
+            "concat": True,
+            "slice": True,
+            "index": True,
+            "append": True,
+            "prepend": True,
+            "reverse": True,
+            "find": True,
+            "contains": True,
+            "singleton": True,
+            "char_to_string": True,
+            "string_to_char": True,
+            "ord": True,
+            "chr": True,
+            "is_letter": True,
+            "is_digit": True,
+            "is_space": True,
+            "is_vowel": True,
+            "to_lower": True,
+            "to_upper": True,
+            "to_string": True,
+        },
+        "structured": {
+            "max_nested_binders": 0,
+            "max_map_body_depth": 0,
+            "max_filter_pred_depth": 0,
+            "max_linear_rec_body_depth": 0,
+        },
+        "asgp": {
+            "max_scheme_nesting": 0,
+            "dc": {"enabled_source_elems": [], "max_depth": 0},
+            "dp1d": {"max_states": 0, "max_step": 0, "dependency_patterns": []},
+            "dp2d": {"max_cells": 0, "dependency_patterns": []},
+        },
+        "limits": {
+            "max_expr_depth": 7,
+            "max_stmts_per_block": 6,
+            "max_total_nodes": 80,
+            "max_for_k": 16,
+            "max_call_args": 3,
+        },
+        "compat": None,
+    }
+
+
 class TestEvolutionOps(unittest.TestCase):
     def _assert_no_sequence_features(self, genome):
         disabled_calls = {
-            NodeKind.CALL_LEN,
-            NodeKind.CALL_CONCAT,
-            NodeKind.CALL_SLICE,
-            NodeKind.CALL_INDEX,
-            NodeKind.CALL_APPEND,
-            NodeKind.CALL_REVERSE,
-            NodeKind.CALL_FIND,
-            NodeKind.CALL_CONTAINS,
+            node
+            for name, node in BUILTIN_NODE_BY_NAME.items()
+            if name not in {"abs", "min", "max", "clip"}
         }
+        disabled_structured = {NodeKind.MAP_LIST, NodeKind.FILTER_LIST, NodeKind.LINEAR_REC}
         for node in genome.ast.nodes:
             self.assertNotIn(node.kind, disabled_calls)
+            self.assertNotIn(node.kind, disabled_structured)
         for value in genome.ast.consts:
-            self.assertNotIsInstance(value, (str, NumList, StringList))
+            self.assertNotIsInstance(value, (Char, str, IntList, FloatList, StringList))
 
     def test_random_genome_compile_rate(self):
         limits = Limits()
@@ -76,6 +161,41 @@ class TestEvolutionOps(unittest.TestCase):
             genome = make_random_genome(seed=88 + i, limits=limits)
             check_block(top_level_statements(genome.ast))
 
+    def test_random_generator_emits_structured_expressions_when_enabled(self):
+        limits = Limits(max_expr_depth=7, max_stmts_per_block=6, max_total_nodes=160)
+        seen = set()
+        for i in range(120):
+            genome = make_random_genome(seed=9000 + i, limits=limits)
+            kinds = {node.kind for node in genome.ast.nodes}
+            if NodeKind.MAP_LIST in kinds:
+                seen.add(NodeKind.MAP_LIST)
+            if NodeKind.FILTER_LIST in kinds:
+                seen.add(NodeKind.FILTER_LIST)
+            if NodeKind.LINEAR_REC in kinds:
+                seen.add(NodeKind.LINEAR_REC)
+            compile_for_eval(genome)
+            if len(seen) == 3:
+                break
+        self.assertEqual(seen, {NodeKind.MAP_LIST, NodeKind.FILTER_LIST, NodeKind.LINEAR_REC})
+
+    def test_mutation_emits_structured_expressions_when_enabled(self):
+        limits = Limits(max_expr_depth=7, max_stmts_per_block=6, max_total_nodes=160)
+        base = make_random_genome(seed=9100, limits=limits)
+        seen = set()
+        for i in range(160):
+            child = mutate(base, seed=9200 + i, limits=limits, mutation_subtree_prob=1.0)
+            kinds = {node.kind for node in child.ast.nodes}
+            if NodeKind.MAP_LIST in kinds:
+                seen.add(NodeKind.MAP_LIST)
+            if NodeKind.FILTER_LIST in kinds:
+                seen.add(NodeKind.FILTER_LIST)
+            if NodeKind.LINEAR_REC in kinds:
+                seen.add(NodeKind.LINEAR_REC)
+            compile_for_eval(child)
+            if seen:
+                break
+        self.assertTrue(seen)
+
     def test_eval_parity_sample(self):
         limits = Limits()
         for i in range(80):
@@ -116,6 +236,25 @@ class TestEvolutionOps(unittest.TestCase):
             with self.subTest(name=name):
                 load_grammar_config(f"configs/grammar/{name}.json")
 
+    def test_spec_current_grammar_config_parses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "grammar_current.json"
+            path.write_text(json.dumps(_spec_current_grammar_config()), encoding="utf-8")
+            grammar = load_grammar_config(path)
+        self.assertTrue(grammar.allow_value("char"))
+        self.assertTrue(grammar.allow_value("int_list"))
+        self.assertTrue(grammar.allow_value("float_list"))
+        self.assertTrue(grammar.allow_builtin("prepend"))
+
+    def test_spec_current_grammar_config_rejects_legacy_value_keys(self):
+        raw = _spec_current_grammar_config()
+        raw["values"]["num_list"] = True
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad_grammar_current.json"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_grammar_config(path)
+
     def test_grammar_config_rejects_unknown_keys(self):
         raw = json.loads(Path("configs/grammar/scalar.json").read_text(encoding="utf-8"))
         raw["values"]["generic_list"] = True
@@ -124,6 +263,55 @@ class TestEvolutionOps(unittest.TestCase):
             path.write_text(json.dumps(raw), encoding="utf-8")
             with self.assertRaises(ValueError):
                 load_grammar_config(path)
+
+    def test_native_cli_accepts_spec_current_grammar_config(self):
+        binary = Path("cpp/build/g3pvm_evolve_cli")
+        if not binary.exists():
+            self.skipTest("native CLI is not built")
+        source = Path("cpp/src/cli/evolve_cli.cpp")
+        if source.exists() and source.stat().st_mtime > binary.stat().st_mtime:
+            self.skipTest("native CLI binary is older than evolve_cli.cpp")
+        cases = {
+            "format_version": "fitness-cases",
+            "cases": [
+                {
+                    "inputs": {"x": {"type": "int", "value": 1}},
+                    "expected": {"type": "int", "value": 1},
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            grammar_path = tmp_path / "grammar_current.json"
+            cases_path = tmp_path / "cases_current.json"
+            out_path = tmp_path / "run.json"
+            grammar_path.write_text(json.dumps(_spec_current_grammar_config()), encoding="utf-8")
+            cases_path.write_text(json.dumps(cases), encoding="utf-8")
+            result = subprocess.run(
+                [
+                    str(binary),
+                    "--cases",
+                    str(cases_path),
+                    "--grammar-config",
+                    str(grammar_path),
+                    "--engine",
+                    "cpu",
+                    "--repro-backend",
+                    "cpu",
+                    "--population-size",
+                    "4",
+                    "--generations",
+                    "1",
+                    "--out-json",
+                    str(out_path),
+                ],
+                cwd=Path.cwd(),
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
 
 
 if __name__ == "__main__":

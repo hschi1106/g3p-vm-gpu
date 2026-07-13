@@ -23,6 +23,8 @@ enum class DParseTaskKind : unsigned char {
   ReduceUnary,
   ReduceBinary,
   ReduceTernary,
+  ReduceFour,
+  ReduceFive,
   ReduceBlock,
   ReduceIfStmt,
 };
@@ -42,9 +44,17 @@ static_assert(alignof(DSharedValueSlot) == alignof(Value), "shared Value storage
 
 __device__ inline bool d_is_builtin_kind(NodeKind kind) {
   return kind == NodeKind::CALL_ABS || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
-         kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_CONCAT ||
+         kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_IDIV0 || kind == NodeKind::CALL_IMOD0 ||
+         kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_CONCAT ||
          kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
-         kind == NodeKind::CALL_REVERSE || kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS;
+         kind == NodeKind::CALL_PREPEND || kind == NodeKind::CALL_REVERSE ||
+         kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS ||
+         kind == NodeKind::CALL_CHAR_TO_STRING || kind == NodeKind::CALL_STRING_TO_CHAR ||
+         kind == NodeKind::CALL_ORD || kind == NodeKind::CALL_CHR ||
+         kind == NodeKind::CALL_IS_LETTER || kind == NodeKind::CALL_IS_DIGIT ||
+         kind == NodeKind::CALL_IS_SPACE || kind == NodeKind::CALL_IS_VOWEL ||
+         kind == NodeKind::CALL_TO_LOWER || kind == NodeKind::CALL_TO_UPPER ||
+         kind == NodeKind::CALL_TO_STRING || kind == NodeKind::CALL_SINGLETON;
 }
 
 __device__ inline bool d_push_parse_task(unsigned char* task_stack, int* task_size, DParseTaskKind task) {
@@ -166,14 +176,20 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
         if (idx >= used_len) return out;
         const NodeKind kind = static_cast<NodeKind>(nodes[idx].kind);
         idx += 1;
-        if (kind == NodeKind::CONST || kind == NodeKind::VAR) {
+        if (kind == NodeKind::CONST || kind == NodeKind::VAR || kind == NodeKind::BOUND_VAR) {
           if (!d_push_depth_value(depth_stack, &depth_size, 1)) {
             return out;
           }
           break;
         }
         if (kind == NodeKind::NEG || kind == NodeKind::NOT || kind == NodeKind::CALL_ABS ||
-            kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_REVERSE) {
+            kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_REVERSE ||
+            kind == NodeKind::CALL_CHAR_TO_STRING || kind == NodeKind::CALL_STRING_TO_CHAR ||
+            kind == NodeKind::CALL_ORD || kind == NodeKind::CALL_CHR ||
+            kind == NodeKind::CALL_IS_LETTER || kind == NodeKind::CALL_IS_DIGIT ||
+            kind == NodeKind::CALL_IS_SPACE || kind == NodeKind::CALL_IS_VOWEL ||
+            kind == NodeKind::CALL_TO_LOWER || kind == NodeKind::CALL_TO_UPPER ||
+            kind == NodeKind::CALL_TO_STRING || kind == NodeKind::CALL_SINGLETON) {
           if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceUnary) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
             return out;
@@ -184,8 +200,9 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
             kind == NodeKind::MOD || kind == NodeKind::LT || kind == NodeKind::LE || kind == NodeKind::GT ||
             kind == NodeKind::GE || kind == NodeKind::EQ || kind == NodeKind::NE || kind == NodeKind::AND ||
             kind == NodeKind::OR || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
+            kind == NodeKind::CALL_IDIV0 || kind == NodeKind::CALL_IMOD0 ||
             kind == NodeKind::CALL_CONCAT || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
-            kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS) {
+            kind == NodeKind::CALL_PREPEND || kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS) {
           if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBinary) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
@@ -194,6 +211,44 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
           break;
         }
         if (kind == NodeKind::IF_EXPR || kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_SLICE) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceTernary) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::MAP_LIST || kind == NodeKind::FILTER_LIST) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceBinary) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::LINEAR_REC) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceFive) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::ASGP_DC || kind == NodeKind::ASGP_DP2D) {
+          if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceFour) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
+              !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr)) {
+            return out;
+          }
+          break;
+        }
+        if (kind == NodeKind::ASGP_DP1D) {
           if (!d_push_parse_task(task_stack, &task_size, DParseTaskKind::ReduceTernary) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
               !d_push_parse_task(task_stack, &task_size, DParseTaskKind::Expr) ||
@@ -225,6 +280,33 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
           return out;
         }
         break;
+      case DParseTaskKind::ReduceFour: {
+        int fourth = 0;
+        if (!d_pop_depth_value(depth_stack, &depth_size, &fourth) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &third) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &second) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size,
+                                1 + dmax_int(dmax3_int(first, second, third), fourth))) {
+          return out;
+        }
+        break;
+      }
+      case DParseTaskKind::ReduceFive: {
+        int fourth = 0;
+        int fifth = 0;
+        if (!d_pop_depth_value(depth_stack, &depth_size, &fifth) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &fourth) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &third) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &second) ||
+            !d_pop_depth_value(depth_stack, &depth_size, &first) ||
+            !d_push_depth_value(depth_stack, &depth_size,
+                                1 + dmax_int(dmax3_int(first, second, third),
+                                             dmax_int(fourth, fifth)))) {
+          return out;
+        }
+        break;
+      }
       case DParseTaskKind::ReduceBlock:
         if (!d_pop_depth_value(depth_stack, &depth_size, &second) ||
             !d_pop_depth_value(depth_stack, &depth_size, &first) ||
@@ -252,10 +334,11 @@ __device__ inline PackedChildMeta d_compute_child_meta(const DPlainNode* nodes,
 
 __host__ __device__ inline bool value_equal_simple(const Value& a, const Value& b) {
   if (a.tag != b.tag) return false;
-  if (a.tag == ValueTag::None) return true;
+  if (a.tag == ValueTag::Invalid) return true;
   if (a.tag == ValueTag::Bool) return a.b == b.b;
-  if (a.tag == ValueTag::Int || a.tag == ValueTag::String || a.tag == ValueTag::NumList ||
-      a.tag == ValueTag::StringList) return a.i == b.i;
+  if (a.tag == ValueTag::Int || a.tag == ValueTag::Char || a.tag == ValueTag::String ||
+      a.tag == ValueTag::IntList || a.tag == ValueTag::FloatList ||
+      a.tag == ValueTag::StringList || a.tag == ValueTag::FallbackToken) return a.i == b.i;
   return a.f == b.f;
 }
 
@@ -326,7 +409,9 @@ __device__ inline DPlainNode remap_node_for_child(const DPlainNode& in,
   const NodeKind kind = static_cast<NodeKind>(in.kind);
   if (kind == NodeKind::CONST) {
     out.i0 = remap_const_value(source_consts[in.i0], child_consts, child_const_count, max_consts);
-  } else if (kind == NodeKind::VAR || kind == NodeKind::ASSIGN || kind == NodeKind::FOR_RANGE) {
+  } else if (kind == NodeKind::VAR || kind == NodeKind::BOUND_VAR ||
+             kind == NodeKind::ASSIGN || kind == NodeKind::FOR_RANGE ||
+             kind == NodeKind::MAP_LIST || kind == NodeKind::FILTER_LIST) {
     out.i0 = remap_name_id(source_names[in.i0], child_names, child_name_count, max_names);
   }
   return out;
@@ -334,20 +419,24 @@ __device__ inline DPlainNode remap_node_for_child(const DPlainNode& in,
 
 __device__ inline int donor_bucket_for_type(RType type) {
   switch (type) {
-    case RType::Num:
+    case RType::Int:
       return 0;
-    case RType::Bool:
+    case RType::Float:
       return 1;
-    case RType::NoneType:
+    case RType::Bool:
       return 2;
-    case RType::String:
+    case RType::Char:
       return 3;
-    case RType::NumList:
+    case RType::String:
       return 4;
-    case RType::StringList:
+    case RType::IntList:
       return 5;
-    case RType::Any:
+    case RType::FloatList:
       return 6;
+    case RType::StringList:
+      return 7;
+    case RType::Any:
+      return 8;
     default:
       return 0;
   }

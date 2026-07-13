@@ -11,6 +11,7 @@ constexpr int MAX_LOCALS = 64;
 constexpr int DMAX_THREAD_PAYLOAD_ENTRIES = 32;
 constexpr int DMAX_THREAD_STRING_BYTES = 512;
 constexpr int DMAX_THREAD_LIST_VALUES = 128;
+constexpr int DMAX_ASGP_DP_DEPS = 4;
 constexpr std::uint8_t DINSTR_HAS_A = 1;
 constexpr std::uint8_t DINSTR_HAS_B = 2;
 
@@ -35,5 +36,12 @@ constexpr int OP_JMP_IF_FALSE = static_cast<int>(Opcode::JmpIfFalse);
 constexpr int OP_JMP_IF_TRUE = static_cast<int>(Opcode::JmpIfTrue);
 constexpr int OP_CALL_BUILTIN = static_cast<int>(Opcode::CallBuiltin);
 constexpr int OP_RETURN = static_cast<int>(Opcode::Return);
+constexpr int OP_CHECK_LIST = static_cast<int>(Opcode::CheckList);
+constexpr int OP_CHECK_INT = static_cast<int>(Opcode::CheckInt);
+constexpr int OP_EMPTY_LIST = static_cast<int>(Opcode::EmptyList);
+constexpr int OP_EMPTY_LIST_LIKE = static_cast<int>(Opcode::EmptyListLike);
+constexpr int OP_ASGP_DC = static_cast<int>(Opcode::AsgpDc);
+constexpr int OP_ASGP_DP1D = static_cast<int>(Opcode::AsgpDp1d);
+constexpr int OP_ASGP_DP2D = static_cast<int>(Opcode::AsgpDp2d);
 
 }  // namespace g3pvm::gpu_detail

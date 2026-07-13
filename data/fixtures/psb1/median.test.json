@@ -1,5 +1,5 @@
 {
-  "format_version": "fitness-cases-v1",
+  "format_version": "fitness-cases",
   "source": {
     "suite": "psb1",
     "problem": "median",

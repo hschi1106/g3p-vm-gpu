@@ -90,20 +90,24 @@ __device__ inline int d_best_index_for_parent_slot(const double* fitness,
 
 __device__ inline unsigned int d_type_bit(RType type) {
   switch (type) {
-    case RType::Num:
+    case RType::Int:
       return 1u << 0;
-    case RType::Bool:
+    case RType::Float:
       return 1u << 1;
-    case RType::NoneType:
+    case RType::Bool:
       return 1u << 2;
-    case RType::String:
+    case RType::Char:
       return 1u << 3;
-    case RType::NumList:
+    case RType::String:
       return 1u << 4;
-    case RType::StringList:
+    case RType::IntList:
       return 1u << 5;
-    case RType::Any:
+    case RType::FloatList:
       return 1u << 6;
+    case RType::StringList:
+      return 1u << 7;
+    case RType::Any:
+      return 1u << 8;
     default:
       return 0u;
   }
@@ -112,18 +116,22 @@ __device__ inline unsigned int d_type_bit(RType type) {
 __device__ inline RType d_type_from_bit(unsigned int bit) {
   switch (bit) {
     case 0:
-      return RType::Num;
+      return RType::Int;
     case 1:
-      return RType::Bool;
+      return RType::Float;
     case 2:
-      return RType::NoneType;
+      return RType::Bool;
     case 3:
-      return RType::String;
+      return RType::Char;
     case 4:
-      return RType::NumList;
+      return RType::String;
     case 5:
-      return RType::StringList;
+      return RType::IntList;
     case 6:
+      return RType::FloatList;
+    case 7:
+      return RType::StringList;
+    case 8:
       return RType::Any;
     default:
       return RType::Invalid;
@@ -132,6 +140,18 @@ __device__ inline RType d_type_from_bit(unsigned int bit) {
 
 __device__ inline bool d_candidate_is_valid(const DCandidateRange& candidate) {
   return candidate.start >= 0 && candidate.stop > candidate.start && d_type_bit(static_cast<RType>(candidate.aux)) != 0u;
+}
+
+__device__ inline bool d_candidate_keys_compatible(const DCandidateRange& a, const DCandidateRange& b) {
+  return d_candidate_is_valid(a) &&
+         d_candidate_is_valid(b) &&
+         a.aux == b.aux &&
+         a.scope_signature == b.scope_signature &&
+         a.binder_signature == b.binder_signature &&
+         a.scheme_kind == b.scheme_kind &&
+         a.phase_name == b.phase_name &&
+         a.visible_env_signature == b.visible_env_signature &&
+         a.dp_dependency_arity == b.dp_dependency_arity;
 }
 
 __device__ inline int d_pick_candidate_index_for_type(const DCandidateRange* candidates,
@@ -174,50 +194,40 @@ __device__ inline void d_choose_typed_candidate_pair(const DCandidateRange* cand
   const DCandidateRange* candidates_a = candidates + parent_a_index * candidates_per_program;
   const DCandidateRange* candidates_b = candidates + parent_b_index * candidates_per_program;
 
-  unsigned int mask_a = 0u;
-  unsigned int mask_b = 0u;
+  int compatible_count = 0;
   for (int i = 0; i < candidates_per_program; ++i) {
-    if (d_candidate_is_valid(candidates_a[i])) {
-      mask_a |= d_type_bit(static_cast<RType>(candidates_a[i].aux));
-    }
-    if (d_candidate_is_valid(candidates_b[i])) {
-      mask_b |= d_type_bit(static_cast<RType>(candidates_b[i].aux));
+    for (int j = 0; j < candidates_per_program; ++j) {
+      if (d_candidate_keys_compatible(candidates_a[i], candidates_b[j])) {
+        compatible_count += 1;
+      }
     }
   }
 
-  const unsigned int common_mask = mask_a & mask_b;
-  if (common_mask == 0u) {
+  if (compatible_count <= 0) {
     *cand_a_out = 0;
     *cand_b_out = 0;
     return;
   }
 
-  int common_count = 0;
-  for (int bit = 0; bit < 6; ++bit) {
-    if ((common_mask & (1u << bit)) != 0u) {
-      ++common_count;
-    }
-  }
   const int chosen_rank = static_cast<int>(hash64(seed ^ 0x517cc1b727220a95ULL) %
-                                           static_cast<std::uint64_t>(common_count));
+                                           static_cast<std::uint64_t>(compatible_count));
   int seen = 0;
-  int chosen_bit = 0;
-  for (int bit = 0; bit < 6; ++bit) {
-    if ((common_mask & (1u << bit)) == 0u) {
-      continue;
+  for (int i = 0; i < candidates_per_program; ++i) {
+    for (int j = 0; j < candidates_per_program; ++j) {
+      if (!d_candidate_keys_compatible(candidates_a[i], candidates_b[j])) {
+        continue;
+      }
+      if (seen == chosen_rank) {
+        *cand_a_out = i;
+        *cand_b_out = j;
+        return;
+      }
+      seen += 1;
     }
-    if (seen == chosen_rank) {
-      chosen_bit = bit;
-      break;
-    }
-    ++seen;
   }
 
-  const RType chosen_type = d_type_from_bit(chosen_bit);
-  *cand_a_out = d_pick_candidate_index_for_type(
-      candidates_a, candidates_per_program, chosen_type, hash64(seed ^ 0x243f6a8885a308d3ULL));
-  *cand_b_out = d_pick_candidate_index_for_type(
-      candidates_b, candidates_per_program, chosen_type, hash64(seed ^ 0x13198a2e03707344ULL));
+  *cand_a_out = 0;
+  *cand_b_out = 0;
 }
 
 __global__ void tournament_select_kernel(const double* fitness,

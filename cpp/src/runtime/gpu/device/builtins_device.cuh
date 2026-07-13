@@ -100,7 +100,7 @@ __device__ inline std::uint64_t d_hash_bytes(const char* p, int n) {
 __device__ inline std::uint64_t d_hash_value_shallow(const Value& v) {
   std::uint64_t h = Value::fnv1a_init();
   h = Value::fnv1a_mix_u8(h, static_cast<std::uint8_t>(v.tag));
-  if (v.tag == ValueTag::None) return h;
+  if (v.tag == ValueTag::Invalid) return h;
   if (v.tag == ValueTag::Bool) return Value::fnv1a_mix_u8(h, v.b ? 1U : 0U);
   if (v.tag == ValueTag::Float) {
     union {
@@ -142,11 +142,142 @@ __device__ inline int d_find_string_payload_entry(const DPayloadTables& tables, 
 }
 
 __device__ inline bool d_is_typed_list_tag(ValueTag tag) {
-  return tag == ValueTag::NumList || tag == ValueTag::StringList;
+  return tag == ValueTag::IntList || tag == ValueTag::FloatList || tag == ValueTag::StringList;
 }
 
 __device__ inline std::uint8_t d_list_type_code(const Value& v) {
-  return v.tag == ValueTag::NumList ? 2U : 3U;
+  if (v.tag == ValueTag::IntList) return 2U;
+  if (v.tag == ValueTag::FloatList) return 3U;
+  return 4U;
+}
+
+__device__ inline Value d_make_list_hash_len(ValueTag tag, std::uint64_t h, std::uint32_t len) {
+  if (tag == ValueTag::IntList) return Value::from_int_list_hash_len(h, len);
+  if (tag == ValueTag::FloatList) return Value::from_float_list_hash_len(h, len);
+  return Value::from_string_list_hash_len(h, len);
+}
+
+__device__ inline std::uint64_t d_prepend_list_hash48(std::uint8_t type_code,
+                                                      const Value& elem,
+                                                      const Value& src) {
+  std::uint64_t h = Value::fnv1a_init();
+  h = Value::fnv1a_mix_u8(h, type_code);
+  h = Value::fnv1a_mix_u8(h, 0x70U);
+  h = Value::fnv1a_mix_u64(h, Value::shallow_hash64(elem));
+  h = Value::fnv1a_mix_u64(h, Value::container_hash48(src));
+  h = Value::fnv1a_mix_u64(h, static_cast<std::uint64_t>(Value::container_len(src)));
+  return (h & Value::k_container_hash_mask);
+}
+
+__device__ inline bool d_list_accepts_elem(ValueTag list_tag, const Value& elem) {
+  if (list_tag == ValueTag::IntList) return elem.tag == ValueTag::Int;
+  if (list_tag == ValueTag::FloatList) return elem.tag == ValueTag::Float;
+  if (list_tag == ValueTag::StringList) return elem.tag == ValueTag::String;
+  return false;
+}
+
+__device__ inline bool d_is_ascii_letter(long long c) {
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+}
+
+__device__ inline bool d_is_ascii_digit(long long c) {
+  return c >= '0' && c <= '9';
+}
+
+__device__ inline bool d_is_ascii_space(long long c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+}
+
+__device__ inline bool d_is_ascii_vowel(long long c) {
+  if (c >= 'A' && c <= 'Z') c += ('a' - 'A');
+  return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
+}
+
+__device__ inline long long d_ascii_to_lower(long long c) {
+  return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c;
+}
+
+__device__ inline long long d_ascii_to_upper(long long c) {
+  return (c >= 'a' && c <= 'z') ? c - ('a' - 'A') : c;
+}
+
+__device__ inline int d_append_int_decimal(char* out, long long value) {
+  int n = 0;
+  unsigned long long mag = 0;
+  if (value < 0) {
+    out[n++] = '-';
+    mag = static_cast<unsigned long long>(-(value + 1)) + 1ULL;
+  } else {
+    mag = static_cast<unsigned long long>(value);
+  }
+  char digits[32];
+  int digit_count = 0;
+  do {
+    digits[digit_count++] = static_cast<char>('0' + (mag % 10ULL));
+    mag /= 10ULL;
+  } while (mag != 0ULL);
+  for (int i = digit_count - 1; i >= 0; --i) {
+    out[n++] = digits[i];
+  }
+  return n;
+}
+
+__device__ inline int d_append_literal(char* out, const char* value) {
+  int n = 0;
+  while (value[n] != '\0') {
+    out[n] = value[n];
+    ++n;
+  }
+  return n;
+}
+
+__device__ inline int d_append_float_decimal(char* out, double value) {
+  if (value != value) {
+    return d_append_literal(out, "nan");
+  }
+  if (value > 1.7976931348623157e308) {
+    return d_append_literal(out, "inf");
+  }
+  if (value < -1.7976931348623157e308) {
+    return d_append_literal(out, "-inf");
+  }
+  int n = 0;
+  if (value < 0.0) {
+    out[n++] = '-';
+    value = -value;
+  }
+  long long whole = static_cast<long long>(value);
+  double frac = value - static_cast<double>(whole);
+  long long frac_scaled = static_cast<long long>(frac * 1000000.0 + 0.5);
+  if (frac_scaled >= 1000000LL) {
+    ++whole;
+    frac_scaled -= 1000000LL;
+  }
+  n += d_append_int_decimal(out + n, whole);
+  if (frac_scaled == 0LL) {
+    if (n == 2 && out[0] == '-' && out[1] == '0') {
+      out[0] = '0';
+      return 1;
+    }
+    return n;
+  }
+  out[n++] = '.';
+  int frac_start = n;
+  char digits[6];
+  for (int i = 5; i >= 0; --i) {
+    digits[i] = static_cast<char>('0' + (frac_scaled % 10LL));
+    frac_scaled /= 10LL;
+  }
+  for (int i = 0; i < 6; ++i) {
+    out[n++] = digits[i];
+  }
+  while (n > frac_start && out[n - 1] == '0') {
+    --n;
+  }
+  if (n == frac_start) {
+    --n;
+  }
+  return n;
 }
 
 __device__ inline int d_find_list_payload_entry(const DPayloadTables& tables, ValueTag tag, std::int64_t packed) {
@@ -305,30 +436,47 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       err = ErrCode::Type;
       return false;
     }
+    if (x.tag != lo.tag || x.tag != hi.tag) {
+      err = ErrCode::Type;
+      return false;
+    }
     const bool any_float =
         (x.tag == ValueTag::Float) || (lo.tag == ValueTag::Float) || (hi.tag == ValueTag::Float);
     if (any_float) {
       const double x2 = (x.tag == ValueTag::Float) ? x.f : static_cast<double>(x.i);
       const double lo2 = (lo.tag == ValueTag::Float) ? lo.f : static_cast<double>(lo.i);
       const double hi2 = (hi.tag == ValueTag::Float) ? hi.f : static_cast<double>(hi.i);
-      if (lo2 > hi2) {
-        err = ErrCode::Value;
-        return false;
-      }
-      out = (x2 < lo2) ? Value::from_float(vm_semantics::canonicalize_vm_float(lo2))
-                       : ((x2 > hi2) ? Value::from_float(vm_semantics::canonicalize_vm_float(hi2))
-                                     : Value::from_float(vm_semantics::canonicalize_vm_float(x2)));
+      const double lower = (x2 > lo2) ? x2 : lo2;
+      const double picked = (lower < hi2) ? lower : hi2;
+      out = Value::from_float(vm_semantics::canonicalize_vm_float(picked));
       return true;
     }
     const long long x2 = x.i;
     const long long lo2 = lo.i;
     const long long hi2 = hi.i;
-    if (lo2 > hi2) {
-      err = ErrCode::Value;
+    const long long lower = (x2 > lo2) ? x2 : lo2;
+    out = Value::from_int((lower < hi2) ? lower : hi2);
+    return true;
+  }
+
+  if (bid == BuiltinId::IDiv0 || bid == BuiltinId::IMod0) {
+    if (argc != 2) {
+      err = ErrCode::Type;
       return false;
     }
-    out = (x2 < lo2) ? Value::from_int(lo2)
-                     : ((x2 > hi2) ? Value::from_int(hi2) : Value::from_int(x2));
+    const Value& a = args[0];
+    const Value& b = args[1];
+    if (a.tag != ValueTag::Int || b.tag != ValueTag::Int) {
+      err = ErrCode::Type;
+      return false;
+    }
+    if (b.i == 0) {
+      out = Value::from_int(0);
+    } else if (bid == BuiltinId::IDiv0) {
+      out = Value::from_int(a.i / b.i);
+    } else {
+      out = Value::from_int(d_int_mod(a.i, b.i));
+    }
     return true;
   }
 
@@ -395,16 +543,14 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
           for (int i = 0; i < bl; ++i) st.list_values[off + al + i] = bp[i];
           st.list_values_used += al + bl;
           const std::uint64_t h = d_hash_list_payload(st.list_values + off, al + bl);
-          out = (a.tag == ValueTag::NumList)
-                    ? Value::from_num_list_hash_len(h, static_cast<std::uint32_t>(al + bl))
-                    : Value::from_string_list_hash_len(h, static_cast<std::uint32_t>(al + bl));
+          out = d_make_list_hash_len(a.tag, h, static_cast<std::uint32_t>(al + bl));
           (void)d_register_local_list(st, out, off, al + bl);
           return true;
         }
       }
       const std::uint32_t len = Value::saturating_len_add(Value::container_len(a), Value::container_len(b));
       const std::uint64_t h = Value::combine_container_hash48(d_list_type_code(a), a, b);
-      out = Value::from_fallback_token(Value::pack_container_payload(h, len));
+      out = d_make_list_hash_len(a.tag, h, len);
       return true;
     }
     err = ErrCode::Type;
@@ -454,7 +600,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
           return true;
         }
       }
-      const std::uint64_t out_h = Value::slice_container_hash48(3U, x, lo.i, hi.i);
+      const std::uint64_t out_h = Value::slice_container_hash48(1U, x, lo.i, hi.i);
       out = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
       return true;
     }
@@ -471,14 +617,13 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         }
         st.list_values_used += static_cast<int>(out_len);
         const std::uint64_t out_h_exact = d_hash_list_payload(st.list_values + off, static_cast<int>(out_len));
-        out = (x.tag == ValueTag::NumList) ? Value::from_num_list_hash_len(out_h_exact, out_len)
-                                           : Value::from_string_list_hash_len(out_h_exact, out_len);
+        out = d_make_list_hash_len(x.tag, out_h_exact, out_len);
         (void)d_register_local_list(st, out, off, static_cast<int>(out_len));
         return true;
       }
     }
     const std::uint64_t out_h = Value::slice_container_hash48(d_list_type_code(x), x, lo.i, hi.i);
-    out = Value::from_fallback_token(Value::pack_container_payload(out_h, out_len));
+    out = d_make_list_hash_len(x.tag, out_h, out_len);
     return true;
   }
 
@@ -508,14 +653,8 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         auto& st = payload_state;
         const char* xp = nullptr;
         int xl = 0;
-        if (d_lookup_string_payload(tables, st, x, xp, xl) && j < xl &&
-            st.string_bytes_used + 1 <= st.kMaxStringBytes) {
-          const int off = st.string_bytes_used;
-          st.string_bytes[off] = xp[static_cast<int>(j)];
-          st.string_bytes_used += 1;
-          const std::uint64_t h1 = d_hash_bytes(st.string_bytes + off, 1);
-          out = Value::from_string_hash_len(h1, 1U);
-          (void)d_register_local_string(st, out, off, 1);
+        if (d_lookup_string_payload(tables, st, x, xp, xl) && j < xl) {
+          out = Value::from_char(static_cast<unsigned char>(xp[static_cast<int>(j)]));
           return true;
         }
       }
@@ -546,11 +685,7 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
       err = ErrCode::Type;
       return false;
     }
-    if (xs.tag == ValueTag::NumList && !d_is_num(elem)) {
-      err = ErrCode::Type;
-      return false;
-    }
-    if (xs.tag == ValueTag::StringList && elem.tag != ValueTag::String) {
+    if (!d_list_accepts_elem(xs.tag, elem)) {
       err = ErrCode::Type;
       return false;
     }
@@ -564,15 +699,46 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         st.list_values[off + xl] = elem;
         st.list_values_used += xl + 1;
         const std::uint64_t h = d_hash_list_payload(st.list_values + off, xl + 1);
-        out = (xs.tag == ValueTag::NumList) ? Value::from_num_list_hash_len(h, static_cast<std::uint32_t>(xl + 1))
-                                            : Value::from_string_list_hash_len(h, static_cast<std::uint32_t>(xl + 1));
+        out = d_make_list_hash_len(xs.tag, h, static_cast<std::uint32_t>(xl + 1));
         (void)d_register_local_list(st, out, off, xl + 1);
         return true;
       }
     }
     const std::uint32_t len = Value::saturating_len_add(Value::container_len(xs), 1U);
     const std::uint64_t h = Value::append_list_hash48(d_list_type_code(xs), xs, elem);
-    out = Value::from_fallback_token(Value::pack_container_payload(h, len));
+    out = d_make_list_hash_len(xs.tag, h, len);
+    return true;
+  }
+
+  if (bid == BuiltinId::Prepend) {
+    if (argc != 2) {
+      err = ErrCode::Type;
+      return false;
+    }
+    const Value& xs = args[0];
+    const Value& elem = args[1];
+    if (!d_is_typed_list_tag(xs.tag) || !d_list_accepts_elem(xs.tag, elem)) {
+      err = ErrCode::Type;
+      return false;
+    }
+    if constexpr (PayloadTraits::kHasList) {
+      auto& st = payload_state;
+      const Value* xp = nullptr;
+      int xl = 0;
+      if (d_lookup_list_payload(tables, st, xs, xp, xl) && st.list_values_used + xl + 1 <= st.kMaxListValues) {
+        const int off = st.list_values_used;
+        st.list_values[off] = elem;
+        for (int i = 0; i < xl; ++i) st.list_values[off + 1 + i] = xp[i];
+        st.list_values_used += xl + 1;
+        const std::uint64_t h = d_hash_list_payload(st.list_values + off, xl + 1);
+        out = d_make_list_hash_len(xs.tag, h, static_cast<std::uint32_t>(xl + 1));
+        (void)d_register_local_list(st, out, off, xl + 1);
+        return true;
+      }
+    }
+    const std::uint32_t len = Value::saturating_len_add(Value::container_len(xs), 1U);
+    const std::uint64_t h = d_prepend_list_hash48(d_list_type_code(xs), elem, xs);
+    out = d_make_list_hash_len(xs.tag, h, len);
     return true;
   }
 
@@ -618,14 +784,12 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
         }
         st.list_values_used += xl;
         const std::uint64_t h = d_hash_list_payload(st.list_values + off, xl);
-        out = (x.tag == ValueTag::NumList) ? Value::from_num_list_hash_len(h, static_cast<std::uint32_t>(xl))
-                                           : Value::from_string_list_hash_len(h, static_cast<std::uint32_t>(xl));
+        out = d_make_list_hash_len(x.tag, h, static_cast<std::uint32_t>(xl));
         (void)d_register_local_list(st, out, off, xl);
         return true;
       }
     }
-    out = Value::from_fallback_token(Value::pack_container_payload(Value::reverse_container_hash48(d_list_type_code(x), x),
-                                                                   Value::container_len(x)));
+    out = d_make_list_hash_len(x.tag, Value::reverse_container_hash48(d_list_type_code(x), x), Value::container_len(x));
     return true;
   }
 
@@ -681,6 +845,166 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
     }
     out = Value::from_bool(args[0].tag == ValueTag::Int);
     return true;
+  }
+
+  if (bid == BuiltinId::CharToString) {
+    if (argc != 1 || args[0].tag != ValueTag::Char || args[0].i < 0 || args[0].i > 255) {
+      err = (argc == 1 && args[0].tag == ValueTag::Char) ? ErrCode::Value : ErrCode::Type;
+      return false;
+    }
+    if constexpr (PayloadTraits::kHasString) {
+      auto& st = payload_state;
+      if (st.string_bytes_used + 1 <= st.kMaxStringBytes) {
+        const int off = st.string_bytes_used;
+        st.string_bytes[off] = static_cast<char>(args[0].i);
+        st.string_bytes_used += 1;
+        out = Value::from_string_hash_len(d_hash_bytes(st.string_bytes + off, 1), 1U);
+        (void)d_register_local_string(st, out, off, 1);
+        return true;
+      }
+    }
+    const char c = static_cast<char>(args[0].i);
+    out = Value::from_string_hash_len(d_hash_bytes(&c, 1), 1U);
+    return true;
+  }
+
+  if (bid == BuiltinId::StringToChar) {
+    if (argc != 1 || args[0].tag != ValueTag::String) {
+      err = ErrCode::Type;
+      return false;
+    }
+    if (Value::container_len(args[0]) != 1U) {
+      err = ErrCode::Value;
+      return false;
+    }
+    if constexpr (PayloadTraits::kHasString) {
+      auto& st = payload_state;
+      const char* sp = nullptr;
+      int sl = 0;
+      if (d_lookup_string_payload(tables, st, args[0], sp, sl) && sl == 1) {
+        out = Value::from_char(static_cast<unsigned char>(sp[0]));
+        return true;
+      }
+    }
+    err = ErrCode::Value;
+    return false;
+  }
+
+  if (bid == BuiltinId::Ord) {
+    if (argc != 1 || args[0].tag != ValueTag::Char) {
+      err = ErrCode::Type;
+      return false;
+    }
+    out = Value::from_int(args[0].i);
+    return true;
+  }
+
+  if (bid == BuiltinId::Chr) {
+    if (argc != 1 || args[0].tag != ValueTag::Int) {
+      err = ErrCode::Type;
+      return false;
+    }
+    if (args[0].i < 0 || args[0].i > 255) {
+      err = ErrCode::Value;
+      return false;
+    }
+    out = Value::from_char(args[0].i);
+    return true;
+  }
+
+  if (bid == BuiltinId::IsLetter || bid == BuiltinId::IsDigit || bid == BuiltinId::IsSpace ||
+      bid == BuiltinId::IsVowel || bid == BuiltinId::ToLower || bid == BuiltinId::ToUpper) {
+    if (argc != 1 || args[0].tag != ValueTag::Char) {
+      err = ErrCode::Type;
+      return false;
+    }
+    const long long c = args[0].i;
+    if (bid == BuiltinId::IsLetter) out = Value::from_bool(d_is_ascii_letter(c));
+    else if (bid == BuiltinId::IsDigit) out = Value::from_bool(d_is_ascii_digit(c));
+    else if (bid == BuiltinId::IsSpace) out = Value::from_bool(d_is_ascii_space(c));
+    else if (bid == BuiltinId::IsVowel) out = Value::from_bool(d_is_ascii_vowel(c));
+    else if (bid == BuiltinId::ToLower) out = Value::from_char(d_ascii_to_lower(c));
+    else out = Value::from_char(d_ascii_to_upper(c));
+    return true;
+  }
+
+  if (bid == BuiltinId::ToString) {
+    if (argc != 1 || (args[0].tag != ValueTag::Int && args[0].tag != ValueTag::Float)) {
+      err = ErrCode::Type;
+      return false;
+    }
+    char tmp[64];
+    const int len = args[0].tag == ValueTag::Int
+                        ? d_append_int_decimal(tmp, args[0].i)
+                        : d_append_float_decimal(tmp, args[0].f);
+    if constexpr (PayloadTraits::kHasString) {
+      auto& st = payload_state;
+      if (st.string_bytes_used + len <= st.kMaxStringBytes) {
+        const int off = st.string_bytes_used;
+        for (int i = 0; i < len; ++i) {
+          st.string_bytes[off + i] = tmp[i];
+        }
+        st.string_bytes_used += len;
+        out = Value::from_string_hash_len(d_hash_bytes(st.string_bytes + off, len),
+                                          static_cast<std::uint32_t>(len));
+        (void)d_register_local_string(st, out, off, len);
+        return true;
+      }
+    }
+    out = Value::from_string_hash_len(d_hash_bytes(tmp, len), static_cast<std::uint32_t>(len));
+    return true;
+  }
+
+  if (bid == BuiltinId::Singleton) {
+    if (argc != 1) {
+      err = ErrCode::Type;
+      return false;
+    }
+    const Value& x = args[0];
+    if (x.tag == ValueTag::Char) {
+      if (x.i < 0 || x.i > 255) {
+        err = ErrCode::Value;
+        return false;
+      }
+      if constexpr (PayloadTraits::kHasString) {
+        auto& st = payload_state;
+        if (st.string_bytes_used + 1 <= st.kMaxStringBytes) {
+          const int off = st.string_bytes_used;
+          st.string_bytes[off] = static_cast<char>(x.i);
+          st.string_bytes_used += 1;
+          out = Value::from_string_hash_len(d_hash_bytes(st.string_bytes + off, 1), 1U);
+          (void)d_register_local_string(st, out, off, 1);
+          return true;
+        }
+      }
+      const char c = static_cast<char>(x.i);
+      out = Value::from_string_hash_len(d_hash_bytes(&c, 1), 1U);
+      return true;
+    }
+    if (x.tag == ValueTag::Int || x.tag == ValueTag::Float || x.tag == ValueTag::String) {
+      const ValueTag list_tag = (x.tag == ValueTag::Int)
+                                    ? ValueTag::IntList
+                                    : ((x.tag == ValueTag::Float) ? ValueTag::FloatList : ValueTag::StringList);
+      if constexpr (PayloadTraits::kHasList) {
+        auto& st = payload_state;
+        if (st.list_values_used + 1 <= st.kMaxListValues) {
+          const int off = st.list_values_used;
+          st.list_values[off] = x;
+          st.list_values_used += 1;
+          out = d_make_list_hash_len(list_tag, d_hash_list_payload(st.list_values + off, 1), 1U);
+          (void)d_register_local_list(st, out, off, 1);
+          return true;
+        }
+      }
+      std::uint64_t h = Value::fnv1a_init();
+      h = Value::fnv1a_mix_u8(h, 0xA1U);
+      h = Value::fnv1a_mix_u64(h, 1U);
+      h = Value::fnv1a_mix_u64(h, d_hash_value_shallow(x));
+      out = d_make_list_hash_len(list_tag, h, 1U);
+      return true;
+    }
+    err = ErrCode::Type;
+    return false;
   }
 
   err = ErrCode::Name;

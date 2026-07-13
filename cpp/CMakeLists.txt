@@ -103,6 +103,15 @@ add_executable(g3pvm_test_vm_edges
 target_link_libraries(g3pvm_test_vm_edges PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_vm_edges COMMAND g3pvm_test_vm_edges)
 
+add_executable(g3pvm_test_cli_json
+  tests/runtime/test_cli_json.cpp
+  src/cli/codec.cpp
+  src/cli/json.cpp
+)
+target_include_directories(g3pvm_test_cli_json PRIVATE include)
+target_link_libraries(g3pvm_test_cli_json PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_cli_json COMMAND g3pvm_test_cli_json)
+
 add_executable(g3pvm_test_genome
   tests/evolution/test_genome.cpp
 )

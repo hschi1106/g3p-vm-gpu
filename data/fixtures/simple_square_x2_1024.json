@@ -1,5 +1,5 @@
 {
-  "format_version": "fitness-cases-v1",
+  "format_version": "fitness-cases",
   "meta": {
     "suite": "simple_evo_square_x2_1024",
     "case_count": 1024

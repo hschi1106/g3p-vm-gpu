@@ -1,6 +1,6 @@
 import unittest
 
-from src.g3p_vm_gpu.core.ast import build_program
+from src.g3p_vm_gpu.core.ast import build_program, make_char
 from src.g3p_vm_gpu.core.errors import Failed, Returned
 from src.g3p_vm_gpu.evolution.random_program import make_random_program
 from src.g3p_vm_gpu.runtime.compiler import compile_program
@@ -81,9 +81,13 @@ class TestVMEquiv(unittest.TestCase):
         prog = build_program([("assign", "x", ("const", 1))])
         self._assert_equiv(prog)
 
-    def test_none_eq_ne_with_non_none(self):
-        self._assert_equiv(build_program([("return", ("eq", ("const", None), ("const", 1)))]))
-        self._assert_equiv(build_program([("return", ("ne", ("const", None), ("const", 1)))]))
+    def test_current_builtin_equivalence(self):
+        self._assert_equiv(
+            build_program([("return", ("eq", ("const", make_char("a")), ("const", make_char("a"))))])
+        )
+        self._assert_equiv(
+            build_program([("return", ("ne", ("const", make_char("a")), ("const", "a")))])
+        )
         self._assert_equiv(build_program([("return", ("call", "len", [("const", "abc")]))]))
         self._assert_equiv(build_program([("return", ("call", "concat", [("const", "ab"), ("const", "cd")]))]))
         self._assert_equiv(build_program([("return", ("call", "slice", [("const", "abcdef"), ("const", 1), ("const", 4)]))]))

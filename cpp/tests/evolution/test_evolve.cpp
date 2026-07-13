@@ -268,7 +268,7 @@ bool test_generated_initial_population_uses_expected_return_type() {
     return false;
   }
   if (!expected_type_seed_case_has_no_type_penalty(
-          g3pvm::payload::make_num_list_value({Value::from_int(42)}), "num list expected")) {
+          g3pvm::payload::make_int_list_value({Value::from_int(42)}), "int list expected")) {
     return false;
   }
   if (!expected_type_seed_case_has_no_type_penalty(
@@ -362,6 +362,35 @@ bool test_cpu_repro_ablation_rejects_gpu_backend() {
   }
   std::cerr << "FAIL: cpu repro ablation should reject gpu reproduction backend\n";
   return false;
+}
+
+bool test_legacy_num_list_input_compat_uses_any_for_generation() {
+  using g3pvm::evo::RType;
+
+  g3pvm::evo::GrammarConfig grammar = g3pvm::evo::GrammarConfig::all_enabled();
+  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::IntList, grammar) == RType::IntList,
+             "exact current int list input should stay IntList")) {
+    return false;
+  }
+  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::FloatList, grammar) == RType::FloatList,
+             "exact current float list input should stay FloatList")) {
+    return false;
+  }
+
+  grammar.compat_legacy_num_list_inputs_as_any = true;
+  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::IntList, grammar) == RType::Any,
+             "legacy NumList compat should generate from Any for IntList inputs")) {
+    return false;
+  }
+  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::FloatList, grammar) == RType::Any,
+             "legacy NumList compat should generate from Any for FloatList inputs")) {
+    return false;
+  }
+  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::StringList, grammar) == RType::StringList,
+             "legacy NumList compat should not change StringList inputs")) {
+    return false;
+  }
+  return true;
 }
 
 g3pvm::evo::ProgramGenome make_dummy_genome(const std::string& key) {
@@ -517,6 +546,7 @@ int main() {
   if (!test_nonfinite_fitness_is_clamped_to_penalty()) return 1;
   if (!test_cpu_repro_ablation_modes_smoke_and_determinism()) return 1;
   if (!test_cpu_repro_ablation_rejects_gpu_backend()) return 1;
+  if (!test_legacy_num_list_input_compat_uses_any_for_generation()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_repeats_winners()) return 1;
   if (!test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one()) return 1;
   if (!test_gpu_backend_smoke()) return 1;

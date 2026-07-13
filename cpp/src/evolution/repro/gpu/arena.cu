@@ -52,7 +52,11 @@ bool gpu_repro_config_fits_capacity(const GpuReproConfig& need, const GpuReproCo
          have.max_nodes >= need.max_nodes &&
          have.max_donor_nodes >= need.max_donor_nodes &&
          have.max_names >= need.max_names &&
-         have.max_consts >= need.max_consts;
+         have.max_consts >= need.max_consts &&
+         have.max_linear_rec_binders >= need.max_linear_rec_binders &&
+         have.max_asgp_dc_binders >= need.max_asgp_dc_binders &&
+         have.max_asgp_dp1d_specs >= need.max_asgp_dp1d_specs &&
+         have.max_asgp_dp2d_specs >= need.max_asgp_dp2d_specs;
 }
 
 bool select_gpu_repro_device(int* device_id, std::string* message_out) {
@@ -307,6 +311,8 @@ void destroy_gpu_repro_host_staging(GpuReproHostStaging* staging) {
   }
   if (staging->parent_a) cudaFreeHost(staging->parent_a);
   if (staging->parent_b) cudaFreeHost(staging->parent_b);
+  if (staging->cand_a) cudaFreeHost(staging->cand_a);
+  if (staging->cand_b) cudaFreeHost(staging->cand_b);
   if (staging->child_used_len) cudaFreeHost(staging->child_used_len);
   if (staging->child_name_counts) cudaFreeHost(staging->child_name_counts);
   if (staging->child_const_counts) cudaFreeHost(staging->child_const_counts);
@@ -338,6 +344,10 @@ bool ensure_gpu_repro_host_staging_capacity(GpuReproHostStaging* staging,
                          "cudaMallocHost parent_a") ||
       !alloc_host_pinned(&staging->parent_b, static_cast<std::size_t>(config.pair_count), message_out,
                          "cudaMallocHost parent_b") ||
+      !alloc_host_pinned(&staging->cand_a, static_cast<std::size_t>(config.pair_count), message_out,
+                         "cudaMallocHost cand_a") ||
+      !alloc_host_pinned(&staging->cand_b, static_cast<std::size_t>(config.pair_count), message_out,
+                         "cudaMallocHost cand_b") ||
       !alloc_host_pinned(&staging->child_used_len, static_cast<std::size_t>(config.pair_count * 2), message_out,
                          "cudaMallocHost child_used_len") ||
       !alloc_host_pinned(&staging->child_name_counts, static_cast<std::size_t>(config.pair_count * 2), message_out,

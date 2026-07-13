@@ -16,8 +16,10 @@
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/grammar_config.hpp"
+#include "g3pvm/evolution/repro/pack.hpp"
 #include "g3pvm/cli/codec.hpp"
 #include "g3pvm/cli/json.hpp"
+#include "g3pvm/runtime/payload/payload.hpp"
 
 // Keep evolve_cli.cpp directly buildable in ad-hoc environments.
 #include "json.cpp"
@@ -33,6 +35,7 @@ struct CliOptions {
   std::string cases_path;
   std::string population_json;
   std::string grammar_config_path;
+  std::string eval_ast_json;
   std::string engine = "cpu";
   std::string repro_backend = "cpu";
   std::string cpu_repro_ablation = "none";
@@ -79,7 +82,7 @@ std::string json_escape(const std::string& s) {
 }
 
 void write_value_json(std::ostream& out, const Value& v) {
-  if (v.tag == ValueTag::None) {
+  if (v.tag == ValueTag::Invalid) {
     out << "null";
     return;
   }
@@ -95,7 +98,8 @@ void write_value_json(std::ostream& out, const Value& v) {
     out << "null";
     return;
   }
-  if (v.tag == ValueTag::String || v.tag == ValueTag::NumList || v.tag == ValueTag::StringList) {
+  if (v.tag == ValueTag::String || v.tag == ValueTag::IntList ||
+      v.tag == ValueTag::FloatList || v.tag == ValueTag::StringList) {
     out << "null";
     return;
   }
@@ -104,6 +108,119 @@ void write_value_json(std::ostream& out, const Value& v) {
     return;
   }
   out << "null";
+}
+
+void write_typed_value_json(std::ostream& out, const Value& v);
+
+void write_typed_list_json(std::ostream& out, const char* type, const std::vector<Value>& elems) {
+  out << "{\"type\":\"" << type << "\",\"value\":[";
+  for (std::size_t i = 0; i < elems.size(); ++i) {
+    if (i > 0) out << ",";
+    if (std::string(type) == "int_list") {
+      if (elems[i].tag != ValueTag::Int) {
+        throw std::runtime_error("IntList AST constant contains non-int element");
+      }
+      out << elems[i].i;
+    } else if (std::string(type) == "float_list") {
+      if (elems[i].tag != ValueTag::Float) {
+        throw std::runtime_error("FloatList AST constant contains non-float element");
+      }
+      out << std::setprecision(17) << elems[i].f;
+    } else {
+      if (elems[i].tag != ValueTag::String) {
+        throw std::runtime_error("StringList AST constant contains non-string element");
+      }
+      std::string s;
+      if (!g3pvm::payload::lookup_string(elems[i], &s)) {
+        throw std::runtime_error("missing string element payload while writing AST JSON");
+      }
+      out << "\"" << json_escape(s) << "\"";
+    }
+  }
+  out << "]}";
+}
+
+void write_typed_value_json(std::ostream& out, const Value& v) {
+  if (v.tag == ValueTag::Bool) {
+    out << "{\"type\":\"bool\",\"value\":" << (v.b ? "true" : "false") << "}";
+    return;
+  }
+  if (v.tag == ValueTag::Int) {
+    out << "{\"type\":\"int\",\"value\":" << v.i << "}";
+    return;
+  }
+  if (v.tag == ValueTag::Float) {
+    out << "{\"type\":\"float\",\"value\":";
+    if (std::isfinite(v.f)) {
+      out << std::setprecision(17) << v.f;
+    } else {
+      out << "0";
+    }
+    out << "}";
+    return;
+  }
+  if (v.tag == ValueTag::Char) {
+    std::string s;
+    s.push_back(static_cast<char>(v.i & 0xff));
+    out << "{\"type\":\"char\",\"value\":\"" << json_escape(s) << "\"}";
+    return;
+  }
+  if (v.tag == ValueTag::String) {
+    std::string s;
+    if (!g3pvm::payload::lookup_string(v, &s)) {
+      throw std::runtime_error("missing string payload while writing AST JSON");
+    }
+    out << "{\"type\":\"string\",\"value\":\"" << json_escape(s) << "\"}";
+    return;
+  }
+  if (v.tag == ValueTag::IntList || v.tag == ValueTag::FloatList || v.tag == ValueTag::StringList) {
+    std::vector<Value> elems;
+    if (!g3pvm::payload::lookup_list(v, &elems)) {
+      throw std::runtime_error("missing list payload while writing AST JSON");
+    }
+    if (v.tag == ValueTag::IntList) {
+      write_typed_list_json(out, "int_list", elems);
+    } else if (v.tag == ValueTag::FloatList) {
+      write_typed_list_json(out, "float_list", elems);
+    } else {
+      write_typed_list_json(out, "string_list", elems);
+    }
+    return;
+  }
+  throw std::runtime_error("unsupported AST constant value tag");
+}
+
+void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
+  out << "{";
+  out << "\"version\":\"" << json_escape(ast.version) << "\",";
+  out << "\"nodes\":[";
+  for (std::size_t i = 0; i < ast.nodes.size(); ++i) {
+    if (i > 0) out << ",";
+    const g3pvm::evo::AstNode& node = ast.nodes[i];
+    out << "{\"kind\":" << static_cast<int>(node.kind)
+        << ",\"i0\":" << node.i0
+        << ",\"i1\":" << node.i1 << "}";
+  }
+  out << "],\"names\":[";
+  for (std::size_t i = 0; i < ast.names.size(); ++i) {
+    if (i > 0) out << ",";
+    out << "\"" << json_escape(ast.names[i]) << "\"";
+  }
+  out << "],\"consts\":[";
+  for (std::size_t i = 0; i < ast.consts.size(); ++i) {
+    if (i > 0) out << ",";
+    write_typed_value_json(out, ast.consts[i]);
+  }
+  out << "],\"linear_rec_binders\":[";
+  for (std::size_t i = 0; i < ast.linear_rec_binders.size(); ++i) {
+    if (i > 0) out << ",";
+    const g3pvm::evo::LinearRecBinders& binders = ast.linear_rec_binders[i];
+    out << "{\"node_index\":" << binders.node_index
+        << ",\"elem_name\":" << binders.elem_name
+        << ",\"accum_name\":" << binders.accum_name
+        << ",\"index_name\":" << binders.index_name << "}";
+  }
+  out << "]}";
 }
 
 bool is_integer_number(double x) {
@@ -122,16 +239,27 @@ double canonicalize_metric(double x) {
   return std::ldexp(std::nearbyint(scaled), exp - keep_mantissa_bits);
 }
 
-Value decode_typed_or_raw_value(const JsonValue& v) {
+Value decode_typed_or_raw_value(const JsonValue& v, bool strict_format = false) {
   if (v.kind == JsonValue::Kind::Object) {
     auto it = v.object_v.find("type");
     if (it != v.object_v.end()) {
+      if (it->second.kind != JsonValue::Kind::String) {
+        throw std::runtime_error("typed value field type must be string");
+      }
+      if (strict_format &&
+          (it->second.string_v == "none" || it->second.string_v == "num_list" || it->second.string_v == "list")) {
+        throw std::runtime_error("fitness-cases rejects legacy typed value type: " + it->second.string_v);
+      }
       return g3pvm::cli_detail::decode_typed_value(v);
     }
   }
 
+  if (strict_format) {
+    throw std::runtime_error("fitness-cases values must be explicitly typed");
+  }
+
   if (v.kind == JsonValue::Kind::Null) {
-    return Value::none();
+    throw std::runtime_error("null is not a public current value");
   }
   if (v.kind == JsonValue::Kind::Bool) {
     return Value::from_bool(v.bool_v);
@@ -145,15 +273,95 @@ Value decode_typed_or_raw_value(const JsonValue& v) {
   throw std::runtime_error("unsupported raw value type");
 }
 
-g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
+g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw, bool strict_format = false) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("case.inputs must be an object");
   }
   g3pvm::evo::NamedInputs out;
   for (const auto& kv : raw.object_v) {
-    out[kv.first] = decode_typed_or_raw_value(kv.second);
+    out[kv.first] = decode_typed_or_raw_value(kv.second, strict_format);
   }
   return out;
+}
+
+int require_int_field_local(const JsonValue& raw, const char* key, const char* section) {
+  auto it = raw.object_v.find(key);
+  if (it == raw.object_v.end() || it->second.kind != JsonValue::Kind::Number ||
+      !is_integer_number(it->second.number_v)) {
+    throw std::runtime_error(std::string("expected integer field: ") + section + "." + key);
+  }
+  return static_cast<int>(it->second.number_v);
+}
+
+g3pvm::evo::AstProgram decode_ast_json(const JsonValue& raw) {
+  if (raw.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("AST JSON must be an object");
+  }
+  g3pvm::evo::AstProgram ast;
+  auto version_it = raw.object_v.find("version");
+  if (version_it == raw.object_v.end() || version_it->second.kind != JsonValue::Kind::String) {
+    throw std::runtime_error("AST JSON missing string field: version");
+  }
+  ast.version = version_it->second.string_v;
+
+  auto nodes_it = raw.object_v.find("nodes");
+  if (nodes_it == raw.object_v.end() || nodes_it->second.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("AST JSON missing array field: nodes");
+  }
+  ast.nodes.reserve(nodes_it->second.array_v.size());
+  for (const JsonValue& row : nodes_it->second.array_v) {
+    if (row.kind != JsonValue::Kind::Object) {
+      throw std::runtime_error("AST node must be an object");
+    }
+    const int kind = require_int_field_local(row, "kind", "node");
+    ast.nodes.push_back(g3pvm::evo::AstNode{
+        static_cast<g3pvm::evo::NodeKind>(kind),
+        require_int_field_local(row, "i0", "node"),
+        require_int_field_local(row, "i1", "node"),
+    });
+  }
+
+  auto names_it = raw.object_v.find("names");
+  if (names_it == raw.object_v.end() || names_it->second.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("AST JSON missing array field: names");
+  }
+  ast.names.reserve(names_it->second.array_v.size());
+  for (const JsonValue& item : names_it->second.array_v) {
+    if (item.kind != JsonValue::Kind::String) {
+      throw std::runtime_error("AST names must be strings");
+    }
+    ast.names.push_back(item.string_v);
+  }
+
+  auto consts_it = raw.object_v.find("consts");
+  if (consts_it == raw.object_v.end() || consts_it->second.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error("AST JSON missing array field: consts");
+  }
+  ast.consts.reserve(consts_it->second.array_v.size());
+  for (const JsonValue& item : consts_it->second.array_v) {
+    ast.consts.push_back(g3pvm::cli_detail::decode_typed_value(item));
+  }
+
+  auto binders_it = raw.object_v.find("linear_rec_binders");
+  if (binders_it != raw.object_v.end()) {
+    if (binders_it->second.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("AST linear_rec_binders must be an array");
+    }
+    ast.linear_rec_binders.reserve(binders_it->second.array_v.size());
+    for (const JsonValue& row : binders_it->second.array_v) {
+      if (row.kind != JsonValue::Kind::Object) {
+        throw std::runtime_error("AST linear_rec_binders item must be an object");
+      }
+      const int node_index = require_int_field_local(row, "node_index", "linear_rec_binders");
+      ast.linear_rec_binders.push_back(g3pvm::evo::LinearRecBinders{
+          static_cast<std::size_t>(node_index),
+          require_int_field_local(row, "elem_name", "linear_rec_binders"),
+          require_int_field_local(row, "accum_name", "linear_rec_binders"),
+          require_int_field_local(row, "index_name", "linear_rec_binders"),
+      });
+    }
+  }
+  return ast;
 }
 
 bool paths_match(const std::string& lhs, const std::string& rhs) {
@@ -207,30 +415,111 @@ bool require_bool_field(const JsonValue& raw, const char* key, const char* secti
   return it->second.bool_v;
 }
 
-g3pvm::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload) {
+void require_bool_fields(const JsonValue& raw, const std::vector<std::string>& keys, const char* section) {
+  for (const std::string& key : keys) {
+    (void)require_bool_field(raw, key.c_str(), section);
+  }
+}
+
+const JsonValue* optional_object_section(const JsonValue& raw, const char* key, const char* owner) {
+  auto it = raw.object_v.find(key);
+  if (it == raw.object_v.end()) {
+    return nullptr;
+  }
+  if (it->second.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error(std::string("grammar config expected object field: ") + owner + "." + key);
+  }
+  return &it->second;
+}
+
+void validate_optional_metadata(const JsonValue& payload) {
+  if (const JsonValue* structured = optional_object_section(payload, "structured", "root")) {
+    reject_unknown_fields(*structured,
+                          {"max_nested_binders", "max_map_body_depth", "max_filter_pred_depth",
+                           "max_linear_rec_body_depth"},
+                          "structured");
+  }
+  if (const JsonValue* limits = optional_object_section(payload, "limits", "root")) {
+    reject_unknown_fields(*limits,
+                          {"max_expr_depth", "max_stmts_per_block", "max_total_nodes", "max_for_k",
+                           "max_call_args"},
+                          "limits");
+  }
+  if (const JsonValue* asgp = optional_object_section(payload, "asgp", "root")) {
+    reject_unknown_fields(*asgp, {"max_scheme_nesting", "dc", "dp1d", "dp2d"}, "asgp");
+    if (const JsonValue* dc = optional_object_section(*asgp, "dc", "asgp")) {
+      reject_unknown_fields(*dc, {"enabled_source_elems", "max_depth"}, "asgp.dc");
+    }
+    if (const JsonValue* dp1d = optional_object_section(*asgp, "dp1d", "asgp")) {
+      reject_unknown_fields(*dp1d, {"max_states", "max_step", "dependency_patterns"}, "asgp.dp1d");
+    }
+    if (const JsonValue* dp2d = optional_object_section(*asgp, "dp2d", "asgp")) {
+      reject_unknown_fields(*dp2d, {"max_cells", "dependency_patterns"}, "asgp.dp2d");
+    }
+  }
+  auto compat_it = payload.object_v.find("compat");
+  if (compat_it != payload.object_v.end() &&
+      compat_it->second.kind != JsonValue::Kind::Null &&
+      compat_it->second.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("grammar config expected root.compat to be null or object");
+  }
+}
+
+bool config_requests_legacy_num_list_input_compat(const JsonValue& payload) {
+  auto compat_it = payload.object_v.find("compat");
+  if (compat_it == payload.object_v.end() || compat_it->second.kind == JsonValue::Kind::Null) {
+    return false;
+  }
+  const JsonValue& compat = compat_it->second;
+  if (compat.kind != JsonValue::Kind::Object) {
+    return false;
+  }
+  auto mode_it = compat.object_v.find("mode");
+  auto num_list_mode_it = compat.object_v.find("num_list_mode");
+  if (mode_it == compat.object_v.end() || num_list_mode_it == compat.object_v.end() ||
+      mode_it->second.kind != JsonValue::Kind::String ||
+      num_list_mode_it->second.kind != JsonValue::Kind::String) {
+    return false;
+  }
+  return mode_it->second.string_v == "compact" &&
+         num_list_mode_it->second.string_v == "both";
+}
+
+g3pvm::evo::GrammarConfig parse_grammar_config_current_payload(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("grammar config must be a JSON object");
   }
   auto fv_it = payload.object_v.find("format_version");
   if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
-      fv_it->second.string_v != "grammar-config-v1") {
-    throw std::runtime_error("grammar config must include format_version=grammar-config-v1");
+      fv_it->second.string_v != "grammar-config") {
+    throw std::runtime_error("grammar config must include format_version=grammar-config");
   }
 
   const JsonValue& statements = require_object_section(payload, "statements");
   const JsonValue& expressions = require_object_section(payload, "expressions");
-  const JsonValue& unary = require_object_section(expressions, "unary");
-  const JsonValue& binary = require_object_section(expressions, "binary");
-  const JsonValue& builtins = require_object_section(expressions, "builtins");
+  const JsonValue& builtins = require_object_section(payload, "builtins");
   const JsonValue& values = require_object_section(payload, "values");
 
-  reject_unknown_fields(payload, {"format_version", "statements", "expressions", "values"}, "root");
+  reject_unknown_fields(payload,
+                        {"format_version", "profile", "statements", "expressions", "builtins", "values",
+                         "structured", "asgp", "limits", "compat"},
+                        "root");
   reject_unknown_fields(statements, {"assign", "if_stmt", "for_range", "return"}, "statements");
-  reject_unknown_fields(expressions, {"const", "var", "if_expr", "unary", "binary", "builtins"}, "expressions");
-  reject_unknown_fields(unary, {"neg", "not"}, "expressions.unary");
-  reject_unknown_fields(binary, {"add", "sub", "mul", "div", "mod", "lt", "le", "gt", "ge", "eq", "ne", "and", "or"}, "expressions.binary");
-  reject_unknown_fields(builtins, {"abs", "min", "max", "clip", "len", "concat", "slice", "index", "append", "reverse", "find", "contains"}, "expressions.builtins");
-  reject_unknown_fields(values, {"int", "float", "bool", "none", "string", "num_list", "string_list"}, "values");
+  reject_unknown_fields(expressions,
+                        {"const", "var", "bound_var", "unary", "binary", "if_expr", "call",
+                         "map_list", "filter_list", "linear_rec", "asgp_dc", "asgp_dp1d", "asgp_dp2d"},
+                        "expressions");
+  reject_unknown_fields(builtins,
+                        {"abs", "min", "max", "clip", "idiv0", "imod0", "len", "concat", "slice",
+                         "index", "append", "prepend", "reverse", "find", "contains", "singleton",
+                         "char_to_string", "string_to_char", "ord", "chr", "is_letter", "is_digit",
+                         "is_space", "is_vowel", "to_lower", "to_upper", "to_string"},
+                        "builtins");
+  reject_unknown_fields(values,
+                        {"int", "float", "bool", "char", "string", "int_list", "float_list",
+                         "string_list"},
+                        "values");
+  validate_optional_metadata(payload);
 
   g3pvm::evo::GrammarConfig cfg;
   cfg.statement_assign = require_bool_field(statements, "assign", "statements");
@@ -240,58 +529,125 @@ g3pvm::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload)
 
   cfg.expression_const = require_bool_field(expressions, "const", "expressions");
   cfg.expression_var = require_bool_field(expressions, "var", "expressions");
+  (void)require_bool_field(expressions, "bound_var", "expressions");
+  const bool unary_enabled = require_bool_field(expressions, "unary", "expressions");
+  const bool binary_enabled = require_bool_field(expressions, "binary", "expressions");
   cfg.expression_if_expr = require_bool_field(expressions, "if_expr", "expressions");
+  const bool call_enabled = require_bool_field(expressions, "call", "expressions");
+  cfg.expression_map_list = require_bool_field(expressions, "map_list", "expressions");
+  cfg.expression_filter_list = require_bool_field(expressions, "filter_list", "expressions");
+  cfg.expression_linear_rec = require_bool_field(expressions, "linear_rec", "expressions");
+  cfg.expression_asgp_dc = require_bool_field(expressions, "asgp_dc", "expressions");
+  cfg.expression_asgp_dp1d = require_bool_field(expressions, "asgp_dp1d", "expressions");
+  cfg.expression_asgp_dp2d = require_bool_field(expressions, "asgp_dp2d", "expressions");
 
-  cfg.unary_neg = require_bool_field(unary, "neg", "expressions.unary");
-  cfg.unary_not = require_bool_field(unary, "not", "expressions.unary");
+  cfg.unary_neg = unary_enabled;
+  cfg.unary_not = unary_enabled;
+  cfg.binary_add = binary_enabled;
+  cfg.binary_sub = binary_enabled;
+  cfg.binary_mul = binary_enabled;
+  cfg.binary_div = binary_enabled;
+  cfg.binary_mod = binary_enabled;
+  cfg.binary_lt = binary_enabled;
+  cfg.binary_le = binary_enabled;
+  cfg.binary_gt = binary_enabled;
+  cfg.binary_ge = binary_enabled;
+  cfg.binary_eq = binary_enabled;
+  cfg.binary_ne = binary_enabled;
+  cfg.binary_and = binary_enabled;
+  cfg.binary_or = binary_enabled;
 
-  cfg.binary_add = require_bool_field(binary, "add", "expressions.binary");
-  cfg.binary_sub = require_bool_field(binary, "sub", "expressions.binary");
-  cfg.binary_mul = require_bool_field(binary, "mul", "expressions.binary");
-  cfg.binary_div = require_bool_field(binary, "div", "expressions.binary");
-  cfg.binary_mod = require_bool_field(binary, "mod", "expressions.binary");
-  cfg.binary_lt = require_bool_field(binary, "lt", "expressions.binary");
-  cfg.binary_le = require_bool_field(binary, "le", "expressions.binary");
-  cfg.binary_gt = require_bool_field(binary, "gt", "expressions.binary");
-  cfg.binary_ge = require_bool_field(binary, "ge", "expressions.binary");
-  cfg.binary_eq = require_bool_field(binary, "eq", "expressions.binary");
-  cfg.binary_ne = require_bool_field(binary, "ne", "expressions.binary");
-  cfg.binary_and = require_bool_field(binary, "and", "expressions.binary");
-  cfg.binary_or = require_bool_field(binary, "or", "expressions.binary");
-
-  cfg.builtin_abs = require_bool_field(builtins, "abs", "expressions.builtins");
-  cfg.builtin_min = require_bool_field(builtins, "min", "expressions.builtins");
-  cfg.builtin_max = require_bool_field(builtins, "max", "expressions.builtins");
-  cfg.builtin_clip = require_bool_field(builtins, "clip", "expressions.builtins");
-  cfg.builtin_len = require_bool_field(builtins, "len", "expressions.builtins");
-  cfg.builtin_concat = require_bool_field(builtins, "concat", "expressions.builtins");
-  cfg.builtin_slice = require_bool_field(builtins, "slice", "expressions.builtins");
-  cfg.builtin_index = require_bool_field(builtins, "index", "expressions.builtins");
-  cfg.builtin_append = require_bool_field(builtins, "append", "expressions.builtins");
-  cfg.builtin_reverse = require_bool_field(builtins, "reverse", "expressions.builtins");
-  cfg.builtin_find = require_bool_field(builtins, "find", "expressions.builtins");
-  cfg.builtin_contains = require_bool_field(builtins, "contains", "expressions.builtins");
+  const bool builtin_abs = require_bool_field(builtins, "abs", "builtins");
+  const bool builtin_min = require_bool_field(builtins, "min", "builtins");
+  const bool builtin_max = require_bool_field(builtins, "max", "builtins");
+  const bool builtin_clip = require_bool_field(builtins, "clip", "builtins");
+  const bool builtin_idiv0 = require_bool_field(builtins, "idiv0", "builtins");
+  const bool builtin_imod0 = require_bool_field(builtins, "imod0", "builtins");
+  const bool builtin_len = require_bool_field(builtins, "len", "builtins");
+  const bool builtin_concat = require_bool_field(builtins, "concat", "builtins");
+  const bool builtin_slice = require_bool_field(builtins, "slice", "builtins");
+  const bool builtin_index = require_bool_field(builtins, "index", "builtins");
+  const bool builtin_append = require_bool_field(builtins, "append", "builtins");
+  const bool builtin_prepend = require_bool_field(builtins, "prepend", "builtins");
+  const bool builtin_reverse = require_bool_field(builtins, "reverse", "builtins");
+  const bool builtin_find = require_bool_field(builtins, "find", "builtins");
+  const bool builtin_contains = require_bool_field(builtins, "contains", "builtins");
+  const bool builtin_singleton = require_bool_field(builtins, "singleton", "builtins");
+  const bool builtin_char_to_string = require_bool_field(builtins, "char_to_string", "builtins");
+  const bool builtin_string_to_char = require_bool_field(builtins, "string_to_char", "builtins");
+  const bool builtin_ord = require_bool_field(builtins, "ord", "builtins");
+  const bool builtin_chr = require_bool_field(builtins, "chr", "builtins");
+  const bool builtin_is_letter = require_bool_field(builtins, "is_letter", "builtins");
+  const bool builtin_is_digit = require_bool_field(builtins, "is_digit", "builtins");
+  const bool builtin_is_space = require_bool_field(builtins, "is_space", "builtins");
+  const bool builtin_is_vowel = require_bool_field(builtins, "is_vowel", "builtins");
+  const bool builtin_to_lower = require_bool_field(builtins, "to_lower", "builtins");
+  const bool builtin_to_upper = require_bool_field(builtins, "to_upper", "builtins");
+  const bool builtin_to_string = require_bool_field(builtins, "to_string", "builtins");
+  cfg.builtin_abs = call_enabled && builtin_abs;
+  cfg.builtin_min = call_enabled && builtin_min;
+  cfg.builtin_max = call_enabled && builtin_max;
+  cfg.builtin_clip = call_enabled && builtin_clip;
+  cfg.builtin_idiv0 = call_enabled && builtin_idiv0;
+  cfg.builtin_imod0 = call_enabled && builtin_imod0;
+  cfg.builtin_len = call_enabled && builtin_len;
+  cfg.builtin_concat = call_enabled && builtin_concat;
+  cfg.builtin_slice = call_enabled && builtin_slice;
+  cfg.builtin_index = call_enabled && builtin_index;
+  cfg.builtin_append = call_enabled && builtin_append;
+  cfg.builtin_prepend = call_enabled && builtin_prepend;
+  cfg.builtin_reverse = call_enabled && builtin_reverse;
+  cfg.builtin_find = call_enabled && builtin_find;
+  cfg.builtin_contains = call_enabled && builtin_contains;
+  cfg.builtin_singleton = call_enabled && builtin_singleton;
+  cfg.builtin_char_to_string = call_enabled && builtin_char_to_string;
+  cfg.builtin_string_to_char = call_enabled && builtin_string_to_char;
+  cfg.builtin_ord = call_enabled && builtin_ord;
+  cfg.builtin_chr = call_enabled && builtin_chr;
+  cfg.builtin_is_letter = call_enabled && builtin_is_letter;
+  cfg.builtin_is_digit = call_enabled && builtin_is_digit;
+  cfg.builtin_is_space = call_enabled && builtin_is_space;
+  cfg.builtin_is_vowel = call_enabled && builtin_is_vowel;
+  cfg.builtin_to_lower = call_enabled && builtin_to_lower;
+  cfg.builtin_to_upper = call_enabled && builtin_to_upper;
+  cfg.builtin_to_string = call_enabled && builtin_to_string;
 
   cfg.value_int = require_bool_field(values, "int", "values");
   cfg.value_float = require_bool_field(values, "float", "values");
   cfg.value_bool = require_bool_field(values, "bool", "values");
-  cfg.value_none = require_bool_field(values, "none", "values");
+  cfg.value_char = require_bool_field(values, "char", "values");
   cfg.value_string = require_bool_field(values, "string", "values");
-  cfg.value_num_list = require_bool_field(values, "num_list", "values");
+  cfg.value_int_list = require_bool_field(values, "int_list", "values");
+  cfg.value_float_list = require_bool_field(values, "float_list", "values");
   cfg.value_string_list = require_bool_field(values, "string_list", "values");
+  cfg.compat_legacy_num_list_inputs_as_any =
+      config_requests_legacy_num_list_input_compat(payload);
   cfg.validate();
   return cfg;
 }
 
-std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
+g3pvm::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload) {
+  if (payload.kind != JsonValue::Kind::Object) {
+    throw std::runtime_error("grammar config must be a JSON object");
+  }
+  auto fv_it = payload.object_v.find("format_version");
+  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String) {
+    throw std::runtime_error("grammar config must include format_version=grammar-config");
+  }
+  return parse_grammar_config_current_payload(payload);
+}
+
+std::vector<g3pvm::evo::EvalCase> parse_cases(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
   }
 
   auto fv_it = payload.object_v.find("format_version");
-  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
-      fv_it->second.string_v != "fitness-cases-v1") {
-    throw std::runtime_error("input JSON must include format_version=fitness-cases-v1");
+  if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String) {
+    throw std::runtime_error("input JSON must include format_version=fitness-cases");
+  }
+  if (fv_it->second.string_v != "fitness-cases") {
+    throw std::runtime_error("input JSON must include format_version=fitness-cases");
   }
 
   auto cases_it = payload.object_v.find("cases");
@@ -310,8 +666,8 @@ std::vector<g3pvm::evo::EvalCase> parse_cases_v1(const JsonValue& payload) {
     if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
       throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    out.push_back(g3pvm::evo::EvalCase{decode_inputs(inputs_it->second),
-                                          decode_typed_or_raw_value(expected_it->second)});
+    out.push_back(g3pvm::evo::EvalCase{decode_inputs(inputs_it->second, true),
+                                          decode_typed_or_raw_value(expected_it->second, true)});
   }
   if (out.empty()) {
     throw std::runtime_error("cases must not be empty");
@@ -359,8 +715,8 @@ LoadedPopulation load_population_from_seed_set(const std::string& population_jso
 
   auto fv_it = payload.object_v.find("format_version");
   if (fv_it == payload.object_v.end() || fv_it->second.kind != JsonValue::Kind::String ||
-      fv_it->second.string_v != "population-seeds-v1") {
-    throw std::runtime_error("population seed set must include format_version=population-seeds-v1");
+      fv_it->second.string_v != "population-seeds") {
+    throw std::runtime_error("population seed set must include format_version=population-seeds");
   }
 
   auto cases_it = payload.object_v.find("cases_path");
@@ -450,6 +806,8 @@ CliOptions parse_cli(int argc, char** argv) {
       opts.population_json = need_value("--population-json");
     } else if (arg == "--grammar-config") {
       opts.grammar_config_path = need_value("--grammar-config");
+    } else if (arg == "--eval-ast-json") {
+      opts.eval_ast_json = need_value("--eval-ast-json");
     } else if (arg == "--engine") {
       opts.engine = need_value("--engine");
     } else if (arg == "--repro-backend") {
@@ -565,7 +923,7 @@ int main(int argc, char** argv) {
 
     g3pvm::cli_detail::JsonParser parser(text);
     const JsonValue payload = parser.parse();
-    const std::vector<g3pvm::evo::EvalCase> cases = parse_cases_v1(payload);
+    const std::vector<g3pvm::evo::EvalCase> cases = parse_cases(payload);
 
     g3pvm::evo::EvolutionConfig cfg;
     cfg.population_size = args.population_size;
@@ -584,6 +942,45 @@ int main(int argc, char** argv) {
     cfg.skip_final_eval = args.skip_final_eval;
     cfg.retain_final_population = args.retain_final_population;
     cfg.grammar = grammar_config;
+
+    if (!args.eval_ast_json.empty()) {
+      if (cfg.eval_engine != g3pvm::evo::EvalEngine::CPU) {
+        throw std::runtime_error("--eval-ast-json currently supports --engine cpu only");
+      }
+      const JsonValue ast_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.eval_ast_json)).parse();
+      g3pvm::evo::ProgramGenome genome;
+      genome.ast = decode_ast_json(ast_payload);
+      genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+      const std::vector<g3pvm::evo::ScoredGenome> scored =
+          g3pvm::evo::evaluate_population({genome}, cases, cfg);
+      if (scored.empty()) {
+        throw std::runtime_error("AST evaluation produced no score");
+      }
+      const double fitness = canonicalize_metric(scored[0].fitness);
+      std::cout << "AST_EVAL fitness=" << std::fixed << std::setprecision(6)
+                << fitness << " program_key=" << scored[0].genome.meta.program_key << "\n";
+      if (!args.out_json.empty()) {
+        std::ofstream out(args.out_json);
+        if (!out) {
+          throw std::runtime_error("failed to open out-json path");
+        }
+        out << "{\n";
+        out << "  \"format_version\": \"ast-eval-result\",\n";
+        out << "  \"meta\": {\n";
+        out << "    \"cases_path\": \"" << json_escape(args.cases_path) << "\",\n";
+        out << "    \"ast_json\": \"" << json_escape(args.eval_ast_json) << "\",\n";
+        out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
+        out << "    \"fuel\": " << cfg.fuel << ",\n";
+        out << "    \"penalty\": " << std::setprecision(17) << cfg.penalty << "\n";
+        out << "  },\n";
+        out << "  \"result\": {\n";
+        out << "    \"fitness\": " << std::setprecision(17) << scored[0].fitness << ",\n";
+        out << "    \"program_key\": \"" << json_escape(scored[0].genome.meta.program_key) << "\"\n";
+        out << "  }\n";
+        out << "}\n";
+      }
+      return 0;
+    }
 
     std::vector<g3pvm::evo::ProgramGenome> initial_population;
     const std::vector<g3pvm::evo::ProgramGenome>* initial_population_ptr = nullptr;
@@ -911,22 +1308,27 @@ int main(int argc, char** argv) {
       out << "  \"final\": {\n";
       out << "    \"skipped\": " << (result.final_eval_skipped ? "true" : "false");
       if (!result.final_eval_skipped) {
+        const g3pvm::evo::ProgramGenome best_output =
+            g3pvm::evo::repro::compact_genome_tables(result.best.genome);
         out << ",\n";
         out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";
-        out << "    \"program_key\": \"" << json_escape(result.best.genome.meta.program_key) << "\",\n";
-        out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(result.best.genome.ast)) << "\",\n";
+        out << "    \"program_key\": \"" << json_escape(best_output.meta.program_key) << "\",\n";
+        out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(best_output.ast)) << "\",\n";
         out << "    \"ast_names\": [";
-        for (std::size_t i = 0; i < result.best.genome.ast.names.size(); ++i) {
+        for (std::size_t i = 0; i < best_output.ast.names.size(); ++i) {
           if (i > 0) out << ", ";
-          out << "\"" << json_escape(result.best.genome.ast.names[i]) << "\"";
+          out << "\"" << json_escape(best_output.ast.names[i]) << "\"";
         }
         out << "],\n";
         out << "    \"ast_consts\": [";
-        for (std::size_t i = 0; i < result.best.genome.ast.consts.size(); ++i) {
+        for (std::size_t i = 0; i < best_output.ast.consts.size(); ++i) {
           if (i > 0) out << ", ";
-          write_value_json(out, result.best.genome.ast.consts[i]);
+          write_value_json(out, best_output.ast.consts[i]);
         }
-        out << "]\n";
+        out << "],\n";
+        out << "    \"ast\": ";
+        write_ast_json(out, best_output.ast);
+        out << "\n";
       } else {
         out << "\n";
       }

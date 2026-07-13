@@ -1,56 +1,94 @@
 {
-  "format_version": "grammar-config-v1",
+  "asgp": {
+    "dc": {
+      "enabled_source_elems": [],
+      "max_depth": 0
+    },
+    "dp1d": {
+      "dependency_patterns": [],
+      "max_states": 0,
+      "max_step": 0
+    },
+    "dp2d": {
+      "dependency_patterns": [],
+      "max_cells": 0
+    },
+    "max_scheme_nesting": 0
+  },
+  "builtins": {
+    "abs": true,
+    "append": false,
+    "char_to_string": false,
+    "chr": false,
+    "clip": true,
+    "concat": true,
+    "contains": true,
+    "find": true,
+    "idiv0": false,
+    "imod0": false,
+    "index": true,
+    "is_digit": false,
+    "is_letter": false,
+    "is_space": false,
+    "is_vowel": false,
+    "len": true,
+    "max": true,
+    "min": true,
+    "ord": false,
+    "prepend": false,
+    "reverse": true,
+    "singleton": false,
+    "slice": true,
+    "string_to_char": false,
+    "to_lower": false,
+    "to_string": false,
+    "to_upper": false
+  },
+  "compat": null,
+  "expressions": {
+    "asgp_dc": false,
+    "asgp_dp1d": false,
+    "asgp_dp2d": false,
+    "binary": true,
+    "bound_var": false,
+    "call": true,
+    "const": true,
+    "filter_list": false,
+    "if_expr": true,
+    "linear_rec": false,
+    "map_list": false,
+    "unary": true,
+    "var": true
+  },
+  "format_version": "grammar-config",
+  "limits": {
+    "max_call_args": 3,
+    "max_expr_depth": 7,
+    "max_for_k": 16,
+    "max_stmts_per_block": 6,
+    "max_total_nodes": 80
+  },
+  "profile": "string",
   "statements": {
     "assign": true,
-    "if_stmt": true,
     "for_range": true,
+    "if_stmt": true,
     "return": true
   },
-  "expressions": {
-    "const": true,
-    "var": true,
-    "if_expr": true,
-    "unary": {
-      "neg": true,
-      "not": true
-    },
-    "binary": {
-      "add": true,
-      "sub": true,
-      "mul": true,
-      "div": true,
-      "mod": true,
-      "lt": true,
-      "le": true,
-      "gt": true,
-      "ge": true,
-      "eq": true,
-      "ne": true,
-      "and": true,
-      "or": true
-    },
-    "builtins": {
-      "abs": true,
-      "min": true,
-      "max": true,
-      "clip": true,
-      "len": true,
-      "concat": true,
-      "slice": true,
-      "index": true,
-      "append": false,
-      "reverse": true,
-      "find": true,
-      "contains": true
-    }
+  "structured": {
+    "max_filter_pred_depth": 0,
+    "max_linear_rec_body_depth": 0,
+    "max_map_body_depth": 0,
+    "max_nested_binders": 0
   },
   "values": {
-    "int": true,
-    "float": true,
     "bool": true,
-    "none": true,
+    "char": false,
+    "float": true,
+    "float_list": false,
+    "int": true,
+    "int_list": false,
     "string": true,
-    "num_list": false,
     "string_list": false
   }
 }

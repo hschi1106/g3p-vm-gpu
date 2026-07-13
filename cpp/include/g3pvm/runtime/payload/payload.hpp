@@ -16,12 +16,12 @@ struct PayloadStats {
 };
 
 struct StringSnapshot {
-  Value key = Value::none();
+  Value key = Value::invalid();
   std::string data;
 };
 
 struct ListSnapshot {
-  Value key = Value::none();
+  Value key = Value::invalid();
   std::vector<Value> elems;
 };
 
@@ -38,7 +38,8 @@ bool lookup_string_packed(std::int64_t packed, std::string* out);
 bool lookup_list_packed(ValueTag tag, std::int64_t packed, std::vector<Value>* out);
 
 Value make_string_value(const std::string& s);
-Value make_num_list_value(const std::vector<Value>& elems);
+Value make_int_list_value(const std::vector<Value>& elems);
+Value make_float_list_value(const std::vector<Value>& elems);
 Value make_string_list_value(const std::vector<Value>& elems);
 
 std::vector<StringSnapshot> snapshot_strings();

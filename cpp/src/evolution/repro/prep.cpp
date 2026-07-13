@@ -36,21 +36,25 @@ int clamp_tournament_size(int population_size, int selection_pressure) {
 RType donor_type_for_bucket(int bucket) {
   switch (bucket) {
     case 0:
-      return RType::Num;
+      return RType::Int;
     case 1:
-      return RType::Bool;
+      return RType::Float;
     case 2:
-      return RType::NoneType;
+      return RType::Bool;
     case 3:
-      return RType::String;
+      return RType::Char;
     case 4:
-      return RType::NumList;
+      return RType::String;
     case 5:
-      return RType::StringList;
+      return RType::IntList;
     case 6:
+      return RType::FloatList;
+    case 7:
+      return RType::StringList;
+    case 8:
       return RType::Any;
     default:
-      return RType::Num;
+      return RType::Int;
   }
 }
 
@@ -62,12 +66,16 @@ bool value_allowed_by_grammar(const Value& value, const GrammarConfig& grammar) 
       return grammar.value_float;
     case ValueTag::Bool:
       return grammar.value_bool;
-    case ValueTag::None:
-      return grammar.value_none;
+    case ValueTag::Char:
+      return grammar.value_char;
+    case ValueTag::Invalid:
+      return false;
     case ValueTag::String:
       return grammar.value_string;
-    case ValueTag::NumList:
-      return grammar.value_num_list;
+    case ValueTag::IntList:
+      return grammar.value_int_list;
+    case ValueTag::FloatList:
+      return grammar.value_float_list;
     case ValueTag::StringList:
       return grammar.value_string_list;
     case ValueTag::FallbackToken:
@@ -99,6 +107,21 @@ bool subtree_allowed_by_grammar(const AstProgram& program,
   return true;
 }
 
+CandidateRange candidate_from_typed_root(const typed_expr::TypedExprRoot& root) {
+  CandidateRange out;
+  out.start = static_cast<int>(root.start);
+  out.stop = static_cast<int>(root.stop);
+  out.tag = static_cast<int>(CandidateTag::Expr);
+  out.aux = static_cast<int>(root.type);
+  out.scope_signature = root.scope_signature;
+  out.binder_signature = root.binder_signature;
+  out.scheme_kind = root.scheme_kind;
+  out.phase_name = root.phase_name;
+  out.visible_env_signature = root.visible_env_signature;
+  out.dp_dependency_arity = root.dp_dependency_arity;
+  return out;
+}
+
 std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
                                                    const std::vector<std::size_t>& subtree_end,
                                                    int limit,
@@ -112,7 +135,8 @@ std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
   std::vector<typed_expr::TypedExprRoot> filtered_roots;
   filtered_roots.reserve(expr_roots.size());
   for (const typed_expr::TypedExprRoot& root : expr_roots) {
-    if (subtree_allowed_by_grammar(genome.ast, root, grammar)) {
+    if (!typed_expr::is_asgp_phase_body_root(genome.ast, subtree_end, root) &&
+        subtree_allowed_by_grammar(genome.ast, root, grammar)) {
       filtered_roots.push_back(root);
     }
   }
@@ -130,10 +154,7 @@ std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
       pick = filtered_roots.size() - 1;
     }
     const typed_expr::TypedExprRoot& root = filtered_roots[pick];
-    out.push_back(CandidateRange{static_cast<int>(root.start),
-                                 static_cast<int>(root.stop),
-                                 static_cast<int>(CandidateTag::Expr),
-                                 static_cast<int>(root.type)});
+    out.push_back(candidate_from_typed_root(root));
   }
   return out;
 }
@@ -143,14 +164,14 @@ DonorProgram make_donor_program(std::uint64_t seed,
                                 const GpuReproConfig& config,
                                 const GrammarConfig& grammar) {
   DonorProgram out;
-  out.type = grammar.allows_type(type) ? type : RType::Num;
-  out.ast.version = "ast-prefix-v1";
+  out.type = grammar.allows_type(type) ? type : RType::Int;
+  out.ast.version = k_ast_prefix_version_current;
   std::mt19937_64 rng(seed);
   const int donor_depth = std::max(1, std::min(config.max_nodes, config.max_donor_nodes) / 4);
-  out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, out.type, donor_depth, grammar);
+  out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, out.type, donor_depth, grammar, true);
   if (out.ast.nodes.empty()) {
-    out.type = RType::Num;
-    out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, RType::Num, donor_depth, grammar);
+    out.type = RType::Int;
+    out.ast.nodes = subtree::make_random_expr_nodes_for_type(rng, out.ast, RType::Int, donor_depth, grammar, true);
   }
   return out;
 }
@@ -168,6 +189,10 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
   out.max_donor_nodes = std::max(4, std::min(out.max_nodes, cfg.limits.max_expr_depth * 6));
   out.max_names = 1;
   out.max_consts = 1;
+  out.max_linear_rec_binders = 1;
+  out.max_asgp_dc_binders = 1;
+  out.max_asgp_dp1d_specs = 1;
+  out.max_asgp_dp2d_specs = 1;
   out.tournament_k = clamp_tournament_size(out.population_size, cfg.selection_pressure);
   out.max_expr_depth = std::max(0, cfg.limits.max_expr_depth);
   out.max_for_k = std::max(0, cfg.limits.max_for_k);
@@ -177,6 +202,14 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
   for (const ProgramGenome& genome : population) {
     out.max_names = std::max(out.max_names, static_cast<int>(genome.ast.names.size()) + 4);
     out.max_consts = std::max(out.max_consts, static_cast<int>(genome.ast.consts.size()) + 4);
+    out.max_linear_rec_binders =
+        std::max(out.max_linear_rec_binders, static_cast<int>(genome.ast.linear_rec_binders.size()) + 4);
+    out.max_asgp_dc_binders =
+        std::max(out.max_asgp_dc_binders, static_cast<int>(genome.ast.asgp_dc_binders.size()) + 4);
+    out.max_asgp_dp1d_specs =
+        std::max(out.max_asgp_dp1d_specs, static_cast<int>(genome.ast.asgp_dp1d_specs.size()) + 4);
+    out.max_asgp_dp2d_specs =
+        std::max(out.max_asgp_dp2d_specs, static_cast<int>(genome.ast.asgp_dp2d_specs.size()) + 4);
   }
   return out;
 }

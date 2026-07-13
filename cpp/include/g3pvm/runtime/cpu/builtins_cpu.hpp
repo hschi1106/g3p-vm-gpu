@@ -11,7 +11,7 @@ namespace g3pvm {
 
 struct BuiltinResult {
   bool is_error = false;
-  Value value = Value::none();
+  Value value = Value::invalid();
   Err err{ErrCode::Value, ""};
 };
 

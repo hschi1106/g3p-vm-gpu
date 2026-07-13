@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
-from ..core.ast import AstProgram, NodeKind, build_program
+from ..core.ast import AstProgram, BUILTIN_NAME_BY_NODE, NODE_ARITY, NodeKind, build_program, linear_rec_binders_for_node
 from .genome import ProgramGenome, as_genome
 
 
@@ -42,54 +42,46 @@ def expr_from_prefix(program: AstProgram, idx: int) -> tuple[tuple, int]:
         then_expr, tail = expr_from_prefix(program, mid)
         else_expr, nxt = expr_from_prefix(program, tail)
         return ("if_expr", cond, then_expr, else_expr), nxt
-    if kind in {
-        NodeKind.CALL_ABS,
-        NodeKind.CALL_MIN,
-        NodeKind.CALL_MAX,
-        NodeKind.CALL_CLIP,
-        NodeKind.CALL_LEN,
-        NodeKind.CALL_CONCAT,
-        NodeKind.CALL_SLICE,
-        NodeKind.CALL_INDEX,
-        NodeKind.CALL_APPEND,
-        NodeKind.CALL_REVERSE,
-        NodeKind.CALL_FIND,
-        NodeKind.CALL_CONTAINS,
-    }:
-        name = {
-            NodeKind.CALL_ABS: "abs",
-            NodeKind.CALL_MIN: "min",
-            NodeKind.CALL_MAX: "max",
-            NodeKind.CALL_CLIP: "clip",
-            NodeKind.CALL_LEN: "len",
-            NodeKind.CALL_CONCAT: "concat",
-            NodeKind.CALL_SLICE: "slice",
-            NodeKind.CALL_INDEX: "index",
-            NodeKind.CALL_APPEND: "append",
-            NodeKind.CALL_REVERSE: "reverse",
-            NodeKind.CALL_FIND: "find",
-            NodeKind.CALL_CONTAINS: "contains",
-        }[kind]
-        argc = {
-            NodeKind.CALL_ABS: 1,
-            NodeKind.CALL_MIN: 2,
-            NodeKind.CALL_MAX: 2,
-            NodeKind.CALL_CLIP: 3,
-            NodeKind.CALL_LEN: 1,
-            NodeKind.CALL_CONCAT: 2,
-            NodeKind.CALL_SLICE: 3,
-            NodeKind.CALL_INDEX: 2,
-            NodeKind.CALL_APPEND: 2,
-            NodeKind.CALL_REVERSE: 1,
-            NodeKind.CALL_FIND: 2,
-            NodeKind.CALL_CONTAINS: 2,
-        }[kind]
+    if kind in BUILTIN_NAME_BY_NODE:
+        name = BUILTIN_NAME_BY_NODE[kind]
+        argc = NODE_ARITY[kind]
         args: List[tuple] = []
         cur = idx + 1
         for _ in range(argc):
             arg, cur = expr_from_prefix(program, cur)
             args.append(arg)
         return ("call", name, args), cur
+    if kind == NodeKind.BOUND_VAR:
+        return ("bound", program.names[node.i0]), idx + 1
+    if kind == NodeKind.MAP_LIST:
+        source, mid = expr_from_prefix(program, idx + 1)
+        body, nxt = expr_from_prefix(program, mid)
+        out_type = {1: "int", 2: "float", 3: "string"}.get(node.i1)
+        if out_type is None:
+            raise ValueError(f"unknown MapList output tag: {node.i1}")
+        return ("map_list", program.names[node.i0], source, body, out_type), nxt
+    if kind == NodeKind.FILTER_LIST:
+        source, mid = expr_from_prefix(program, idx + 1)
+        pred, nxt = expr_from_prefix(program, mid)
+        return ("filter_list", program.names[node.i0], source, pred), nxt
+    if kind == NodeKind.LINEAR_REC:
+        binders = linear_rec_binders_for_node(program, idx)
+        source, mid = expr_from_prefix(program, idx + 1)
+        start, tail = expr_from_prefix(program, mid)
+        empty_case, step_idx = expr_from_prefix(program, tail)
+        step, last_idx = expr_from_prefix(program, step_idx)
+        last, nxt = expr_from_prefix(program, last_idx)
+        return (
+            "linear_rec",
+            program.names[binders.elem_name],
+            program.names[binders.accum_name],
+            program.names[binders.index_name],
+            source,
+            start,
+            empty_case,
+            step,
+            last,
+        ), nxt
     raise ValueError(f"expected Expr at index {idx}, got {kind}")
 
 

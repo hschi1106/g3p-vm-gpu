@@ -31,16 +31,24 @@ AstProgram typed_subtree_mutation(const AstProgram& ast,
                                   const GrammarConfig& grammar) {
   AstProgram mutated;
   const std::vector<std::size_t> end = subtree::build_subtree_end(ast);
-  const std::vector<typed_expr::TypedExprRoot> expr_roots = typed_expr::collect_typed_expr_roots(ast, end);
+  const std::vector<typed_expr::TypedExprRoot> all_roots = typed_expr::collect_typed_expr_roots(ast, end);
+  std::vector<typed_expr::TypedExprRoot> expr_roots;
+  expr_roots.reserve(all_roots.size());
+  for (const typed_expr::TypedExprRoot& root : all_roots) {
+    if (!typed_expr::is_asgp_phase_body_root(ast, end, root)) {
+      expr_roots.push_back(root);
+    }
+  }
   if (expr_roots.empty()) {
     return mutated;
   }
 
   const typed_expr::TypedExprRoot target = choose_one(rng, expr_roots);
   AstProgram donor;
-  donor.version = "ast-prefix-v1";
+  donor.version = k_ast_prefix_version_current;
+  const bool allow_asgp_donor = typed_expr::is_statement_value_root(ast, target);
   donor.nodes = subtree::make_random_expr_nodes_for_type(
-      rng, donor, target.type, std::max(1, limits.max_expr_depth / 2), grammar);
+      rng, donor, target.type, std::max(1, limits.max_expr_depth / 2), grammar, allow_asgp_donor);
   return subtree::replace_subtree(ast, target.start, target.stop, donor, 0, donor.nodes.size());
 }
 

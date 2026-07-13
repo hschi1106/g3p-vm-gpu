@@ -16,7 +16,8 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
                                                      AstProgram& target,
                                                      RType type,
                                                      int depth,
-                                                     const GrammarConfig& grammar = GrammarConfig{});
+                                                     const GrammarConfig& grammar = GrammarConfig{},
+                                                     bool allow_asgp = true);
 AstProgram replace_subtree(const AstProgram& base,
                            std::size_t target_start,
                            std::size_t target_stop,

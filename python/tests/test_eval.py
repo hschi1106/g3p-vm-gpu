@@ -1,6 +1,6 @@
 import unittest
 
-from src.g3p_vm_gpu.core.ast import build_program, make_num_list, make_string_list
+from src.g3p_vm_gpu.core.ast import build_program, make_char, make_float_list, make_int_list, make_string_list
 from src.g3p_vm_gpu.core.errors import ErrCode, Failed, Returned
 from src.g3p_vm_gpu.evolution.random_program import make_random_program
 from src.g3p_vm_gpu.runtime.builtins import builtin_call
@@ -96,7 +96,7 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_len_string_and_list(self):
         self.assertEqual(builtin_call("len", ["abcd"]), 4)
-        self.assertEqual(builtin_call("len", [make_num_list([1, 2, 3])]), 3)
+        self.assertEqual(builtin_call("len", [make_int_list([1, 2, 3])]), 3)
 
     def test_builtin_len_via_ast(self):
         prog = build_program([("return", ("call", "len", [("const", "abcd")]))])
@@ -110,10 +110,14 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_concat_string_and_list(self):
         self.assertEqual(builtin_call("concat", ["ab", "cd"]), "abcd")
-        self.assertEqual(builtin_call("concat", [make_num_list([1, 2]), make_num_list([3])]), make_num_list([1, 2, 3]))
+        self.assertEqual(builtin_call("concat", [make_int_list([1, 2]), make_int_list([3])]), make_int_list([1, 2, 3]))
+        self.assertEqual(
+            builtin_call("concat", [make_float_list([1.0, 2.5]), make_float_list([3.0])]),
+            make_float_list([1.0, 2.5, 3.0]),
+        )
 
     def test_builtin_concat_type_error(self):
-        out = builtin_call("concat", ["ab", make_num_list([1])])
+        out = builtin_call("concat", ["ab", make_int_list([1])])
         self.assertEqual(out.code, ErrCode.TYPE)
 
     def test_builtin_concat_via_ast(self):
@@ -124,7 +128,7 @@ class TestEval(unittest.TestCase):
 
     def test_builtin_slice_string_and_list(self):
         self.assertEqual(builtin_call("slice", ["abcdef", 1, 4]), "bcd")
-        self.assertEqual(builtin_call("slice", [make_num_list([1, 2, 3, 4]), 1, 3]), make_num_list([2, 3]))
+        self.assertEqual(builtin_call("slice", [make_int_list([1, 2, 3, 4]), 1, 3]), make_int_list([2, 3]))
 
     def test_builtin_slice_type_error(self):
         out = builtin_call("slice", ["abcdef", 1.5, 4])
@@ -137,14 +141,15 @@ class TestEval(unittest.TestCase):
         self.assertEqual(out.value, "bcd")
 
     def test_builtin_index_string_and_list(self):
-        self.assertEqual(builtin_call("index", ["abcdef", 1]), "b")
-        self.assertEqual(builtin_call("index", [make_num_list([1, 2, 3]), -1]), 3)
+        self.assertEqual(builtin_call("index", ["abcdef", 1]), make_char("b"))
+        self.assertEqual(builtin_call("index", [make_int_list([1, 2, 3]), -1]), 3)
 
     def test_first_wave_sequence_builtins(self):
-        self.assertEqual(builtin_call("append", [make_num_list([1, 2]), 3]), make_num_list([1, 2, 3]))
+        self.assertEqual(builtin_call("append", [make_int_list([1, 2]), 3]), make_int_list([1, 2, 3]))
+        self.assertEqual(builtin_call("prepend", [make_int_list([2, 3]), 1]), make_int_list([1, 2, 3]))
         self.assertEqual(builtin_call("append", [make_string_list(["a"]), "b"]), make_string_list(["a", "b"]))
         self.assertEqual(builtin_call("reverse", ["abc"]), "cba")
-        self.assertEqual(builtin_call("reverse", [make_num_list([1, 2, 3])]), make_num_list([3, 2, 1]))
+        self.assertEqual(builtin_call("reverse", [make_int_list([1, 2, 3])]), make_int_list([3, 2, 1]))
         self.assertEqual(builtin_call("find", ["abracadabra", "cad"]), 4)
         self.assertEqual(builtin_call("contains", ["abracadabra", "cad"]), True)
 
@@ -158,7 +163,7 @@ class TestEval(unittest.TestCase):
         prog = build_program([("return", ("call", "index", [("const", "abcdef"), ("const", 2)]))])
         _, out = run_program(prog, {}, fuel=100)
         self.assertIsInstance(out, Returned)
-        self.assertEqual(out.value, "c")
+        self.assertEqual(out.value, make_char("c"))
 
     def test_timeout(self):
         prog = build_program([("return", ("const", 1))])
@@ -172,16 +177,9 @@ class TestEval(unittest.TestCase):
         self.assertIsInstance(out, Failed)
         self.assertEqual(out.err.code, ErrCode.VALUE)
 
-    def test_none_eq_ne_with_non_none(self):
-        eq_prog = build_program([("return", ("eq", ("const", None), ("const", 1)))])
-        _, eq_out = run_program(eq_prog, {}, fuel=100)
-        self.assertIsInstance(eq_out, Returned)
-        self.assertEqual(eq_out.value, False)
-
-        ne_prog = build_program([("return", ("ne", ("const", None), ("const", 1)))])
-        _, ne_out = run_program(ne_prog, {}, fuel=100)
-        self.assertIsInstance(ne_out, Returned)
-        self.assertEqual(ne_out.value, True)
+    def test_none_constant_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_program([("return", ("const", None))])
 
     def test_string_list_eq_ne(self):
         eq_prog = build_program([("return", ("eq", ("const", "ab"), ("const", "ab")))])
@@ -189,7 +187,7 @@ class TestEval(unittest.TestCase):
         self.assertIsInstance(eq_out, Returned)
         self.assertEqual(eq_out.value, True)
 
-        ne_prog = build_program([("return", ("ne", ("const", [1, 2]), ("const", [1, 3])))])
+        ne_prog = build_program([("return", ("ne", ("const", make_int_list([1, 2])), ("const", make_int_list([1, 3]))))])
         _, ne_out = run_program(ne_prog, {}, fuel=100)
         self.assertIsInstance(ne_out, Returned)
         self.assertEqual(ne_out.value, True)

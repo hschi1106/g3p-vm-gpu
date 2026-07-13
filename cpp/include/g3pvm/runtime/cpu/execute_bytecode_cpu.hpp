@@ -11,7 +11,7 @@ namespace g3pvm {
 
 struct ExecResult {
   bool is_error = false;
-  Value value = Value::none();
+  Value value = Value::invalid();
   Err err{ErrCode::Value, ""};
 };
 

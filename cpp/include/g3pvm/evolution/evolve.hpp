@@ -23,7 +23,7 @@ using NamedInputs = std::unordered_map<std::string, Value>;
 
 struct EvalCase {
   NamedInputs inputs;
-  Value expected = Value::none();
+  Value expected = Value::invalid();
 };
 
 struct EvolutionConfig {
@@ -116,6 +116,8 @@ std::vector<ScoredGenome> evaluate_population(const std::vector<ProgramGenome>& 
 EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
                                   const EvolutionConfig& cfg,
                                   const std::vector<ProgramGenome>* initial_population = nullptr);
+
+RType generation_input_type_for_grammar(RType inferred, const GrammarConfig& grammar);
 
 std::string eval_engine_name(EvalEngine engine);
 

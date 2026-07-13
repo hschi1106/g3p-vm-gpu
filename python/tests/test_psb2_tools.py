@@ -54,7 +54,7 @@ class TestPsb2Tools(unittest.TestCase):
             proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=True)
             self.assertIn("CONVERT_RUNTIME_COMPATIBLE 1", proc.stdout)
             train = json.loads(out.read_text(encoding="utf-8"))
-            self.assertEqual(train["format_version"], "fitness-cases-v1")
+            self.assertEqual(train["format_version"], "fitness-cases")
             self.assertEqual(len(train["cases"]), 3)
             one = train["cases"][0]
             self.assertIn("inputs", one)
@@ -100,6 +100,7 @@ class TestPsb2Tools(unittest.TestCase):
             rnd = td_path / "random.json"
             out = td_path / "train.json"
             out_test = td_path / "test.json"
+            schema = td_path / "schema.json"
             edge.write_text(
                 '{"input1":[],"output1":[]}\n'
                 '{"input1":[1,2],"output1":[3]}\n',
@@ -108,6 +109,10 @@ class TestPsb2Tools(unittest.TestCase):
             rnd.write_text(
                 '{"input1":[4.5],"output1":[4.5]}\n'
                 '{"input1":[],"output1":[]}\n',
+                encoding="utf-8",
+            )
+            schema.write_text(
+                json.dumps({"field_schemas": {"input1": "float_list", "output1": "float_list"}}),
                 encoding="utf-8",
             )
 
@@ -128,12 +133,70 @@ class TestPsb2Tools(unittest.TestCase):
                 str(out),
                 "--out-test",
                 str(out_test),
+                "--schema-json",
+                str(schema),
             ]
             proc = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, check=True)
             self.assertIn("CONVERT_RUNTIME_COMPATIBLE 1", proc.stdout)
             payload = json.loads(out.read_text(encoding="utf-8"))
-            self.assertTrue(all(row["inputs"]["input1"]["type"] == "num_list" for row in payload["cases"]))
-            self.assertTrue(all(row["expected"]["type"] == "num_list" for row in payload["cases"]))
+            self.assertTrue(all(row["inputs"]["input1"]["type"] == "float_list" for row in payload["cases"]))
+            self.assertTrue(all(row["expected"]["type"] == "float_list" for row in payload["cases"]))
+
+    def test_current_mixed_numeric_list_requires_explicit_schema(self):
+        with tempfile.TemporaryDirectory(prefix="g3p_psb2_current_mixed_") as td:
+            td_path = Path(td)
+            edge = td_path / "edge.json"
+            rnd = td_path / "random.json"
+            out = td_path / "train.current.json"
+            out_test = td_path / "test.current.json"
+            schema = td_path / "schema.json"
+            edge.write_text(
+                '{"input1":[],"output1":[]}\n'
+                '{"input1":[1,2],"output1":[3]}\n',
+                encoding="utf-8",
+            )
+            rnd.write_text(
+                '{"input1":[4.5],"output1":[4.5]}\n'
+                '{"input1":[],"output1":[]}\n',
+                encoding="utf-8",
+            )
+
+            base_cmd = [
+                "python3",
+                "tools/convert_psb_to_fitness_cases.py",
+                "--suite",
+                "psb2",
+                "--edge-file",
+                str(edge),
+                "--random-file",
+                str(rnd),
+                "--format-version",
+                "fitness-cases",
+                "--n-train",
+                "2",
+                "--n-test",
+                "2",
+                "--out",
+                str(out),
+                "--out-test",
+                str(out_test),
+            ]
+            proc = subprocess.run(base_cmd, cwd=ROOT, text=True, capture_output=True)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("mixes int and float list elements", proc.stderr)
+
+            schema.write_text(
+                json.dumps({"field_schemas": {"input1": "float_list", "output1": "float_list"}}),
+                encoding="utf-8",
+            )
+            proc = subprocess.run(base_cmd + ["--schema-json", str(schema)], cwd=ROOT, text=True, capture_output=True, check=True)
+            self.assertIn("CONVERT_FORMAT fitness-cases", proc.stdout)
+            payload = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(payload["format_version"], "fitness-cases")
+            self.assertEqual(payload["schema"]["inputs"]["input1"], "float_list")
+            self.assertEqual(payload["schema"]["expected"], "float_list")
+            self.assertTrue(all(row["inputs"]["input1"]["type"] == "float_list" for row in payload["cases"]))
+            self.assertTrue(all(row["expected"]["type"] == "float_list" for row in payload["cases"]))
 
     def test_unified_convert_with_psb2_problem_to_fitness_cases(self):
         with tempfile.TemporaryDirectory(prefix="g3p_psb_unified_conv_") as td:

@@ -10,7 +10,7 @@ class TestSimpleEvoFixtures(unittest.TestCase):
     def _load_cases(self, rel_path: str):
         path = ROOT / rel_path
         payload = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual(payload.get("format_version"), "fitness-cases-v1")
+        self.assertEqual(payload.get("format_version"), "fitness-cases")
         self.assertIn("cases", payload)
         cases = payload["cases"]
         self.assertEqual(len(cases), 1024)

@@ -29,13 +29,17 @@ namespace {
 std::vector<std::string> build_canonical_input_names(const std::vector<EvalCase>& cases);
 
 RType infer_input_rtype(const Value& value) {
+  if (value.tag == ValueTag::Int) return RType::Int;
+  if (value.tag == ValueTag::Float) return RType::Float;
   if (value.tag == ValueTag::Bool) return RType::Bool;
-  if (value.tag == ValueTag::None) return RType::NoneType;
+  if (value.tag == ValueTag::Char) return RType::Char;
+  if (value.tag == ValueTag::Invalid) return RType::Invalid;
   if (value.tag == ValueTag::String) return RType::String;
-  if (value.tag == ValueTag::NumList) return RType::NumList;
+  if (value.tag == ValueTag::IntList) return RType::IntList;
+  if (value.tag == ValueTag::FloatList) return RType::FloatList;
   if (value.tag == ValueTag::StringList) return RType::StringList;
   if (value.tag == ValueTag::FallbackToken) return RType::Any;
-  return RType::Num;
+  return RType::Invalid;
 }
 
 RType merge_input_rtype(RType a, RType b) {
@@ -45,11 +49,14 @@ RType merge_input_rtype(RType a, RType b) {
 }
 
 RType infer_expected_rtype(const Value& value) {
-  if (value.tag == ValueTag::Int || value.tag == ValueTag::Float) return RType::Num;
+  if (value.tag == ValueTag::Int) return RType::Int;
+  if (value.tag == ValueTag::Float) return RType::Float;
   if (value.tag == ValueTag::Bool) return RType::Bool;
-  if (value.tag == ValueTag::None) return RType::NoneType;
+  if (value.tag == ValueTag::Char) return RType::Char;
+  if (value.tag == ValueTag::Invalid) return RType::Invalid;
   if (value.tag == ValueTag::String) return RType::String;
-  if (value.tag == ValueTag::NumList) return RType::NumList;
+  if (value.tag == ValueTag::IntList) return RType::IntList;
+  if (value.tag == ValueTag::FloatList) return RType::FloatList;
   if (value.tag == ValueTag::StringList) return RType::StringList;
   return RType::Invalid;
 }
@@ -75,10 +82,12 @@ RType infer_expected_return_rtype(const std::vector<EvalCase>& cases) {
 }
 
 bool should_seed_for_expected_return_type(RType type) {
-  return type == RType::String || type == RType::NumList || type == RType::StringList;
+  return type == RType::String || type == RType::IntList || type == RType::FloatList ||
+         type == RType::StringList;
 }
 
-std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& cases) {
+std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& cases,
+                                                   const GrammarConfig& grammar) {
   const std::vector<std::string> input_names = build_canonical_input_names(cases);
   std::vector<InputSpec> specs;
   specs.reserve(input_names.size());
@@ -91,6 +100,7 @@ std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& 
       }
       type = merge_input_rtype(type, infer_input_rtype(it->second));
     }
+    type = generation_input_type_for_grammar(type, grammar);
     specs.push_back(InputSpec{name, type});
   }
   return specs;
@@ -156,7 +166,8 @@ void append_payload_root_if_needed(const Value& value, std::vector<Value>* roots
   if (roots == nullptr) {
     return;
   }
-  if (value.tag == ValueTag::String || value.tag == ValueTag::NumList || value.tag == ValueTag::StringList) {
+  if (value.tag == ValueTag::String || value.tag == ValueTag::IntList ||
+      value.tag == ValueTag::FloatList || value.tag == ValueTag::StringList) {
     roots->push_back(value);
   }
 }
@@ -522,6 +533,14 @@ std::vector<ScoredGenomeRef> score_population_gpu_refs(
 
 }  // namespace
 
+RType generation_input_type_for_grammar(RType inferred, const GrammarConfig& grammar) {
+  if (grammar.compat_legacy_num_list_inputs_as_any &&
+      (inferred == RType::IntList || inferred == RType::FloatList)) {
+    return RType::Any;
+  }
+  return inferred;
+}
+
 std::string eval_engine_name(EvalEngine engine) {
   if (engine == EvalEngine::GPU) return "gpu";
   return "cpu";
@@ -558,7 +577,7 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
 
   const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);
-  const std::vector<InputSpec> canonical_input_specs = build_canonical_input_specs(cases);
+  const std::vector<InputSpec> canonical_input_specs = build_canonical_input_specs(cases, cfg.grammar);
   const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
   const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
   const std::vector<Value> expected_values = build_expected_values(cases);

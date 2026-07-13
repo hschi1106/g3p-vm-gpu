@@ -47,6 +47,8 @@ struct GpuReproHostStaging {
   GpuReproConfig capacity;
   int* parent_a = nullptr;
   int* parent_b = nullptr;
+  int* cand_a = nullptr;
+  int* cand_b = nullptr;
   int* child_used_len = nullptr;
   int* child_name_counts = nullptr;
   int* child_const_counts = nullptr;

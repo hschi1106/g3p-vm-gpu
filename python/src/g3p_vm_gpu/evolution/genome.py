@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
-from ..core.ast import AstProgram, NodeKind, max_expr_depth, node_count, prefix_repr
+from ..core.ast import AstProgram, BUILTIN_NAME_BY_NODE, max_expr_depth, node_count, prefix_repr
 from ..runtime.compiler import BytecodeProgram, compile_program
 
 
@@ -32,24 +32,7 @@ class ProgramGenome:
 
 def build_genome_meta(ast: AstProgram) -> GenomeMeta:
     digest = hashlib.sha1(prefix_repr(ast).encode("utf-8")).hexdigest()[:16]
-    uses_builtins = any(
-        node.kind
-        in {
-            NodeKind.CALL_ABS,
-            NodeKind.CALL_MIN,
-            NodeKind.CALL_MAX,
-            NodeKind.CALL_CLIP,
-            NodeKind.CALL_LEN,
-            NodeKind.CALL_CONCAT,
-            NodeKind.CALL_SLICE,
-            NodeKind.CALL_INDEX,
-            NodeKind.CALL_APPEND,
-            NodeKind.CALL_REVERSE,
-            NodeKind.CALL_FIND,
-            NodeKind.CALL_CONTAINS,
-        }
-        for node in ast.nodes
-    )
+    uses_builtins = any(node.kind in BUILTIN_NAME_BY_NODE for node in ast.nodes)
     return GenomeMeta(
         node_count=node_count(ast),
         max_depth=max_expr_depth(ast),

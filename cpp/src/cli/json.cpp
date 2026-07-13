@@ -1,6 +1,9 @@
 #include "g3pvm/cli/json.hpp"
 
+#include <cerrno>
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
 #include <stdexcept>
 #include <utility>
 
@@ -138,7 +141,16 @@ JsonValue JsonParser::parse_number() {
   }
   JsonValue out;
   out.kind = JsonValue::Kind::Number;
-  out.number_v = std::stod(text_.substr(start, pos_ - start));
+  const std::string token = text_.substr(start, pos_ - start);
+  errno = 0;
+  char* end = nullptr;
+  out.number_v = std::strtod(token.c_str(), &end);
+  if (end != token.c_str() + token.size()) {
+    throw std::runtime_error("invalid JSON number");
+  }
+  if (errno == ERANGE && !std::isfinite(out.number_v)) {
+    throw std::runtime_error("JSON number out of range");
+  }
   return out;
 }
 

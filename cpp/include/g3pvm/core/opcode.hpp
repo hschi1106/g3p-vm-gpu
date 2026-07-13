@@ -27,6 +27,13 @@ enum class Opcode : std::uint8_t {
   JmpIfTrue = 18,
   CallBuiltin = 19,
   Return = 20,
+  CheckList = 21,
+  CheckInt = 22,
+  EmptyList = 23,
+  EmptyListLike = 24,
+  AsgpDc = 25,
+  AsgpDp1d = 26,
+  AsgpDp2d = 27,
 };
 
 inline const char* opcode_name(Opcode op) {
@@ -73,6 +80,20 @@ inline const char* opcode_name(Opcode op) {
       return "CALL_BUILTIN";
     case Opcode::Return:
       return "RETURN";
+    case Opcode::CheckList:
+      return "CHECK_LIST";
+    case Opcode::CheckInt:
+      return "CHECK_INT";
+    case Opcode::EmptyList:
+      return "EMPTY_LIST";
+    case Opcode::EmptyListLike:
+      return "EMPTY_LIST_LIKE";
+    case Opcode::AsgpDc:
+      return "ASGP_DC";
+    case Opcode::AsgpDp1d:
+      return "ASGP_DP1D";
+    case Opcode::AsgpDp2d:
+      return "ASGP_DP2D";
   }
   return "PUSH_CONST";
 }
@@ -99,6 +120,13 @@ inline bool opcode_from_name(std::string_view name, Opcode& out) {
   else if (name == "JMP_IF_TRUE") out = Opcode::JmpIfTrue;
   else if (name == "CALL_BUILTIN") out = Opcode::CallBuiltin;
   else if (name == "RETURN") out = Opcode::Return;
+  else if (name == "CHECK_LIST") out = Opcode::CheckList;
+  else if (name == "CHECK_INT") out = Opcode::CheckInt;
+  else if (name == "EMPTY_LIST") out = Opcode::EmptyList;
+  else if (name == "EMPTY_LIST_LIKE") out = Opcode::EmptyListLike;
+  else if (name == "ASGP_DC") out = Opcode::AsgpDc;
+  else if (name == "ASGP_DP1D") out = Opcode::AsgpDp1d;
+  else if (name == "ASGP_DP2D") out = Opcode::AsgpDp2d;
   else return false;
   return true;
 }

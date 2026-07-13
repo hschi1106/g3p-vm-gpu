@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .ast import NumList, StringList, Val
+from .ast import Char, FloatList, IntList, StringList, Val
 from .errors import Err, ErrCode
 
 
@@ -11,12 +11,21 @@ def is_num(v: Val) -> bool:
 def promote_numeric(a: Val, b: Val) -> tuple[int | float, int | float] | Err:
     if not is_num(a) or not is_num(b):
         return Err(ErrCode.TYPE, "numeric operands required")
+    if type(a) is not type(b):
+        return Err(ErrCode.TYPE, "numeric operands require exact matching runtime types")
     if isinstance(a, float) or isinstance(b, float):
         return float(a), float(b)
     return int(a), int(b)
 
 
 def compare_values(op: str, a: Val, b: Val) -> bool | Err:
+    if op in {"EQ", "NE"}:
+        if type(a) is not type(b):
+            return Err(ErrCode.TYPE, "equality requires exact matching runtime types")
+        if isinstance(a, (bool, int, float, Char, str, IntList, FloatList, StringList)):
+            return (a == b) if op == "EQ" else (a != b)
+        return Err(ErrCode.TYPE, "unsupported equality operand types")
+
     if is_num(a) and is_num(b):
         prom = promote_numeric(a, b)
         if isinstance(prom, Err):
@@ -30,38 +39,12 @@ def compare_values(op: str, a: Val, b: Val) -> bool | Err:
             return a2 > b2
         if op == "GE":
             return a2 >= b2
-        if op == "EQ":
-            return a2 == b2
-        if op == "NE":
-            return a2 != b2
         return Err(ErrCode.TYPE, f"unknown comparison op: {op}")
 
     if isinstance(a, bool) and isinstance(b, bool):
-        if op == "EQ":
-            return a == b
-        if op == "NE":
-            return a != b
         return Err(ErrCode.TYPE, "ordering comparison on bool not supported")
 
-    if a is None or b is None:
-        if op == "EQ":
-            return a is b
-        if op == "NE":
-            return a is not b
-        return Err(ErrCode.TYPE, "ordering comparison on None not supported")
-
-    if isinstance(a, str) and isinstance(b, str):
-        if op == "EQ":
-            return a == b
-        if op == "NE":
-            return a != b
-        return Err(ErrCode.TYPE, "ordering comparison on string/list not supported")
-
-    if (isinstance(a, NumList) and isinstance(b, NumList)) or (isinstance(a, StringList) and isinstance(b, StringList)):
-        if op == "EQ":
-            return a == b
-        if op == "NE":
-            return a != b
-        return Err(ErrCode.TYPE, "ordering comparison on string/list not supported")
+    if isinstance(a, (Char, str, IntList, FloatList, StringList)) and isinstance(b, (Char, str, IntList, FloatList, StringList)):
+        return Err(ErrCode.TYPE, "ordering comparison on char/string/list not supported")
 
     return Err(ErrCode.TYPE, "unsupported comparison operand types")
