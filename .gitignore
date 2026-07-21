@@ -202,6 +202,11 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Historical and local research notes
+/ref/
+/meeting/
+/experiment/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
