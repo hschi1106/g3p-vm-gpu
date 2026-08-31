@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "g3pvm/evolution/node_descriptor.hpp"
 #include "g3pvm/runtime/payload/payload.hpp"
 
 namespace g3pvm::evo::subtree {
@@ -368,80 +369,7 @@ std::vector<AstNode> make_asgp_dp2d_nodes_for_type(AstProgram& target, RType typ
 }  // namespace
 
 int node_arity(NodeKind kind) {
-  switch (kind) {
-    case NodeKind::PROGRAM: return 1;
-    case NodeKind::BLOCK_NIL: return 0;
-    case NodeKind::BLOCK_CONS: return 2;
-    case NodeKind::ASSIGN: return 1;
-    case NodeKind::IF_STMT: return 3;
-    case NodeKind::FOR_RANGE: return 2;
-    case NodeKind::RETURN: return 1;
-    case NodeKind::CONST: return 0;
-    case NodeKind::VAR: return 0;
-    case NodeKind::NEG:
-    case NodeKind::NOT: return 1;
-    case NodeKind::ADD:
-    case NodeKind::SUB:
-    case NodeKind::MUL:
-    case NodeKind::DIV:
-    case NodeKind::MOD:
-    case NodeKind::LT:
-    case NodeKind::LE:
-    case NodeKind::GT:
-    case NodeKind::GE:
-    case NodeKind::EQ:
-    case NodeKind::NE:
-    case NodeKind::AND:
-    case NodeKind::OR: return 2;
-    case NodeKind::IF_EXPR: return 3;
-    case NodeKind::CALL_ABS: return 1;
-    case NodeKind::CALL_MIN:
-    case NodeKind::CALL_MAX: return 2;
-    case NodeKind::CALL_CLIP: return 3;
-    case NodeKind::CALL_IDIV0:
-    case NodeKind::CALL_IMOD0: return 2;
-    case NodeKind::CALL_LEN: return 1;
-    case NodeKind::CALL_CONCAT: return 2;
-    case NodeKind::CALL_SLICE: return 3;
-    case NodeKind::CALL_INDEX: return 2;
-    case NodeKind::CALL_APPEND: return 2;
-    case NodeKind::CALL_PREPEND: return 2;
-    case NodeKind::CALL_REVERSE: return 1;
-    case NodeKind::CALL_FIND: return 2;
-    case NodeKind::CALL_CONTAINS: return 2;
-    case NodeKind::CALL_CHAR_TO_STRING: return 1;
-    case NodeKind::CALL_STRING_TO_CHAR: return 1;
-    case NodeKind::CALL_ORD: return 1;
-    case NodeKind::CALL_CHR: return 1;
-    case NodeKind::CALL_IS_LETTER: return 1;
-    case NodeKind::CALL_IS_DIGIT: return 1;
-    case NodeKind::CALL_IS_SPACE: return 1;
-    case NodeKind::CALL_IS_VOWEL: return 1;
-    case NodeKind::CALL_TO_LOWER: return 1;
-    case NodeKind::CALL_TO_UPPER: return 1;
-    case NodeKind::CALL_TO_STRING: return 1;
-    case NodeKind::CALL_SINGLETON: return 1;
-    case NodeKind::BOUND_VAR: return 0;
-    case NodeKind::MAP_LIST: return 2;
-    case NodeKind::FILTER_LIST: return 2;
-    case NodeKind::LINEAR_REC: return 5;
-    case NodeKind::ASGP_DC: return 4;
-    case NodeKind::ASGP_DP1D: return 3;
-    case NodeKind::ASGP_DP2D: return 4;
-    case NodeKind::DP1_BACKWARD1:
-    case NodeKind::DP1_BACKWARD2:
-    case NodeKind::DP1_BACKWARD3:
-    case NodeKind::DP1_FORWARD1:
-    case NodeKind::DP1_FORWARD2:
-    case NodeKind::DP1_FORWARD3:
-    case NodeKind::DP2_CROSS_BACKWARD:
-    case NodeKind::DP2_CROSS_FORWARD:
-    case NodeKind::DP2_DIAGONAL_BACKWARD:
-    case NodeKind::DP2_DIAGONAL_FORWARD:
-    case NodeKind::DP2_NEIGHBORHOOD_BACKWARD3:
-    case NodeKind::DP2_NEIGHBORHOOD_FORWARD3: return 0;
-  }
-  return 0;
+  return node_descriptor(kind).prefix_arity;
 }
 
 std::vector<std::size_t> build_subtree_end(const AstProgram& program) {

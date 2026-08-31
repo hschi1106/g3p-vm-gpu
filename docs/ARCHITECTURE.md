@@ -224,6 +224,7 @@ Public payload registry interface for host-side string/list snapshots and lookup
 ### `cpp/include/g3pvm/evolution/`
 Public evolution interfaces split by responsibility:
 - `ast_program.hpp`: prefix AST program representation, shape limits, and canonical AST serialization helpers
+- `node_descriptor.hpp`: authoritative host metadata for node names, categories, prefix/dependency arity, index fields, builtins, grammar switches, typing-rule identifiers, and side-table ownership
 - `genome.hpp`: genome metadata and `ProgramGenome` wrapper
 - `grammar_config.hpp`: evolution grammar search-space config
 - `genome_generation.hpp`: random genome generation
@@ -249,6 +250,7 @@ Public evolution interfaces split by responsibility:
 
 ### `cpp/src/evolution/`
 - `ast_program.cpp`: canonical AST serialization and cache-key generation
+- `node_descriptor.cpp`: compile-time-complete host `NodeKind` descriptor table; host traversal and builtin lowering consume this metadata
 - `genome.cpp`: genome metadata construction
 - `grammar_config.cpp`: native grammar config validation and helper predicates
 - `subtree_utils.*`: subtree traversal and rewrite

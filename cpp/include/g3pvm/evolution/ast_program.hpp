@@ -94,6 +94,7 @@ enum class NodeKind {
   DP2_DIAGONAL_FORWARD,
   DP2_NEIGHBORHOOD_BACKWARD3,
   DP2_NEIGHBORHOOD_FORWARD3,
+  COUNT,
 };
 
 struct AstNode {

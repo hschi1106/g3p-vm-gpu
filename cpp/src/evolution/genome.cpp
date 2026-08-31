@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "g3pvm/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
 namespace g3pvm::evo {
@@ -112,18 +113,7 @@ GenomeMeta build_genome_meta(const AstProgram& ast) {
   meta.max_depth = compute_max_expr_depth(ast);
   meta.uses_builtins = false;
   for (const AstNode& node : ast.nodes) {
-    if (node.kind == NodeKind::CALL_ABS || node.kind == NodeKind::CALL_MIN || node.kind == NodeKind::CALL_MAX ||
-        node.kind == NodeKind::CALL_CLIP || node.kind == NodeKind::CALL_IDIV0 || node.kind == NodeKind::CALL_IMOD0 ||
-        node.kind == NodeKind::CALL_LEN || node.kind == NodeKind::CALL_CONCAT ||
-        node.kind == NodeKind::CALL_SLICE || node.kind == NodeKind::CALL_INDEX || node.kind == NodeKind::CALL_APPEND ||
-        node.kind == NodeKind::CALL_PREPEND || node.kind == NodeKind::CALL_REVERSE ||
-        node.kind == NodeKind::CALL_FIND || node.kind == NodeKind::CALL_CONTAINS ||
-        node.kind == NodeKind::CALL_CHAR_TO_STRING || node.kind == NodeKind::CALL_STRING_TO_CHAR ||
-        node.kind == NodeKind::CALL_ORD || node.kind == NodeKind::CALL_CHR ||
-        node.kind == NodeKind::CALL_IS_LETTER || node.kind == NodeKind::CALL_IS_DIGIT ||
-        node.kind == NodeKind::CALL_IS_SPACE || node.kind == NodeKind::CALL_IS_VOWEL ||
-        node.kind == NodeKind::CALL_TO_LOWER || node.kind == NodeKind::CALL_TO_UPPER ||
-        node.kind == NodeKind::CALL_TO_STRING || node.kind == NodeKind::CALL_SINGLETON) {
+    if (node_descriptor(node.kind).is_builtin()) {
       meta.uses_builtins = true;
       break;
     }

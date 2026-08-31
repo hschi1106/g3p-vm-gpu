@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "g3pvm/core/builtin.hpp"
+#include "g3pvm/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
 namespace g3pvm::evo {
@@ -35,35 +36,19 @@ Opcode op_name(NodeKind op) {
 }
 
 int asgp_dp1d_expected_arity(NodeKind kind) {
-  switch (kind) {
-    case NodeKind::DP1_BACKWARD1:
-    case NodeKind::DP1_FORWARD1:
-      return 1;
-    case NodeKind::DP1_BACKWARD2:
-    case NodeKind::DP1_FORWARD2:
-      return 2;
-    case NodeKind::DP1_BACKWARD3:
-    case NodeKind::DP1_FORWARD3:
-      return 3;
-    default:
-      throw std::runtime_error("prefix compile: invalid ASGP-DP1D dependency kind");
+  const NodeDescriptor& descriptor = node_descriptor(kind);
+  if (descriptor.dependency_family != DependencyFamily::Dp1d) {
+    throw std::runtime_error("prefix compile: invalid ASGP-DP1D dependency kind");
   }
+  return descriptor.dependency_arity;
 }
 
 int asgp_dp2d_expected_arity(NodeKind kind) {
-  switch (kind) {
-    case NodeKind::DP2_CROSS_BACKWARD:
-    case NodeKind::DP2_CROSS_FORWARD:
-      return 2;
-    case NodeKind::DP2_DIAGONAL_BACKWARD:
-    case NodeKind::DP2_DIAGONAL_FORWARD:
-      return 1;
-    case NodeKind::DP2_NEIGHBORHOOD_BACKWARD3:
-    case NodeKind::DP2_NEIGHBORHOOD_FORWARD3:
-      return 3;
-    default:
-      throw std::runtime_error("prefix compile: invalid ASGP-DP2D dependency kind");
+  const NodeDescriptor& descriptor = node_descriptor(kind);
+  if (descriptor.dependency_family != DependencyFamily::Dp2d) {
+    throw std::runtime_error("prefix compile: invalid ASGP-DP2D dependency kind");
   }
+  return descriptor.dependency_arity;
 }
 
 class Compiler {
@@ -746,34 +731,11 @@ class Compiler {
         for (int i = 0; i < argc; ++i) {
           next = compile_expr_prefix(program, next);
         }
-        g3pvm::BuiltinId builtin_id = g3pvm::BuiltinId::Index;
-        if (node.kind == NodeKind::CALL_ABS) builtin_id = g3pvm::BuiltinId::Abs;
-        else if (node.kind == NodeKind::CALL_MIN) builtin_id = g3pvm::BuiltinId::Min;
-        else if (node.kind == NodeKind::CALL_MAX) builtin_id = g3pvm::BuiltinId::Max;
-        else if (node.kind == NodeKind::CALL_CLIP) builtin_id = g3pvm::BuiltinId::Clip;
-        else if (node.kind == NodeKind::CALL_IDIV0) builtin_id = g3pvm::BuiltinId::IDiv0;
-        else if (node.kind == NodeKind::CALL_IMOD0) builtin_id = g3pvm::BuiltinId::IMod0;
-        else if (node.kind == NodeKind::CALL_LEN) builtin_id = g3pvm::BuiltinId::Len;
-        else if (node.kind == NodeKind::CALL_CONCAT) builtin_id = g3pvm::BuiltinId::Concat;
-        else if (node.kind == NodeKind::CALL_SLICE) builtin_id = g3pvm::BuiltinId::Slice;
-        else if (node.kind == NodeKind::CALL_APPEND) builtin_id = g3pvm::BuiltinId::Append;
-        else if (node.kind == NodeKind::CALL_PREPEND) builtin_id = g3pvm::BuiltinId::Prepend;
-        else if (node.kind == NodeKind::CALL_REVERSE) builtin_id = g3pvm::BuiltinId::Reverse;
-        else if (node.kind == NodeKind::CALL_FIND) builtin_id = g3pvm::BuiltinId::Find;
-        else if (node.kind == NodeKind::CALL_CONTAINS) builtin_id = g3pvm::BuiltinId::Contains;
-        else if (node.kind == NodeKind::CALL_CHAR_TO_STRING) builtin_id = g3pvm::BuiltinId::CharToString;
-        else if (node.kind == NodeKind::CALL_STRING_TO_CHAR) builtin_id = g3pvm::BuiltinId::StringToChar;
-        else if (node.kind == NodeKind::CALL_ORD) builtin_id = g3pvm::BuiltinId::Ord;
-        else if (node.kind == NodeKind::CALL_CHR) builtin_id = g3pvm::BuiltinId::Chr;
-        else if (node.kind == NodeKind::CALL_IS_LETTER) builtin_id = g3pvm::BuiltinId::IsLetter;
-        else if (node.kind == NodeKind::CALL_IS_DIGIT) builtin_id = g3pvm::BuiltinId::IsDigit;
-        else if (node.kind == NodeKind::CALL_IS_SPACE) builtin_id = g3pvm::BuiltinId::IsSpace;
-        else if (node.kind == NodeKind::CALL_IS_VOWEL) builtin_id = g3pvm::BuiltinId::IsVowel;
-        else if (node.kind == NodeKind::CALL_TO_LOWER) builtin_id = g3pvm::BuiltinId::ToLower;
-        else if (node.kind == NodeKind::CALL_TO_UPPER) builtin_id = g3pvm::BuiltinId::ToUpper;
-        else if (node.kind == NodeKind::CALL_TO_STRING) builtin_id = g3pvm::BuiltinId::ToString;
-        else if (node.kind == NodeKind::CALL_SINGLETON) builtin_id = g3pvm::BuiltinId::Singleton;
-        emit(Opcode::CallBuiltin, static_cast<int>(builtin_id), true, argc, true);
+        const NodeDescriptor& descriptor = node_descriptor(node.kind);
+        if (!descriptor.is_builtin() || descriptor.builtin_arity != argc) {
+          throw std::runtime_error("prefix compile: invalid builtin descriptor");
+        }
+        emit(Opcode::CallBuiltin, descriptor.builtin_id, true, argc, true);
         return next;
       }
       case NodeKind::MAP_LIST:
