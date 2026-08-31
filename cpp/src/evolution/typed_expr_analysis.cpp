@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "g3pvm/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
 namespace g3pvm::evo::typed_expr {
@@ -755,6 +756,39 @@ std::vector<TypedExprRoot> collect_typed_expr_roots(const AstProgram& program,
             out.end());
   for (TypedExprRoot& root : out) {
     annotate_typed_root(program, subtree_end, root);
+  }
+  return out;
+}
+
+std::vector<TypedExprRoot> collect_typed_expr_roots(const AstProgram& program,
+                                                    const VerifiedAst& verified) {
+  std::vector<TypedExprRoot> out;
+  if (program.nodes.size() != verified.subtree_end.size() ||
+      program.nodes.size() != verified.expression_types.size() ||
+      program.nodes.size() != verified.expression_scope_signatures.size() ||
+      program.nodes.size() != verified.expression_binder_signatures.size()) {
+    return out;
+  }
+  for (std::size_t index = 0; index < program.nodes.size(); ++index) {
+    const NodeDescriptor& descriptor = node_descriptor(program.nodes[index].kind);
+    if (!descriptor.typed_subtree_eligible ||
+        verified.expression_types[index] == RType::Invalid) {
+      continue;
+    }
+    const std::size_t stop = verified.subtree_end[index];
+    if (!is_structured_root_kind(program.nodes[index].kind) &&
+        subtree_contains_bound_var(program, index, stop)) {
+      continue;
+    }
+    TypedExprRoot root;
+    root.start = index;
+    root.stop = stop;
+    root.type = verified.expression_types[index];
+    root.scope_signature = verified.expression_scope_signatures[index];
+    root.visible_env_signature = verified.expression_scope_signatures[index];
+    root.binder_signature = verified.expression_binder_signatures[index];
+    annotate_typed_root(program, verified.subtree_end, root);
+    out.push_back(root);
   }
   return out;
 }

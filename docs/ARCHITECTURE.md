@@ -224,8 +224,9 @@ Public payload registry interface for host-side string/list snapshots and lookup
 ### `cpp/include/g3pvm/evolution/`
 Public evolution interfaces split by responsibility:
 - `ast_program.hpp`: prefix AST program representation, shape limits, and canonical AST serialization helpers
+- `input_spec.hpp`: exact name/type declarations used by generation and native AST verification
 - `node_descriptor.hpp`: authoritative host metadata for node names, categories, prefix/dependency arity, index fields, builtins, grammar switches, typing-rule identifiers, and side-table ownership
-- `ast_verify.hpp`: structured AST verification results, stable diagnostics, verified subtree boundaries, and opt-in structural resource limits
+- `ast_verify.hpp`: structured AST verification results, stable diagnostics, explicit input types, verified subtree/type/scope annotations, optional grammar-config eligibility, and opt-in resource limits
 - `genome.hpp`: genome metadata and `ProgramGenome` wrapper
 - `grammar_config.hpp`: evolution grammar search-space config
 - `genome_generation.hpp`: random genome generation
@@ -253,6 +254,7 @@ Public evolution interfaces split by responsibility:
 - `ast_program.cpp`: canonical AST serialization and cache-key generation
 - `node_descriptor.cpp`: compile-time-complete host `NodeKind` descriptor table; host traversal and builtin lowering consume this metadata
 - `ast_verify.cpp`: trust-boundary structural validation for prefix placement, indices, public constant tags, side-table ownership, dependency arity, and bounds
+- `ast_type_verify.cpp`: exact language typing for locals, branches, builtins, structured binders, and isolated ASGP phases; it never guesses types from variable names
 - `genome.cpp`: genome metadata construction
 - `grammar_config.cpp`: native grammar config validation and helper predicates
 - `subtree_utils.*`: subtree traversal and rewrite

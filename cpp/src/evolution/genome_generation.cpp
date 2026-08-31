@@ -848,9 +848,9 @@ void emit_random_block(std::mt19937_64& rng,
                        const Limits& limits,
                        bool force_return,
                        const GrammarConfig& grammar,
+                       RType* program_return_type,
                        int max_stmts = -1,
-                       bool allow_return_stmt = true,
-                       RType forced_return_type = RType::Invalid);
+                       bool allow_return_stmt = true);
 
 void emit_random_stmt(std::mt19937_64& rng,
                       AstProgram& program,
@@ -858,7 +858,8 @@ void emit_random_stmt(std::mt19937_64& rng,
                       int depth,
                       const Limits& limits,
                       bool allow_return_stmt,
-                      const GrammarConfig& grammar) {
+                      const GrammarConfig& grammar,
+                      RType* program_return_type) {
   const std::vector<RType> allowed_types =
       filter_types(grammar, {RType::Int, RType::Float, RType::Bool, RType::Char, RType::String, RType::IntList, RType::FloatList, RType::StringList});
   if (depth <= 0) {
@@ -873,7 +874,12 @@ void emit_random_stmt(std::mt19937_64& rng,
     }
     if (allow_return_stmt && grammar.statement_return) {
       program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
-      emit_random_expr(rng, program, ctx, 0, RType::Any, grammar, true);
+      if (*program_return_type == RType::Invalid) {
+        *program_return_type = choose_any_type(rng, grammar);
+      } else {
+        *program_return_type = coerce_type(rng, grammar, *program_return_type);
+      }
+      emit_random_expr(rng, program, ctx, 0, *program_return_type, grammar, true);
     }
     return;
   }
@@ -905,6 +911,7 @@ void emit_random_stmt(std::mt19937_64& rng,
                       limits,
                       false,
                       grammar,
+                      program_return_type,
                       std::max(1, std::min(2, limits.max_stmts_per_block)),
                       allow_return_stmt);
     emit_random_block(rng,
@@ -914,6 +921,7 @@ void emit_random_stmt(std::mt19937_64& rng,
                       limits,
                       false,
                       grammar,
+                      program_return_type,
                       std::max(1, std::min(2, limits.max_stmts_per_block)),
                       allow_return_stmt);
     return;
@@ -936,16 +944,22 @@ void emit_random_stmt(std::mt19937_64& rng,
                       limits,
                       false,
                       grammar,
+                      program_return_type,
                       std::max(1, std::min(2, limits.max_stmts_per_block)),
                       allow_return_stmt);
     return;
   }
   program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
+  if (*program_return_type == RType::Invalid) {
+    *program_return_type = choose_one(rng, allowed_types);
+  } else {
+    *program_return_type = coerce_type(rng, grammar, *program_return_type);
+  }
   emit_random_expr(rng,
                    program,
                    ctx,
                    depth - 1,
-                   choose_one(rng, allowed_types),
+                   *program_return_type,
                    grammar,
                    true);
 }
@@ -957,9 +971,9 @@ void emit_random_block(std::mt19937_64& rng,
                        const Limits& limits,
                        bool force_return,
                        const GrammarConfig& grammar,
+                       RType* program_return_type,
                        int max_stmts,
-                       bool allow_return_stmt,
-                       RType forced_return_type) {
+                       bool allow_return_stmt) {
   const int max_n = (max_stmts < 0) ? limits.max_stmts_per_block : max_stmts;
   const int n = std::uniform_int_distribution<int>(1, std::max(1, max_n))(rng);
   bool has_return = false;
@@ -969,7 +983,8 @@ void emit_random_block(std::mt19937_64& rng,
     }
     program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
     const std::size_t before = program.nodes.size();
-    emit_random_stmt(rng, program, ctx, depth, limits, allow_return_stmt, grammar);
+    emit_random_stmt(rng, program, ctx, depth, limits, allow_return_stmt, grammar,
+                     program_return_type);
     if (program.nodes[before].kind == NodeKind::RETURN) {
       has_return = true;
       break;
@@ -978,14 +993,20 @@ void emit_random_block(std::mt19937_64& rng,
   if (force_return && !has_return) {
     program.nodes.push_back(AstNode{NodeKind::BLOCK_CONS, 0, 0});
     program.nodes.push_back(AstNode{NodeKind::RETURN, 0, 0});
-    const std::vector<RType> forced_choices{RType::Int, RType::Float, RType::Bool, RType::Char, RType::String, RType::IntList, RType::FloatList, RType::StringList};
-    const RType return_type = forced_return_type != RType::Invalid ? coerce_type(rng, grammar, forced_return_type)
-                                                                   : choose_type(rng, grammar, forced_choices);
+    const std::vector<RType> forced_choices{
+        RType::Int, RType::Float, RType::Bool, RType::Char, RType::String,
+        RType::IntList, RType::FloatList, RType::StringList,
+    };
+    if (*program_return_type == RType::Invalid) {
+      *program_return_type = choose_type(rng, grammar, forced_choices);
+    } else {
+      *program_return_type = coerce_type(rng, grammar, *program_return_type);
+    }
     emit_random_expr(rng,
                      program,
                      ctx,
                      std::max(0, depth - 1),
-                     return_type,
+                     *program_return_type,
                      grammar,
                      true);
   }
@@ -1022,7 +1043,9 @@ ProgramGenome generate_random_genome(std::uint64_t seed,
     program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
     PrefixGenCtx ctx;
     seed_input_names(program, ctx, input_specs, grammar);
-    emit_random_block(rng, program, ctx, limits.max_expr_depth, limits, true, grammar);
+    RType program_return_type = RType::Invalid;
+    emit_random_block(rng, program, ctx, limits.max_expr_depth, limits, true, grammar,
+                      &program_return_type);
     ProgramGenome genome = as_genome_prefix(program);
     if (genome.meta.node_count <= limits.max_total_nodes) {
       return genome;
@@ -1075,6 +1098,7 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
     program.nodes.push_back(AstNode{NodeKind::PROGRAM, 0, 0});
     PrefixGenCtx ctx;
     seed_input_names(program, ctx, input_specs, grammar);
+    RType program_return_type = return_type;
     emit_random_block(rng,
                       program,
                       ctx,
@@ -1082,9 +1106,9 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
                       limits,
                       true,
                       grammar,
+                      &program_return_type,
                       typed_max_stmts,
-                      false,
-                      return_type);
+                      false);
     ProgramGenome genome = as_genome_prefix(program);
     if (genome.meta.node_count <= limits.max_total_nodes) {
       return genome;

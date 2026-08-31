@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/ast_program.hpp"
+#include "g3pvm/evolution/ast_verify.hpp"
 
 namespace g3pvm::evo::typed_expr {
 
@@ -22,6 +23,8 @@ struct TypedExprRoot {
 
 std::vector<TypedExprRoot> collect_typed_expr_roots(const AstProgram& program,
                                                     const std::vector<std::size_t>& subtree_end);
+std::vector<TypedExprRoot> collect_typed_expr_roots(const AstProgram& program,
+                                                    const VerifiedAst& verified);
 bool is_asgp_phase_body_root(const AstProgram& program,
                              const std::vector<std::size_t>& subtree_end,
                              const TypedExprRoot& root);

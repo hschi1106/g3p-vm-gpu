@@ -29,6 +29,17 @@ const char* verify_code_name(VerifyCode code) noexcept {
     case VerifyCode::InvalidDependencyKind: return "invalid_dependency_kind";
     case VerifyCode::DependencyArityMismatch: return "dependency_arity_mismatch";
     case VerifyCode::InvalidBounds: return "invalid_bounds";
+    case VerifyCode::DuplicateName: return "duplicate_name";
+    case VerifyCode::DuplicateInput: return "duplicate_input";
+    case VerifyCode::InvalidInputType: return "invalid_input_type";
+    case VerifyCode::UndefinedLocal: return "undefined_local";
+    case VerifyCode::UndefinedBinder: return "undefined_binder";
+    case VerifyCode::DuplicateBinder: return "duplicate_binder";
+    case VerifyCode::TypeMismatch: return "type_mismatch";
+    case VerifyCode::InconsistentReturnType: return "inconsistent_return_type";
+    case VerifyCode::MissingReturn: return "missing_return";
+    case VerifyCode::NestedAsgp: return "nested_asgp";
+    case VerifyCode::GrammarConfigDisallowed: return "grammar_config_disallowed";
     case VerifyCode::ResourceLimit: return "resource_limit";
   }
   return "unknown_verify_code";
@@ -64,6 +75,8 @@ class StructuralVerifier {
       : ast_(ast), options_(options) {
     result_.verified.subtree_end.assign(ast.nodes.size(), 0);
     result_.verified.expression_types.assign(ast.nodes.size(), RType::Invalid);
+    result_.verified.expression_scope_signatures.assign(ast.nodes.size(), 0);
+    result_.verified.expression_binder_signatures.assign(ast.nodes.size(), 0);
   }
 
   AstVerifyResult run() {
