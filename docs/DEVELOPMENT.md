@@ -15,6 +15,14 @@ cmake --build cpp/build -j
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 ```
 
+The remaining duplicate-runtime tests are transitional. Operational tools have
+an independent standard-library test suite and do not use the runtime package
+or `PYTHONPATH`:
+
+```bash
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+```
+
 ### C++ tests
 
 ```bash
@@ -86,6 +94,7 @@ regression in the relevant property target.
 ### Recommended full check
 
 ```bash
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure

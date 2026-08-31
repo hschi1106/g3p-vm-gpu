@@ -40,10 +40,10 @@ test may be deleted until its target stage is green.
 | `test_simple_evo_fixtures.py` | 3 | Retain the JSON fixtures; execute affine, square, and x+1 through native evolution tests. | 5–6 |
 | `test_docs_contract.py` | 2 | Move to runtime-independent repository documentation checks. | 8, 18 |
 | `test_spec_freeze.py` | 1 | Move unchanged responsibility to runtime-independent repository checks callable from CTest. | 8, 18 |
-| `test_psb1_tools.py` | 3 | Move under `tools/tests`; keep converter schema coverage. | 8 |
-| `test_psb2_tools.py` | 5 | Move under `tools/tests`; keep converter schema/error coverage. | 8 |
-| `test_psb_fetch_tools.py` | 4 | Move under `tools/tests`; keep dry-run selection/error coverage. | 8 |
-| `test_psb_regression_tools.py` | 14 | Move under `tools/tests`; keep materialization, seed, run, comparison, and manifest coverage. | 8 |
+| `test_psb1_tools.py` (moved to `tools/tests` in Stage 08) | 3 | Tool-owned converter schema coverage; no runtime-package import or `PYTHONPATH`. | 8 |
+| `test_psb2_tools.py` (moved to `tools/tests` in Stage 08) | 5 | Tool-owned converter schema/error coverage; no runtime-package import or `PYTHONPATH`. | 8 |
+| `test_psb_fetch_tools.py` (moved to `tools/tests` in Stage 08) | 4 | Tool-owned dry-run selection/error coverage; no runtime-package import or `PYTHONPATH`. | 8 |
+| `test_psb_regression_tools.py` (moved to `tools/tests` in Stage 08) | 14 | Tool-owned materialization, seed, run, comparison, and manifest coverage; no runtime-package import or `PYTHONPATH`. | 8 |
 
 The method counts total 161 discovered `def test_*` declarations, matching the
 161 tests executed by the baseline runner. Before Stage 10, generate a
@@ -101,9 +101,10 @@ Stage 07 removes `test_vm_equiv.py` after its eight methods have native owners:
 | current builtin and exact `Char`/`String` behavior | Stage 05 builtin and typed-value corpus |
 | interpreter-versus-VM random equivalence | `g3pvm_test_genome_properties`: deterministic generation → verify → compile → execute; mutation/crossover/reproduction verify → compile properties |
 
-The remaining Python runner owns 96 declarations. Its evolution and runtime
-modules remain until their later roadmap stages; this stage removes only the
-now-duplicated VM-equivalence test owner.
+After Stage 07 the Python runner owned 96 declarations. Stage 08 moves the 26
+operational methods to `tools/tests`, leaving 70 transitional semantic/docs
+methods under `python/tests`. Evolution and runtime modules remain until their
+later roadmap stages.
 
 ## Removal invariants
 
