@@ -176,6 +176,20 @@ target_link_libraries(g3pvm_test_compiler_lowering PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_compiler_lowering COMMAND g3pvm_test_compiler_lowering)
 set_tests_properties(g3pvm_test_compiler_lowering PROPERTIES LABELS "unit;contract")
 
+add_executable(g3pvm_test_structured_semantics
+  tests/evolution/test_structured_semantics.cpp
+)
+target_link_libraries(g3pvm_test_structured_semantics PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_structured_semantics COMMAND g3pvm_test_structured_semantics)
+set_tests_properties(g3pvm_test_structured_semantics PROPERTIES LABELS "contract")
+
+add_executable(g3pvm_test_asgp_semantics
+  tests/runtime/test_asgp_semantics.cpp
+)
+target_link_libraries(g3pvm_test_asgp_semantics PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_asgp_semantics COMMAND g3pvm_test_asgp_semantics)
+set_tests_properties(g3pvm_test_asgp_semantics PROPERTIES LABELS "contract")
+
 add_executable(g3pvm_test_genome
   tests/evolution/test_genome.cpp
 )

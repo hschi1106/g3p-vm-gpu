@@ -304,6 +304,11 @@ Benchmark binaries for runtime-focused measurement.
 - `parity/`: CPU/GPU fitness and evolution parity regression tests
 - `evolution/`: native evolution and genome tests
 
+Structured source forms have a focused compiler/runtime contract in
+`test_structured_semantics.cpp`. ASGP phase execution has a separate bytecode
+contract in `test_asgp_semantics.cpp`; malformed nesting, side tables, and
+binder isolation are rejected by the focused AST/bytecode verifier targets.
+
 ## Tooling And Script Map
 
 ### `tools/`

@@ -30,6 +30,8 @@ ctest --test-dir cpp/build -R g3pvm_test_runtime_builtins --output-on-failure
 ctest --test-dir cpp/build -R g3pvm_test_runtime_typed_values --output-on-failure
 ctest --test-dir cpp/build -R g3pvm_test_compiler_lowering --output-on-failure
 ctest --test-dir cpp/build -R g3pvm_test_fixture_codec --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_structured_semantics --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_asgp_semantics --output-on-failure
 ```
 
 The JSON corpus lives under `cpp/tests/fixtures/runtime/`. Each scenario names

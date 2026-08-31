@@ -33,8 +33,8 @@ test may be deleted until its target stage is green.
 | `test_vm_equiv.py` | 8 | Replace interpreter-vs-Python-VM comparison with compiler-output verification and native CPU execution corpus; fuzz equivalence becomes generation/compile property coverage. | 4–7 |
 | `test_grammar_values.py` | 9 | Port format identifier, node inventory, exact value tags/equality, and ASGP declaration/lowering assertions to native AST/value/compiler contracts. | 1–6 |
 | `test_grammar_builtins.py` | 8 | Port protected arithmetic, char/string, direct list, singleton, and float-format outcomes to native runtime corpus. | 5 |
-| `test_grammar_vm.py` | 30 | Port structured list, binder capture/isolation, evaluation order, fuel/errors, protected ops, and char/list bytecode behavior to structured conformance fixtures. | 5–7 |
-| `test_grammar_asgp.py` | 14 | Port DC/DP1D/DP2D typing, phase visibility, dependency, memoization, boundary, nested-form, fuel, and execution cases to verifier and ASGP corpus. | 3–7 |
+| `test_grammar_vm.py` (removed in Stage 06) | 30 | Scalar/value/builtin cases are owned by Stage 05 fixture targets; structured and ASGP cases are owned by focused Stage 06 contracts and verifier/parity targets. | 5–6 |
+| `test_grammar_asgp.py` (removed in Stage 06) | 14 | DC/DP1D/DP2D execution, boundary, memoization, phase visibility, dependency/result typing, nested forms, and fuel now have focused native runtime/verifier owners. | 3–6 |
 | `test_evolution_ops.py` | 14 | Replace grammar-config/generation/mutation/crossover compile-rate assertions with native contract and deterministic property tests. | 1–7, 9 |
 | `test_evolution_loop.py` | 5 | Replace option validation, scoring, selection, and loop behavior with native evolution tests. | 5–7, 9 |
 | `test_simple_evo_fixtures.py` | 3 | Retain the JSON fixtures; execute affine, square, and x+1 through native evolution tests. | 5–6 |
@@ -69,6 +69,27 @@ build. Its 13 methods are owned as follows:
 
 The baseline remains 161 tests; after this retirement the Python runner owns
 148 declarations and the 13 removed responsibilities are native CTest owners.
+
+### Retired structured and ASGP reference mapping
+
+Stage 06 removes the 30-method `test_grammar_vm.py` and 14-method
+`test_grammar_asgp.py` suites after reviewing their expected outcomes against
+`spec/grammar.md`, `spec/bytecode_isa.md`, `spec/builtins_base.md`, and
+`spec/builtins_runtime.md`.
+
+| Retired responsibility | Native owner |
+| --- | --- |
+| scalar, exact value, char, protected integer, and direct-list behavior | Stage 05 `g3pvm_test_runtime_{scalar,builtins,typed_values}` |
+| `MapList` / `FilterList` ordering, evaluate-once source, typed empty result, error, and fuel | `g3pvm_test_structured_semantics` |
+| `LinearRec` empty/singleton branch selection, right-to-left step, binder metadata, error, and fuel | `g3pvm_test_structured_semantics`, `g3pvm_test_ast_verify_binders`, and reproduction metadata tests |
+| nested binder capture and ordinary-local isolation | `g3pvm_test_structured_semantics` and `g3pvm_test_ast_verify_binders` |
+| ASGP-DC success, string traversal, clamped split, result typing, phase visibility, and fuel | `g3pvm_test_asgp_semantics` plus `g3pvm_test_ast_verify_asgp` |
+| ASGP-DP1D/DP2D recurrence, boundary, memoization, dependency/result typing, phase visibility, and fuel | `g3pvm_test_asgp_semantics` plus `g3pvm_test_ast_verify_asgp` |
+| nested ASGP forms, dependency arity, and malformed side tables | `g3pvm_test_ast_verify_asgp`, `g3pvm_test_bytecode_verify`, and `g3pvm_test_cli_json` |
+| interpreter-versus-VM comparison | obsolete once reviewed outcomes execute in the native compiler/runtime contracts; CPU/GPU behavior remains checked by the canonical parity targets |
+
+After Stages 05–06, the remaining Python runner owns 104 declarations. The 57
+retired methods have explicit native owners above.
 
 ## Removal invariants
 
