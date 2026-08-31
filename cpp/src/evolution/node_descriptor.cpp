@@ -22,6 +22,11 @@ constexpr int k_no_arity = -1;
                  DependencyFamily::None, NodeMetadataKind::None, GrammarFeature::grammar, \
                  NodeTypingRule::Builtin, true}
 
+#define NODE_I1(kind, stable, category, arity, i0, i1, metadata, grammar, typing, subtree) \
+  NodeDescriptor{NodeKind::kind, #kind, stable, NodeCategory::category, arity, NodeIndexRole::i0, \
+                 NodeIndexRole::i1, k_no_builtin, k_no_arity, k_no_arity, DependencyFamily::None, \
+                 NodeMetadataKind::metadata, GrammarFeature::grammar, NodeTypingRule::typing, subtree}
+
 #define DEPENDENCY(kind, stable, arity, family) \
   NodeDescriptor{NodeKind::kind, #kind, stable, NodeCategory::DependencyMarker, 0, NodeIndexRole::Unused, \
                  NodeIndexRole::Unused, k_no_builtin, k_no_arity, arity, DependencyFamily::family, \
@@ -81,7 +86,7 @@ constexpr std::array<NodeDescriptor, k_node_kind_count> k_descriptors{{
     BUILTIN(CALL_TO_STRING, "call_to_string", 1, ToString, BuiltinToString),
     BUILTIN(CALL_SINGLETON, "call_singleton", 1, Singleton, BuiltinSingleton),
     NODE(BOUND_VAR, "bound_var", Expression, 0, Name, None, ExpressionVar, BoundVariable, false),
-    NODE(MAP_LIST, "map_list", Expression, 2, Name, None, ExpressionMapList, MapList, true),
+    NODE_I1(MAP_LIST, "map_list", Expression, 2, Name, ListTypeTag, None, ExpressionMapList, MapList, true),
     NODE(FILTER_LIST, "filter_list", Expression, 2, Name, None, ExpressionFilterList, FilterList, true),
     NODE(LINEAR_REC, "linear_rec", Expression, 5, Unused, LinearRecBinders, ExpressionLinearRec, LinearRec, true),
     NODE(ASGP_DC, "asgp_dc", Expression, 4, Unused, AsgpDcBinders, ExpressionAsgpDc, AsgpDc, true),
@@ -102,6 +107,7 @@ constexpr std::array<NodeDescriptor, k_node_kind_count> k_descriptors{{
 }};
 
 #undef DEPENDENCY
+#undef NODE_I1
 #undef BUILTIN
 #undef NODE
 

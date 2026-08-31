@@ -27,6 +27,7 @@ add_library(g3pvm_cpu
   src/runtime/cpu/fitness_cpu.cpp
   src/evolution/ast_program.cpp
   src/evolution/node_descriptor.cpp
+  src/evolution/ast_verify.cpp
   src/evolution/genome.cpp
   src/evolution/grammar_config.cpp
   src/evolution/subtree_utils.cpp
@@ -125,6 +126,13 @@ add_executable(g3pvm_test_node_descriptor
 target_link_libraries(g3pvm_test_node_descriptor PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_node_descriptor COMMAND g3pvm_test_node_descriptor)
 set_tests_properties(g3pvm_test_node_descriptor PROPERTIES LABELS "unit;contract")
+
+add_executable(g3pvm_test_ast_verify_structure
+  tests/evolution/test_ast_verify_structure.cpp
+)
+target_link_libraries(g3pvm_test_ast_verify_structure PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_ast_verify_structure COMMAND g3pvm_test_ast_verify_structure)
+set_tests_properties(g3pvm_test_ast_verify_structure PROPERTIES LABELS "unit;contract")
 
 add_executable(g3pvm_test_evolve
   tests/evolution/test_evolve.cpp

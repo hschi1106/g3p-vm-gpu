@@ -20,6 +20,7 @@ enum class NodeIndexRole {
   Unused,
   Name,
   Constant,
+  ListTypeTag,
 };
 
 enum class NodeMetadataKind {
