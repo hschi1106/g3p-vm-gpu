@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "g3pvm/core/bytecode_verify.hpp"
 #include "g3pvm/runtime/payload/payload.hpp"
 
 namespace g3pvm::cli_detail {
@@ -506,6 +507,13 @@ BytecodeProgram decode_program(const JsonValue& bc) {
         program.asgp_dp2d_segments.push_back(std::move(segment));
       }
     }
+  }
+  const BytecodeVerifyResult verified = verify_bytecode(program);
+  if (!verified) {
+    throw std::runtime_error(
+        std::string("invalid bytecode (") +
+        bytecode_verify_code_name(verified.diagnostic.code) + ") at " +
+        verified.diagnostic.path + ": " + verified.diagnostic.message);
   }
   return program;
 }

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "g3pvm/core/builtin.hpp"
+#include "g3pvm/core/bytecode_verify.hpp"
 #include "g3pvm/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
@@ -73,7 +74,17 @@ class Compiler {
       throw std::runtime_error("prefix compile: trailing tokens");
     }
     patch_jumps();
-    return finalize();
+    BytecodeProgram out = finalize();
+#ifndef NDEBUG
+    const BytecodeVerifyResult verified = verify_bytecode(out);
+    if (!verified) {
+      throw std::runtime_error(
+          std::string("compiler produced invalid bytecode (") +
+          bytecode_verify_code_name(verified.diagnostic.code) + ") at " +
+          verified.diagnostic.path + ": " + verified.diagnostic.message);
+    }
+#endif
+    return out;
   }
 
  private:

@@ -8,6 +8,7 @@
 
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/grammar_config.hpp"
+#include "g3pvm/evolution/input_spec.hpp"
 #include "g3pvm/evolution/repro/backend.hpp"
 #include "g3pvm/evolution/selection.hpp"
 #include "g3pvm/core/value.hpp"
@@ -118,6 +119,8 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
                                   const std::vector<ProgramGenome>* initial_population = nullptr);
 
 RType generation_input_type_for_grammar(RType inferred, const GrammarConfig& grammar);
+std::vector<InputSpec> canonical_input_specs(const std::vector<EvalCase>& cases,
+                                             const GrammarConfig& grammar);
 
 std::string eval_engine_name(EvalEngine engine);
 

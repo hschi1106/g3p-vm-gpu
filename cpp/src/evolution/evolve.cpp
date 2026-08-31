@@ -86,26 +86,6 @@ bool should_seed_for_expected_return_type(RType type) {
          type == RType::StringList;
 }
 
-std::vector<InputSpec> build_canonical_input_specs(const std::vector<EvalCase>& cases,
-                                                   const GrammarConfig& grammar) {
-  const std::vector<std::string> input_names = build_canonical_input_names(cases);
-  std::vector<InputSpec> specs;
-  specs.reserve(input_names.size());
-  for (const std::string& name : input_names) {
-    RType type = RType::Invalid;
-    for (const EvalCase& one_case : cases) {
-      const auto it = one_case.inputs.find(name);
-      if (it == one_case.inputs.end()) {
-        continue;
-      }
-      type = merge_input_rtype(type, infer_input_rtype(it->second));
-    }
-    type = generation_input_type_for_grammar(type, grammar);
-    specs.push_back(InputSpec{name, type});
-  }
-  return specs;
-}
-
 std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg,
                                            const std::vector<InputSpec>& input_specs,
                                            RType expected_return_type) {
@@ -541,6 +521,24 @@ RType generation_input_type_for_grammar(RType inferred, const GrammarConfig& gra
   return inferred;
 }
 
+std::vector<InputSpec> canonical_input_specs(const std::vector<EvalCase>& cases,
+                                             const GrammarConfig& grammar) {
+  const std::vector<std::string> input_names = build_canonical_input_names(cases);
+  std::vector<InputSpec> specs;
+  specs.reserve(input_names.size());
+  for (const std::string& name : input_names) {
+    RType type = RType::Invalid;
+    for (const EvalCase& one_case : cases) {
+      const auto it = one_case.inputs.find(name);
+      if (it != one_case.inputs.end()) {
+        type = merge_input_rtype(type, infer_input_rtype(it->second));
+      }
+    }
+    specs.push_back(InputSpec{name, generation_input_type_for_grammar(type, grammar)});
+  }
+  return specs;
+}
+
 std::string eval_engine_name(EvalEngine engine) {
   if (engine == EvalEngine::GPU) return "gpu";
   return "cpu";
@@ -577,7 +575,7 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
 
   const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);
-  const std::vector<InputSpec> canonical_input_specs = build_canonical_input_specs(cases, cfg.grammar);
+  const std::vector<InputSpec> canonical_inputs = canonical_input_specs(cases, cfg.grammar);
   const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
   const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
   const std::vector<Value> expected_values = build_expected_values(cases);
@@ -587,7 +585,7 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   const auto init_t0 = std::chrono::steady_clock::now();
   std::vector<ProgramGenome> population;
   if (initial_population == nullptr) {
-    population = init_population(cfg, canonical_input_specs, expected_return_type);
+    population = init_population(cfg, canonical_inputs, expected_return_type);
   } else {
     population = *initial_population;
   }

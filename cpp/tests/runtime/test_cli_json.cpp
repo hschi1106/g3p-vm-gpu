@@ -120,12 +120,62 @@ bool test_bytecode_asgp_dp_segment_arity_is_validated() {
   return true;
 }
 
+bool test_bytecode_verifier_runs_at_decode_boundary() {
+  const std::string valid = R"([
+    {
+      "n_locals": 0,
+      "consts": [{"type":"int","value":1}],
+      "code": [{"op":"PUSH_CONST","a":0},{"op":"RETURN"}]
+    }
+  ])";
+  try {
+    const auto root = g3pvm::cli_detail::JsonParser(valid).parse();
+    if (!check(g3pvm::cli_detail::decode_programs(root).size() == 1,
+               "valid bytecode should decode")) return false;
+  } catch (const std::runtime_error& err) {
+    std::cerr << "FAIL: valid bytecode decode failed: " << err.what() << "\n";
+    return false;
+  }
+
+  const std::string underflow = R"([
+    {"n_locals":0,"consts":[],"code":[{"op":"RETURN"}]}
+  ])";
+  if (!decode_programs_rejects(underflow, "stack_underflow")) return false;
+
+  const std::string fallthrough = R"([
+    {
+      "n_locals":0,
+      "consts":[{"type":"int","value":1}],
+      "code":[{"op":"PUSH_CONST","a":0}]
+    }
+  ])";
+  if (!decode_programs_rejects(fallthrough, "invalid_fallthrough")) return false;
+
+  const std::string runtime_type_error = R"([
+    {
+      "n_locals":0,
+      "consts":[{"type":"bool","value":true}],
+      "code":[{"op":"PUSH_CONST","a":0},{"op":"NEG"}]
+    }
+  ])";
+  try {
+    const auto root = g3pvm::cli_detail::JsonParser(runtime_type_error).parse();
+    if (!check(g3pvm::cli_detail::decode_programs(root).size() == 1,
+               "runtime TypeError bytecode should remain decodable")) return false;
+  } catch (const std::runtime_error& err) {
+    std::cerr << "FAIL: runtime error bytecode was treated as malformed: " << err.what() << "\n";
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 int main() {
   if (!test_subnormal_number_is_accepted()) return 1;
   if (!test_overflow_number_is_rejected()) return 1;
   if (!test_bytecode_asgp_dp_segment_arity_is_validated()) return 1;
+  if (!test_bytecode_verifier_runs_at_decode_boundary()) return 1;
   std::cout << "g3pvm_test_cli_json: OK\n";
   return 0;
 }

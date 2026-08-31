@@ -22,6 +22,7 @@ endif()
 
 add_library(g3pvm_cpu
   src/runtime/payload/payload.cpp
+  src/runtime/bytecode_verify.cpp
   src/runtime/cpu/builtins_cpu.cpp
   src/runtime/cpu/execute_bytecode_cpu.cpp
   src/runtime/cpu/fitness_cpu.cpp
@@ -55,6 +56,21 @@ add_executable(g3pvm_evolve_cli
   src/cli/evolve_cli.cpp
 )
 target_link_libraries(g3pvm_evolve_cli PRIVATE g3pvm_cpu)
+add_test(
+  NAME g3pvm_test_ast_json_boundary
+  COMMAND ${CMAKE_COMMAND}
+    -DCLI=$<TARGET_FILE:g3pvm_evolve_cli>
+    -DCASES=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_cases.json
+    -DASGP_CASES=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_asgp_cases.json
+    -DASGP_SCALAR_CASES=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_asgp_scalar_cases.json
+    -DVALID_AST=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_valid.json
+    -DVALID_ASGP_AST=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_asgp_dc.json
+    -DVALID_DP1_AST=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_asgp_dp1d.json
+    -DVALID_DP2_AST=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_asgp_dp2d.json
+    -DINVALID_AST=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/ast_eval_invalid.json
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime/check_ast_json_boundary.cmake
+)
+set_tests_properties(g3pvm_test_ast_json_boundary PROPERTIES LABELS "contract;integration")
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/runtime/gpu/fitness_gpu.cu
@@ -105,6 +121,13 @@ add_executable(g3pvm_test_vm_edges
 )
 target_link_libraries(g3pvm_test_vm_edges PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_vm_edges COMMAND g3pvm_test_vm_edges)
+
+add_executable(g3pvm_test_bytecode_verify
+  tests/runtime/test_bytecode_verify.cpp
+)
+target_link_libraries(g3pvm_test_bytecode_verify PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_bytecode_verify COMMAND g3pvm_test_bytecode_verify)
+set_tests_properties(g3pvm_test_bytecode_verify PROPERTIES LABELS "unit;contract;property")
 
 add_executable(g3pvm_test_cli_json
   tests/runtime/test_cli_json.cpp

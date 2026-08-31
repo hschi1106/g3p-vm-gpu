@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "g3pvm/evolution/compiler.hpp"
+#include "g3pvm/evolution/ast_verify.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
 #include "g3pvm/evolution/genome.hpp"
@@ -220,6 +221,66 @@ void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
         << ",\"accum_name\":" << binders.accum_name
         << ",\"index_name\":" << binders.index_name << "}";
   }
+  out << "],\"asgp_dc_binders\":[";
+  for (std::size_t i = 0; i < ast.asgp_dc_binders.size(); ++i) {
+    if (i > 0) out << ",";
+    const g3pvm::evo::AsgpDcBinders& binders = ast.asgp_dc_binders[i];
+    out << "{\"node_index\":" << binders.node_index
+        << ",\"solve_xs_name\":" << binders.solve_xs_name
+        << ",\"solve_n_name\":" << binders.solve_n_name
+        << ",\"solve_lo_name\":" << binders.solve_lo_name
+        << ",\"divide_n_name\":" << binders.divide_n_name
+        << ",\"combine_left_name\":" << binders.combine_left_name
+        << ",\"combine_right_name\":" << binders.combine_right_name << "}";
+  }
+  out << "],\"asgp_dp1d_specs\":[";
+  for (std::size_t i = 0; i < ast.asgp_dp1d_specs.size(); ++i) {
+    if (i > 0) out << ",";
+    const g3pvm::evo::AsgpDp1dSpec& spec = ast.asgp_dp1d_specs[i];
+    out << "{\"node_index\":" << spec.node_index
+        << ",\"lo\":" << spec.lo
+        << ",\"hi\":" << spec.hi
+        << ",\"base_state\":" << spec.base_state
+        << ",\"boundary_const\":" << spec.boundary_const
+        << ",\"dep_kind\":" << static_cast<int>(spec.dep_kind)
+        << ",\"dep_offsets\":[";
+    for (std::size_t j = 0; j < spec.dep_offsets.size(); ++j) {
+      if (j > 0) out << ",";
+      out << spec.dep_offsets[j];
+    }
+    out << "],\"solve_state_name\":" << spec.solve_state_name
+        << ",\"transition_state_name\":" << spec.transition_state_name
+        << ",\"transition_dep_names\":[";
+    for (std::size_t j = 0; j < spec.transition_dep_names.size(); ++j) {
+      if (j > 0) out << ",";
+      out << spec.transition_dep_names[j];
+    }
+    out << "]}";
+  }
+  out << "],\"asgp_dp2d_specs\":[";
+  for (std::size_t i = 0; i < ast.asgp_dp2d_specs.size(); ++i) {
+    if (i > 0) out << ",";
+    const g3pvm::evo::AsgpDp2dSpec& spec = ast.asgp_dp2d_specs[i];
+    out << "{\"node_index\":" << spec.node_index
+        << ",\"i_lo\":" << spec.i_lo
+        << ",\"i_hi\":" << spec.i_hi
+        << ",\"j_lo\":" << spec.j_lo
+        << ",\"j_hi\":" << spec.j_hi
+        << ",\"base_i\":" << spec.base_i
+        << ",\"base_j\":" << spec.base_j
+        << ",\"boundary_const\":" << spec.boundary_const
+        << ",\"dep_kind\":" << static_cast<int>(spec.dep_kind)
+        << ",\"solve_i_name\":" << spec.solve_i_name
+        << ",\"solve_j_name\":" << spec.solve_j_name
+        << ",\"transition_i_name\":" << spec.transition_i_name
+        << ",\"transition_j_name\":" << spec.transition_j_name
+        << ",\"transition_dep_names\":[";
+    for (std::size_t j = 0; j < spec.transition_dep_names.size(); ++j) {
+      if (j > 0) out << ",";
+      out << spec.transition_dep_names[j];
+    }
+    out << "]}";
+  }
   out << "]}";
 }
 
@@ -293,6 +354,32 @@ int require_int_field_local(const JsonValue& raw, const char* key, const char* s
   return static_cast<int>(it->second.number_v);
 }
 
+std::size_t require_node_index_field_local(const JsonValue& raw, const char* section) {
+  const int index = require_int_field_local(raw, "node_index", section);
+  if (index < 0) {
+    throw std::runtime_error(std::string(section) + ".node_index must be non-negative");
+  }
+  return static_cast<std::size_t>(index);
+}
+
+std::vector<int> require_int_array_field_local(const JsonValue& raw,
+                                               const char* key,
+                                               const char* section) {
+  auto it = raw.object_v.find(key);
+  if (it == raw.object_v.end() || it->second.kind != JsonValue::Kind::Array) {
+    throw std::runtime_error(std::string("expected integer array field: ") + section + "." + key);
+  }
+  std::vector<int> out;
+  out.reserve(it->second.array_v.size());
+  for (const JsonValue& item : it->second.array_v) {
+    if (item.kind != JsonValue::Kind::Number || !is_integer_number(item.number_v)) {
+      throw std::runtime_error(std::string("expected integer elements: ") + section + "." + key);
+    }
+    out.push_back(static_cast<int>(item.number_v));
+  }
+  return out;
+}
+
 g3pvm::evo::AstProgram decode_ast_json(const JsonValue& raw) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("AST JSON must be an object");
@@ -352,12 +439,86 @@ g3pvm::evo::AstProgram decode_ast_json(const JsonValue& raw) {
       if (row.kind != JsonValue::Kind::Object) {
         throw std::runtime_error("AST linear_rec_binders item must be an object");
       }
-      const int node_index = require_int_field_local(row, "node_index", "linear_rec_binders");
       ast.linear_rec_binders.push_back(g3pvm::evo::LinearRecBinders{
-          static_cast<std::size_t>(node_index),
+          require_node_index_field_local(row, "linear_rec_binders"),
           require_int_field_local(row, "elem_name", "linear_rec_binders"),
           require_int_field_local(row, "accum_name", "linear_rec_binders"),
           require_int_field_local(row, "index_name", "linear_rec_binders"),
+      });
+    }
+  }
+
+  auto dc_it = raw.object_v.find("asgp_dc_binders");
+  if (dc_it != raw.object_v.end()) {
+    if (dc_it->second.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("AST asgp_dc_binders must be an array");
+    }
+    for (const JsonValue& row : dc_it->second.array_v) {
+      if (row.kind != JsonValue::Kind::Object) {
+        throw std::runtime_error("AST asgp_dc_binders item must be an object");
+      }
+      ast.asgp_dc_binders.push_back(g3pvm::evo::AsgpDcBinders{
+          require_node_index_field_local(row, "asgp_dc_binders"),
+          require_int_field_local(row, "solve_xs_name", "asgp_dc_binders"),
+          require_int_field_local(row, "solve_n_name", "asgp_dc_binders"),
+          require_int_field_local(row, "solve_lo_name", "asgp_dc_binders"),
+          require_int_field_local(row, "divide_n_name", "asgp_dc_binders"),
+          require_int_field_local(row, "combine_left_name", "asgp_dc_binders"),
+          require_int_field_local(row, "combine_right_name", "asgp_dc_binders"),
+      });
+    }
+  }
+
+  auto dp1_it = raw.object_v.find("asgp_dp1d_specs");
+  if (dp1_it != raw.object_v.end()) {
+    if (dp1_it->second.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("AST asgp_dp1d_specs must be an array");
+    }
+    for (const JsonValue& row : dp1_it->second.array_v) {
+      if (row.kind != JsonValue::Kind::Object) {
+        throw std::runtime_error("AST asgp_dp1d_specs item must be an object");
+      }
+      ast.asgp_dp1d_specs.push_back(g3pvm::evo::AsgpDp1dSpec{
+          require_node_index_field_local(row, "asgp_dp1d_specs"),
+          require_int_field_local(row, "lo", "asgp_dp1d_specs"),
+          require_int_field_local(row, "hi", "asgp_dp1d_specs"),
+          require_int_field_local(row, "base_state", "asgp_dp1d_specs"),
+          require_int_field_local(row, "boundary_const", "asgp_dp1d_specs"),
+          static_cast<g3pvm::evo::NodeKind>(
+              require_int_field_local(row, "dep_kind", "asgp_dp1d_specs")),
+          require_int_array_field_local(row, "dep_offsets", "asgp_dp1d_specs"),
+          require_int_field_local(row, "solve_state_name", "asgp_dp1d_specs"),
+          require_int_field_local(row, "transition_state_name", "asgp_dp1d_specs"),
+          require_int_array_field_local(row, "transition_dep_names", "asgp_dp1d_specs"),
+      });
+    }
+  }
+
+  auto dp2_it = raw.object_v.find("asgp_dp2d_specs");
+  if (dp2_it != raw.object_v.end()) {
+    if (dp2_it->second.kind != JsonValue::Kind::Array) {
+      throw std::runtime_error("AST asgp_dp2d_specs must be an array");
+    }
+    for (const JsonValue& row : dp2_it->second.array_v) {
+      if (row.kind != JsonValue::Kind::Object) {
+        throw std::runtime_error("AST asgp_dp2d_specs item must be an object");
+      }
+      ast.asgp_dp2d_specs.push_back(g3pvm::evo::AsgpDp2dSpec{
+          require_node_index_field_local(row, "asgp_dp2d_specs"),
+          require_int_field_local(row, "i_lo", "asgp_dp2d_specs"),
+          require_int_field_local(row, "i_hi", "asgp_dp2d_specs"),
+          require_int_field_local(row, "j_lo", "asgp_dp2d_specs"),
+          require_int_field_local(row, "j_hi", "asgp_dp2d_specs"),
+          require_int_field_local(row, "base_i", "asgp_dp2d_specs"),
+          require_int_field_local(row, "base_j", "asgp_dp2d_specs"),
+          require_int_field_local(row, "boundary_const", "asgp_dp2d_specs"),
+          static_cast<g3pvm::evo::NodeKind>(
+              require_int_field_local(row, "dep_kind", "asgp_dp2d_specs")),
+          require_int_field_local(row, "solve_i_name", "asgp_dp2d_specs"),
+          require_int_field_local(row, "solve_j_name", "asgp_dp2d_specs"),
+          require_int_field_local(row, "transition_i_name", "asgp_dp2d_specs"),
+          require_int_field_local(row, "transition_j_name", "asgp_dp2d_specs"),
+          require_int_array_field_local(row, "transition_dep_names", "asgp_dp2d_specs"),
       });
     }
   }
@@ -950,6 +1111,14 @@ int main(int argc, char** argv) {
       const JsonValue ast_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.eval_ast_json)).parse();
       g3pvm::evo::ProgramGenome genome;
       genome.ast = decode_ast_json(ast_payload);
+      const g3pvm::evo::AstVerifyResult verified = g3pvm::evo::verify_ast(
+          genome.ast, g3pvm::evo::canonical_input_specs(cases, cfg.grammar));
+      if (!verified) {
+        throw std::runtime_error(
+            std::string("invalid AST (") +
+            g3pvm::evo::verify_code_name(verified.diagnostic.code) + ") at " +
+            verified.diagnostic.path + ": " + verified.diagnostic.message);
+      }
       genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
       const std::vector<g3pvm::evo::ScoredGenome> scored =
           g3pvm::evo::evaluate_population({genome}, cases, cfg);

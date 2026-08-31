@@ -13,11 +13,11 @@
     },
     {
       "path": "spec/bytecode_isa.md",
-      "sha256": "f8c096e8f2f9e1c3eee1069b89c112e0f6c692aa3fe08233dc5ccd8530909d19"
+      "sha256": "f8e3cc70b3ac880f3153d2134b06e59f35c0f4f6a640cc4fb30e4714e65fa721"
     },
     {
       "path": "spec/bytecode_format.md",
-      "sha256": "f685429d1fe483672660b1eab5ffa74791295abf1e6b0e5c1df2a722b74ef086"
+      "sha256": "3bbab428c73079113e1e0af1529f4106b1d253bf93a73e9d369b7a041df4a962"
     },
     {
       "path": "spec/builtins_base.md",

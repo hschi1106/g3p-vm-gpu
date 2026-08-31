@@ -194,6 +194,7 @@ class TestCppVMEquiv(unittest.TestCase):
             "-I",
             str(ROOT / "cpp" / "include"),
             str(ROOT / "cpp" / "src" / "runtime" / "payload" / "payload.cpp"),
+            str(ROOT / "cpp" / "src" / "runtime" / "bytecode_verify.cpp"),
             str(ROOT / "cpp" / "src" / "runtime" / "cpu" / "builtins_cpu.cpp"),
             str(ROOT / "cpp" / "src" / "runtime" / "cpu" / "execute_bytecode_cpu.cpp"),
             str(ROOT / "cpp" / "tests" / "runtime" / "test_vm_cli_harness.cpp"),

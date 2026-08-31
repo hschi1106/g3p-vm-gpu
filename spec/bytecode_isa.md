@@ -115,6 +115,18 @@ The first runtime error terminates the current case execution.
 Deterministic ASGP stack, memo, or payload overflow must map to a runtime
 error result and must be treated as `-penalty` by fitness evaluation.
 
+## Verification Boundary
+
+Native external bytecode decoding must run the verifier described in
+[bytecode_format.md](./bytecode_format.md) before execution. Debug native
+compiler builds also verify their completed output. This check is a boundary
+and debug invariant, not a per-case execution step or a per-individual release
+hot-path requirement.
+
+Malformed operands, indices, CFG stack joins, and segment metadata are decode
+errors. Well-formed instructions whose values cause a language runtime error
+remain executable so fixture suites can assert the error behavior above.
+
 ## Type-Sensitive Operators
 
 Arithmetic operators accept `Int` and `Float` only. `Bool` and `Char` are not

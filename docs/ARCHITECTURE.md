@@ -44,6 +44,21 @@ These are the current invariants.
 
 ## Runtime Model
 
+### Verification boundaries
+
+Native prefix ASTs are structurally and statically verified by
+`evolution/ast_verify.hpp`. The `--eval-ast-json` boundary derives exact input
+types from its fitness cases and rejects malformed, ill-scoped, or ill-typed
+ASTs before genome metadata or compilation is built.
+
+Native bytecode uses `core/bytecode_verify.hpp` for operand/range checks,
+control-flow stack analysis, local and binder mappings, and ASGP phase segment
+validation. Bytecode JSON decoding calls it unconditionally. Debug compiler
+builds verify completed bytecode as an assertion on lowering, while Release
+evolution does not add verifier work to each generated individual. Runtime
+errors remain runtime outcomes when the bytecode representation itself is
+well-formed.
+
 ### Value domain
 - `Int`
 - `Float`
@@ -203,7 +218,9 @@ This keeps numeric tasks dense while keeping container semantics exact and simpl
 ## C++ Module Map
 
 ### `cpp/include/g3pvm/core/`
-Public value, error, builtin id, opcode, bytecode, and shared fitness/value semantics headers.
+Public value, error, builtin id, opcode, bytecode, bytecode-verification, and
+shared fitness/value semantics headers. `bytecode_verify.hpp` owns structured
+diagnostics and opt-in resource limits for complete native bytecode programs.
 
 ### `cpp/include/g3pvm/runtime/cpu/`
 Public CPU execution, fitness, and builtin interfaces:

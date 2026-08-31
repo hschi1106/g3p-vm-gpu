@@ -90,10 +90,14 @@ Instruction objects use opcode names from
 Fields:
 
 - `op`: required opcode string.
-- `a`: optional integer operand, default `0`.
-- `b`: optional integer operand, default `0`.
+- `a`: integer operand; required by opcodes that consume operand `a` and
+  otherwise optional/ignored.
+- `b`: integer operand; required by `CALL_BUILTIN` and otherwise
+  optional/ignored.
 
 For `CALL_BUILTIN`, `a` is the builtin id and `b` is the arity.
+Missing required operands are malformed bytecode; they are not interpreted as
+zero.
 
 ## Bytecode Program Encoding
 
@@ -136,10 +140,11 @@ Segment encoding:
 }
 ```
 
-`binder_locals` is optional. When present, it maps source binder name ids to
-phase-local slots. ASGP phase execution uses this map to bind solve, divide,
-combine, dependency, or transition parameters before executing the segment
-code.
+`binder_locals` maps source binder name ids to phase-local slots. It may be
+omitted for a phase with no binders, but every required ASGP phase role must
+have an in-range mapping. ASGP phase execution uses this map to bind solve,
+divide, combine, dependency, or transition parameters before executing the
+segment code.
 
 The implementation-defined ASGP segment payloads are encoded under
 `segments`:
@@ -201,6 +206,26 @@ The implementation-defined ASGP segment payloads are encoded under
 Main bytecode refers to ASGP segment arrays by zero-based segment index in the
 `a` operand of `ASGP_DC`, `ASGP_DP1D`, and `ASGP_DP2D`.
 
+## Decode-Time Verification
+
+Native JSON decoders verify each complete program before returning it. The
+verification contract covers:
+
+- public constant tags and Unicode scalar `Char` constants;
+- required operands and constant/local/builtin/segment index ranges;
+- builtin bytecode arity and jump targets;
+- control-flow stack depth and compatible stack types at joins;
+- reachable stack underflow and main-program fallthrough;
+- local, variable-map, binder-local, and phase-program ranges;
+- ASGP bounds, dependency metadata, phase binders, and forbidden nested ASGP
+  calls inside phase bytecode;
+- optional instruction, constant, local, segment, and stack resource limits.
+
+Verification rejects malformed representation and unsafe control-flow shape.
+It does not replace runtime semantics: bytecode that is structurally valid but
+deliberately evaluates to `TypeError`, `NameError`, `ZeroDiv`, or `Timeout`
+remains decodable and produces that runtime result.
+
 ASGP-DP segment arity constraints:
 
 - `asgp_dp1d.dep_kind` is `-1` for backward dependencies and `1` for forward
@@ -227,26 +252,49 @@ Public AST encoding uses:
   "nodes": [AstNode],
   "names": ["input1"],
   "consts": [Value],
-  "binders": [Binder],
-  "types": [Type],
-  "asgp": {}
+  "linear_rec_binders": [],
+  "asgp_dc_binders": [],
+  "asgp_dp1d_specs": [],
+  "asgp_dp2d_specs": []
 }
 ```
 
 Node encoding:
 
 ```json
-{"kind": "PROGRAM", "i0": 0, "i1": 0}
+{"kind": 0, "i0": 0, "i1": 0}
 ```
 
-The exact side-table layout for binders, type annotations, DP bounds, and ASGP
-scheme metadata is implementation-defined until the current AST implementation is
-committed. It must satisfy:
+`kind` is the current numeric `NodeKind` value written by the native AST
+serializer. `i0` and `i1` are required integers. The native verifier rejects
+unknown kinds and invalid uses of the index fields before compilation.
+
+Current optional side-table arrays are:
+
+- `linear_rec_binders`: `node_index`, `elem_name`, `accum_name`, and
+  `index_name`;
+- `asgp_dc_binders`: `node_index`, `solve_xs_name`, `solve_n_name`,
+  `solve_lo_name`, `divide_n_name`, `combine_left_name`, and
+  `combine_right_name`;
+- `asgp_dp1d_specs`: `node_index`, `lo`, `hi`, `base_state`,
+  `boundary_const`, numeric dependency-node `dep_kind`, positive
+  `dep_offsets`, `solve_state_name`, `transition_state_name`, and
+  `transition_dep_names`;
+- `asgp_dp2d_specs`: `node_index`, both dimension bounds, the base cell,
+  `boundary_const`, numeric dependency-node `dep_kind`, solve/transition state
+  names, and `transition_dep_names`.
+
+Omitted side-table arrays are treated as empty. Every entry is owned by exactly
+one matching node index. Their verified semantics satisfy:
 
 - capture-safe `BoundVar` references.
 - exact result-type reconstruction.
 - ASGP phase and visibility reconstruction.
 - deterministic AST cache keys.
+
+The `--eval-ast-json` boundary derives exact input name/type declarations from
+the selected `fitness-cases` file and runs the full structural, scope, binder,
+and type verifier before building genome metadata or compiling.
 
 ## DP Bounds Encoding
 

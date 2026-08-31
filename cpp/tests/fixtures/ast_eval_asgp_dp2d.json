@@ -1,0 +1,38 @@
+{
+  "version": "ast-prefix",
+  "nodes": [
+    {"kind": 0, "i0": 0, "i1": 0},
+    {"kind": 2, "i0": 0, "i1": 0},
+    {"kind": 6, "i0": 0, "i1": 0},
+    {"kind": 58, "i0": 0, "i1": 0},
+    {"kind": 7, "i0": 0, "i1": 0},
+    {"kind": 7, "i0": 0, "i1": 0},
+    {"kind": 7, "i0": 1, "i1": 0},
+    {"kind": 52, "i0": 4, "i1": 0},
+    {"kind": 1, "i0": 0, "i1": 0}
+  ],
+  "names": ["solve_i", "solve_j", "transition_i", "transition_j", "dependency"],
+  "consts": [
+    {"type": "int", "value": 1},
+    {"type": "int", "value": 1},
+    {"type": "int", "value": 0}
+  ],
+  "asgp_dp2d_specs": [
+    {
+      "node_index": 3,
+      "i_lo": 0,
+      "i_hi": 1,
+      "j_lo": 0,
+      "j_hi": 1,
+      "base_i": 0,
+      "base_j": 0,
+      "boundary_const": 2,
+      "dep_kind": 67,
+      "solve_i_name": 0,
+      "solve_j_name": 1,
+      "transition_i_name": 2,
+      "transition_j_name": 3,
+      "transition_dep_names": [4]
+    }
+  ]
+}
