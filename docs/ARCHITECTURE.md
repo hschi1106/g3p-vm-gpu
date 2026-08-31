@@ -104,7 +104,7 @@ Nested and heterogeneous lists are not part of the public value contract.
 - Native C++ AST metadata, subtree traversal, grammar-config gating, cache keys, and typed-expression analysis understand the structured node set.
 - Native CPU compiler/runtime lowering executes hand-authored `MapList`, `FilterList`, and `LinearRec` ASTs using hidden locals and private helper opcodes.
 - Native GPU fitness execution implements the private structured-expression helper opcode slice needed by compiler-lowered `MapList`, `FilterList`, and `LinearRec` programs, including exact empty typed-list payload creation within bounded device payload state.
-- Python and native random generation can emit conservative structured forms when enabled. Native typed-subtree mutation can synthesize `MapList` / `FilterList` donors, and typed root collection excludes binder-body fragments containing `BoundVar` so lexical binders cannot escape their scope during variation. CPU mutation, CPU crossover, CPU reproduction, and GPU reproduction preprocessing also filter ASGP phase-body roots before choosing typed-subtree replacement sites. Host-side CPU typed-subtree crossover/reproduction and packed GPU candidate selection use a current typed key that includes result type, visible scope, binder/scheme identity, ASGP phase identity, and ASGP-DP dependency arity.
+- Native random generation can emit conservative structured forms when enabled. Native typed-subtree mutation can synthesize `MapList` / `FilterList` donors, and typed root collection excludes binder-body fragments containing `BoundVar` so lexical binders cannot escape their scope during variation. CPU mutation, CPU crossover, CPU reproduction, and GPU reproduction preprocessing also filter ASGP phase-body roots before choosing typed-subtree replacement sites. Host-side CPU typed-subtree crossover/reproduction and packed GPU candidate selection use a current typed key that includes result type, visible scope, binder/scheme identity, ASGP phase identity, and ASGP-DP dependency arity.
 - Native AST JSON includes `LinearRec` and ASGP binder/spec side-table metadata.
   GPU reproduction preserves structured children by packing parent/donor
   side tables, copying back the selected parent/candidate context, and
@@ -137,7 +137,9 @@ Nested and heterogeneous lists are not part of the public value contract.
 
 ### Evolution grammar configs
 - `grammar-config` is the current schema.
-- Checked-in `grammar-config` presets under `configs/grammar/` are accepted by Python and native loaders as compatibility input and translated into current search-space controls for fair comparisons.
+- Checked-in `grammar-config` presets under `configs/grammar/` are accepted by
+  the native loader as compatibility input and translated into current
+  search-space controls for fair comparisons.
 - Generated native `compact` configs with `compat.num_list_mode="both"` preserve the old `NumList` input search-space shape by seeding exact `IntList` / `FloatList` fixture inputs as `Any` input variables. This does not reinterpret runtime fixture values.
 - The config restricts random genome generation, CPU mutation donor synthesis, GPU reproduction preprocess candidate/donor generation, and seed replay regeneration.
 - The config does not reject execution of existing ASTs or bytecode that use disabled constructs.
@@ -221,17 +223,6 @@ This keeps numeric tasks dense while keeping container semantics exact and simpl
 - `compiler.py`: AST to bytecode compiler
 - `interp.py`: direct AST interpreter
 - `vm.py`: Python bytecode VM
-
-### `python/src/g3p_vm_gpu/evolution/`
-- `genome.py`: genome container and compile-for-eval helpers
-- `grammar_config.py`: Python-side `grammar-config` parser and legacy compatibility translator
-- `stmt_codec.py`: AST and statement codec helpers
-- `random_tree.py`: typed random expression and statement generation
-- `random_genome.py`: random genome generation
-- `random_program.py`: generic fuzz/reference random programs
-- `mutation.py`: Python mutation operator
-- `crossover.py`: Python crossover operator
-- `evolve.py`: Python evolution loop and reference fitness logic
 
 ## C++ Module Map
 

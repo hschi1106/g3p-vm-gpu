@@ -16,28 +16,28 @@ test may be deleted until its target stage is green.
 | `runtime/interp.py` | direct AST execution oracle | native AST verifier and semantic corpus | 10 |
 | `runtime/compiler.py` | AST-to-bytecode oracle | compiler-lowering and bytecode-verifier tests | 10 |
 | `runtime/vm.py` | Python bytecode VM | native runtime corpus and CPU/GPU parity | 10 |
-| `evolution/genome.py`, `stmt_codec.py` | Python genome/statement representation | native AST codec and verifier properties | 9 |
-| `evolution/random_program.py`, `random_tree.py`, `random_genome.py` | generation | native generation/verify/compile properties | 9 |
-| `evolution/mutation.py`, `crossover.py` | variation | native mutation/crossover properties | 9 |
-| `evolution/grammar_config.py` | search-space config | native grammar-config contract/properties | 9 |
-| `evolution/evolve.py` | scoring, selection, evolution loop | native evolution and CPU/GPU parity tests | 9 |
+| `evolution/genome.py`, `stmt_codec.py` (removed in Stage 09) | Python genome/statement representation | native AST codec and verifier properties | 9 |
+| `evolution/random_program.py`, `random_tree.py`, `random_genome.py` (removed in Stage 09) | generation | native generation/verify/compile properties | 9 |
+| `evolution/mutation.py`, `crossover.py` (removed in Stage 09) | variation | native mutation/crossover properties | 9 |
+| `evolution/grammar_config.py` (removed in Stage 09) | search-space config | native grammar-config contract/properties | 9 |
+| `evolution/evolve.py` (removed in Stage 09) | scoring, selection, evolution loop | native evolution and CPU/GPU parity tests | 9 |
 | `demo.py` | Python demo entry point | native CLI examples | 10 |
-| package `__init__.py` files | exports for the duplicate implementation | none after package removal | 9/10 |
+| package `__init__.py` files | exports for the duplicate implementation | evolution export removed in Stage 09; remaining package removed in Stage 10 | 9/10 |
 
 ## Test modules
 
 | Current test module | Methods | Disposition and native/tool target | Target stage |
 | --- | ---: | --- | ---: |
 | `test_cpp_vm_equiv.py` (removed in Stage 05) | 13 | Replaced by the normal CMake fixture harness, focused semantic corpus, compiler-lowering contracts, and Stage 04 verifier/ASGP boundary tests. | 4–5 |
-| `test_eval.py` | 28 | Port scalar/control flow, builtins, exact-list behavior, errors, fuel, and random-program execution to verifier/runtime contract fixtures. | 2–7 |
+| `test_eval.py` | 28 | Port scalar/control flow, builtins, exact-list behavior, errors, fuel, and random-program execution to verifier/runtime contract fixtures. The random-program method was removed with its evolution generator in Stage 09; 27 runtime methods remain for Stage 10. | 2–10 |
 | `test_vm_equiv.py` (removed in Stage 07) | 8 | Interpreter/VM outcomes are owned by native semantic contracts; compiler-output verification and deterministic generation/variation properties replace its random equivalence loop. | 4–7 |
 | `test_grammar_values.py` | 9 | Port format identifier, node inventory, exact value tags/equality, and ASGP declaration/lowering assertions to native AST/value/compiler contracts. | 1–6 |
 | `test_grammar_builtins.py` | 8 | Port protected arithmetic, char/string, direct list, singleton, and float-format outcomes to native runtime corpus. | 5 |
 | `test_grammar_vm.py` (removed in Stage 06) | 30 | Scalar/value/builtin cases are owned by Stage 05 fixture targets; structured and ASGP cases are owned by focused Stage 06 contracts and verifier/parity targets. | 5–6 |
 | `test_grammar_asgp.py` (removed in Stage 06) | 14 | DC/DP1D/DP2D execution, boundary, memoization, phase visibility, dependency/result typing, nested forms, and fuel now have focused native runtime/verifier owners. | 3–6 |
-| `test_evolution_ops.py` | 14 | Replace grammar-config/generation/mutation/crossover compile-rate assertions with native contract and deterministic property tests. | 1–7, 9 |
-| `test_evolution_loop.py` | 5 | Replace option validation, scoring, selection, and loop behavior with native evolution tests. | 5–7, 9 |
-| `test_simple_evo_fixtures.py` | 3 | Retain the JSON fixtures; execute affine, square, and x+1 through native evolution tests. | 5–6 |
+| `test_evolution_ops.py` (removed in Stage 09) | 14 | Grammar-config/generation/mutation/crossover compile-rate assertions are native contracts and deterministic properties. | 1–7, 9 |
+| `test_evolution_loop.py` (removed in Stage 09) | 5 | Option validation, scoring, selection, and loop behavior are native evolution contracts. | 5–7, 9 |
+| `test_simple_evo_fixtures.py` (removed in Stage 09) | 3 | JSON fixtures remain; native evolution/parity tests own evolution execution while fixture schema is tool/native validated. | 5–6, 9 |
 | `test_docs_contract.py` | 2 | Move to runtime-independent repository documentation checks. | 8, 18 |
 | `test_spec_freeze.py` | 1 | Move unchanged responsibility to runtime-independent repository checks callable from CTest. | 8, 18 |
 | `test_psb1_tools.py` (moved to `tools/tests` in Stage 08) | 3 | Tool-owned converter schema coverage; no runtime-package import or `PYTHONPATH`. | 8 |
@@ -105,6 +105,24 @@ After Stage 07 the Python runner owned 96 declarations. Stage 08 moves the 26
 operational methods to `tools/tests`, leaving 70 transitional semantic/docs
 methods under `python/tests`. Evolution and runtime modules remain until their
 later roadmap stages.
+
+### Retired Python evolution mapping
+
+Stage 09 removes the complete Python evolution package, its 22 dedicated test
+methods, and the one random-program method formerly embedded in `test_eval.py`.
+
+| Retired responsibility | Native owner |
+| --- | --- |
+| genome metadata, statement traversal, cache keys | `g3pvm_test_genome`, AST descriptor/verifier contracts, and reproduction compaction tests |
+| random generation and deterministic replay | `g3pvm_test_genome_properties` plus generation coverage in `g3pvm_test_genome` |
+| mutation and typed crossover | deterministic mutation/crossover properties and `g3pvm_test_genome` operator contracts |
+| grammar config parsing, presets, and construct filtering | native grammar-config tests in `g3pvm_test_genome`, property filtering, CLI config coverage, and GPU preprocess tests |
+| fitness scoring, selection, option validation, and evolution loop | `g3pvm_test_evolve` and canonical CPU/GPU evolution parity |
+| affine, square, and x+1 fixture ownership | retained `data/fixtures` inputs, native CLI/evolution tests, and independent tool schema tests |
+| random interpreter smoke generated by `random_program.py` | deterministic generation → verify → compile → execute property and sanitizer/fuzz gates |
+
+After Stage 09, `python/tests` contains 47 transitional core/runtime/docs
+methods. No remaining Python source or test imports `g3p_vm_gpu.evolution`.
 
 ## Removal invariants
 

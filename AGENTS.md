@@ -5,7 +5,6 @@
   Current structure:
   - `core/`: AST, error types, shared value semantics
   - `runtime/`: builtins, compiler, interpreter, Python VM
-  - `evolution/`: genome, random generation, mutation, crossover, evolution loop
 - Native implementation lives under `cpp/`.
   Current structure:
   - `include/g3pvm/`: public C++ headers
@@ -47,7 +46,7 @@
   ```
 - Run one test module:
   ```bash
-  PYTHONPATH=python python3 -m unittest python.tests.test_vm_equiv -v
+  PYTHONPATH=python python3 -m unittest python.tests.test_eval -v
   ```
 - Run the demo program:
   ```bash

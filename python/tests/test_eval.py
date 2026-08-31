@@ -2,7 +2,6 @@ import unittest
 
 from src.g3p_vm_gpu.core.ast import build_program, make_char, make_float_list, make_int_list, make_string_list
 from src.g3p_vm_gpu.core.errors import ErrCode, Failed, Returned
-from src.g3p_vm_gpu.evolution.random_program import make_random_program
 from src.g3p_vm_gpu.runtime.builtins import builtin_call
 from src.g3p_vm_gpu.runtime.interp import run_program
 
@@ -191,28 +190,6 @@ class TestEval(unittest.TestCase):
         _, ne_out = run_program(ne_prog, {}, fuel=100)
         self.assertIsInstance(ne_out, Returned)
         self.assertEqual(ne_out.value, True)
-
-    def test_fuzz_random_programs(self):
-        passed = 0
-        failed = 0
-        timeout = 0
-
-        for i in range(1000):
-            prog = make_random_program(seed=i, depth=3)
-            env, out = run_program(prog, {}, fuel=10000)
-            self.assertIn(type(out).__name__, ["Returned", "Failed"])
-            if isinstance(out, Returned):
-                passed += 1
-            elif isinstance(out, Failed):
-                if out.err.code == ErrCode.TIMEOUT:
-                    timeout += 1
-                else:
-                    failed += 1
-            self.assertIsInstance(env, dict)
-
-        print(f"\nFuzz test results: {passed} passed, {failed} failed, {timeout} timeout")
-        self.assertEqual(passed + failed + timeout, 1000)
-
 
 if __name__ == "__main__":
     unittest.main()

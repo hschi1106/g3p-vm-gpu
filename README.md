@@ -1,7 +1,7 @@
 # g3p-vm-gpu
 
 Prefix-AST genetic programming system with:
-- a Python reference implementation,
+- a transitional Python runtime reference,
 - a C++ CPU execution and evolution backend,
 - a C++ CUDA GPU fitness backend.
 
@@ -53,7 +53,6 @@ refactor. The current release details are recorded only in [VERSION.md](VERSION.
 
 - `python/src/g3p_vm_gpu/core/`: AST, shared error/value semantics
 - `python/src/g3p_vm_gpu/runtime/`: builtins, compiler, interpreter, Python VM
-- `python/src/g3p_vm_gpu/evolution/`: genome, random generation, mutation, crossover, evolution loop
 - `cpp/include/g3pvm/`: public C++ headers
 - `cpp/src/runtime/`: CPU runtime, GPU fitness runtime, payload support
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop

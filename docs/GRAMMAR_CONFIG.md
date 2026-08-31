@@ -9,8 +9,8 @@ grammar. Grammar config only affects generated or regenerated programs.
 ## Compatibility Input
 
 Checked-in presets under `configs/grammar/` are still `grammar-config` files
-during the current migration. Python and native loaders accept those files as
-compatibility input and translate them into current search-space controls:
+during the current migration. The native loader accepts those files as
+compatibility input and translates them into current search-space controls:
 
 - `values.none` is discarded because `None` is not a public current value.
 - `values.num_list` enables both `values.int_list` and `values.float_list`.
@@ -29,7 +29,6 @@ when all elements are integral and `FloatList` otherwise.
 Grammar config affects:
 
 - random genome generation
-- Python mutation and crossover fallback generation
 - C++ CPU mutation donor synthesis
 - C++ GPU reproduction candidate filtering and mutation donor pool generation
   for the implemented current source-form subset
@@ -47,8 +46,8 @@ Grammar config does not affect:
 
 Checked-in presets live under `configs/grammar/`:
 
-- `all.json`: all legacy profile constructs enabled; translated to current direct
-  list values for Python current generation
+- `all.json`: all legacy profile constructs enabled; translated to current
+  direct list values for native generation
 - `scalar.json`: numeric / boolean scalar search space; sequence values and
   container builtins disabled
 - `string.json`: scalar plus `String` and string-compatible builtins
@@ -206,18 +205,12 @@ records generated config hash, base config hash, fixture schema hash, and
 
 ## Implementation Points
 
-Python:
+Operational profile generation:
 
-- `python/src/g3p_vm_gpu/evolution/grammar_config.py`
-- `python/src/g3p_vm_gpu/evolution/random_tree.py`
-- `python/src/g3p_vm_gpu/evolution/random_genome.py`
-- `python/src/g3p_vm_gpu/evolution/mutation.py`
-- `python/src/g3p_vm_gpu/evolution/crossover.py`
-- `python/src/g3p_vm_gpu/evolution/evolve.py`
 - `tools/grammar_config_profiles.py`
 - `tools/run_psb_regression.py`
 
-C++ native migration:
+Native implementation:
 
 - `cpp/include/g3pvm/evolution/grammar_config.hpp`
 - `cpp/src/evolution/grammar_config.cpp`
@@ -239,7 +232,8 @@ source forms covered by the current native AST/runtime migration slice.
 
 Tests:
 
-- Python generator/config coverage in `python/tests/test_evolution_ops.py`
 - native generator/config coverage in `cpp/tests/evolution/test_genome.cpp`
+- deterministic grammar properties in
+  `cpp/tests/evolution/test_genome_properties.cpp`
 - native GPU reproduction preprocess/config coverage in
   `cpp/tests/evolution/test_repro_prep.cpp`

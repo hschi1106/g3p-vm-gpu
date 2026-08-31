@@ -8,7 +8,6 @@ g3p-vm-gpu/
 │   ├── src/g3p_vm_gpu/
 │   │   ├── core/
 │   │   ├── runtime/
-│   │   ├── evolution/
 │   │   ├── __init__.py
 │   │   └── demo.py
 │   └── tests/
@@ -65,9 +64,11 @@ g3p-vm-gpu/
 
 - `AGENTS.md`: repo-local working conventions for coding agents
 - `README.md`: entrypoint and quick workflow
-- `python/`: reference semantics and Python-side tests
+- `python/`: transitional runtime-reference semantics and tests; evolution is
+  native-only
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests; reusable semantic fixtures live under `cpp/tests/fixtures/runtime/`
-- `configs/grammar/`: checked-in legacy grammar presets; Python current loader translates `grammar-config` files for compatibility comparisons
+- `configs/grammar/`: checked-in legacy grammar presets; the native loader
+  translates them for compatibility comparisons
 - `configs/psb_tolerances/`: versioned problem-specific PSB quality tolerance policies used by comparison gates
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
