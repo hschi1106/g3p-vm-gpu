@@ -75,6 +75,7 @@ target_include_directories(g3pvm_cpu PUBLIC include)
 add_library(g3pvm_cli_support
   src/cli/json.cpp
   src/cli/codec.cpp
+  src/cli/options.cpp
 )
 target_include_directories(g3pvm_cli_support PUBLIC include)
 target_link_libraries(g3pvm_cli_support PUBLIC g3pvm_cpu)
@@ -87,7 +88,7 @@ target_link_libraries(g3pvm_runtime_multi_bench PRIVATE g3pvm_cpu)
 add_executable(g3pvm_evolve_cli
   src/cli/evolve_cli.cpp
 )
-target_link_libraries(g3pvm_evolve_cli PRIVATE g3pvm_cpu)
+target_link_libraries(g3pvm_evolve_cli PRIVATE g3pvm_cli_support)
 add_test(
   NAME g3pvm_test_ast_json_boundary
   COMMAND ${CMAKE_COMMAND}
@@ -161,6 +162,13 @@ add_executable(g3pvm_test_cli_json
 target_link_libraries(g3pvm_test_cli_json PRIVATE g3pvm_cli_support)
 add_test(NAME g3pvm_test_cli_json COMMAND g3pvm_test_cli_json)
 set_tests_properties(g3pvm_test_cli_json PROPERTIES LABELS "unit;contract")
+
+add_executable(g3pvm_test_cli_options
+  tests/runtime/test_cli_options.cpp
+)
+target_link_libraries(g3pvm_test_cli_options PRIVATE g3pvm_cli_support)
+add_test(NAME g3pvm_test_cli_options COMMAND g3pvm_test_cli_options)
+set_tests_properties(g3pvm_test_cli_options PROPERTIES LABELS "unit;contract")
 
 add_executable(g3pvm_test_vm_cli_harness
   tests/runtime/test_vm_cli_harness.cpp

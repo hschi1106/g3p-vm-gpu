@@ -94,9 +94,10 @@ until a stage deliberately re-captures an equivalent manifest.
 
 The product CLI has no discoverability output: `g3pvm_evolve_cli --help`
 returns exit failure with `unknown argument: --help`, and invoking it without
-arguments returns `--cases is required`. The actual parser and defaults in
-`cpp/src/cli/evolve_cli.cpp` are therefore the current authoritative interface
-until CLI contract tests land.
+arguments returns `--cases is required`. At baseline, the actual parser and
+defaults were in `cpp/src/cli/evolve_cli.cpp`. Stage 11 moved that interface
+unchanged to `cpp/src/cli/options.cpp` and added
+`g3pvm_test_cli_options` contract coverage.
 
 Public flags at baseline are: `--cases`, `--population-json`,
 `--grammar-config`, `--eval-ast-json`, `--engine`, `--repro-backend`,

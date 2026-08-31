@@ -60,10 +60,11 @@ temporary wrappers.
 | `g3pvm_simple_exp_population_probe` | experiment probe | maintained parity diagnostic; build only with an explicit experiment option |
 | `g3pvm_test_*` | tests | normal CTest ownership with contract/property/parity labels |
 
-The current CLI directly includes `json.cpp` and `codec.cpp`; `options.cpp` and
-`options.hpp` implement a second, incomplete parser that no product target
-uses. Stage 11 replaces both problems with one linked support library. No C++
-source inclusion is an accepted compatibility surface.
+Stage 11 replaced the CLI's textual inclusion of `json.cpp` and `codec.cpp`
+and its second incomplete parser with the linked `g3pvm_cli_support` library.
+`options.cpp` and `options.hpp` now own the complete product parser, and focused
+contract tests preserve its flags, defaults, and validation. No C++ source
+inclusion is an accepted compatibility surface.
 
 ## Documentation ownership and known defects
 

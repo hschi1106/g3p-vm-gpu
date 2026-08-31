@@ -59,9 +59,11 @@ generator boundary responsible for never introducing an invalid initial
 individual. Runtime errors remain runtime outcomes when the bytecode
 representation itself is well-formed.
 
-Native JSON parsing and bytecode/value codecs are compiled once in the
-`g3pvm_cli_support` library. The CMake-built fixture runner uses that library
-to execute the shared scalar, control-flow, builtin, and typed-value corpus.
+Native JSON parsing, bytecode/value codecs, and the complete public option
+parser are compiled once in the `g3pvm_cli_support` library. Product CLIs and
+the CMake-built fixture runner link that library; no target includes C++ source
+files textually. The fixture runner uses the library to execute the shared
+scalar, control-flow, builtin, and typed-value corpus.
 Malformed JSON/bytecode remains owned by codec/verifier tests; semantic runtime
 errors are asserted only after a program passes verification.
 
@@ -279,13 +281,18 @@ Public evolution interfaces split by responsibility:
 
 ### `cpp/src/cli/`
 - `evolve_cli.cpp`: evolution CLI; also supports fixed-population one-generation benchmark runs via `--population-json` and `--skip-final-eval`
-- codec / json / options helpers
+- `json.cpp`: shared JSON parser
+- `codec.cpp`: shared bytecode/value fixture codec
+- `options.cpp`: authoritative parser and defaults for the evolution CLI
+
+These helpers form the linked `g3pvm_cli_support` library. Parser defaults and
+failure behavior are covered independently by `g3pvm_test_cli_options`.
 
 ### `cpp/src/bench/`
 Benchmark binaries for runtime-focused measurement.
 
 ### `cpp/tests/`
-- `runtime/`: focused CPU VM, fixture-codec, payload-registry, and CLI-harness tests
+- `runtime/`: focused CPU VM, fixture-codec, option-parser, payload-registry, and CLI-harness tests
 - `fixtures/runtime/`: intent-labelled scalar, control-flow, builtin, and typed-value corpus
 - `gpu/`: direct GPU smoke coverage
 - `parity/`: CPU/GPU fitness and evolution parity regression tests

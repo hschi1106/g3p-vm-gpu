@@ -129,6 +129,11 @@ This section documents the adjustable arguments that affect supported public wor
 
 ### `cpp/build/g3pvm_evolve_cli`
 
+The executable and native harnesses link `g3pvm_cli_support`; its option
+parser is the single owner of the flags, defaults, and validation below.
+`g3pvm_test_cli_options` locks that command-line contract independently of
+evolution execution.
+
 Core execution args:
 - `--cases PATH`: input fitness-cases file; current validation uses
   `fitness-cases`, while baseline comparisons may use
