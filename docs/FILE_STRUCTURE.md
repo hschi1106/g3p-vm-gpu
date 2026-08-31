@@ -45,6 +45,7 @@ g3p-vm-gpu/
 │   ├── ARCHITECTURE.md
 │   ├── CPP_RUNTIME_PAYLOAD.md
 │   ├── DEVELOPMENT.md
+│   ├── EXPERIMENT_SPEC.md
 │   ├── GRAMMAR_CONFIG.md
 │   ├── GPU_REPRODUCTION.md
 │   ├── TIMING.md
@@ -69,6 +70,7 @@ g3p-vm-gpu/
 - `configs/psb_tolerances/`: versioned problem-specific PSB quality tolerance policies used by comparison gates
 - `spec/`: normative behavior contracts
 - `docs/`: operational, architectural, and payload-model documentation
+- `docs/EXPERIMENT_SPEC.md`: pre-registered speedup, scaling, dataset, and evolutionary-effectiveness protocol
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
 - `docs/GRAMMAR_CONFIG.md`: external config format for evolution grammar search-space controls
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes

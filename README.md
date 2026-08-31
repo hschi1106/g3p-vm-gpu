@@ -44,6 +44,7 @@ refactor. The current release details are recorded only in [VERSION.md](VERSION.
 - [CPP_RUNTIME_PAYLOAD.md](docs/CPP_RUNTIME_PAYLOAD.md): host/device container payload model and fallback behavior
 - [GPU_REPRODUCTION.md](docs/GPU_REPRODUCTION.md): GPU reproduction backend pipeline, overlap model, and bottlenecks
 - [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
+- [EXPERIMENT_SPEC.md](docs/EXPERIMENT_SPEC.md): pre-registered speedup, scaling, and evolutionary-effectiveness protocol
 - [GRAMMAR_CONFIG.md](docs/GRAMMAR_CONFIG.md): external config format for evolution grammar search-space controls
 - [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
 - [FILE_STRUCTURE.md](docs/FILE_STRUCTURE.md): terse repository directory map
