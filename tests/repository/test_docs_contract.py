@@ -35,6 +35,9 @@ class TestDocsContract(unittest.TestCase):
             "Convert PSB1/PSB2 tasks into `fitness-cases`",
             "Treat these files as the behavioral source of truth.",
             "Historical old",
+            "python/src/g3p_vm_gpu",
+            "PYTHONPATH=python",
+            "Python reference implementation",
         ]
 
         for path, text in docs.items():

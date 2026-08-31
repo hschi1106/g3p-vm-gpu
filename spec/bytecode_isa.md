@@ -73,8 +73,7 @@ Current source forms may be lowered into this opcode set plus hidden locals and
 bytecode segments. Implementations may add private optimized opcodes, but
 public behavior must be equivalent to this contract.
 
-Current native/Python private helper opcodes for structured-expression
-lowering are:
+Current native private helper opcodes for structured-expression lowering are:
 
 - `CHECK_LIST`
 - `CHECK_INT`

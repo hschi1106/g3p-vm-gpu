@@ -9,18 +9,15 @@ cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build cpp/build -j
 ```
 
-### Python tests
+### Tool and repository checks
 
-```bash
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
-```
-
-The remaining duplicate-runtime tests are transitional. Operational tools have
-an independent standard-library test suite and do not use the runtime package
-or `PYTHONPATH`:
+Operational tools and runtime-independent repository contracts use the Python
+standard library only. No product/runtime Python package or `PYTHONPATH` is
+required:
 
 ```bash
 python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
 ```
 
 ### C++ tests
@@ -95,7 +92,7 @@ regression in the relevant property target.
 
 ```bash
 python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure
 ```
@@ -110,7 +107,7 @@ When changing any listed current spec, update the manifest in the same semantic
 change and run:
 
 ```bash
-PYTHONPATH=python python3 -m unittest python.tests.test_spec_freeze -v
+python3 -m unittest tests.repository.test_spec_freeze -v
 ```
 
 ## GPU Run Policy

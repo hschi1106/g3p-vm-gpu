@@ -1,7 +1,7 @@
 {
   "authoritative_entrypoint": "spec/grammar.md",
   "format_version": "spec-freeze",
-  "generated_at": "2026-07-13",
+  "generated_at": "2026-09-01",
   "notes": [
     "This manifest records the current normative spec set used by the breaking grammar refactor.",
     "The hash gate is intentionally mechanical: if a listed spec changes, update this manifest in the same semantic change."
@@ -13,7 +13,7 @@
     },
     {
       "path": "spec/bytecode_isa.md",
-      "sha256": "f8e3cc70b3ac880f3153d2134b06e59f35c0f4f6a640cc4fb30e4714e65fa721"
+      "sha256": "98cdfdd5f10c8e87fe061cb115c74c799779c962f48e978d99052a0a39dd8373"
     },
     {
       "path": "spec/bytecode_format.md",
@@ -21,7 +21,7 @@
     },
     {
       "path": "spec/builtins_base.md",
-      "sha256": "f2e4927d80d3accd31f6ffec73aba3171f3d8261a200b84677ec14b3f0e94878"
+      "sha256": "68b116075863a018b24dbbe8675461a775f700410cdbb6022c01cd695c1a2c36"
     },
     {
       "path": "spec/builtins_runtime.md",

@@ -1,19 +1,16 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- Core Python package: `python/src/g3p_vm_gpu/`.
-  Current structure:
-  - `core/`: AST, error types, shared value semantics
-  - `runtime/`: builtins, compiler, interpreter, Python VM
-- Native implementation lives under `cpp/`.
+- The implementation lives under `cpp/`.
   Current structure:
   - `include/g3pvm/`: public C++ headers
   - `src/runtime/`: CPU runtime, GPU runtime, payload support
   - `src/evolution/`: compiler, genome generation, operators, evolution loop
   - `src/cli/`: native CLIs such as `g3pvm_evolve_cli`
   - `tests/`: runtime, GPU smoke, parity, and evolution tests
-- Tests live in `python/tests/`.
 - Native tests live in `cpp/tests/`.
+- Operational tool tests live in `tools/tests/`; runtime-independent repository
+  checks live in `tests/repository/`.
 - Normative behavior is documented in `spec/`:
   - `grammar.md`
   - `bytecode_isa.md`
@@ -40,17 +37,10 @@
   cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
   cmake --build cpp/build -j
   ```
-- Run all Python tests:
+- Run operational tool and repository checks:
   ```bash
-  PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
-  ```
-- Run one test module:
-  ```bash
-  PYTHONPATH=python python3 -m unittest python.tests.test_eval -v
-  ```
-- Run the demo program:
-  ```bash
-  PYTHONPATH=python/src python3 -m g3p_vm_gpu.demo
+  python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+  python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
   ```
 - Run all native tests:
   ```bash
@@ -60,7 +50,7 @@
   ```bash
   ctest --test-dir cpp/build -R 'g3pvm_test_vm_gpu_smoke|g3pvm_test_fitness_cpu_gpu_parity|g3pvm_test_evolution_cpu_gpu_parity' --output-on-failure
   ```
-- If imports fail, verify you are running from repo root and using the matching `PYTHONPATH` shown above.
+- Run commands from the repository root so relative fixtures and configs resolve.
 
 ## Coding Style & Naming Conventions
 - Use Python with 4-space indentation and type hints where practical.
@@ -69,12 +59,12 @@
 - No formatter/linter config is committed yet; match the style already present in neighboring files.
 
 ## Testing Guidelines
-- Framework: `unittest`.
+- Python tool/repository-check framework: `unittest`.
 - Test files use `test_*.py`; test classes use `Test*`; test methods use `test_*`.
 - Native tests are built with CMake and run through `ctest`.
 - Add or update tests with every behavior change, especially for:
   - error code behavior (`ErrCode` paths),
-  - interpreter vs VM parity,
+  - compiler/runtime contract parity,
   - CPU vs GPU fitness parity when touching runtime, payload, or GPU execution,
   - `IntList` / `FloatList` / `StringList` typed-list behavior when touching sequence values, fixture conversion, payloads, or generation,
   - `grammar-config` search-space behavior when touching generation, mutation, reproduction, or seed replay,

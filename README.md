@@ -1,7 +1,6 @@
 # g3p-vm-gpu
 
 Prefix-AST genetic programming system with:
-- a transitional Python runtime reference,
 - a C++ CPU execution and evolution backend,
 - a C++ CUDA GPU fitness backend.
 
@@ -51,8 +50,6 @@ refactor. The current release details are recorded only in [VERSION.md](VERSION.
 
 ## Repository Layout
 
-- `python/src/g3p_vm_gpu/core/`: AST, shared error/value semantics
-- `python/src/g3p_vm_gpu/runtime/`: builtins, compiler, interpreter, Python VM
 - `cpp/include/g3pvm/`: public C++ headers
 - `cpp/src/runtime/`: CPU runtime, GPU fitness runtime, payload support
 - `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
@@ -79,14 +76,16 @@ cmake --build cpp/build -j
 ### Test
 
 ```bash
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
 ctest --test-dir cpp/build --output-on-failure
 ```
 
 ### Full local check
 
 ```bash
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
 cmake --build cpp/build -j4
 ctest --test-dir cpp/build --output-on-failure
 ```

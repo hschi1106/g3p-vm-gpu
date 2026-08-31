@@ -3,8 +3,7 @@
 This document defines the current scalar, character, and conversion builtin
 whitelist.
 
-Semantics must remain consistent across the Python interpreter, Python VM,
-C++ CPU runtime, and C++ GPU runtime.
+Semantics must remain consistent across the C++ CPU and CUDA GPU runtimes.
 
 See also:
 

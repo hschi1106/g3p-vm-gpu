@@ -3,8 +3,8 @@
 `grammar-config` controls which grammar constructs evolution is allowed to
 generate. It is a search-space control, not a runtime language mode.
 
-The interpreter, VM, CPU runtime, and GPU fitness runtime execute the public current
-grammar. Grammar config only affects generated or regenerated programs.
+The CPU VM and GPU fitness runtime execute the public current grammar. Grammar
+config only affects generated or regenerated programs.
 
 ## Compatibility Input
 
@@ -38,7 +38,7 @@ Grammar config does not affect:
 
 - execution of already-materialized AST programs
 - bytecode decoding
-- interpreter or VM semantics
+- VM semantics
 - CPU/GPU fitness semantics
 - loading existing programs that contain disabled constructs
 

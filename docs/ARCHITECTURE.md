@@ -7,8 +7,7 @@ executes them on CPU or GPU-backed runtimes, scores them against
 `fitness-cases` fixtures for current validation or `fitness-cases` fixtures
 for compatibility baselines, and repeats reproduction over generations.
 
-The execution stack has three layers:
-- Python reference path: semantics reference for AST, interpreter, compiler, and VM behavior
+The execution stack has two layers:
 - C++ CPU path: native execution and native evolution
 - C++ GPU path: CUDA fitness evaluation plus an optional GPU reproduction backend
 
@@ -97,9 +96,10 @@ Nested and heterogeneous lists are not part of the public value contract.
 - Current random genome generation still seeds loop bounds with integer constants, so existing benchmark population generation remains bounded by `max_for_k`.
 
 ### Structured expressions
-- The Python reference path implements `BoundVar`, `MapList`, `FilterList`, and `LinearRec`.
 - `BoundVar` uses a hidden binder namespace separate from ordinary mutable locals, so same-name `Var(x)` and `BoundVar(x)` are capture-safe and assignments cannot write binder slots.
-- Python bytecode lowering expands `MapList`, `FilterList`, and `LinearRec` into ordinary loop/jump code plus private type/list helper opcodes; these opcodes are not part of the public current bytecode wire contract.
+- Native bytecode lowering expands `MapList`, `FilterList`, and `LinearRec`
+  into ordinary loop/jump code plus private type/list helper opcodes; these
+  opcodes are not part of the public current bytecode wire contract.
 - `LinearRec` binder metadata uses an explicit `AstProgram` side table because the form has three binders and cannot be represented clearly with the two generic `AstNode` integer payload slots.
 - Native C++ AST metadata, subtree traversal, grammar-config gating, cache keys, and typed-expression analysis understand the structured node set.
 - Native CPU compiler/runtime lowering executes hand-authored `MapList`, `FilterList`, and `LinearRec` ASTs using hidden locals and private helper opcodes.
@@ -111,14 +111,11 @@ Nested and heterogeneous lists are not part of the public value contract.
   rebuilding child metadata during host decode with the same keep/shift/insert
   rules as typed-subtree replacement.
 - ASGP/DC and ASGP/DP node kinds are declared for the current source grammar and
-  grammar-config shape. The Python interpreter, Python VM, and native CPU
-  runtime have an ASGP-DC slice using internal phase bytecode segments for
-  direct semantic testing of hand-authored ASTs. The Python interpreter/VM and
-  native CPU runtime also have an ASGP-DP1D slice with side-table
-  bounds/dependency metadata and memoized phase execution. The Python
-  interpreter/VM and native CPU runtime now have an ASGP-DP2D semantic slice
-  with required side-table bounds/dependency metadata and internal phase
-  bytecode segments. Native GPU fitness execution supports ASGP-DC,
+  grammar-config shape. The native CPU runtime has an ASGP-DC slice using
+  internal phase bytecode segments for direct semantic testing of hand-authored
+  ASTs. It also has ASGP-DP1D and ASGP-DP2D semantic slices with required
+  side-table bounds/dependency metadata and internal phase bytecode segments.
+  Native GPU fitness execution supports ASGP-DC,
   ASGP-DP1D, and ASGP-DP2D bytecode semantic slices with explicit device
   frames and bounded device memo storage. Native random generation and CPU
   subtree mutation can emit conservative ASGP-DC, ASGP-DP1D, and ASGP-DP2D
@@ -149,10 +146,10 @@ Nested and heterogeneous lists are not part of the public value contract.
   back deterministically to its selected parent.
 
 ### Builtins
-Python, C++ CPU, and CUDA device runtime implementations cover the
-runtime-supported current builtin set below. Native AST arity rules, compiler
-lowering, typed-expression analysis, grammar-config gating, and GPU
-reproduction child metadata parsing also recognize these source-call nodes.
+C++ CPU and CUDA device runtime implementations cover the runtime-supported
+current builtin set below. Native AST arity rules, compiler lowering,
+typed-expression analysis, grammar-config gating, and GPU reproduction child
+metadata parsing also recognize these source-call nodes.
 
 Scalar builtins:
 - `abs`
@@ -210,19 +207,6 @@ Operational summary:
 - runtime error => `-penalty`
 
 This keeps numeric tasks dense while keeping container semantics exact and simple.
-
-## Python Module Map
-
-### `python/src/g3p_vm_gpu/core/`
-- `ast.py`: prefix AST definitions and traversal helpers
-- `errors.py`: runtime outcome and error types
-- `value_semantics.py`: shared scalar comparison and exact numeric operand rules
-
-### `python/src/g3p_vm_gpu/runtime/`
-- `builtins.py`: reference builtin semantics
-- `compiler.py`: AST to bytecode compiler
-- `interp.py`: direct AST interpreter
-- `vm.py`: Python bytecode VM
 
 ## C++ Module Map
 

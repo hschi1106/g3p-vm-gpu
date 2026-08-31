@@ -4,13 +4,6 @@
 g3p-vm-gpu/
 ├── AGENTS.md
 ├── README.md
-├── python/
-│   ├── src/g3p_vm_gpu/
-│   │   ├── core/
-│   │   ├── runtime/
-│   │   ├── __init__.py
-│   │   └── demo.py
-│   └── tests/
 ├── cpp/
 │   ├── include/g3pvm/
 │   │   ├── core/
@@ -57,6 +50,9 @@ g3p-vm-gpu/
 │   └── psb2_datasets/
 ├── meeting/
 ├── tools/
+│   └── tests/
+├── tests/
+│   └── repository/
 └── logs/
 ```
 
@@ -64,8 +60,6 @@ g3p-vm-gpu/
 
 - `AGENTS.md`: repo-local working conventions for coding agents
 - `README.md`: entrypoint and quick workflow
-- `python/`: transitional runtime-reference semantics and tests; evolution is
-  native-only
 - `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests; reusable semantic fixtures live under `cpp/tests/fixtures/runtime/`
 - `configs/grammar/`: checked-in legacy grammar presets; the native loader
   translates them for compatibility comparisons
@@ -81,7 +75,9 @@ g3p-vm-gpu/
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
 - `tools/`: dataset, fixture, grammar-profile, fixed-population, and PSB
-  regression utilities
+  regression utilities plus their independent tests
+- `tests/repository/`: runtime-independent documentation and spec-integrity
+  checks
 - `logs/`: generated artifacts, benchmark reports, and run outputs
 
 ## Spec Roles
