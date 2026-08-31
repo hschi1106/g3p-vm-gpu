@@ -76,6 +76,7 @@ add_library(g3pvm_cli_support
   src/cli/json.cpp
   src/cli/codec.cpp
   src/cli/options.cpp
+  src/cli/commands.cpp
 )
 target_include_directories(g3pvm_cli_support PUBLIC include)
 target_link_libraries(g3pvm_cli_support PUBLIC g3pvm_cpu)
@@ -104,6 +105,15 @@ add_test(
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime/check_ast_json_boundary.cmake
 )
 set_tests_properties(g3pvm_test_ast_json_boundary PROPERTIES LABELS "contract;integration")
+add_test(
+  NAME g3pvm_test_evolve_cli_contract
+  COMMAND ${CMAKE_COMMAND}
+    -DCLI=$<TARGET_FILE:g3pvm_evolve_cli>
+    -DCASES=${CMAKE_CURRENT_SOURCE_DIR}/../data/fixtures/simple_exp_1024.json
+    -DOUT_JSON=${CMAKE_CURRENT_BINARY_DIR}/evolve_cli_contract.run.json
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime/check_evolve_cli_contract.cmake
+)
+set_tests_properties(g3pvm_test_evolve_cli_contract PROPERTIES LABELS "contract;integration")
 if(G3PVM_HAS_CUDA)
   add_library(g3pvm_gpu
     src/runtime/gpu/fitness_gpu.cu

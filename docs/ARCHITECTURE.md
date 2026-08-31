@@ -280,13 +280,18 @@ Public evolution interfaces split by responsibility:
 - `evolve.cpp`: evolution loop orchestration
 
 ### `cpp/src/cli/`
-- `evolve_cli.cpp`: evolution CLI; also supports fixed-population one-generation benchmark runs via `--population-json` and `--skip-final-eval`
+- `evolve_cli.cpp`: thin parse/dispatch/error-reporting entry point
+- `commands.cpp`: shared input loading plus separate AST-evaluation and
+  evolution command workflows/output; fixed-population one-generation runs use
+  `--population-json` and `--skip-final-eval`
 - `json.cpp`: shared JSON parser
 - `codec.cpp`: shared bytecode/value fixture codec
 - `options.cpp`: authoritative parser and defaults for the evolution CLI
 
 These helpers form the linked `g3pvm_cli_support` library. Parser defaults and
-failure behavior are covered independently by `g3pvm_test_cli_options`.
+failure behavior are covered independently by `g3pvm_test_cli_options`; the
+command boundary has a deterministic stdout/JSON/error contract in
+`g3pvm_test_evolve_cli_contract`.
 
 ### `cpp/src/bench/`
 Benchmark binaries for runtime-focused measurement.

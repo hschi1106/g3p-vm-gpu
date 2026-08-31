@@ -132,7 +132,9 @@ This section documents the adjustable arguments that affect supported public wor
 The executable and native harnesses link `g3pvm_cli_support`; its option
 parser is the single owner of the flags, defaults, and validation below.
 `g3pvm_test_cli_options` locks that command-line contract independently of
-evolution execution.
+evolution execution. `g3pvm_test_evolve_cli_contract` locks representative
+evolution stdout, top-level JSON sections, and the intentionally unsupported
+`--help`/no-argument error behavior.
 
 Core execution args:
 - `--cases PATH`: input fitness-cases file; current validation uses

@@ -66,6 +66,12 @@ and its second incomplete parser with the linked `g3pvm_cli_support` library.
 contract tests preserve its flags, defaults, and validation. No C++ source
 inclusion is an accepted compatibility surface.
 
+Stage 12 reduced `evolve_cli.cpp` to the parse/dispatch/error boundary and
+moved shared loading/configuration plus distinct AST-evaluation and evolution
+command entry points into the linked command support. A deterministic command
+contract now locks representative stdout/JSON keys and malformed invocation
+behavior before later output-writer and timing-model decomposition.
+
 ## Documentation ownership and known defects
 
 | Current document | Current role | Target owner / action |
