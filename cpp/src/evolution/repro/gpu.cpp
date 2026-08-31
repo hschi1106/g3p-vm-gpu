@@ -17,6 +17,7 @@ namespace g3pvm::evo::repro {
 
 namespace {
 
+#ifdef G3PVM_HAS_CUDA
 struct GpuReproRuntimeCache {
   GpuReproArena arena;
   GpuReproHostStaging staging;
@@ -31,6 +32,7 @@ GpuReproRuntimeCache& gpu_runtime_cache() {
   static GpuReproRuntimeCache cache;
   return cache;
 }
+#endif
 
 std::vector<double> extract_fitness(const std::vector<ScoredGenome>& scored) {
   std::vector<double> fitness;
@@ -108,6 +110,13 @@ ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenome
                                                   const EvolutionConfig& cfg,
                                                   const GpuReproPreparedData& prepared,
                                                   ReproductionStats* stats) {
+#ifndef G3PVM_HAS_CUDA
+  (void)scored;
+  (void)cfg;
+  (void)prepared;
+  (void)stats;
+  throw std::runtime_error("gpu reproduction requested but CUDA is unavailable in this build");
+#else
   if (scored.empty()) {
     return ReproductionResult{};
   }
@@ -149,6 +158,7 @@ ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenome
     throw;
   }
   return out;
+#endif
 }
 
 ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenome>& scored,

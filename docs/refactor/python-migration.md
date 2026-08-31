@@ -30,7 +30,7 @@ test may be deleted until its target stage is green.
 | --- | ---: | --- | ---: |
 | `test_cpp_vm_equiv.py` (removed in Stage 05) | 13 | Replaced by the normal CMake fixture harness, focused semantic corpus, compiler-lowering contracts, and Stage 04 verifier/ASGP boundary tests. | 4–5 |
 | `test_eval.py` | 28 | Port scalar/control flow, builtins, exact-list behavior, errors, fuel, and random-program execution to verifier/runtime contract fixtures. | 2–7 |
-| `test_vm_equiv.py` | 8 | Replace interpreter-vs-Python-VM comparison with compiler-output verification and native CPU execution corpus; fuzz equivalence becomes generation/compile property coverage. | 4–7 |
+| `test_vm_equiv.py` (removed in Stage 07) | 8 | Interpreter/VM outcomes are owned by native semantic contracts; compiler-output verification and deterministic generation/variation properties replace its random equivalence loop. | 4–7 |
 | `test_grammar_values.py` | 9 | Port format identifier, node inventory, exact value tags/equality, and ASGP declaration/lowering assertions to native AST/value/compiler contracts. | 1–6 |
 | `test_grammar_builtins.py` | 8 | Port protected arithmetic, char/string, direct list, singleton, and float-format outcomes to native runtime corpus. | 5 |
 | `test_grammar_vm.py` (removed in Stage 06) | 30 | Scalar/value/builtin cases are owned by Stage 05 fixture targets; structured and ASGP cases are owned by focused Stage 06 contracts and verifier/parity targets. | 5–6 |
@@ -90,6 +90,20 @@ Stage 06 removes the 30-method `test_grammar_vm.py` and 14-method
 
 After Stages 05–06, the remaining Python runner owns 104 declarations. The 57
 retired methods have explicit native owners above.
+
+### Retired Python VM equivalence mapping
+
+Stage 07 removes `test_vm_equiv.py` after its eight methods have native owners:
+
+| Retired responsibility | Native owner |
+| --- | --- |
+| manual program, dynamic loop bound, short-circuit, invalid loop bounds, and missing return | Stage 05 scalar/control-flow corpus and compiler-lowering contracts |
+| current builtin and exact `Char`/`String` behavior | Stage 05 builtin and typed-value corpus |
+| interpreter-versus-VM random equivalence | `g3pvm_test_genome_properties`: deterministic generation → verify → compile → execute; mutation/crossover/reproduction verify → compile properties |
+
+The remaining Python runner owns 96 declarations. Its evolution and runtime
+modules remain until their later roadmap stages; this stage removes only the
+now-duplicated VM-equivalence test owner.
 
 ## Removal invariants
 

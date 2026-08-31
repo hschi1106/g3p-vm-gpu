@@ -576,6 +576,8 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   const auto all_t0 = std::chrono::steady_clock::now();
   std::mt19937_64 rng(cfg.seed);
   const std::vector<InputSpec> canonical_inputs = canonical_input_specs(cases, cfg.grammar);
+  EvolutionConfig reproduction_cfg = cfg;
+  reproduction_cfg.verification_inputs = canonical_inputs;
   const std::vector<std::string> canonical_input_names = build_canonical_input_names(cases);
   const std::vector<CaseBindings> shared_case_bindings = build_shared_case_bindings(cases, canonical_input_names);
   const std::vector<Value> expected_values = build_expected_values(cases);
@@ -660,9 +662,10 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
     std::future<OverlapPrepared> overlap_future;
     if (overlap_gpu) {
       const std::uint64_t repro_seed = rng();
-      overlap_future = std::async(std::launch::async, [population, cfg, repro_seed]() {
+      overlap_future = std::async(std::launch::async, [population, reproduction_cfg, repro_seed]() {
         OverlapPrepared out;
-        out.prepared = repro::prepare_gpu_repro_backend_inputs(population, cfg, repro_seed, &out.stats);
+        out.prepared = repro::prepare_gpu_repro_backend_inputs(
+            population, reproduction_cfg, repro_seed, &out.stats);
         return out;
       });
     }
@@ -691,9 +694,10 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
     if (overlap_gpu) {
       OverlapPrepared overlap = overlap_future.get();
       const std::vector<ScoredGenomeRef> repro_scored = build_scored_population_refs(population, raw_fitness, false);
-      reproduction = repro::run_gpu_repro_backend_prepared(repro_scored, cfg, overlap.prepared, &overlap.stats);
+      reproduction = repro::run_gpu_repro_backend_prepared(
+          repro_scored, reproduction_cfg, overlap.prepared, &overlap.stats);
     } else {
-      reproduction = repro::run_reproduction_backend(scored, cfg, rng);
+      reproduction = repro::run_reproduction_backend(scored, reproduction_cfg, rng);
     }
     const auto repro_t1 = std::chrono::steady_clock::now();
 

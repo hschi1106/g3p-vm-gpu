@@ -54,16 +54,25 @@ ASTs before genome metadata or compilation is built.
 Native bytecode uses `core/bytecode_verify.hpp` for operand/range checks,
 control-flow stack analysis, local and binder mappings, and ASGP phase segment
 validation. Bytecode JSON decoding calls it unconditionally. Debug compiler
-builds verify completed bytecode as an assertion on lowering, while Release
-evolution does not add verifier work to each generated individual. Runtime
-errors remain runtime outcomes when the bytecode representation itself is
-well-formed.
+builds verify completed bytecode as an assertion on lowering. Random genome
+generation accepts only AST-verifier-clean candidates, which makes the
+generator boundary responsible for never introducing an invalid initial
+individual. Runtime errors remain runtime outcomes when the bytecode
+representation itself is well-formed.
 
 Native JSON parsing and bytecode/value codecs are compiled once in the
 `g3pvm_cli_support` library. The CMake-built fixture runner uses that library
 to execute the shared scalar, control-flow, builtin, and typed-value corpus.
 Malformed JSON/bytecode remains owned by codec/verifier tests; semantic runtime
 errors are asserted only after a program passes verification.
+
+Native assurance is layered: focused contract targets own exact semantics,
+deterministic property targets cover generation and variation invariants, and
+CPU/GPU parity targets cover backend agreement. A bounded malformed-input fuzz
+smoke runs in the default suite; longer Clang/libFuzzer and CPU ASan/UBSan runs
+are opt-in configurations documented in `docs/DEVELOPMENT.md`. Failing random
+inputs are retained as named seeds or corpus fixtures rather than depending on
+an unrecorded random campaign.
 
 ### Value domain
 - `Int`
@@ -133,6 +142,9 @@ Nested and heterogeneous lists are not part of the public value contract.
 - The config restricts random genome generation, CPU mutation donor synthesis, GPU reproduction preprocess candidate/donor generation, and seed replay regeneration.
 - The config does not reject execution of existing ASTs or bytecode that use disabled constructs.
 - CPU and GPU reproduction both respect non-default grammar configs.
+- GPU reproduction verifies every decoded child against the canonical fitness
+  input types before accepting it. A kernel-valid but ill-typed child falls
+  back deterministically to its selected parent.
 
 ### Builtins
 Python, C++ CPU, and CUDA device runtime implementations cover the

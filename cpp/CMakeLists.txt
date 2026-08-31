@@ -6,9 +6,34 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 enable_testing()
 
+option(G3PVM_ENABLE_CUDA "Build CUDA runtime and parity targets" ON)
+option(G3PVM_ENABLE_SANITIZERS "Enable CPU AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(G3PVM_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
+
+if((G3PVM_ENABLE_SANITIZERS OR G3PVM_BUILD_FUZZERS) AND G3PVM_ENABLE_CUDA)
+  message(FATAL_ERROR "sanitizer/fuzzer builds require -DG3PVM_ENABLE_CUDA=OFF")
+endif()
+if(G3PVM_ENABLE_SANITIZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    message(FATAL_ERROR "G3PVM_ENABLE_SANITIZERS requires Clang or GCC")
+  endif()
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fsanitize=address,undefined>
+                      $<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>)
+  add_link_options(-fsanitize=address,undefined)
+endif()
+if(G3PVM_BUILD_FUZZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "G3PVM_BUILD_FUZZERS requires Clang")
+  endif()
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fsanitize=fuzzer-no-link,address,undefined>
+                      $<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>)
+endif()
+
 include(CheckLanguage)
-check_language(CUDA)
-if(CMAKE_CUDA_COMPILER)
+if(G3PVM_ENABLE_CUDA)
+  check_language(CUDA)
+endif()
+if(G3PVM_ENABLE_CUDA AND CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
   set(G3PVM_HAS_CUDA ON)
   set(CMAKE_CUDA_STANDARD 17)
@@ -190,11 +215,45 @@ target_link_libraries(g3pvm_test_asgp_semantics PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_asgp_semantics COMMAND g3pvm_test_asgp_semantics)
 set_tests_properties(g3pvm_test_asgp_semantics PROPERTIES LABELS "contract")
 
+add_executable(g3pvm_test_genome_properties
+  tests/evolution/test_genome_properties.cpp
+)
+target_link_libraries(g3pvm_test_genome_properties PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_genome_properties COMMAND g3pvm_test_genome_properties)
+set_tests_properties(g3pvm_test_genome_properties PROPERTIES LABELS "property")
+
+add_library(g3pvm_fuzz_support STATIC
+  tests/fuzz/fuzz_entrypoints.cpp
+)
+target_include_directories(g3pvm_fuzz_support PUBLIC tests/fuzz)
+target_link_libraries(g3pvm_fuzz_support PUBLIC g3pvm_cli_support)
+
+add_executable(g3pvm_test_decode_fuzz_smoke
+  tests/fuzz/fuzz_smoke.cpp
+)
+target_link_libraries(g3pvm_test_decode_fuzz_smoke PRIVATE g3pvm_fuzz_support)
+add_test(
+  NAME g3pvm_test_decode_fuzz_smoke
+  COMMAND g3pvm_test_decode_fuzz_smoke ${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz/corpus/json
+)
+set_tests_properties(g3pvm_test_decode_fuzz_smoke PROPERTIES LABELS "property")
+
+if(G3PVM_BUILD_FUZZERS)
+  add_executable(g3pvm_fuzz_bytecode_json tests/fuzz/fuzz_json_target.cpp)
+  target_link_libraries(g3pvm_fuzz_bytecode_json PRIVATE g3pvm_fuzz_support)
+  target_link_options(g3pvm_fuzz_bytecode_json PRIVATE -fsanitize=fuzzer,address,undefined)
+
+  add_executable(g3pvm_fuzz_ast_verify tests/fuzz/fuzz_ast_target.cpp)
+  target_link_libraries(g3pvm_fuzz_ast_verify PRIVATE g3pvm_fuzz_support)
+  target_link_options(g3pvm_fuzz_ast_verify PRIVATE -fsanitize=fuzzer,address,undefined)
+endif()
+
 add_executable(g3pvm_test_genome
   tests/evolution/test_genome.cpp
 )
 target_link_libraries(g3pvm_test_genome PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_genome COMMAND g3pvm_test_genome)
+set_tests_properties(g3pvm_test_genome PROPERTIES LABELS "property")
 
 add_executable(g3pvm_test_node_descriptor
   tests/evolution/test_node_descriptor.cpp
@@ -243,3 +302,4 @@ add_executable(g3pvm_test_repro_prep
 )
 target_link_libraries(g3pvm_test_repro_prep PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_repro_prep COMMAND g3pvm_test_repro_prep)
+set_tests_properties(g3pvm_test_repro_prep PROPERTIES LABELS "property")

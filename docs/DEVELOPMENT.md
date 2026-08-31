@@ -39,6 +39,50 @@ its semantic intent and declares an exact expected value or error code. The
 fixture executable is built normally by CMake; Python tests do not compile C++
 sources ad hoc.
 
+### Property, sanitizer, and fuzz gates
+
+The deterministic native property layer covers generation, mutation,
+crossover, CPU reproduction, GPU reproduction decode, grammar restrictions,
+and payload retention:
+
+```bash
+ctest --test-dir cpp/build -L property --output-on-failure
+```
+
+The default build includes a bounded 1,000-input malformed-data smoke test.
+ASan/UBSan are opt-in and CPU-only so the normal CUDA build is unchanged:
+
+```bash
+cmake -S cpp -B /tmp/g3pvm-sanitize \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DG3PVM_ENABLE_CUDA=OFF \
+  -DG3PVM_ENABLE_SANITIZERS=ON
+cmake --build /tmp/g3pvm-sanitize -j4
+ctest --test-dir /tmp/g3pvm-sanitize \
+  -L 'unit|contract|property' --output-on-failure
+```
+
+Clang builds additionally expose two libFuzzer targets. Always fuzz a copied
+corpus so newly minimized inputs do not appear in the source directory:
+
+```bash
+cmake -S cpp -B /tmp/g3pvm-fuzz \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DG3PVM_ENABLE_CUDA=OFF \
+  -DG3PVM_BUILD_FUZZERS=ON
+cmake --build /tmp/g3pvm-fuzz -j4 \
+  --target g3pvm_fuzz_bytecode_json g3pvm_fuzz_ast_verify
+cp -a cpp/tests/fuzz/corpus/json /tmp/g3pvm-json-corpus
+/tmp/g3pvm-fuzz/g3pvm_fuzz_bytecode_json \
+  -runs=1000 /tmp/g3pvm-json-corpus
+/tmp/g3pvm-fuzz/g3pvm_fuzz_ast_verify \
+  -runs=1000 /tmp/g3pvm-json-corpus
+```
+
+If a campaign finds a defect, preserve its smallest reproducer under a
+descriptive name in `cpp/tests/fuzz/corpus/` or as a named deterministic seed
+regression in the relevant property target.
+
 ### Recommended full check
 
 ```bash

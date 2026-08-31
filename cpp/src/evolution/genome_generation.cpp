@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "g3pvm/evolution/ast_verify.hpp"
 #include "g3pvm/runtime/payload/payload.hpp"
 #include "subtree_utils.hpp"
 
@@ -1047,7 +1048,8 @@ ProgramGenome generate_random_genome(std::uint64_t seed,
     emit_random_block(rng, program, ctx, limits.max_expr_depth, limits, true, grammar,
                       &program_return_type);
     ProgramGenome genome = as_genome_prefix(program);
-    if (genome.meta.node_count <= limits.max_total_nodes) {
+    if (genome.meta.node_count <= limits.max_total_nodes &&
+        verify_ast(genome.ast, input_specs)) {
       return genome;
     }
   }
@@ -1110,7 +1112,8 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
                       typed_max_stmts,
                       false);
     ProgramGenome genome = as_genome_prefix(program);
-    if (genome.meta.node_count <= limits.max_total_nodes) {
+    if (genome.meta.node_count <= limits.max_total_nodes &&
+        verify_ast(genome.ast, input_specs)) {
       return genome;
     }
   }

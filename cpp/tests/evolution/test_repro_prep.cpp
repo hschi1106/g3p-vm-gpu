@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "g3pvm/evolution/ast_verify.hpp"
 #include "g3pvm/evolution/compiler.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/evolution/genome_generation.hpp"
@@ -30,6 +31,20 @@ bool check(bool cond, const std::string& msg) {
     return false;
   }
   return true;
+}
+
+bool verify_and_compile_child(const g3pvm::evo::ProgramGenome& child,
+                              const std::string& context) {
+  const auto verified = g3pvm::evo::verify_ast(child.ast, {});
+  if (!check(verified.ok,
+             context + " should verify: " +
+                 g3pvm::evo::verify_code_name(verified.diagnostic.code) + " " +
+                 verified.diagnostic.message + " program=" +
+                 g3pvm::evo::ast_to_string(child.ast))) {
+    return false;
+  }
+  const auto bytecode = g3pvm::evo::compile_for_eval(child);
+  return check(!bytecode.code.empty(), context + " should compile");
 }
 
 std::vector<g3pvm::evo::ProgramGenome> make_population(
@@ -386,8 +401,7 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
           return false;
         }
       }
-      const auto bc = g3pvm::evo::compile_for_eval(child);
-      if (!check(!bc.code.empty(), "ASGP metadata child should compile")) {
+      if (!verify_and_compile_child(child, "ASGP metadata child")) {
         return false;
       }
     }
@@ -1092,8 +1106,7 @@ bool test_decode_falls_back_on_escaped_bound_var_child() {
                "escaped bound var child should fall back instead of entering population")) {
       return false;
     }
-    const auto bc = g3pvm::evo::compile_for_eval(child);
-    if (!check(!bc.code.empty(), "fallback child should compile after escaped bound var rejection")) {
+    if (!verify_and_compile_child(child, "escaped-bound-var fallback child")) {
       return false;
     }
   }
@@ -1181,8 +1194,7 @@ bool test_gpu_prepared_backend_smoke() {
       return false;
     }
     for (const auto& child : reproduction.next_population) {
-      const auto bc = g3pvm::evo::compile_for_eval(child);
-      if (!check(!bc.code.empty(), "prepared gpu reproduction child should compile")) {
+      if (!verify_and_compile_child(child, "prepared GPU reproduction child")) {
         return false;
       }
     }
@@ -1312,8 +1324,7 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
                  "linear metadata child should preserve LinearRec binders")) {
         return false;
       }
-      const auto bc = g3pvm::evo::compile_for_eval(child);
-      if (!check(!bc.code.empty(), "linear metadata child should compile")) {
+      if (!verify_and_compile_child(child, "linear metadata child")) {
         return false;
       }
     }
@@ -1367,8 +1378,7 @@ bool test_gpu_prepared_backend_scalar_config_smoke() {
       return false;
     }
     for (const auto& child : reproduction.next_population) {
-      const auto bc = g3pvm::evo::compile_for_eval(child);
-      if (!check(!bc.code.empty(), "scalar config gpu reproduction child should compile")) {
+      if (!verify_and_compile_child(child, "scalar-config GPU reproduction child")) {
         return false;
       }
     }

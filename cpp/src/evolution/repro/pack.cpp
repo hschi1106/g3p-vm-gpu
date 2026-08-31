@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "g3pvm/evolution/ast_verify.hpp"
 #include "g3pvm/evolution/evolve.hpp"
 #include "g3pvm/runtime/payload/payload.hpp"
 #include "../subtree_utils.hpp"
@@ -1493,7 +1494,8 @@ std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packe
         next = fallback_parent_for_child(scored, copyback, child_index);
       } else {
         ProgramGenome compacted = compact_genome_tables(next);
-        if (decoded_child_has_valid_binders(compacted)) {
+        if (decoded_child_has_valid_binders(compacted) &&
+            verify_ast(compacted.ast, cfg.verification_inputs)) {
           out.push_back(std::move(compacted));
           continue;
         }

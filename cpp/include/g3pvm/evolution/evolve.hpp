@@ -45,6 +45,8 @@ struct EvolutionConfig {
   GrammarConfig grammar;
   bool skip_final_eval = false;
   bool retain_final_population = true;
+  // Derived by evolve_population for verifier checks at reproduction boundaries.
+  std::vector<InputSpec> verification_inputs;
 };
 
 struct EvolutionResult {
