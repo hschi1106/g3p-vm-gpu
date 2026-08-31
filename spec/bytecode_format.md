@@ -334,14 +334,40 @@ The `boundary_value` type must equal the ASGP-DP result type.
 ```json
 {
   "format_version": "bytecode-fixture",
-  "program": BytecodeProgram,
-  "cases": [
+  "fuel": 20000,
+  "scenarios": [
     {
-      "inputs": [{"idx": 0, "value": Value}],
-      "expected": Value
+      "intent": "integer addition preserves the Int tag",
+      "program": BytecodeProgram,
+      "fuel": 100,
+      "cases": [
+        {
+          "inputs": [{"idx": 0, "value": Value}],
+          "expected": Value
+        },
+        {
+          "inputs": [],
+          "expected_error": "TypeError"
+        }
+      ]
     }
   ]
 }
 ```
 
-Fixtures must not contain old old value tags.
+`fuel` is required at the fixture root and may be overridden by a scenario.
+`scenarios` must be non-empty. Every scenario has a non-empty semantic
+`intent`, one verified `BytecodeProgram`, and a non-empty `cases` array. Each
+case supplies input bindings and exactly one of:
+
+- `expected`, compared by exact public value tag and payload content;
+- `expected_error`, compared to the exact public error name (`NameError`,
+  `TypeError`, `ZeroDivisionError`, `ValueError`, or `Timeout`).
+
+The earlier single-program shape with top-level `program` and `cases` remains
+accepted as a compatibility shorthand for one scenario. New corpus files use
+the scenario form so every group carries its semantic intent.
+
+Fixtures must not contain retired value tags. Program decoding runs the
+bytecode verifier before any case is executed, so malformed representation is
+covered by verifier/codec tests rather than encoded as a runtime-error case.

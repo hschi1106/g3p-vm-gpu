@@ -28,7 +28,7 @@ test may be deleted until its target stage is green.
 
 | Current test module | Methods | Disposition and native/tool target | Target stage |
 | --- | ---: | --- | ---: |
-| `test_cpp_vm_equiv.py` | 13 | Move its fixture-harness format rejection, typed-value, builtin, ASGP segment, and compiler round-trip cases into the normal CMake fixture harness; stop ad-hoc source compilation. | 4–6 |
+| `test_cpp_vm_equiv.py` (removed in Stage 05) | 13 | Replaced by the normal CMake fixture harness, focused semantic corpus, compiler-lowering contracts, and Stage 04 verifier/ASGP boundary tests. | 4–5 |
 | `test_eval.py` | 28 | Port scalar/control flow, builtins, exact-list behavior, errors, fuel, and random-program execution to verifier/runtime contract fixtures. | 2–7 |
 | `test_vm_equiv.py` | 8 | Replace interpreter-vs-Python-VM comparison with compiler-output verification and native CPU execution corpus; fuzz equivalence becomes generation/compile property coverage. | 4–7 |
 | `test_grammar_values.py` | 9 | Port format identifier, node inventory, exact value tags/equality, and ASGP declaration/lowering assertions to native AST/value/compiler contracts. | 1–6 |
@@ -49,6 +49,26 @@ The method counts total 161 discovered `def test_*` declarations, matching the
 161 tests executed by the baseline runner. Before Stage 10, generate a
 runner-derived fully qualified test list and require every executed identifier
 to match one of these rows and an existing native/tool test.
+
+### Retired cross-language harness mapping
+
+Stage 05 removes `test_cpp_vm_equiv.py` and its per-test temporary `g++`
+build. Its 13 methods are owned as follows:
+
+| Retired responsibility | Native owner |
+| --- | --- |
+| reject old bytecode and fixture format identifiers | `g3pvm_test_fixture_codec` |
+| execute current fixtures and report mismatches | `g3pvm_test_fixture_codec` plus the four `g3pvm_test_runtime_*` targets |
+| decode and execute ASGP-DC, DP1D, and DP2D segments | `g3pvm_test_bytecode_verify`, `g3pvm_test_cli_json`, and `g3pvm_test_ast_json_boundary` |
+| accept compiler-generated ASGP segment layouts | compiler-output property cases in `g3pvm_test_bytecode_verify` and native ASGP AST boundary fixtures |
+| `ForRange` lowering and evaluate-once bounds | `g3pvm_test_compiler_lowering` and `g3pvm_test_runtime_control_flow` |
+| protected integer builtins | `g3pvm_test_runtime_builtins` |
+| `Char` equality and exact `Char`/`String` distinction | `g3pvm_test_runtime_typed_values` |
+| string indexing returns `Char` | `g3pvm_test_runtime_typed_values` and `g3pvm_test_runtime_builtins` |
+| direct typed-list builtins return exact scalars | `g3pvm_test_runtime_typed_values` and `g3pvm_test_runtime_builtins` |
+
+The baseline remains 161 tests; after this retirement the Python runner owns
+148 declarations and the 13 removed responsibilities are native CTest owners.
 
 ## Removal invariants
 

@@ -1,0 +1,200 @@
+{
+  "format_version": "bytecode-fixture",
+  "fuel": 20000,
+  "scenarios": [
+    {
+      "intent": "abs preserves the numeric tag",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 0, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": -5}}], "expected": {"type": "int", "value": 5}},
+        {"inputs": [{"idx": 0, "value": {"type": "float", "value": -2.5}}], "expected": {"type": "float", "value": 2.5}},
+        {"inputs": [{"idx": 0, "value": {"type": "bool", "value": true}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "min requires matching numeric tags",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 1, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 3}}, {"idx": 1, "value": {"type": "int", "value": 2}}], "expected": {"type": "int", "value": 2}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 3}}, {"idx": 1, "value": {"type": "float", "value": 2.0}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "max requires matching numeric tags",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 2, "b": 2}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "float", "value": 3.5}}, {"idx": 1, "value": {"type": "float", "value": 2.5}}], "expected": {"type": "float", "value": 3.5}}]
+    },
+    {
+      "intent": "clip uses the declared lower and upper bounds",
+      "program": {"n_locals": 3, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "LOAD", "a": 2}, {"op": "CALL_BUILTIN", "a": 3, "b": 3}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 5}}, {"idx": 1, "value": {"type": "int", "value": 10}}, {"idx": 2, "value": {"type": "int", "value": 0}}], "expected": {"type": "int", "value": 0}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 5}}, {"idx": 1, "value": {"type": "float", "value": 0.0}}, {"idx": 2, "value": {"type": "int", "value": 10}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "len reports exact string and typed-list lengths",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 4, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "abcd"}}], "expected": {"type": "int", "value": 4}},
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [1, 2, 3]}}], "expected": {"type": "int", "value": 3}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 3}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "concat preserves exact string and typed-list payloads",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 5, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "ab"}}, {"idx": 1, "value": {"type": "string", "value": "cd"}}], "expected": {"type": "string", "value": "abcd"}},
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [1, 2]}}, {"idx": 1, "value": {"type": "int_list", "value": [3]}}], "expected": {"type": "int_list", "value": [1, 2, 3]}},
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "a"}}, {"idx": 1, "value": {"type": "string_list", "value": ["b"]}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "slice normalizes bounds and preserves exact payloads",
+      "program": {"n_locals": 3, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "LOAD", "a": 2}, {"op": "CALL_BUILTIN", "a": 6, "b": 3}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "abcde"}}, {"idx": 1, "value": {"type": "int", "value": 1}}, {"idx": 2, "value": {"type": "int", "value": 4}}], "expected": {"type": "string", "value": "bcd"}},
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [1, 2, 3]}}, {"idx": 1, "value": {"type": "int", "value": -2}}, {"idx": 2, "value": {"type": "int", "value": 3}}], "expected": {"type": "int_list", "value": [2, 3]}},
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "abc"}}, {"idx": 1, "value": {"type": "float", "value": 1.0}}, {"idx": 2, "value": {"type": "int", "value": 2}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "index normalizes negative indices and reports range errors",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 7, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "abc"}}, {"idx": 1, "value": {"type": "int", "value": -1}}], "expected": {"type": "char", "value": "c"}},
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [8, 9]}}, {"idx": 1, "value": {"type": "int", "value": 2}}], "expected_error": "ValueError"}
+      ]
+    },
+    {
+      "intent": "append preserves the typed-list element contract",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 8, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [1, 2]}}, {"idx": 1, "value": {"type": "int", "value": 3}}], "expected": {"type": "int_list", "value": [1, 2, 3]}},
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [1]}}, {"idx": 1, "value": {"type": "float", "value": 2.0}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "reverse preserves exact strings and typed lists",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 9, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "abc"}}], "expected": {"type": "string", "value": "cba"}},
+        {"inputs": [{"idx": 0, "value": {"type": "string_list", "value": ["a", "b"]}}], "expected": {"type": "string_list", "value": ["b", "a"]}}
+      ]
+    },
+    {
+      "intent": "find returns the first exact substring position",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 10, "b": 2}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "string", "value": "abracadabra"}}, {"idx": 1, "value": {"type": "string", "value": "cad"}}], "expected": {"type": "int", "value": 4}}]
+    },
+    {
+      "intent": "contains reports exact substring membership",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 11, "b": 2}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "string", "value": "abracadabra"}}, {"idx": 1, "value": {"type": "string", "value": "xyz"}}], "expected": {"type": "bool", "value": false}}]
+    },
+    {
+      "intent": "is_int distinguishes exact scalar tags",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 12, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 1}}], "expected": {"type": "bool", "value": true}},
+        {"inputs": [{"idx": 0, "value": {"type": "float", "value": 1.0}}], "expected": {"type": "bool", "value": false}}
+      ]
+    },
+    {
+      "intent": "idiv0 protects integer division by zero",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 13, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 7}}, {"idx": 1, "value": {"type": "int", "value": 2}}], "expected": {"type": "int", "value": 3}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 7}}, {"idx": 1, "value": {"type": "int", "value": 0}}], "expected": {"type": "int", "value": 0}}
+      ]
+    },
+    {
+      "intent": "imod0 protects integer modulo by zero",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 14, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": -7}}, {"idx": 1, "value": {"type": "int", "value": 3}}], "expected": {"type": "int", "value": 2}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 7}}, {"idx": 1, "value": {"type": "int", "value": 0}}], "expected": {"type": "int", "value": 0}}
+      ]
+    },
+    {
+      "intent": "prepend preserves the typed-list element contract",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 15, "b": 2}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "float_list", "value": [2.0, 3.0]}}, {"idx": 1, "value": {"type": "float", "value": 1.0}}], "expected": {"type": "float_list", "value": [1.0, 2.0, 3.0]}}]
+    },
+    {
+      "intent": "char_to_string preserves the exact byte character",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 16, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "q"}}], "expected": {"type": "string", "value": "q"}}]
+    },
+    {
+      "intent": "string_to_char requires an exact length-one string",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 17, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "q"}}], "expected": {"type": "char", "value": "q"}},
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "qq"}}], "expected_error": "ValueError"}
+      ]
+    },
+    {
+      "intent": "ord maps a Char to its byte code",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 18, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "A"}}], "expected": {"type": "int", "value": 65}}]
+    },
+    {
+      "intent": "chr validates byte-sized character codes",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 19, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 65}}], "expected": {"type": "char", "value": "A"}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 256}}], "expected_error": "ValueError"}
+      ]
+    },
+    {
+      "intent": "is_letter uses the specified ASCII classification",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 20, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "A"}}], "expected": {"type": "bool", "value": true}}]
+    },
+    {
+      "intent": "is_digit uses the specified ASCII classification",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 21, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "7"}}], "expected": {"type": "bool", "value": true}}]
+    },
+    {
+      "intent": "is_space uses the specified ASCII classification",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 22, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": " "}}], "expected": {"type": "bool", "value": true}}]
+    },
+    {
+      "intent": "is_vowel is ASCII case insensitive",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 23, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "E"}}], "expected": {"type": "bool", "value": true}}]
+    },
+    {
+      "intent": "to_lower converts ASCII uppercase Char values",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 24, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "Q"}}], "expected": {"type": "char", "value": "q"}}]
+    },
+    {
+      "intent": "to_upper converts ASCII lowercase Char values",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 25, "b": 1}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "char", "value": "q"}}], "expected": {"type": "char", "value": "Q"}}]
+    },
+    {
+      "intent": "to_string uses the current numeric formatting contract",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 26, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": -12}}], "expected": {"type": "string", "value": "-12"}},
+        {"inputs": [{"idx": 0, "value": {"type": "float", "value": 1.25}}], "expected": {"type": "string", "value": "1.25"}}
+      ]
+    },
+    {
+      "intent": "singleton selects the exact public container type",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "CALL_BUILTIN", "a": 27, "b": 1}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "char", "value": "x"}}], "expected": {"type": "string", "value": "x"}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 4}}], "expected": {"type": "int_list", "value": [4]}},
+        {"inputs": [{"idx": 0, "value": {"type": "float", "value": 4.5}}], "expected": {"type": "float_list", "value": [4.5]}},
+        {"inputs": [{"idx": 0, "value": {"type": "string", "value": "x"}}], "expected": {"type": "string_list", "value": ["x"]}}
+      ]
+    }
+  ]
+}

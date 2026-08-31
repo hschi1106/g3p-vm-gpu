@@ -1,0 +1,79 @@
+{
+  "format_version": "bytecode-fixture",
+  "fuel": 20000,
+  "scenarios": [
+    {
+      "intent": "conditional branches select exactly one value",
+      "program": {
+        "n_locals": 1,
+        "consts": [{"type": "int", "value": 10}, {"type": "int", "value": 20}],
+        "code": [
+          {"op": "LOAD", "a": 0},
+          {"op": "JMP_IF_FALSE", "a": 4},
+          {"op": "PUSH_CONST", "a": 0},
+          {"op": "JMP", "a": 5},
+          {"op": "PUSH_CONST", "a": 1},
+          {"op": "RETURN"}
+        ]
+      },
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "bool", "value": true}}], "expected": {"type": "int", "value": 10}},
+        {"inputs": [{"idx": 0, "value": {"type": "bool", "value": false}}], "expected": {"type": "int", "value": 20}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 1}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "false short-circuit skips the invalid right operand",
+      "program": {
+        "n_locals": 1,
+        "consts": [{"type": "int", "value": 1}, {"type": "int", "value": 0}, {"type": "bool", "value": false}],
+        "code": [
+          {"op": "LOAD", "a": 0},
+          {"op": "JMP_IF_FALSE", "a": 7},
+          {"op": "PUSH_CONST", "a": 0},
+          {"op": "PUSH_CONST", "a": 1},
+          {"op": "DIV"},
+          {"op": "PUSH_CONST", "a": 1},
+          {"op": "EQ"},
+          {"op": "PUSH_CONST", "a": 2},
+          {"op": "RETURN"}
+        ]
+      },
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "bool", "value": false}}], "expected": {"type": "bool", "value": false}},
+        {"inputs": [{"idx": 0, "value": {"type": "bool", "value": true}}], "expected_error": "ZeroDivisionError"}
+      ]
+    },
+    {
+      "intent": "loop bytecode updates a local until its exit condition",
+      "program": {
+        "n_locals": 1,
+        "consts": [{"type": "int", "value": 0}, {"type": "int", "value": 1}, {"type": "int", "value": 5}],
+        "code": [
+          {"op": "PUSH_CONST", "a": 0}, {"op": "STORE", "a": 0},
+          {"op": "LOAD", "a": 0}, {"op": "PUSH_CONST", "a": 2}, {"op": "LT"},
+          {"op": "JMP_IF_FALSE", "a": 11},
+          {"op": "LOAD", "a": 0}, {"op": "PUSH_CONST", "a": 1}, {"op": "ADD"},
+          {"op": "STORE", "a": 0}, {"op": "JMP", "a": 2},
+          {"op": "LOAD", "a": 0}, {"op": "RETURN"}
+        ]
+      },
+      "cases": [{"inputs": [], "expected": {"type": "int", "value": 5}}]
+    },
+    {
+      "intent": "an unset local reports NameError",
+      "program": {
+        "n_locals": 1,
+        "consts": [],
+        "code": [{"op": "LOAD", "a": 0}, {"op": "RETURN"}]
+      },
+      "cases": [{"inputs": [], "expected_error": "NameError"}]
+    },
+    {
+      "intent": "fuel terminates an otherwise valid infinite loop",
+      "fuel": 8,
+      "program": {"n_locals": 0, "consts": [], "code": [{"op": "JMP", "a": 0}]},
+      "cases": [{"inputs": [], "expected_error": "Timeout"}]
+    }
+  ]
+}

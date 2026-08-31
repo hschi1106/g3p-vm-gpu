@@ -1,0 +1,9 @@
+{
+  "format_version": "bytecode-fixture",
+  "fuel": 10,
+  "scenarios": [{
+    "intent": "fixture runner reports an exact-value mismatch",
+    "program": {"n_locals": 0, "consts": [{"type": "int", "value": 1}], "code": [{"op": "PUSH_CONST", "a": 0}, {"op": "RETURN"}]},
+    "cases": [{"inputs": [], "expected": {"type": "int", "value": 2}}]
+  }]
+}

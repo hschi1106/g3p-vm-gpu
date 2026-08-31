@@ -21,6 +21,22 @@ PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
 ctest --test-dir cpp/build --output-on-failure
 ```
 
+The native semantic corpus is split into independently runnable contracts:
+
+```bash
+ctest --test-dir cpp/build -R g3pvm_test_runtime_scalar --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_runtime_control_flow --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_runtime_builtins --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_runtime_typed_values --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_compiler_lowering --output-on-failure
+ctest --test-dir cpp/build -R g3pvm_test_fixture_codec --output-on-failure
+```
+
+The JSON corpus lives under `cpp/tests/fixtures/runtime/`. Each scenario names
+its semantic intent and declares an exact expected value or error code. The
+fixture executable is built normally by CMake; Python tests do not compile C++
+sources ad hoc.
+
 ### Recommended full check
 
 ```bash

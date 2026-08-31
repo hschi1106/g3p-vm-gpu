@@ -23,8 +23,8 @@
 #include "g3pvm/runtime/gpu/fitness_gpu.hpp"
 
 // Keep this file directly buildable without adding new library targets.
-#include "../../src/cli/json.cpp"
-#include "../../src/cli/codec.cpp"
+#include "g3pvm/cli/codec.hpp"
+#include "g3pvm/cli/json.hpp"
 
 namespace {
 

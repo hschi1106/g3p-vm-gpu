@@ -47,6 +47,13 @@ add_library(g3pvm_cpu
 )
 target_include_directories(g3pvm_cpu PUBLIC include)
 
+add_library(g3pvm_cli_support
+  src/cli/json.cpp
+  src/cli/codec.cpp
+)
+target_include_directories(g3pvm_cli_support PUBLIC include)
+target_link_libraries(g3pvm_cli_support PUBLIC g3pvm_cpu)
+
 add_executable(g3pvm_runtime_multi_bench
   src/bench/runtime_multi_bench.cpp
 )
@@ -106,7 +113,7 @@ if(G3PVM_HAS_CUDA)
   add_executable(g3pvm_simple_exp_population_probe
     tests/parity/simple_exp_population_probe.cpp
   )
-  target_link_libraries(g3pvm_simple_exp_population_probe PRIVATE g3pvm_cpu g3pvm_gpu)
+  target_link_libraries(g3pvm_simple_exp_population_probe PRIVATE g3pvm_cli_support g3pvm_gpu)
 
 endif()
 
@@ -115,12 +122,6 @@ add_executable(g3pvm_test_vm_smoke
 )
 target_link_libraries(g3pvm_test_vm_smoke PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_vm_smoke COMMAND g3pvm_test_vm_smoke)
-
-add_executable(g3pvm_test_vm_edges
-  tests/runtime/test_vm_edges.cpp
-)
-target_link_libraries(g3pvm_test_vm_edges PRIVATE g3pvm_cpu)
-add_test(NAME g3pvm_test_vm_edges COMMAND g3pvm_test_vm_edges)
 
 add_executable(g3pvm_test_bytecode_verify
   tests/runtime/test_bytecode_verify.cpp
@@ -131,12 +132,49 @@ set_tests_properties(g3pvm_test_bytecode_verify PROPERTIES LABELS "unit;contract
 
 add_executable(g3pvm_test_cli_json
   tests/runtime/test_cli_json.cpp
-  src/cli/codec.cpp
-  src/cli/json.cpp
 )
-target_include_directories(g3pvm_test_cli_json PRIVATE include)
-target_link_libraries(g3pvm_test_cli_json PRIVATE g3pvm_cpu)
+target_link_libraries(g3pvm_test_cli_json PRIVATE g3pvm_cli_support)
 add_test(NAME g3pvm_test_cli_json COMMAND g3pvm_test_cli_json)
+set_tests_properties(g3pvm_test_cli_json PROPERTIES LABELS "unit;contract")
+
+add_executable(g3pvm_test_vm_cli_harness
+  tests/runtime/test_vm_cli_harness.cpp
+)
+target_link_libraries(g3pvm_test_vm_cli_harness PRIVATE g3pvm_cli_support)
+
+foreach(contract IN ITEMS scalar control_flow builtins typed_values)
+  add_test(
+    NAME g3pvm_test_runtime_${contract}
+    COMMAND g3pvm_test_vm_cli_harness
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/runtime/${contract}.json
+  )
+  set_tests_properties(g3pvm_test_runtime_${contract} PROPERTIES LABELS "contract")
+endforeach()
+
+add_test(
+  NAME g3pvm_test_fixture_codec
+  COMMAND ${CMAKE_COMMAND}
+    -DHARNESS=$<TARGET_FILE:g3pvm_test_vm_cli_harness>
+    -DVALID_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/runtime/scalar.json
+    -DMISMATCH_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/runtime/fixture_mismatch.json
+    -DOLD_FORMAT_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/runtime/fixture_old_format.json
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime/check_fixture_harness.cmake
+)
+set_tests_properties(g3pvm_test_fixture_codec PROPERTIES LABELS "contract;integration")
+
+add_executable(g3pvm_test_payload_registry
+  tests/runtime/test_payload_registry.cpp
+)
+target_link_libraries(g3pvm_test_payload_registry PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_payload_registry COMMAND g3pvm_test_payload_registry)
+set_tests_properties(g3pvm_test_payload_registry PROPERTIES LABELS "unit;contract")
+
+add_executable(g3pvm_test_compiler_lowering
+  tests/evolution/test_compiler_lowering.cpp
+)
+target_link_libraries(g3pvm_test_compiler_lowering PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_compiler_lowering COMMAND g3pvm_test_compiler_lowering)
+set_tests_properties(g3pvm_test_compiler_lowering PROPERTIES LABELS "unit;contract")
 
 add_executable(g3pvm_test_genome
   tests/evolution/test_genome.cpp

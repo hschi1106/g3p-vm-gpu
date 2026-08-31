@@ -1,0 +1,37 @@
+{
+  "format_version": "bytecode-fixture",
+  "fuel": 20000,
+  "scenarios": [
+    {
+      "intent": "Char equality is exact and Char is distinct from String",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "EQ"}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "char", "value": "x"}}, {"idx": 1, "value": {"type": "char", "value": "x"}}], "expected": {"type": "bool", "value": true}},
+        {"inputs": [{"idx": 0, "value": {"type": "char", "value": "x"}}, {"idx": 1, "value": {"type": "string", "value": "x"}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "string index produces a Char",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 7, "b": 2}, {"op": "RETURN"}]},
+      "cases": [{"inputs": [{"idx": 0, "value": {"type": "string", "value": "abc"}}, {"idx": 1, "value": {"type": "int", "value": 1}}], "expected": {"type": "char", "value": "b"}}]
+    },
+    {
+      "intent": "empty typed lists retain distinct public tags",
+      "program": {"n_locals": 1, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": []}}], "expected": {"type": "int_list", "value": []}},
+        {"inputs": [{"idx": 0, "value": {"type": "float_list", "value": []}}], "expected": {"type": "float_list", "value": []}},
+        {"inputs": [{"idx": 0, "value": {"type": "string_list", "value": []}}], "expected": {"type": "string_list", "value": []}}
+      ]
+    },
+    {
+      "intent": "typed-list indexing returns the exact element type",
+      "program": {"n_locals": 2, "consts": [], "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "CALL_BUILTIN", "a": 7, "b": 2}, {"op": "RETURN"}]},
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int_list", "value": [11, 22]}}, {"idx": 1, "value": {"type": "int", "value": -1}}], "expected": {"type": "int", "value": 22}},
+        {"inputs": [{"idx": 0, "value": {"type": "float_list", "value": [1.5, 2.5]}}, {"idx": 1, "value": {"type": "int", "value": 0}}], "expected": {"type": "float", "value": 1.5}},
+        {"inputs": [{"idx": 0, "value": {"type": "string_list", "value": ["a", "b"]}}, {"idx": 1, "value": {"type": "int", "value": 1}}], "expected": {"type": "string", "value": "b"}}
+      ]
+    }
+  ]
+}

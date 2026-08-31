@@ -17,7 +17,7 @@
     },
     {
       "path": "spec/bytecode_format.md",
-      "sha256": "3bbab428c73079113e1e0af1529f4106b1d253bf93a73e9d369b7a041df4a962"
+      "sha256": "adf576e2f253d90a548db70f7e6dfd727b69c36cd0914b2a5a6e6d3dc67a5259"
     },
     {
       "path": "spec/builtins_base.md",

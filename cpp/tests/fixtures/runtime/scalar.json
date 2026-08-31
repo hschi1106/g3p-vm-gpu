@@ -1,0 +1,60 @@
+{
+  "format_version": "bytecode-fixture",
+  "fuel": 20000,
+  "scenarios": [
+    {
+      "intent": "integer arithmetic preserves exact integer semantics",
+      "program": {
+        "n_locals": 2,
+        "consts": [],
+        "code": [
+          {"op": "LOAD", "a": 0},
+          {"op": "LOAD", "a": 1},
+          {"op": "ADD"},
+          {"op": "RETURN"}
+        ]
+      },
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 2}}, {"idx": 1, "value": {"type": "int", "value": 3}}], "expected": {"type": "int", "value": 5}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": -7}}, {"idx": 1, "value": {"type": "int", "value": 2}}], "expected": {"type": "int", "value": -5}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 1}}, {"idx": 1, "value": {"type": "float", "value": 2.0}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "integer modulo follows Python sign semantics",
+      "program": {
+        "n_locals": 2,
+        "consts": [],
+        "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "MOD"}, {"op": "RETURN"}]
+      },
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": -7}}, {"idx": 1, "value": {"type": "int", "value": 3}}], "expected": {"type": "int", "value": 2}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 7}}, {"idx": 1, "value": {"type": "int", "value": 0}}], "expected_error": "ZeroDivisionError"}
+      ]
+    },
+    {
+      "intent": "numeric comparison rejects mixed numeric tags",
+      "program": {
+        "n_locals": 2,
+        "consts": [],
+        "code": [{"op": "LOAD", "a": 0}, {"op": "LOAD", "a": 1}, {"op": "LT"}, {"op": "RETURN"}]
+      },
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "float", "value": 1.5}}, {"idx": 1, "value": {"type": "float", "value": 2.0}}], "expected": {"type": "bool", "value": true}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 1}}, {"idx": 1, "value": {"type": "float", "value": 2.0}}], "expected_error": "TypeError"}
+      ]
+    },
+    {
+      "intent": "boolean not requires a boolean operand",
+      "program": {
+        "n_locals": 1,
+        "consts": [],
+        "code": [{"op": "LOAD", "a": 0}, {"op": "NOT"}, {"op": "RETURN"}]
+      },
+      "cases": [
+        {"inputs": [{"idx": 0, "value": {"type": "bool", "value": true}}], "expected": {"type": "bool", "value": false}},
+        {"inputs": [{"idx": 0, "value": {"type": "int", "value": 1}}], "expected_error": "TypeError"}
+      ]
+    }
+  ]
+}

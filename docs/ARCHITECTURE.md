@@ -59,6 +59,12 @@ evolution does not add verifier work to each generated individual. Runtime
 errors remain runtime outcomes when the bytecode representation itself is
 well-formed.
 
+Native JSON parsing and bytecode/value codecs are compiled once in the
+`g3pvm_cli_support` library. The CMake-built fixture runner uses that library
+to execute the shared scalar, control-flow, builtin, and typed-value corpus.
+Malformed JSON/bytecode remains owned by codec/verifier tests; semantic runtime
+errors are asserted only after a program passes verification.
+
 ### Value domain
 - `Int`
 - `Float`
@@ -292,7 +298,8 @@ Public evolution interfaces split by responsibility:
 Benchmark binaries for runtime-focused measurement.
 
 ### `cpp/tests/`
-- `runtime/`: CPU VM smoke, edge, and CLI-harness tests
+- `runtime/`: focused CPU VM, fixture-codec, payload-registry, and CLI-harness tests
+- `fixtures/runtime/`: intent-labelled scalar, control-flow, builtin, and typed-value corpus
 - `gpu/`: direct GPU smoke coverage
 - `parity/`: CPU/GPU fitness and evolution parity regression tests
 - `evolution/`: native evolution and genome tests
