@@ -26,16 +26,33 @@ const T& choose_one(std::mt19937_64& rng, const std::vector<T>& values) {
 }
 
 AstProgram typed_subtree_mutation(const AstProgram& ast,
+                                  const VerifiedAst* verified,
                                   std::mt19937_64& rng,
                                   const Limits& limits,
                                   const GrammarConfig& grammar) {
   AstProgram mutated;
-  const std::vector<std::size_t> end = subtree::build_subtree_end(ast);
-  const std::vector<typed_expr::TypedExprRoot> all_roots = typed_expr::collect_typed_expr_roots(ast, end);
+  std::vector<std::size_t> rebuilt_end;
+  const std::vector<std::size_t>* end = nullptr;
+  std::vector<typed_expr::TypedExprRoot> all_roots;
+  if (verified != nullptr) {
+    if (verified->subtree_end.size() != ast.nodes.size() ||
+        verified->expression_types.size() != ast.nodes.size() ||
+        verified->expression_scope_signatures.size() != ast.nodes.size() ||
+        verified->expression_binder_signatures.size() != ast.nodes.size() ||
+        (ast.nodes.size() > 0 && verified->subtree_end[0] != ast.nodes.size())) {
+      throw std::invalid_argument("mutation VerifiedAst does not match program shape");
+    }
+    end = &verified->subtree_end;
+    all_roots = typed_expr::collect_typed_expr_roots(ast, *verified);
+  } else {
+    rebuilt_end = subtree::build_subtree_end(ast);
+    end = &rebuilt_end;
+    all_roots = typed_expr::collect_typed_expr_roots(ast, *end);
+  }
   std::vector<typed_expr::TypedExprRoot> expr_roots;
   expr_roots.reserve(all_roots.size());
   for (const typed_expr::TypedExprRoot& root : all_roots) {
-    if (!typed_expr::is_asgp_phase_body_root(ast, end, root)) {
+    if (!typed_expr::is_asgp_phase_body_root(ast, *end, root)) {
       expr_roots.push_back(root);
     }
   }
@@ -88,11 +105,12 @@ AstProgram constant_perturbation(const AstProgram& ast, std::mt19937_64& rng) {
 
 }  // namespace
 
-ProgramGenome mutate(const ProgramGenome& genome,
-                     std::uint64_t seed,
-                     const Limits& limits,
-                     double mutation_subtree_prob,
-                     const GrammarConfig& grammar) {
+ProgramGenome mutate_impl(const ProgramGenome& genome,
+                          const VerifiedAst* verified,
+                          std::uint64_t seed,
+                          const Limits& limits,
+                          double mutation_subtree_prob,
+                          const GrammarConfig& grammar) {
   grammar.validate();
   std::mt19937_64 rng(seed);
   if (genome.ast.nodes.empty()) {
@@ -102,7 +120,7 @@ ProgramGenome mutate(const ProgramGenome& genome,
   AstProgram mutated;
   const double subtree_prob = std::clamp(mutation_subtree_prob, 0.0, 1.0);
   if (std::bernoulli_distribution(subtree_prob)(rng)) {
-    mutated = typed_subtree_mutation(genome.ast, rng, limits, grammar);
+    mutated = typed_subtree_mutation(genome.ast, verified, rng, limits, grammar);
   }
   if (mutated.nodes.empty()) {
     mutated = constant_perturbation(genome.ast, rng);
@@ -121,6 +139,23 @@ ProgramGenome mutate(const ProgramGenome& genome,
     return genome;
   }
   return out;
+}
+
+ProgramGenome mutate(const ProgramGenome& genome,
+                     std::uint64_t seed,
+                     const Limits& limits,
+                     double mutation_subtree_prob,
+                     const GrammarConfig& grammar) {
+  return mutate_impl(genome, nullptr, seed, limits, mutation_subtree_prob, grammar);
+}
+
+ProgramGenome mutate(const ProgramGenome& genome,
+                     const VerifiedAst& verified,
+                     std::uint64_t seed,
+                     const Limits& limits,
+                     double mutation_subtree_prob,
+                     const GrammarConfig& grammar) {
+  return mutate_impl(genome, &verified, seed, limits, mutation_subtree_prob, grammar);
 }
 
 }  // namespace g3pvm::evo

@@ -54,7 +54,9 @@ int asgp_dp2d_expected_arity(NodeKind kind) {
 
 class Compiler {
  public:
-  explicit Compiler(const std::vector<std::string>* preset_locals = nullptr) {
+  explicit Compiler(const std::vector<std::string>* preset_locals = nullptr,
+                    const VerifiedAst* verified = nullptr)
+      : verified_(verified) {
     if (preset_locals != nullptr) {
       for (const std::string& name : *preset_locals) {
         local(name);
@@ -68,6 +70,12 @@ class Compiler {
     }
     if (program.nodes.empty() || program.nodes[0].kind != NodeKind::PROGRAM) {
       throw std::runtime_error("prefix compile: bad root");
+    }
+    if (verified_ != nullptr &&
+        (verified_->subtree_end.size() != program.nodes.size() ||
+         verified_->expression_types.size() != program.nodes.size() ||
+         verified_->subtree_end[0] != program.nodes.size())) {
+      throw std::invalid_argument("prefix compile: VerifiedAst does not match program shape");
     }
     const std::size_t end = compile_block_prefix(program, 1);
     if (end != program.nodes.size()) {
@@ -148,6 +156,15 @@ class Compiler {
 
   std::size_t expr_end_prefix(const AstProgram& program, std::size_t idx) const {
     (void)node_at(program, idx);
+    if (verified_ != nullptr) {
+      const std::size_t end = verified_->subtree_end[idx];
+      if (end <= idx || end > program.nodes.size() ||
+          verified_->expression_types[idx] == RType::Invalid) {
+        throw std::invalid_argument(
+            "prefix compile: VerifiedAst expression annotation is invalid");
+      }
+      return end;
+    }
     std::size_t cur = idx + 1;
     for (int i = 0; i < subtree::node_arity(program.nodes[idx].kind); ++i) {
       cur = expr_end_prefix(program, cur);
@@ -835,6 +852,7 @@ class Compiler {
   std::vector<AsgpDp2dSegment> asgp_dp2d_segments_;
   int label_counter_ = 0;
   int tmp_counter_ = 0;
+  const VerifiedAst* verified_ = nullptr;
 };
 
 }  // namespace
@@ -842,6 +860,13 @@ class Compiler {
 BytecodeProgram compile_for_eval(const ProgramGenome& genome,
                                  const std::vector<std::string>& preset_locals) {
   Compiler compiler(&preset_locals);
+  return compiler.build(genome.ast);
+}
+
+BytecodeProgram compile_for_eval(const ProgramGenome& genome,
+                                 const VerifiedAst& verified,
+                                 const std::vector<std::string>& preset_locals) {
+  Compiler compiler(&preset_locals, &verified);
   return compiler.build(genome.ast);
 }
 

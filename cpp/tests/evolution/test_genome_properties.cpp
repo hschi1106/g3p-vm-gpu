@@ -39,7 +39,8 @@ bool verify_compile(const g3pvm::evo::ProgramGenome& genome,
                  g3pvm::evo::verify_code_name(verified.diagnostic.code) + " " +
                  verified.diagnostic.message + " program=" +
                  g3pvm::evo::ast_to_string(genome.ast))) return false;
-  const g3pvm::BytecodeProgram bytecode = g3pvm::evo::compile_for_eval(genome);
+  const g3pvm::BytecodeProgram bytecode =
+      g3pvm::evo::compile_for_eval(genome, verified.verified);
   const auto bytecode_verified = g3pvm::verify_bytecode(bytecode);
   if (!check(bytecode_verified.ok, context + " bytecode verification failure")) return false;
   if (execute) (void)g3pvm::execute_bytecode_cpu(bytecode, {}, 2000);
@@ -63,8 +64,11 @@ bool test_generation_mutation_and_crossover_seed_ranges() {
     if (!check(generated.meta.program_key == replay.meta.program_key,
                "generation replay mismatch at seed " + std::to_string(seed))) return false;
 
-    g3pvm::evo::ProgramGenome mutated =
-        g3pvm::evo::mutate(generated, 10000 + seed, limits, 0.8);
+    const auto generated_verified =
+        g3pvm::evo::verify_ast(generated.ast, property_inputs());
+    if (!check(generated_verified.ok, "generated AST annotation unavailable")) return false;
+    g3pvm::evo::ProgramGenome mutated = g3pvm::evo::mutate(
+        generated, generated_verified.verified, 10000 + seed, limits, 0.8);
     if (!verify_compile(mutated, "mutation seed " + std::to_string(seed), false)) {
       return false;
     }
@@ -72,9 +76,15 @@ bool test_generation_mutation_and_crossover_seed_ranges() {
   }
 
   for (std::uint64_t seed = 0; seed < 64; ++seed) {
+    const auto& first = population[static_cast<std::size_t>(seed * 2)];
+    const auto& second = population[static_cast<std::size_t>(seed * 2 + 1)];
+    const auto first_verified = g3pvm::evo::verify_ast(first.ast, property_inputs());
+    const auto second_verified = g3pvm::evo::verify_ast(second.ast, property_inputs());
+    if (!check(first_verified.ok && second_verified.ok,
+               "crossover parent annotation unavailable")) return false;
     const auto children = g3pvm::evo::crossover(
-        population[static_cast<std::size_t>(seed * 2)],
-        population[static_cast<std::size_t>(seed * 2 + 1)], 20000 + seed, limits);
+        first, first_verified.verified, second, second_verified.verified,
+        20000 + seed, limits);
     if (!verify_compile(children.first, "crossover first seed " + std::to_string(seed),
                         false) ||
         !verify_compile(children.second, "crossover second seed " + std::to_string(seed),

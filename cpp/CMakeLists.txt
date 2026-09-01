@@ -234,6 +234,30 @@ target_link_libraries(g3pvm_test_compiler_lowering PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_compiler_lowering COMMAND g3pvm_test_compiler_lowering)
 set_tests_properties(g3pvm_test_compiler_lowering PROPERTIES LABELS "unit;contract")
 
+add_executable(g3pvm_test_grammar_config
+  tests/evolution/test_grammar_config.cpp
+)
+target_link_libraries(g3pvm_test_grammar_config PRIVATE g3pvm_cli_support)
+add_test(
+  NAME g3pvm_test_grammar_config
+  COMMAND g3pvm_test_grammar_config ${CMAKE_CURRENT_SOURCE_DIR}/../configs/grammar/all.json
+)
+set_tests_properties(g3pvm_test_grammar_config PROPERTIES LABELS "unit;contract")
+
+add_executable(g3pvm_test_ast_codec_compaction
+  tests/evolution/test_ast_codec_compaction.cpp
+)
+target_link_libraries(g3pvm_test_ast_codec_compaction PRIVATE g3pvm_cli_support)
+add_test(NAME g3pvm_test_ast_codec_compaction COMMAND g3pvm_test_ast_codec_compaction)
+set_tests_properties(g3pvm_test_ast_codec_compaction PROPERTIES LABELS "contract;property")
+
+add_executable(g3pvm_test_fitness_contract
+  tests/runtime/test_fitness_contract.cpp
+)
+target_link_libraries(g3pvm_test_fitness_contract PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_fitness_contract COMMAND g3pvm_test_fitness_contract)
+set_tests_properties(g3pvm_test_fitness_contract PROPERTIES LABELS "unit;contract")
+
 add_executable(g3pvm_test_structured_semantics
   tests/evolution/test_structured_semantics.cpp
 )

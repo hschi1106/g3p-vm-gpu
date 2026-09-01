@@ -124,6 +124,7 @@ CandidateRange candidate_from_typed_root(const typed_expr::TypedExprRoot& root) 
 
 std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
                                                    const std::vector<std::size_t>& subtree_end,
+                                                   const VerifiedAst* verified,
                                                    int limit,
                                                    const GrammarConfig& grammar) {
   std::vector<CandidateRange> out;
@@ -131,7 +132,9 @@ std::vector<CandidateRange> sample_expr_candidates(const ProgramGenome& genome,
     return out;
   }
   const std::vector<typed_expr::TypedExprRoot> expr_roots =
-      typed_expr::collect_typed_expr_roots(genome.ast, subtree_end);
+      verified != nullptr
+          ? typed_expr::collect_typed_expr_roots(genome.ast, *verified)
+          : typed_expr::collect_typed_expr_roots(genome.ast, subtree_end);
   std::vector<typed_expr::TypedExprRoot> filtered_roots;
   filtered_roots.reserve(expr_roots.size());
   for (const typed_expr::TypedExprRoot& root : expr_roots) {
@@ -214,17 +217,36 @@ GpuReproConfig make_gpu_repro_config(const std::vector<ProgramGenome>& populatio
   return out;
 }
 
-PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& population,
-                                       const GpuReproConfig& config,
-                                       const GrammarConfig& grammar) {
+PreprocessOutput preprocess_population_impl(const std::vector<ProgramGenome>& population,
+                                            const std::vector<VerifiedAst>* verified,
+                                            const GpuReproConfig& config,
+                                            const GrammarConfig& grammar) {
   grammar.validate();
+  if (verified != nullptr && verified->size() != population.size()) {
+    throw std::invalid_argument("preprocess VerifiedAst count does not match population");
+  }
   PreprocessOutput out;
   out.subtree_ends.resize(population.size());
   out.candidates.resize(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    out.subtree_ends[i] = subtree::build_subtree_end(population[i].ast);
+    const VerifiedAst* one_verified =
+        verified != nullptr ? &(*verified)[i] : nullptr;
+    if (one_verified != nullptr) {
+      const std::size_t size = population[i].ast.nodes.size();
+      if (one_verified->subtree_end.size() != size ||
+          one_verified->expression_types.size() != size ||
+          one_verified->expression_scope_signatures.size() != size ||
+          one_verified->expression_binder_signatures.size() != size ||
+          (size > 0 && one_verified->subtree_end[0] != size)) {
+        throw std::invalid_argument("preprocess VerifiedAst does not match program shape");
+      }
+      out.subtree_ends[i] = one_verified->subtree_end;
+    } else {
+      out.subtree_ends[i] = subtree::build_subtree_end(population[i].ast);
+    }
     out.candidates[i] = sample_expr_candidates(population[i], out.subtree_ends[i],
-                                               config.candidates_per_program, grammar);
+                                               one_verified, config.candidates_per_program,
+                                               grammar);
   }
 
   out.donor_pool.reserve(
@@ -238,6 +260,19 @@ PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& populat
     }
   }
   return out;
+}
+
+PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& population,
+                                       const GpuReproConfig& config,
+                                       const GrammarConfig& grammar) {
+  return preprocess_population_impl(population, nullptr, config, grammar);
+}
+
+PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& population,
+                                       const std::vector<VerifiedAst>& verified,
+                                       const GpuReproConfig& config,
+                                       const GrammarConfig& grammar) {
+  return preprocess_population_impl(population, &verified, config, grammar);
 }
 
 }  // namespace g3pvm::evo::repro

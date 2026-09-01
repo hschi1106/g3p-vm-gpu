@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <random>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -42,18 +43,45 @@ ProgramGenome build_valid_child(const AstProgram& candidate,
 
 }  // namespace
 
-std::pair<ProgramGenome, ProgramGenome> crossover(const ProgramGenome& parent_a,
-                                                  const ProgramGenome& parent_b,
-                                                  std::uint64_t seed,
-                                                  const Limits& limits) {
+std::pair<ProgramGenome, ProgramGenome> crossover_impl(
+    const ProgramGenome& parent_a,
+    const VerifiedAst* verified_a,
+    const ProgramGenome& parent_b,
+    const VerifiedAst* verified_b,
+    std::uint64_t seed,
+    const Limits& limits) {
   std::mt19937_64 rng(seed);
-  const std::vector<std::size_t> end_a = subtree::build_subtree_end(parent_a.ast);
-  const std::vector<std::size_t> end_b = subtree::build_subtree_end(parent_b.ast);
+  std::vector<std::size_t> rebuilt_end_a;
+  std::vector<std::size_t> rebuilt_end_b;
+  const auto annotation_matches = [](const ProgramGenome& parent,
+                                     const VerifiedAst* verified) {
+    if (verified == nullptr) return true;
+    const std::size_t size = parent.ast.nodes.size();
+    return verified->subtree_end.size() == size &&
+           verified->expression_types.size() == size &&
+           verified->expression_scope_signatures.size() == size &&
+           verified->expression_binder_signatures.size() == size &&
+           (size == 0 || verified->subtree_end[0] == size);
+  };
+  if (!annotation_matches(parent_a, verified_a) ||
+      !annotation_matches(parent_b, verified_b)) {
+    throw std::invalid_argument("crossover VerifiedAst does not match parent shape");
+  }
+  if (verified_a == nullptr) rebuilt_end_a = subtree::build_subtree_end(parent_a.ast);
+  if (verified_b == nullptr) rebuilt_end_b = subtree::build_subtree_end(parent_b.ast);
+  const std::vector<std::size_t>& end_a =
+      verified_a != nullptr ? verified_a->subtree_end : rebuilt_end_a;
+  const std::vector<std::size_t>& end_b =
+      verified_b != nullptr ? verified_b->subtree_end : rebuilt_end_b;
 
   const std::vector<typed_expr::TypedExprRoot> all_expr_a =
-      typed_expr::collect_typed_expr_roots(parent_a.ast, end_a);
+      verified_a != nullptr
+          ? typed_expr::collect_typed_expr_roots(parent_a.ast, *verified_a)
+          : typed_expr::collect_typed_expr_roots(parent_a.ast, end_a);
   const std::vector<typed_expr::TypedExprRoot> all_expr_b =
-      typed_expr::collect_typed_expr_roots(parent_b.ast, end_b);
+      verified_b != nullptr
+          ? typed_expr::collect_typed_expr_roots(parent_b.ast, *verified_b)
+          : typed_expr::collect_typed_expr_roots(parent_b.ast, end_b);
   std::vector<typed_expr::TypedExprRoot> expr_a;
   std::vector<typed_expr::TypedExprRoot> expr_b;
   expr_a.reserve(all_expr_a.size());
@@ -119,6 +147,22 @@ std::pair<ProgramGenome, ProgramGenome> crossover(const ProgramGenome& parent_a,
 
   return {build_valid_child(child_a_ast, parent_a, limits),
           build_valid_child(child_b_ast, parent_b, limits)};
+}
+
+std::pair<ProgramGenome, ProgramGenome> crossover(const ProgramGenome& parent_a,
+                                                  const ProgramGenome& parent_b,
+                                                  std::uint64_t seed,
+                                                  const Limits& limits) {
+  return crossover_impl(parent_a, nullptr, parent_b, nullptr, seed, limits);
+}
+
+std::pair<ProgramGenome, ProgramGenome> crossover(const ProgramGenome& parent_a,
+                                                  const VerifiedAst& verified_a,
+                                                  const ProgramGenome& parent_b,
+                                                  const VerifiedAst& verified_b,
+                                                  std::uint64_t seed,
+                                                  const Limits& limits) {
+  return crossover_impl(parent_a, &verified_a, parent_b, &verified_b, seed, limits);
 }
 
 }  // namespace g3pvm::evo

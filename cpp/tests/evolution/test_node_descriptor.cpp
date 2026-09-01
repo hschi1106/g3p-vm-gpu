@@ -37,6 +37,10 @@ int main() {
     } else {
       assert(descriptor.builtin_arity == -1);
     }
+    const bool in_device_builtin_range =
+        i >= static_cast<std::size_t>(NodeKind::CALL_ABS) &&
+        i <= static_cast<std::size_t>(NodeKind::CALL_SINGLETON);
+    assert(in_device_builtin_range == descriptor.is_builtin());
 
     if (descriptor.category == NodeCategory::DependencyMarker) {
       ++dependency_count;

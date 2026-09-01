@@ -4,10 +4,17 @@
 
 #include "g3pvm/evolution/genome.hpp"
 #include "g3pvm/evolution/grammar_config.hpp"
+#include "g3pvm/evolution/ast_verify.hpp"
 
 namespace g3pvm::evo {
 
 ProgramGenome mutate(const ProgramGenome& genome,
+                     std::uint64_t seed,
+                     const Limits& limits = Limits{},
+                     double mutation_subtree_prob = 0.8,
+                     const GrammarConfig& grammar = GrammarConfig{});
+ProgramGenome mutate(const ProgramGenome& genome,
+                     const VerifiedAst& verified,
                      std::uint64_t seed,
                      const Limits& limits = Limits{},
                      double mutation_subtree_prob = 0.8,

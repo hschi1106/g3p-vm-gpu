@@ -975,6 +975,17 @@ g3pvm::evo::AstProgram g3pvm::cli_detail::decode_ast_json(const JsonValue& raw) 
   return decode_ast_json_impl(raw);
 }
 
+std::string g3pvm::cli_detail::encode_ast_json(const evo::AstProgram& ast) {
+  std::ostringstream out;
+  write_ast_json(out, ast);
+  return out.str();
+}
+
+g3pvm::evo::GrammarConfig g3pvm::cli_detail::decode_grammar_config_json(
+    const JsonValue& raw) {
+  return parse_grammar_config_payload(raw);
+}
+
 int g3pvm::cli_detail::run_eval_ast_command(const CliOptions& args) {
       const LoadedCommandInputs inputs = load_command_inputs(args);
       const g3pvm::evo::EvolutionConfig cfg = make_evolution_config(args, inputs.grammar);

@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,6 +32,16 @@ bool check(bool cond, const std::string& msg) {
     return false;
   }
   return true;
+}
+
+bool same_candidate(const g3pvm::evo::repro::CandidateRange& a,
+                    const g3pvm::evo::repro::CandidateRange& b) {
+  return a.start == b.start && a.stop == b.stop && a.tag == b.tag &&
+         a.aux == b.aux && a.scope_signature == b.scope_signature &&
+         a.binder_signature == b.binder_signature &&
+         a.scheme_kind == b.scheme_kind && a.phase_name == b.phase_name &&
+         a.visible_env_signature == b.visible_env_signature &&
+         a.dp_dependency_arity == b.dp_dependency_arity;
 }
 
 bool verify_and_compile_child(const g3pvm::evo::ProgramGenome& child,
@@ -216,6 +227,19 @@ bool test_preprocess_and_pack() {
       g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
   const g3pvm::evo::repro::PreprocessOutput prep =
       g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  std::vector<g3pvm::evo::VerifiedAst> verified;
+  verified.reserve(population.size());
+  for (const auto& genome : population) {
+    const auto result = g3pvm::evo::verify_ast(genome.ast, {});
+    if (!check(result.ok, "preprocess population should verify")) return false;
+    verified.push_back(result.verified);
+  }
+  const g3pvm::evo::repro::PreprocessOutput verified_prep =
+      g3pvm::evo::repro::preprocess_population(
+          population, verified, repro_cfg, cfg.grammar);
+  const g3pvm::evo::repro::PreprocessOutput verified_replay =
+      g3pvm::evo::repro::preprocess_population(
+          population, verified, repro_cfg, cfg.grammar);
 
   if (!check(prep.subtree_ends.size() == population.size(), "subtree_ends size mismatch")) return false;
   if (!check(prep.candidates.size() == population.size(), "candidates size mismatch")) return false;
@@ -233,6 +257,33 @@ bool test_preprocess_and_pack() {
     if (!check(!prep.candidates[i].empty(), "candidate set should not be empty")) {
       return false;
     }
+    if (!check(verified_prep.subtree_ends[i] == verified[i].subtree_end,
+               "verified preprocess should reuse subtree annotations")) return false;
+    if (!check(verified_prep.candidates[i].size() ==
+                   verified_replay.candidates[i].size(),
+               "verified preprocess candidate count should be deterministic")) return false;
+    for (std::size_t j = 0; j < verified_prep.candidates[i].size(); ++j) {
+      const auto& candidate = verified_prep.candidates[i][j];
+      if (!check(same_candidate(candidate, verified_replay.candidates[i][j]),
+                 "verified preprocess candidate should be deterministic")) return false;
+      if (candidate.stop > candidate.start) {
+        const std::size_t start = static_cast<std::size_t>(candidate.start);
+        if (!check(candidate.stop == static_cast<int>(verified[i].subtree_end[start]) &&
+                       candidate.aux == static_cast<int>(verified[i].expression_types[start]) &&
+                       candidate.scope_signature ==
+                           verified[i].expression_scope_signatures[start],
+                   "candidate should come from verifier annotations")) return false;
+      }
+    }
+  }
+
+  try {
+    std::vector<g3pvm::evo::VerifiedAst> wrong_count = verified;
+    wrong_count.pop_back();
+    (void)g3pvm::evo::repro::preprocess_population(
+        population, wrong_count, repro_cfg, cfg.grammar);
+    return check(false, "preprocess should reject mismatched annotation count");
+  } catch (const std::invalid_argument&) {
   }
 
   const g3pvm::evo::repro::PackedHostData packed =

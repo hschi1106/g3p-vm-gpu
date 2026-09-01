@@ -43,18 +43,9 @@ static_assert(sizeof(DSharedValueSlot) == sizeof(Value), "shared Value storage m
 static_assert(alignof(DSharedValueSlot) == alignof(Value), "shared Value storage must preserve alignment");
 
 __device__ inline bool d_is_builtin_kind(NodeKind kind) {
-  return kind == NodeKind::CALL_ABS || kind == NodeKind::CALL_MIN || kind == NodeKind::CALL_MAX ||
-         kind == NodeKind::CALL_CLIP || kind == NodeKind::CALL_IDIV0 || kind == NodeKind::CALL_IMOD0 ||
-         kind == NodeKind::CALL_LEN || kind == NodeKind::CALL_CONCAT ||
-         kind == NodeKind::CALL_SLICE || kind == NodeKind::CALL_INDEX || kind == NodeKind::CALL_APPEND ||
-         kind == NodeKind::CALL_PREPEND || kind == NodeKind::CALL_REVERSE ||
-         kind == NodeKind::CALL_FIND || kind == NodeKind::CALL_CONTAINS ||
-         kind == NodeKind::CALL_CHAR_TO_STRING || kind == NodeKind::CALL_STRING_TO_CHAR ||
-         kind == NodeKind::CALL_ORD || kind == NodeKind::CALL_CHR ||
-         kind == NodeKind::CALL_IS_LETTER || kind == NodeKind::CALL_IS_DIGIT ||
-         kind == NodeKind::CALL_IS_SPACE || kind == NodeKind::CALL_IS_VOWEL ||
-         kind == NodeKind::CALL_TO_LOWER || kind == NodeKind::CALL_TO_UPPER ||
-         kind == NodeKind::CALL_TO_STRING || kind == NodeKind::CALL_SINGLETON;
+  const int raw = static_cast<int>(kind);
+  return raw >= static_cast<int>(NodeKind::CALL_ABS) &&
+         raw <= static_cast<int>(NodeKind::CALL_SINGLETON);
 }
 
 __device__ inline bool d_push_parse_task(unsigned char* task_stack, int* task_size, DParseTaskKind task) {
