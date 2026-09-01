@@ -40,6 +40,15 @@ These are the current invariants.
 - Generated initial populations are expected-output-aware for payload return types: when all fixture cases have the same `String`, `IntList`, `FloatList`, or `StringList` expected output type and the active grammar allows that type, generation should force the top-level return type for generation 0. Other expected output types, mixed expected output types, unsupported expected values, disabled grammar types, and fixed `population-seeds` replay use the generic generation/replay path.
 - The CPU reproduction backend selects parent indices and streams children into `next_population`; it does not materialize extra full-population `selected_parents` or `offspring` copies
 - The evolution loop ranks the current population with lightweight scored references during each generation; it only materializes owned `ScoredGenome` values for public outputs such as history snapshots and final evaluated populations
+- `CaseSet` is the canonical prepared case representation: it owns sorted input
+  names, inferred input specs, indexed CPU/GPU bindings, expected values, and
+  homogeneous expected-return inference.
+- Population initialization has one generation/replay boundary. Replay is
+  size-checked; generated populations use the prepared input specs and optional
+  payload return-type seeding policy.
+- CPU and GPU evaluators feed one backend-neutral fitness/timing result into a
+  shared canonicalization and ranking path. Ranking always starts as lightweight
+  references; owned scored genomes are materialized only for public results.
 
 ## Runtime Model
 
@@ -237,13 +246,17 @@ Public payload registry interface for host-side string/list snapshots and lookup
 Public evolution interfaces split by responsibility:
 - `ast_program.hpp`: prefix AST program representation, shape limits, and canonical AST serialization helpers
 - `input_spec.hpp`: exact name/type declarations used by generation and native AST verification
+- `case_set.hpp`: prepared names, input specs, indexed bindings, expected values,
+  and expected-return type for one fitness case set
+- `population_init.hpp`: generated versus replayed initial-population boundary
 - `node_descriptor.hpp`: authoritative host metadata for node names, categories, prefix/dependency arity, index fields, builtins, grammar switches, typing-rule identifiers, and side-table ownership
 - `ast_verify.hpp`: structured AST verification results, stable diagnostics, explicit input types, verified subtree/type/scope annotations, optional grammar-config eligibility, and opt-in resource limits
 - `genome.hpp`: genome metadata and `ProgramGenome` wrapper
 - `grammar_config.hpp`: evolution grammar search-space config
 - `genome_generation.hpp`: random genome generation
 - `compiler.hpp`: AST-to-bytecode lowering
-- `selection.hpp`: ranking and parent selection
+- `selection.hpp`: canonical ranking, scored-reference materialization, and
+  parent selection
 - `mutation.hpp`, `crossover.hpp`, `evolve.hpp`: operators and orchestration
 - `repro/`: reproduction backend contracts, preprocess/pack schema, and GPU reproduction backend entrypoints
 
@@ -264,6 +277,8 @@ Public evolution interfaces split by responsibility:
 
 ### `cpp/src/evolution/`
 - `ast_program.cpp`: canonical AST serialization and cache-key generation
+- `case_set.cpp`: canonical case preparation and exact/mixed type inference
+- `population_init.cpp`: deterministic generation and replay validation
 - `node_descriptor.cpp`: compile-time-complete host `NodeKind` descriptor table; host traversal and builtin lowering consume this metadata
 - `ast_verify.cpp`: trust-boundary structural validation for prefix placement, indices, public constant tags, side-table ownership, dependency arity, and bounds
 - `ast_type_verify.cpp`: exact language typing for locals, branches, builtins, structured binders, and isolated ASGP phases; it never guesses types from variable names
@@ -273,11 +288,13 @@ Public evolution interfaces split by responsibility:
 - `typed_expr_analysis.*`: typed expression root analysis
 - `compiler.cpp`: AST-to-bytecode compiler
 - `genome_generation.cpp`: random genome generation
-- `selection.cpp`: ranking and parent selection
+- `selection.cpp`: the single fitness/tie ranking path, owned materialization,
+  and parent selection
 - `mutation.cpp`: mutation operators
 - `crossover.cpp`: typed subtree exchange
 - `repro/`: reproduction backend dispatch, preprocess/pack extraction, `gpu` arena/copyback logic, and sequential/overlap orchestration
-- `evolve.cpp`: evolution loop orchestration
+- `evolve.cpp`: backend evaluation adapters and evolution phase orchestration;
+  CPU/GPU results converge before ranking
 
 ### `cpp/src/cli/`
 - `evolve_cli.cpp`: thin parse/dispatch/error-reporting entry point
@@ -301,7 +318,8 @@ Benchmark binaries for runtime-focused measurement.
 - `fixtures/runtime/`: intent-labelled scalar, control-flow, builtin, and typed-value corpus
 - `gpu/`: direct GPU smoke coverage
 - `parity/`: CPU/GPU fitness and evolution parity regression tests
-- `evolution/`: native evolution and genome tests
+- `evolution/`: native case/pipeline, evolution, ranking, verifier, variation,
+  and genome tests
 
 Structured source forms have a focused compiler/runtime contract in
 `test_structured_semantics.cpp`. ASGP phase execution has a separate bytecode

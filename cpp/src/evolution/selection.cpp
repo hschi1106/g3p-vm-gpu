@@ -37,6 +37,43 @@ bool scored_genome_sorts_before(const ScoredGenomeRef& a, const ScoredGenomeRef&
   return a.genome->meta.program_key < b.genome->meta.program_key;
 }
 
+std::vector<ScoredGenomeRef> rank_population_refs(
+    const std::vector<ProgramGenome>& population,
+    const std::vector<double>& fitness,
+    bool sort_output) {
+  if (fitness.size() != population.size()) {
+    throw std::runtime_error("fitness size mismatch");
+  }
+  std::vector<ScoredGenomeRef> scored;
+  scored.reserve(population.size());
+  for (std::size_t i = 0; i < population.size(); ++i) {
+    scored.push_back(ScoredGenomeRef{&population[i], fitness[i]});
+  }
+  if (sort_output) {
+    std::sort(scored.begin(), scored.end(), [](const ScoredGenomeRef& a, const ScoredGenomeRef& b) {
+      return scored_genome_sorts_before(a, b);
+    });
+  }
+  return scored;
+}
+
+ScoredGenome materialize_scored_genome(const ScoredGenomeRef& scored) {
+  if (scored.genome == nullptr) {
+    throw std::runtime_error("scored genome ref is null");
+  }
+  return ScoredGenome{*scored.genome, scored.fitness};
+}
+
+std::vector<ScoredGenome> materialize_scored_population(
+    const std::vector<ScoredGenomeRef>& scored) {
+  std::vector<ScoredGenome> owned;
+  owned.reserve(scored.size());
+  for (const ScoredGenomeRef& one : scored) {
+    owned.push_back(materialize_scored_genome(one));
+  }
+  return owned;
+}
+
 namespace {
 
 int clamp_tournament_size(int population_size, int selection_pressure) {

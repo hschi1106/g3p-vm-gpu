@@ -53,6 +53,8 @@ add_library(g3pvm_cpu
   src/runtime/cpu/fitness_cpu.cpp
   src/evolution/ast_program.cpp
   src/evolution/node_descriptor.cpp
+  src/evolution/case_set.cpp
+  src/evolution/population_init.cpp
   src/evolution/ast_verify.cpp
   src/evolution/ast_type_verify.cpp
   src/evolution/genome.cpp
@@ -314,6 +316,13 @@ add_executable(g3pvm_test_evolve
 )
 target_link_libraries(g3pvm_test_evolve PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_evolve COMMAND g3pvm_test_evolve)
+
+add_executable(g3pvm_test_evolution_pipeline
+  tests/evolution/test_evolution_pipeline.cpp
+)
+target_link_libraries(g3pvm_test_evolution_pipeline PRIVATE g3pvm_cpu)
+add_test(NAME g3pvm_test_evolution_pipeline COMMAND g3pvm_test_evolution_pipeline)
+set_tests_properties(g3pvm_test_evolution_pipeline PROPERTIES LABELS "unit;contract")
 
 add_executable(g3pvm_test_repro_prep
   tests/evolution/test_repro_prep.cpp

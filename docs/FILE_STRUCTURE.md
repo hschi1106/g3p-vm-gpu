@@ -60,7 +60,7 @@ g3p-vm-gpu/
 
 - `AGENTS.md`: repo-local working conventions for coding agents
 - `README.md`: entrypoint and quick workflow
-- `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests; `g3pvm_cli_support` owns shared JSON, codec, option parsing, input loading, and command workflows, while reusable semantic fixtures live under `cpp/tests/fixtures/runtime/`
+- `cpp/`: native runtime, GPU fitness backend, evolution engine, CLIs, and native tests; evolution prepares inputs through `CaseSet`, initializes through one replay/generation boundary, and converges CPU/GPU fitness before shared ranking; `g3pvm_cli_support` owns shared JSON, codec, option parsing, input loading, and command workflows, while reusable semantic fixtures live under `cpp/tests/fixtures/runtime/`
 - `configs/grammar/`: checked-in legacy grammar presets; the native loader
   translates them for compatibility comparisons
 - `configs/psb_tolerances/`: versioned problem-specific PSB quality tolerance policies used by comparison gates
