@@ -29,7 +29,7 @@ metric aggregation; it does not own runtime semantics.
 
 Generated raw runs belong under ignored `logs/`. Only compact, reviewed evidence
 is committed under `benchmarks/`. Dataset mirrors and generated fixtures retain
-their existing explicit policies documented in `docs/DEVELOPMENT.md`.
+their existing explicit policies documented in `docs/guides/development.md`.
 
 ## Native executables and harnesses
 

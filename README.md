@@ -23,30 +23,16 @@ The current public contract is:
 
 ## Document Map
 
-Use the documents below as the source of truth.
-
-### Specs
-- [grammar.md](spec/grammar.md): current language grammar, typing rules, control flow, evaluation order
-- [bytecode_isa.md](spec/bytecode_isa.md): current bytecode execution contract
-- [bytecode_format.md](spec/bytecode_format.md): current JSON value and bytecode harness format
-- [builtins_base.md](spec/builtins_base.md): current scalar and char builtins
-- [builtins_runtime.md](spec/builtins_runtime.md): current container builtins and payload behavior
-- [fitness.md](spec/fitness.md): current scoring rules and solved criteria
-- [fitness_cases.md](spec/fitness_cases.md): current fixture schema
-- [grammar_config.md](spec/grammar_config.md): current search-space config contract
-
-Historical spec files are intentionally not kept in-tree after the breaking
-refactor. The current release details are recorded only in [VERSION.md](VERSION.md).
-
-### Docs
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md): system structure, module map, invariants
-- [CPP_RUNTIME_PAYLOAD.md](docs/CPP_RUNTIME_PAYLOAD.md): host/device container payload model and fallback behavior
-- [GPU_REPRODUCTION.md](docs/GPU_REPRODUCTION.md): GPU reproduction backend pipeline, overlap model, and bottlenecks
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md): build, test, benchmarks, public CLIs, adjustable arguments
-- [EXPERIMENT_SPEC.md](docs/EXPERIMENT_SPEC.md): pre-registered speedup, scaling, and evolutionary-effectiveness protocol
-- [GRAMMAR_CONFIG.md](docs/GRAMMAR_CONFIG.md): external config format for evolution grammar search-space controls
-- [AGENTS.md](AGENTS.md): repo-local contributor guidance for coding agents
-- [FILE_STRUCTURE.md](docs/FILE_STRUCTURE.md): terse repository directory map
+- [Specifications](spec/README.md) own normative language, bytecode, builtin,
+  fitness, fixture, and grammar-config behavior.
+- [Documentation](docs/README.md) indexes design explanations, development and
+  experiment guides, checked references, and refactor evidence.
+- [Operational tools](tools/README.md) documents dataset, experiment, and report
+  commands plus their artifact policy.
+- [Benchmark manifests](benchmarks/README.md) explains committed performance and
+  quality evidence.
+- [Contributor guidance](AGENTS.md) records repo-local working constraints.
+- [Release history](VERSION.md) records compatibility and release changes.
 
 ## Repository Layout
 
@@ -187,8 +173,8 @@ G3PVM_CUDA_DEVICE=0
 ## Change Discipline
 
 If you change code, update the matching documents in the same change:
-- language or AST semantics => `spec/grammar.md`, `spec/bytecode_isa.md`, `docs/ARCHITECTURE.md`
-- builtin or payload semantics => `spec/builtins_base.md` or `spec/builtins_runtime.md`, plus `docs/ARCHITECTURE.md`
-- fitness semantics or adjustable scoring args => `spec/fitness.md`, `docs/DEVELOPMENT.md`, `README.md`
-- public CLI/tool args => `docs/DEVELOPMENT.md`, `README.md` if it changes the main workflow
-- repo structure or module ownership => `docs/ARCHITECTURE.md`, `docs/FILE_STRUCTURE.md`, repo skill references
+- language or AST semantics => `spec/grammar.md` and `spec/bytecode_isa.md`
+- builtin or payload semantics => `spec/builtins_base.md` or `spec/builtins_runtime.md`
+- fitness semantics => `spec/fitness.md`; adjustable CLI arguments => `docs/guides/development.md`
+- public CLI/tool arguments => `docs/guides/development.md` or `tools/README.md`
+- repo structure or module ownership => `docs/design/architecture.md` and `docs/reference/repository-layout.md`

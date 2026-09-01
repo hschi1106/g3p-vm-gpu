@@ -72,27 +72,30 @@ command entry points into the linked command support. A deterministic command
 contract now locks representative stdout/JSON keys and malformed invocation
 behavior before later output-writer and timing-model decomposition.
 
-## Documentation ownership and known defects
+## Documentation ownership inventory
 
-| Current document | Current role | Target owner / action |
+This table records the pre-refactor location and its resolved owner. The live
+ownership index is [`../README.md`](../README.md).
+
+| Previous document | Previous role | Resolved owner / action |
 | --- | --- | --- |
 | `README.md` | entry point plus repeated detail | concise product matrix, five-minute workflow, links |
 | `VERSION.md` | release history | retain release/compatibility history only |
-| `spec/*.md` | normative contracts | retain; add `spec/README.md` navigation |
-| `docs/ARCHITECTURE.md` | architecture plus repeated specs | move to `docs/design/architecture.md`, deduplicate |
-| `docs/CPP_RUNTIME_PAYLOAD.md` | payload design | move to `docs/design/payload.md` |
-| `docs/GPU_REPRODUCTION.md` | reproduction design | move to `docs/design/gpu-reproduction.md`; replace absolute links |
-| `docs/DEVELOPMENT.md` | several workflows and CLI reference | split guides and generated/checked CLI reference |
-| `docs/GRAMMAR_CONFIG.md` | operational config explanation | guide that links normative `spec/grammar_config.md` |
-| `docs/TIMING.md` | timing reference | move to `docs/reference/timing.md` |
-| `docs/FILE_STRUCTURE.md` | hand-maintained map | replace with checked repository-layout reference |
-| `experiment/EXPERIMENT_SPEC.md` | ignored experiment plan | move maintained workflow/provenance to guides; do not link an ignored path as stable docs |
+| `spec/*.md` | normative contracts | retained with `spec/README.md` navigation |
+| former root architecture doc | architecture plus repeated specs | `docs/design/architecture.md` |
+| former root payload doc | payload design | `docs/design/payload.md` |
+| former root GPU reproduction doc | reproduction design | `docs/design/gpu-reproduction.md`; machine-specific links removed |
+| former root development doc | several workflows and CLI reference | `docs/guides/development.md`; further contract checking follows in the release-automation stage |
+| former root grammar-config doc | operational config explanation | `docs/guides/grammar-config.md`, linking the normative `spec/grammar_config.md` contract |
+| former root timing doc | timing reference | `docs/reference/timing.md` |
+| former hand-maintained file tree | repository map | `docs/reference/repository-layout.md`, checked against disk |
+| ignored experiment plan | experiment protocol | `docs/guides/experiment-protocol.md`; the ignored copy is not a documentation owner |
 | `AGENTS.md` | contributor instructions | retain rules and short commands only |
 
-Known defects captured before refactoring:
+Defects captured before refactoring (retained as historical evidence):
 
-- README and `FILE_STRUCTURE.md` link `docs/EXPERIMENT_SPEC.md`, which does not
-  exist; the only local copy is ignored under `experiment/`.
+- The former README and file-tree reference linked a missing experiment
+  document; the only local copy was ignored under `experiment/`.
 - `fitness-cases` format descriptions contain duplicated/collapsed legacy and
   current wording.
 - `GPU_REPRODUCTION.md` contains machine-specific absolute file links.

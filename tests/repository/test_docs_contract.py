@@ -11,8 +11,8 @@ class TestDocsContract(unittest.TestCase):
 
     def test_entrypoint_docs_name_current_as_current_contract(self):
         readme = self.read_doc("README.md")
-        architecture = self.read_doc("docs/ARCHITECTURE.md")
-        development = self.read_doc("docs/DEVELOPMENT.md")
+        architecture = self.read_doc("docs/design/architecture.md")
+        development = self.read_doc("docs/guides/development.md")
         agents = self.read_doc("AGENTS.md")
 
         self.assertIn("fixture schema: `fitness-cases`", readme)
@@ -26,8 +26,8 @@ class TestDocsContract(unittest.TestCase):
     def test_stale_default_language_does_not_reappear(self):
         docs = {
             "README.md": self.read_doc("README.md"),
-            "docs/ARCHITECTURE.md": self.read_doc("docs/ARCHITECTURE.md"),
-            "docs/DEVELOPMENT.md": self.read_doc("docs/DEVELOPMENT.md"),
+            "docs/design/architecture.md": self.read_doc("docs/design/architecture.md"),
+            "docs/guides/development.md": self.read_doc("docs/guides/development.md"),
             "AGENTS.md": self.read_doc("AGENTS.md"),
         }
         stale_phrases = [

@@ -16,13 +16,15 @@ The execution stack has two layers:
 Use the repo documents in this order:
 - `spec/`: normative semantics and wire formats
 - `README.md`: entrypoint and common workflows
-- `docs/DEVELOPMENT.md`: commands, CLIs, and benchmark procedure
-- `docs/TIMING.md`: canonical timing names, scope boundaries, and output mapping
-- `docs/GRAMMAR_CONFIG.md`: external evolution grammar config contract
-- `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
-- `docs/GPU_REPRODUCTION.md`: GPU reproduction backend design, overlap model, and current bottlenecks
-- `docs/TOOLING_INVENTORY.md`: operational command and auxiliary executable ownership/build policy
-- `docs/FILE_STRUCTURE.md`: terse directory map
+- `docs/guides/development.md`: build, test, CLI, and local development procedure
+- `docs/guides/benchmarking.md`: fixed-population timing and canonical runs
+- `docs/guides/psb-workflow.md`: PSB data, regression, comparison, and manifests
+- `docs/reference/timing.md`: canonical timing names, scope boundaries, and output mapping
+- `docs/guides/grammar-config.md`: operational evolution grammar-config guidance
+- `docs/design/payload.md`: host/device container transport details
+- `docs/design/gpu-reproduction.md`: GPU reproduction backend design, overlap model, and current bottlenecks
+- `docs/reference/tooling.md`: operational command and auxiliary executable ownership/build policy
+- `docs/reference/repository-layout.md`: checked stable repository paths
 - `AGENTS.md`: repo-local contributor guidance for coding agents
 
 ## Core Invariants
@@ -52,7 +54,7 @@ These are the current invariants.
   references; owned scored genomes are materialized only for public results.
 - `EvolutionTiming` stores nested evaluation, reproduction, and per-generation
   records. The CLI output layer translates that internal model to the stable
-  flat text/JSON metric names documented in `docs/TIMING.md`.
+  flat text/JSON metric names documented in `docs/reference/timing.md`.
 - `PayloadLifetimeManager` owns case/population/history/final live-root closure
   and registry pruning. GPU reproduction overlap preparation is an explicit
   start/finish lifecycle around population evaluation.
@@ -87,7 +89,7 @@ Native assurance is layered: focused contract targets own exact semantics,
 deterministic property targets cover generation and variation invariants, and
 CPU/GPU parity targets cover backend agreement. A bounded malformed-input fuzz
 smoke runs in the default suite; longer Clang/libFuzzer and CPU ASan/UBSan runs
-are opt-in configurations documented in `docs/DEVELOPMENT.md`. Failing random
+are opt-in configurations documented in `docs/guides/development.md`. Failing random
 inputs are retained as named seeds or corpus fixtures rather than depending on
 an unrecorded random campaign.
 
@@ -212,11 +214,11 @@ Container values use payload-backed execution.
 - The native CLI defaults `retain_final_population` to `off`; the final scored population is not materialized unless explicitly requested, but `result.best` and history remain available.
 
 See also:
-- [CPP_RUNTIME_PAYLOAD.md](CPP_RUNTIME_PAYLOAD.md) for the C++ container token, payload registry, exact/fallback split, and collision tradeoffs.
+- [payload.md](payload.md) for the C++ container token, payload registry, exact/fallback split, and collision tradeoffs.
 
 ## Fitness Model
 
-The current scoring model is defined in [fitness.md](../spec/fitness.md).
+The scoring model is defined in [fitness.md](../../spec/fitness.md).
 
 Operational summary:
 - numeric expected + numeric actual => negative absolute error
@@ -377,11 +379,11 @@ Update:
 ### Fitness or evolution-arg changes
 Update:
 - `spec/fitness.md`
-- `docs/DEVELOPMENT.md`
+- `docs/guides/development.md`
 - `README.md` if the main workflow or key defaults changed
 
 ### Repo structure or entrypoint changes
 Update:
 - this file
-- `docs/FILE_STRUCTURE.md`
+- `docs/reference/repository-layout.md`
 - repo skill references under `/home/hschi1106/.codex/skills/g3p-vm-gpu-repo/references/`

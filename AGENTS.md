@@ -23,13 +23,13 @@
   Treat these files as the current behavioral source of truth. Historical spec
   files are not kept in-tree after the breaking refactor. Release details are
   recorded only in `VERSION.md`.
-- Operational and structural docs live in:
-  - `docs/ARCHITECTURE.md`
-  - `docs/DEVELOPMENT.md`
-  - `docs/CPP_RUNTIME_PAYLOAD.md`
-  - `docs/GPU_REPRODUCTION.md`
-  - `docs/GRAMMAR_CONFIG.md`
-  - `docs/FILE_STRUCTURE.md`
+- Maintained documentation is indexed by `docs/README.md` and grouped by
+  ownership:
+  - `docs/design/`: architecture, dataflow, payload, and GPU reproduction
+  - `docs/guides/`: development, benchmarking, PSB, grammar-config, and
+    experiment workflows
+  - `docs/reference/`: checked timing, tooling, and repository-layout records
+  - `docs/refactor/`: historical refactor evidence
 
 ## Build, Test, and Development Commands
 - Build native binaries:

@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class TestToolInventory(unittest.TestCase):
     def test_every_top_level_tool_is_classified(self) -> None:
-        inventory = (ROOT / "docs" / "TOOLING_INVENTORY.md").read_text(encoding="utf-8")
+        inventory = (ROOT / "docs" / "reference" / "tooling.md").read_text(
+            encoding="utf-8"
+        )
         scripts = sorted((ROOT / "tools").glob("*.py"))
         self.assertTrue(scripts)
         for script in scripts:

@@ -11,7 +11,8 @@ The GPU reproduction backend moves one full generation of selection and variatio
 
 The backend is designed to reduce one-generation benchmark cost and to support overlap with GPU fitness evaluation. It is a performance implementation detail, not a new public GP dialect.
 
-Canonical timing names and CLI/JSON output mapping are documented in [TIMING.md](TIMING.md).
+Canonical timing names and CLI/JSON output mapping are documented in
+[timing.md](../reference/timing.md).
 
 ## Public Controls
 
@@ -37,9 +38,9 @@ One `gpu` reproduction pass is split into the following stages.
 
 Source files:
 
-- [gpu.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu.cpp)
-- [prep.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/prep.cpp)
-- [types.hpp](/home/hschi1106/g3p-vm-gpu/cpp/include/g3pvm/evolution/repro/types.hpp)
+- [gpu.cpp](../../cpp/src/evolution/repro/gpu.cpp)
+- [prep.cpp](../../cpp/src/evolution/repro/prep.cpp)
+- [types.hpp](../../cpp/include/g3pvm/evolution/repro/types.hpp)
 
 The host extracts:
 
@@ -74,8 +75,8 @@ This stage is reported as:
 
 Source files:
 
-- [pack.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/pack.cpp)
-- [pack.hpp](/home/hschi1106/g3p-vm-gpu/cpp/include/g3pvm/evolution/repro/pack.hpp)
+- [pack.cpp](../../cpp/src/evolution/repro/pack.cpp)
+- [pack.hpp](../../cpp/include/g3pvm/evolution/repro/pack.hpp)
 
 The host flattens the typed AST population into bounded GPU-friendly arrays:
 
@@ -95,8 +96,8 @@ This stage is reported as `repro_pack_ms`.
 
 Source files:
 
-- [arena.cu](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/arena.cu)
-- [launch.cu](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/launch.cu)
+- [arena.cu](../../cpp/src/evolution/repro/gpu/arena.cu)
+- [launch.cu](../../cpp/src/evolution/repro/gpu/launch.cu)
 
 Packed host buffers are uploaded into a reusable device arena. The same arena is retained inside the process and grown only when capacity is insufficient.
 Before sizing and packing, GPU reproduction compacts each AST's name and constant tables to entries referenced by live nodes. Decoded children and fallback parents are compacted again before becoming the next population so stale table entries from prior crossover or mutation rounds cannot accumulate past fixed kernel scratch limits. A decoded child is also rejected and replaced by its selected fallback parent if any live `String` or typed-list constant lacks a host payload, preventing payload-token-only ASTs from entering later fitness or replay output.
@@ -107,8 +108,8 @@ This stage is reported as `repro_upload_ms`.
 
 Source files:
 
-- [selection_kernels.cuh](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/device/selection_kernels.cuh)
-- [variation_kernels.cuh](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/device/variation_kernels.cuh)
+- [selection_kernels.cuh](../../cpp/src/evolution/repro/gpu/device/selection_kernels.cuh)
+- [variation_kernels.cuh](../../cpp/src/evolution/repro/gpu/device/variation_kernels.cuh)
 
 The device executes two kernel families:
 
@@ -160,7 +161,7 @@ These kernels are reported as:
 
 Source files:
 
-- [copyback.cu](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/copyback.cu)
+- [copyback.cu](../../cpp/src/evolution/repro/gpu/copyback.cu)
 
 The backend copies back only live child regions rather than fixed-capacity slabs. Host-side pinned staging is reused across generations to keep D2H cost stable.
 
@@ -172,7 +173,7 @@ This stage is reported as `repro_copyback_ms`.
 
 Source files:
 
-- [pack.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/pack.cpp)
+- [pack.cpp](../../cpp/src/evolution/repro/pack.cpp)
 
 The host rebuilds `ProgramGenome` children from copied-back packed buffers. This includes:
 
@@ -201,8 +202,8 @@ This stage is reported as `repro_decode_ms`.
 
 Source files:
 
-- [evolve.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/evolve.cpp)
-- [evolve_cli.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/cli/evolve_cli.cpp)
+- [evolve.cpp](../../cpp/src/evolution/evolve.cpp)
+- [evolve_cli.cpp](../../cpp/src/cli/evolve_cli.cpp)
 
 When `repro_overlap` is enabled and `--engine gpu --repro-backend gpu` is active, the implementation starts reproduction preparation in a background task while GPU fitness evaluation is running.
 
@@ -225,9 +226,9 @@ Because of this, overlap is only valuable when the hidden preparation work is la
 
 Source files:
 
-- [gpu.cpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu.cpp)
-- [internal.hpp](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/internal.hpp)
-- [arena.cu](/home/hschi1106/g3p-vm-gpu/cpp/src/evolution/repro/gpu/arena.cu)
+- [gpu.cpp](../../cpp/src/evolution/repro/gpu.cpp)
+- [internal.hpp](../../cpp/src/evolution/repro/gpu/internal.hpp)
+- [arena.cu](../../cpp/src/evolution/repro/gpu/arena.cu)
 
 The backend keeps a process-local runtime cache containing:
 
@@ -283,6 +284,6 @@ For overlap mode:
 
 ## Related Documents
 
-- [DEVELOPMENT.md](/home/hschi1106/g3p-vm-gpu/docs/DEVELOPMENT.md)
-- [ARCHITECTURE.md](/home/hschi1106/g3p-vm-gpu/docs/ARCHITECTURE.md)
-- [CPP_RUNTIME_PAYLOAD.md](/home/hschi1106/g3p-vm-gpu/docs/CPP_RUNTIME_PAYLOAD.md)
+- [development guide](../guides/development.md)
+- [architecture](architecture.md)
+- [payload model](payload.md)
