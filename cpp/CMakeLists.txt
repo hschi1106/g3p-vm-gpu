@@ -9,6 +9,8 @@ enable_testing()
 option(G3PVM_ENABLE_CUDA "Build CUDA runtime and parity targets" ON)
 option(G3PVM_ENABLE_SANITIZERS "Enable CPU AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(G3PVM_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
+option(G3PVM_BUILD_BENCHMARKS "Build auxiliary benchmark executables" OFF)
+option(G3PVM_BUILD_EXPERIMENTS "Build auxiliary experiment probes" OFF)
 
 if((G3PVM_ENABLE_SANITIZERS OR G3PVM_BUILD_FUZZERS) AND G3PVM_ENABLE_CUDA)
   message(FATAL_ERROR "sanitizer/fuzzer builds require -DG3PVM_ENABLE_CUDA=OFF")
@@ -85,10 +87,12 @@ add_library(g3pvm_cli_support
 target_include_directories(g3pvm_cli_support PUBLIC include)
 target_link_libraries(g3pvm_cli_support PUBLIC g3pvm_cpu)
 
-add_executable(g3pvm_runtime_multi_bench
-  src/bench/runtime_multi_bench.cpp
-)
-target_link_libraries(g3pvm_runtime_multi_bench PRIVATE g3pvm_cpu)
+if(G3PVM_BUILD_BENCHMARKS)
+  add_executable(g3pvm_runtime_multi_bench
+    src/bench/runtime_multi_bench.cpp
+  )
+  target_link_libraries(g3pvm_runtime_multi_bench PRIVATE g3pvm_cpu)
+endif()
 
 add_executable(g3pvm_evolve_cli
   src/cli/evolve_cli.cpp
@@ -150,10 +154,12 @@ if(G3PVM_HAS_CUDA)
   target_link_libraries(g3pvm_test_evolution_cpu_gpu_parity PRIVATE g3pvm_cpu g3pvm_gpu)
   add_test(NAME g3pvm_test_evolution_cpu_gpu_parity COMMAND g3pvm_test_evolution_cpu_gpu_parity)
 
-  add_executable(g3pvm_simple_exp_population_probe
-    tests/parity/simple_exp_population_probe.cpp
-  )
-  target_link_libraries(g3pvm_simple_exp_population_probe PRIVATE g3pvm_cli_support g3pvm_gpu)
+  if(G3PVM_BUILD_EXPERIMENTS)
+    add_executable(g3pvm_simple_exp_population_probe
+      src/experiments/simple_exp_population_probe.cpp
+    )
+    target_link_libraries(g3pvm_simple_exp_population_probe PRIVATE g3pvm_cli_support g3pvm_gpu)
+  endif()
 
 endif()
 

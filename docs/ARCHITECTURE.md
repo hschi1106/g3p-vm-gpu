@@ -21,6 +21,7 @@ Use the repo documents in this order:
 - `docs/GRAMMAR_CONFIG.md`: external evolution grammar config contract
 - `docs/CPP_RUNTIME_PAYLOAD.md`: host/device container transport details
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend design, overlap model, and current bottlenecks
+- `docs/TOOLING_INVENTORY.md`: operational command and auxiliary executable ownership/build policy
 - `docs/FILE_STRUCTURE.md`: terse directory map
 - `AGENTS.md`: repo-local contributor guidance for coding agents
 
@@ -323,7 +324,12 @@ command boundary has a deterministic stdout/JSON/error contract in
 `g3pvm_test_evolve_cli_contract`.
 
 ### `cpp/src/bench/`
-Benchmark binaries for runtime-focused measurement.
+Benchmark binaries for runtime-focused measurement, built only with
+`G3PVM_BUILD_BENCHMARKS=ON`.
+
+### `cpp/src/experiments/`
+Non-product diagnostic probes, built only with
+`G3PVM_BUILD_EXPERIMENTS=ON` and any required backend (currently CUDA).
 
 ### `cpp/tests/`
 - `runtime/`: focused CPU VM, fixture-codec, option-parser, payload-registry, and CLI-harness tests

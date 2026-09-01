@@ -23,7 +23,8 @@ g3p-vm-gpu/
 │   │   ├── evolution/
 │   │   │   └── repro/
 │   │   ├── cli/
-│   │   └── bench/
+│   │   ├── bench/
+│   │   └── experiments/
 │   ├── tests/
 │   │   ├── evolution/
 │   │   ├── fixtures/runtime/
@@ -70,6 +71,7 @@ g3p-vm-gpu/
 - `docs/TIMING.md`: canonical timing metric names, scopes, and CLI/JSON mappings
 - `docs/GRAMMAR_CONFIG.md`: external config format for evolution grammar search-space controls
 - `docs/GPU_REPRODUCTION.md`: GPU reproduction backend data flow, overlap model, and performance notes
+- `docs/TOOLING_INVENTORY.md`: command ownership, inputs/outputs, consumers, support status, and native build policy
 - `data/fixtures/`: canonical benchmark and evolution fixtures, including generated PSB smoke fixtures under `data/fixtures/psb1/`
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets

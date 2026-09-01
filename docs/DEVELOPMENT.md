@@ -9,6 +9,21 @@ cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build cpp/build -j
 ```
 
+The default graph builds the product CLI and maintained test targets. Auxiliary
+executables are opt-in:
+
+```bash
+cmake -S cpp -B cpp/build-aux \
+  -DG3PVM_BUILD_BENCHMARKS=ON \
+  -DG3PVM_BUILD_EXPERIMENTS=ON
+cmake --build cpp/build-aux -j \
+  --target g3pvm_runtime_multi_bench g3pvm_simple_exp_population_probe
+```
+
+The experiment probe requires CUDA. Ownership, support status, and consumers
+for all scripts and auxiliary binaries are recorded in
+[TOOLING_INVENTORY.md](TOOLING_INVENTORY.md).
+
 ### Tool and repository checks
 
 Operational tools and runtime-independent repository contracts use the Python
