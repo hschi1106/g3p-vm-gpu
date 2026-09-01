@@ -35,6 +35,18 @@ python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
 ```
 
+For the unified operational command, install the independent package in a
+virtual environment:
+
+```bash
+python3 -m venv .venv-tools
+.venv-tools/bin/pip install -e tools
+.venv-tools/bin/g3pvm-tools --help
+```
+
+See [tools/README.md](../tools/README.md) for the pipeline, every subcommand,
+compatibility wrappers, and artifact policy.
+
 ### C++ tests
 
 ```bash

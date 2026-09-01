@@ -51,6 +51,13 @@ g3p-vm-gpu/
 │   └── psb2_datasets/
 ├── meeting/
 ├── tools/
+│   ├── g3pvm_tools/
+│   │   ├── datasets/
+│   │   ├── experiments/
+│   │   ├── reports/
+│   │   └── shared/
+│   ├── pyproject.toml
+│   ├── README.md
 │   └── tests/
 ├── tests/
 │   └── repository/
@@ -76,8 +83,8 @@ g3p-vm-gpu/
 - `data/psb1_datasets/`: mirrored PSB1 source datasets
 - `data/psb2_datasets/`: mirrored PSB2 source datasets
 - `meeting/`: meeting notes and discussion artifacts
-- `tools/`: dataset, fixture, grammar-profile, fixed-population, and PSB
-  regression utilities plus their independent tests
+- `tools/`: installable `g3pvm-tools` dataset/experiment/report package, thin
+  legacy command wrappers, shared format helpers, and independent tests
 - `tests/repository/`: runtime-independent documentation and spec-integrity
   checks
 - `logs/`: generated artifacts, benchmark reports, and run outputs

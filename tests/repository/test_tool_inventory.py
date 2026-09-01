@@ -15,6 +15,30 @@ class TestToolInventory(unittest.TestCase):
         for script in scripts:
             self.assertIn(f"`{script.name}`", inventory)
 
+    def test_tool_package_has_one_dependency_free_entrypoint(self) -> None:
+        pyproject = (ROOT / "tools" / "pyproject.toml").read_text(encoding="utf-8")
+        setup_cfg = (ROOT / "tools" / "setup.cfg").read_text(encoding="utf-8")
+        self.assertIn('g3pvm-tools = "g3pvm_tools.cli:main"', pyproject)
+        self.assertIn("g3pvm-tools = g3pvm_tools.cli:main", setup_cfg)
+        self.assertIn("dependencies = []", pyproject)
+        expected_modules = {
+            "datasets/convert_psb.py",
+            "datasets/fetch_psb.py",
+            "datasets/materialize_psb.py",
+            "experiments/grammar_profiles.py",
+            "experiments/population_seeds.py",
+            "experiments/run_psb.py",
+            "reports/compare_psb.py",
+            "reports/psb_manifest.py",
+            "reports/simple_manifest.py",
+            "shared/hashing.py",
+            "shared/json_io.py",
+            "shared/metrics.py",
+            "shared/schemas.py",
+        }
+        package = ROOT / "tools" / "g3pvm_tools"
+        self.assertTrue(all((package / path).is_file() for path in expected_modules))
+
     def test_legacy_plot_surface_is_absent(self) -> None:
         self.assertFalse((ROOT / "draw").exists())
         for directory in (ROOT / "tools", ROOT / "docs"):

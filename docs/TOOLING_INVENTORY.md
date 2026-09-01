@@ -6,21 +6,26 @@ these tools; `spec/` and the native implementation remain authoritative.
 
 ## Operational Python commands
 
-All retained scripts use the Python standard library and are covered by
-`tools/tests/`. Stage 16 packages these functions behind one discoverable
-command while retaining the file paths as temporary compatibility wrappers.
+All retained commands use the Python standard library and are covered by
+`tools/tests/`. Their implementations live in the `g3pvm_tools` package behind
+one discoverable command. The listed file paths are thin temporary
+compatibility wrappers.
 
 | Command | Class / owner | Inputs | Outputs | Downstream consumer | Status |
 | --- | --- | --- | --- | --- | --- |
-| `fetch_psb_datasets.py` | public workflow / datasets | PSB family, problem selection, upstream network | JSONL under `data/psb*_datasets/` | conversion/materialization | maintained |
-| `convert_psb_to_fitness_cases.py` | public workflow / datasets | PSB JSONL, split/schema options | `fitness-cases` JSON | native CLI, materializer | maintained |
-| `materialize_psb_fixtures.py` | public workflow / datasets | mirrored datasets, exclusions, schema policy | fixtures plus support manifest | PSB experiment runner | maintained |
-| `grammar_config_profiles.py` | internal support / experiments | base grammar profile and compatibility choices | generated grammar-config JSON/hash | regression runner | maintained |
-| `make_population_seeds.py` | public workflow / experiments | cases path, count, limits, seed base | `population-seeds` JSON | fixed-pop CLI runs | maintained |
-| `run_psb_regression.py` | public workflow / experiments | native binary, fixtures, seeds/config, run matrix | per-run JSON and summary | comparison/report commands | maintained |
-| `compare_psb_baseline.py` | public workflow / reports | compatible baseline/candidate summaries, tolerance policy | comparison JSON and exit gate | CI/release review | maintained |
-| `write_psb_manifest.py` | internal support / reports | PSB comparison/run artifacts | compact PSB evidence manifest | committed `benchmarks/` evidence | maintained |
-| `write_simple_exp_manifest.py` | internal support / reports | simple-expression baseline/candidate runs | compact speed manifest | committed `benchmarks/` evidence | maintained |
+| `psb fetch` / `fetch_psb_datasets.py` | public workflow / datasets | PSB family, problem selection, upstream network | JSONL under `data/psb*_datasets/` | conversion/materialization | maintained |
+| `psb convert` / `convert_psb_to_fitness_cases.py` | public workflow / datasets | PSB JSONL, split/schema options | `fitness-cases` JSON | native CLI, materializer | maintained |
+| `psb materialize` / `materialize_psb_fixtures.py` | public workflow / datasets | mirrored datasets, exclusions, schema policy | fixtures plus support manifest | PSB experiment runner | maintained |
+| `grammar profile` / `grammar_config_profiles.py` | internal support / experiments | base grammar profile and compatibility choices | generated grammar-config JSON/hash | regression runner | maintained |
+| `benchmark population-seeds` / `make_population_seeds.py` | public workflow / experiments | cases path, count, limits, seed base | `population-seeds` JSON | fixed-pop CLI runs | maintained |
+| `psb run` / `run_psb_regression.py` | public workflow / experiments | native binary, fixtures, seeds/config, run matrix | per-run JSON and summary | comparison/report commands | maintained |
+| `psb compare` / `compare_psb_baseline.py` | public workflow / reports | compatible baseline/candidate summaries, tolerance policy | comparison JSON and exit gate | CI/release review | maintained |
+| `report psb-manifest` / `write_psb_manifest.py` | internal support / reports | PSB comparison/run artifacts | compact PSB evidence manifest | committed `benchmarks/` evidence | maintained |
+| `report simple-manifest` / `write_simple_exp_manifest.py` | internal support / reports | simple-expression baseline/candidate runs | compact speed manifest | committed `benchmarks/` evidence | maintained |
+
+Package ownership follows `datasets/`, `experiments/`, and `reports/`.
+`shared/` owns stable JSON, hashes, format identifiers/validation, and common
+metric aggregation; it does not own runtime semantics.
 
 Generated raw runs belong under ignored `logs/`. Only compact, reviewed evidence
 is committed under `benchmarks/`. Dataset mirrors and generated fixtures retain
