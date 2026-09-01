@@ -1,389 +1,139 @@
 # Architecture
 
-## System Model
+The maintained product is a native C++/CUDA prefix-AST genetic programming
+system. This document owns component boundaries and dependency direction. The
+end-to-end sequence is in [dataflow.md](dataflow.md); language and wire behavior
+is owned by the [specifications](../../spec/README.md).
 
-The system evolves prefix `AstProgram` programs, compiles them to bytecode,
-executes them on CPU or GPU-backed runtimes, scores them against
-`fitness-cases` fixtures for current validation or `fitness-cases` fixtures
-for compatibility baselines, and repeats reproduction over generations.
+## Dependency direction
 
-The execution stack has two layers:
-- C++ CPU path: native execution and native evolution
-- C++ GPU path: CUDA fitness evaluation plus an optional GPU reproduction backend
+```text
+core value/bytecode contracts
+      |             |
+      v             v
+CPU/GPU runtime   AST/verifier/compiler/operators
+      |             |
+      +------v------+
+       evolution engine
+              |
+              v
+      CLI support and commands
+```
 
-## Documentation Layers
+Operational Python tools consume files and invoke the native CLI. They do not
+implement AST typing, bytecode execution, fitness, or reproduction semantics.
 
-Use the repo documents in this order:
-- `spec/`: normative semantics and wire formats
-- `README.md`: entrypoint and common workflows
-- `docs/guides/development.md`: build, test, CLI, and local development procedure
-- `docs/guides/benchmarking.md`: fixed-population timing and canonical runs
-- `docs/guides/psb-workflow.md`: PSB data, regression, comparison, and manifests
-- `docs/reference/timing.md`: canonical timing names, scope boundaries, and output mapping
-- `docs/guides/grammar-config.md`: operational evolution grammar-config guidance
-- `docs/design/payload.md`: host/device container transport details
-- `docs/design/gpu-reproduction.md`: GPU reproduction backend design, overlap model, and current bottlenecks
-- `docs/reference/tooling.md`: operational command and auxiliary executable ownership/build policy
-- `docs/reference/repository-layout.md`: checked stable repository paths
-- `AGENTS.md`: repo-local contributor guidance for coding agents
+## Product boundaries
 
-## Core Invariants
+### Core and runtime
 
-These are the current invariants.
-- Public program representation is prefix `AstProgram`
-- Public crossover is `typed_subtree`
-- Public reproduction attempts `typed_subtree` crossover on every selected parent pair before child-level mutation
-- Default public reproduction backend is `cpu`
-- Default public selection is round-based tournament only, controlled by `selection_pressure`
-- Public mutation API is single-path, with internal operator mix controlled by `mutation_subtree_prob`
-- Evolution grammar configs are search-space controls only; runtime/VM execution remains the all-enabled public grammar superset
-- Public fixture schema is `fitness-cases`.
-- Public runners do not expose heavyweight validate modes
-- CPU and GPU must preserve fitness parity for the same inputs and configuration while exact GPU payload materialization stays within bounded device limits; payload overflow is backend-specific and may diverge.
-- Generated initial populations are expected-output-aware for payload return types: when all fixture cases have the same `String`, `IntList`, `FloatList`, or `StringList` expected output type and the active grammar allows that type, generation should force the top-level return type for generation 0. Other expected output types, mixed expected output types, unsupported expected values, disabled grammar types, and fixed `population-seeds` replay use the generic generation/replay path.
-- The CPU reproduction backend selects parent indices and streams children into `next_population`; it does not materialize extra full-population `selected_parents` or `offspring` copies
-- The evolution loop ranks the current population with lightweight scored references during each generation; it only materializes owned `ScoredGenome` values for public outputs such as history snapshots and final evaluated populations
-- `CaseSet` is the canonical prepared case representation: it owns sorted input
-  names, inferred input specs, indexed CPU/GPU bindings, expected values, and
-  homogeneous expected-return inference.
-- Population initialization has one generation/replay boundary. Replay is
-  size-checked; generated populations use the prepared input specs and optional
-  payload return-type seeding policy.
-- CPU and GPU evaluators feed one backend-neutral fitness/timing result into a
-  shared canonicalization and ranking path. Ranking always starts as lightweight
-  references; owned scored genomes are materialized only for public results.
-- `EvolutionTiming` stores nested evaluation, reproduction, and per-generation
-  records. The CLI output layer translates that internal model to the stable
-  flat text/JSON metric names documented in `docs/reference/timing.md`.
-- `PayloadLifetimeManager` owns case/population/history/final live-root closure
-  and registry pruning. GPU reproduction overlap preparation is an explicit
-  start/finish lifecycle around population evaluation.
+`cpp/include/g3pvm/core/` owns shared values, errors, opcodes, bytecode, and
+bytecode-verification contracts. `cpp/src/runtime/cpu/` executes and scores
+bytecode on the host. `cpp/src/runtime/gpu/` packs programs/cases and executes
+fitness on CUDA. `cpp/src/runtime/payload/` owns host payload registration and
+snapshot lookup for strings and typed lists.
 
-## Runtime Model
+Runtime semantics are defined in `spec/`; implementation details of container
+transport are explained in [payload.md](payload.md).
 
-### Verification boundaries
+### AST, compiler, and verification
 
-Native prefix ASTs are structurally and statically verified by
-`evolution/ast_verify.hpp`. The `--eval-ast-json` boundary derives exact input
-types from its fitness cases and rejects malformed, ill-scoped, or ill-typed
-ASTs before genome metadata or compilation is built.
+`cpp/include/g3pvm/evolution/` exposes prefix ASTs, node descriptors, verified
+AST annotations, grammar search configuration, genome operations, evolution,
+and timing. Its implementation is split by responsibility under
+`cpp/src/evolution/`.
 
-Native bytecode uses `core/bytecode_verify.hpp` for operand/range checks,
-control-flow stack analysis, local and binder mappings, and ASGP phase segment
-validation. Bytecode JSON decoding calls it unconditionally. Debug compiler
-builds verify completed bytecode as an assertion on lowering. Random genome
-generation accepts only AST-verifier-clean candidates, which makes the
-generator boundary responsible for never introducing an invalid initial
-individual. Runtime errors remain runtime outcomes when the bytecode
-representation itself is well-formed.
+The host node descriptor is the common source for serialized names, categories,
+arity, index fields, builtin mapping, grammar switches, typing rule IDs, and
+side-table ownership. Structural/type verification produces subtree, type, and
+scope annotations used by typed variation. External AST JSON is verified before
+genome construction; external bytecode JSON is verified before execution;
+compiler output is verified in debug/test builds.
 
-Native JSON parsing, bytecode/value codecs, and the complete public option
-parser are compiled once in the `g3pvm_cli_support` library. Product CLIs and
-the CMake-built fixture runner link that library; no target includes C++ source
-files textually. The fixture runner uses the library to execute the shared
-scalar, control-flow, builtin, and typed-value corpus.
-Malformed JSON/bytecode remains owned by codec/verifier tests; semantic runtime
-errors are asserted only after a program passes verification.
+Verification is a trust-boundary and test invariant. Release evolution does not
+perform an additional heap-heavy full-AST verification pass for every individual
+after every generation.
 
-Native assurance is layered: focused contract targets own exact semantics,
-deterministic property targets cover generation and variation invariants, and
-CPU/GPU parity targets cover backend agreement. A bounded malformed-input fuzz
-smoke runs in the default suite; longer Clang/libFuzzer and CPU ASan/UBSan runs
-are opt-in configurations documented in `docs/guides/development.md`. Failing random
-inputs are retained as named seeds or corpus fixtures rather than depending on
-an unrecorded random campaign.
+### Evolution engine
 
-### Value domain
-- `Int`
-- `Float`
-- `Bool`
-- `Char`
-- `String`
-- `IntList`
-- `FloatList`
-- `StringList`
+The engine composes focused owners:
 
-`Bool` is not numeric.
-`Char` is distinct from one-character `String`.
-`IntList` and `FloatList` are distinct direct list tags.
-`StringList` is a homogeneous list of `String` values.
-Nested and heterogeneous lists are not part of the public value contract.
+| Owner | Responsibility |
+| --- | --- |
+| `CaseSet` | Canonical names, input types/bindings, expected values, and return-type inference |
+| `PopulationInitialization` | Generated population versus fixed replay boundary |
+| compiler/cache | Verified AST-to-bytecode lowering and reuse |
+| evaluator adapters | CPU/GPU fitness vectors with one timing shape |
+| selection | Fitness canonicalization, ranking, and scored-reference materialization |
+| reproduction backends | Selection inputs, typed crossover, mutation, and decoded-child acceptance |
+| `PayloadLifetimeManager` | Live payload roots and registry pruning |
+| lifecycle overlap | GPU reproduction preparation scheduled around evaluation |
+| timing model | Nested evaluation, reproduction, generation, and run aggregates |
 
-### Control flow
-- The public grammar has one loop form: `ForRange(x, e, body)`.
-- `ForRange` evaluates `e` once, stores the bound in a temporary local during bytecode lowering, and then runs integer loop indices while `i < bound`.
-- The bound must be a non-negative integer. `0` is valid and executes zero iterations; `Bool` and `Float` are rejected.
-- Current random genome generation still seeds loop bounds with integer constants, so existing benchmark population generation remains bounded by `max_for_k`.
+CPU and GPU evaluation converge on one fitness-vector boundary before ranking.
+CPU and GPU reproduction share the public operator contract but do not promise
+child-for-child RNG identity. Detailed reproduction scheduling is in
+[gpu-reproduction.md](gpu-reproduction.md); timing names are in
+[`../reference/timing.md`](../reference/timing.md).
 
-### Structured expressions
-- `BoundVar` uses a hidden binder namespace separate from ordinary mutable locals, so same-name `Var(x)` and `BoundVar(x)` are capture-safe and assignments cannot write binder slots.
-- Native bytecode lowering expands `MapList`, `FilterList`, and `LinearRec`
-  into ordinary loop/jump code plus private type/list helper opcodes; these
-  opcodes are not part of the public current bytecode wire contract.
-- `LinearRec` binder metadata uses an explicit `AstProgram` side table because the form has three binders and cannot be represented clearly with the two generic `AstNode` integer payload slots.
-- Native C++ AST metadata, subtree traversal, grammar-config gating, cache keys, and typed-expression analysis understand the structured node set.
-- Native CPU compiler/runtime lowering executes hand-authored `MapList`, `FilterList`, and `LinearRec` ASTs using hidden locals and private helper opcodes.
-- Native GPU fitness execution implements the private structured-expression helper opcode slice needed by compiler-lowered `MapList`, `FilterList`, and `LinearRec` programs, including exact empty typed-list payload creation within bounded device payload state.
-- Native random generation can emit conservative structured forms when enabled. Native typed-subtree mutation can synthesize `MapList` / `FilterList` donors, and typed root collection excludes binder-body fragments containing `BoundVar` so lexical binders cannot escape their scope during variation. CPU mutation, CPU crossover, CPU reproduction, and GPU reproduction preprocessing also filter ASGP phase-body roots before choosing typed-subtree replacement sites. Host-side CPU typed-subtree crossover/reproduction and packed GPU candidate selection use a current typed key that includes result type, visible scope, binder/scheme identity, ASGP phase identity, and ASGP-DP dependency arity.
-- Native AST JSON includes `LinearRec` and ASGP binder/spec side-table metadata.
-  GPU reproduction preserves structured children by packing parent/donor
-  side tables, copying back the selected parent/candidate context, and
-  rebuilding child metadata during host decode with the same keep/shift/insert
-  rules as typed-subtree replacement.
-- ASGP/DC and ASGP/DP node kinds are declared for the current source grammar and
-  grammar-config shape. The native CPU runtime has an ASGP-DC slice using
-  internal phase bytecode segments for direct semantic testing of hand-authored
-  ASTs. It also has ASGP-DP1D and ASGP-DP2D semantic slices with required
-  side-table bounds/dependency metadata and internal phase bytecode segments.
-  Native GPU fitness execution supports ASGP-DC,
-  ASGP-DP1D, and ASGP-DP2D bytecode semantic slices with explicit device
-  frames and bounded device memo storage. Native random generation and CPU
-  subtree mutation can emit conservative ASGP-DC, ASGP-DP1D, and ASGP-DP2D
-  slices only at full statement value roots. ASGP-DC covers `Int`, `Float`,
-  and `String` roots: numeric roots may use an existing same-typed numeric-list
-  source variable, while `String` roots traverse a `String` source as chars and
-  rebuild with `singleton(index(...))` plus `concat`; literal-source fallback
-  remains available. ASGP-DP1D and ASGP-DP2D now cover conservative `Int`,
-  `Float`, and `String` root slices; `String` DP transitions use `concat`
-  over memoized dependency results. GPU reproduction can transport existing
-  ASGP subtrees and can synthesize conservative ASGP-DC, ASGP-DP1D, and
-  ASGP-DP2D donors in `Int` / `Float` / `String` type-bucketed donor pools,
-  while rebuilding ASGP side-table metadata during decode.
-  Freer ASGP phase variation and broader source policies remain pending until
-  the full ASGP typing policy lands.
+### CLI
 
-### Evolution grammar configs
-- `grammar-config` is the current schema.
-- Checked-in `grammar-config` presets under `configs/grammar/` are accepted by
-  the native loader as compatibility input and translated into current
-  search-space controls for fair comparisons.
-- Generated native `compact` configs with `compat.num_list_mode="both"` preserve the old `NumList` input search-space shape by seeding exact `IntList` / `FloatList` fixture inputs as `Any` input variables. This does not reinterpret runtime fixture values.
-- The config restricts random genome generation, CPU mutation donor synthesis, GPU reproduction preprocess candidate/donor generation, and seed replay regeneration.
-- The config does not reject execution of existing ASTs or bytecode that use disabled constructs.
-- CPU and GPU reproduction both respect non-default grammar configs.
-- GPU reproduction verifies every decoded child against the canonical fitness
-  input types before accepting it. A kernel-valid but ill-typed child falls
-  back deterministically to its selected parent.
+`g3pvm_cli_support` owns the JSON parser, codecs, complete option parser, input
+loading, command workflows, and output adaptation. `evolve_cli.cpp` is only the
+process-level parse/dispatch/error boundary. No C++ implementation file is
+included textually.
 
-### Builtins
-C++ CPU and CUDA device runtime implementations cover the runtime-supported
-current builtin set below. Native AST arity rules, compiler lowering,
-typed-expression analysis, grammar-config gating, and GPU reproduction child
-metadata parsing also recognize these source-call nodes.
+Parser flags/defaults are checked against
+[`../reference/cli.md`](../reference/cli.md). CLI JSON retains its stable flat
+keys even though timing storage inside `EvolutionResult` is nested.
 
-Scalar builtins:
-- `abs`
-- `min`
-- `max`
-- `clip`
-- `idiv0`
-- `imod0`
-- `char_to_string`
-- `string_to_char`
-- `ord`
-- `chr`
-- `is_letter`
-- `is_digit`
-- `is_space`
-- `is_vowel`
-- `to_lower`
-- `to_upper`
-- `to_string`
+### Operational tools
 
-Container builtins:
-- `len`
-- `concat`
-- `slice`
-- `index`
-- `append`
-- `prepend`
-- `reverse`
-- `find`
-- `contains`
-- `singleton`
+`tools/g3pvm_tools/` is an independently installable, standard-library Python
+package organized into dataset, experiment, report, and shared-format modules.
+Historical top-level scripts are compatibility wrappers. The command pipeline
+and artifact policy are owned by [`../../tools/README.md`](../../tools/README.md),
+and every auxiliary command/binary is classified in
+[`../reference/tooling.md`](../reference/tooling.md).
 
-### Payload execution
-Container values use payload-backed execution.
-- CPU runtime keeps decoded `String`, `IntList`, `FloatList`, and `StringList` payloads in a registry after native current migration.
-- The CPU payload registry can be swept down to a live-root closure between generations so dead container payloads from discarded individuals do not accumulate indefinitely.
-- GPU runtime keeps a session-local host payload cache, lazily fills it by packed token from the process-global registry, and then builds compact per-eval payload packs for only the tokens needed by the current accepted population plus shared cases.
-- GPU payload evaluation always launches one production `Mixed` eval kernel across the full accepted population.
-- the finer `StringOnly` / `ListOnly` / `Mixed` flavor classifier is still kept for experiment tooling and offline bucketing studies
-- GPU exact payload operations use bounded per-thread scratch.
-- When exact output materialization does not fit, GPU transform builtins return deterministic fallback transport instead of aborting the full evaluation. CPU may still materialize larger host payloads, so CPU/GPU parity is guaranteed only within GPU payload limits.
-- The native CLI defaults `retain_final_population` to `off`; the final scored population is not materialized unless explicitly requested, but `result.best` and history remain available.
+## Stable performance invariants
 
-See also:
-- [payload.md](payload.md) for the C++ container token, payload registry, exact/fallback split, and collision tradeoffs.
+- GPU fitness uses one production mixed kernel per accepted population.
+- GPU reproduction overlap may hide host preprocessing behind evaluation, but
+  selection still consumes the completed fitness vector.
+- Evolution ranks with lightweight scored references and materializes owned
+  scored genomes only for retained public results.
+- Final-population retention is opt-in at the CLI boundary.
+- Payload roots are retained across active cases, populations, history, best,
+  and optional final results.
 
-## Fitness Model
+These invariants are locked by native contract/property/parity tests and the
+fixed-population benchmark gate; they are not alternate semantic definitions.
 
-The scoring model is defined in [fitness.md](../../spec/fitness.md).
+## Test ownership
 
-Operational summary:
-- numeric expected + numeric actual => negative absolute error
-- numeric expected + non-numeric actual => `-penalty`
-- `Bool` / `Char` / `String` / `IntList` / `FloatList` / `StringList` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
-- runtime error => `-penalty`
+- `cpp/tests/runtime/`: runtime, codec, CLI, payload, and bytecode contracts
+- `cpp/tests/evolution/`: descriptor, verifier, compiler, property, operator,
+  and orchestration contracts
+- `cpp/tests/fixtures/runtime/`: intent-labelled semantic corpus
+- `cpp/tests/gpu/` and `cpp/tests/parity/`: GPU execution and CPU/GPU agreement
+- `cpp/tests/fuzz/`: bounded malformed-input smoke and opt-in libFuzzer targets
+- `tools/tests/`: operational tool contracts
+- `tests/repository/`: docs, CLI-reference, spec-freeze, and layout contracts
 
-This keeps numeric tasks dense while keeping container semantics exact and simple.
+Named build/test configurations and focused commands are in
+[`../guides/development.md`](../guides/development.md).
 
-## C++ Module Map
+## Change ownership
 
-### `cpp/include/g3pvm/core/`
-Public value, error, builtin id, opcode, bytecode, bytecode-verification, and
-shared fitness/value semantics headers. `bytecode_verify.hpp` owns structured
-diagnostics and opt-in resource limits for complete native bytecode programs.
+- AST, typing, control flow, or lowering: update the owning grammar/ISA spec and
+  verifier/compiler tests.
+- Builtin or payload behavior: update the owning builtin spec, payload design
+  when transport changes, and CPU/GPU parity coverage.
+- Fitness behavior: update `spec/fitness.md`, fitness contracts, and benchmark
+  interpretation.
+- CLI flags/defaults/output: update the parser, CLI reference, and command
+  contract together.
+- Repository moves: update `docs/README.md`, the checked repository layout, and
+  the external repository skill references.
 
-### `cpp/include/g3pvm/runtime/cpu/`
-Public CPU execution, fitness, and builtin interfaces:
-- `execute_bytecode_cpu.hpp`
-- `fitness_cpu.hpp`
-- `builtins_cpu.hpp`
-
-### `cpp/include/g3pvm/runtime/gpu/`
-Public GPU host-side contracts for fitness orchestration and packed device data:
-- `fitness_gpu.hpp`
-- `host_pack_gpu.hpp`
-- `device_types_gpu.hpp`
-- `constants_gpu.hpp`
-
-### `cpp/include/g3pvm/runtime/payload/`
-Public payload registry interface for host-side string/list snapshots and lookup.
-
-### `cpp/include/g3pvm/evolution/`
-Public evolution interfaces split by responsibility:
-- `ast_program.hpp`: prefix AST program representation, shape limits, and canonical AST serialization helpers
-- `input_spec.hpp`: exact name/type declarations used by generation and native AST verification
-- `case_set.hpp`: prepared names, input specs, indexed bindings, expected values,
-  and expected-return type for one fitness case set
-- `population_init.hpp`: generated versus replayed initial-population boundary
-- `timing.hpp`: nested evaluation, reproduction, generation, and whole-run
-  timing records plus aggregation
-- `lifecycle.hpp`: payload live-root retention and GPU overlap start/finish
-- `node_descriptor.hpp`: authoritative host metadata for node names, categories, prefix/dependency arity, index fields, builtins, grammar switches, typing-rule identifiers, and side-table ownership
-- `ast_verify.hpp`: structured AST verification results, stable diagnostics, explicit input types, verified subtree/type/scope annotations, optional grammar-config eligibility, and opt-in resource limits
-- `genome.hpp`: genome metadata and `ProgramGenome` wrapper
-- `grammar_config.hpp`: evolution grammar search-space config
-- `genome_generation.hpp`: random genome generation
-- `compiler.hpp`: AST-to-bytecode lowering
-- `selection.hpp`: canonical ranking, scored-reference materialization, and
-  parent selection
-- `mutation.hpp`, `crossover.hpp`, `evolve.hpp`: operators and orchestration
-- `repro/`: reproduction backend contracts, preprocess/pack schema, and GPU reproduction backend entrypoints
-
-### `cpp/src/runtime/cpu/`
-- `builtins_cpu.cpp`: builtin implementation
-- `execute_bytecode_cpu.cpp`: bytecode execution
-- `fitness_cpu.cpp`: CPU fitness accumulation
-
-### `cpp/src/runtime/gpu/`
-- `fitness_gpu.cu`: GPU fitness orchestration
-- `host_pack_gpu.cu`: host-side program and case packing
-- `opcode_map_gpu.*`: host opcode-to-device opcode mapping
-- `device/`: CUDA device-side execution, builtin, arithmetic, and kernel entry helpers
-
-### `cpp/src/runtime/payload/`
-- payload registry
-- payload snapshot generation for GPU
-
-### `cpp/src/evolution/`
-- `ast_program.cpp`: canonical AST serialization and cache-key generation
-- `case_set.cpp`: canonical case preparation and exact/mixed type inference
-- `population_init.cpp`: deterministic generation and replay validation
-- `timing.cpp`: evaluation/reproduction timing aggregation
-- `lifecycle.cpp`: payload retention closure and asynchronous GPU reproduction
-  preparation lifecycle
-- `node_descriptor.cpp`: compile-time-complete host `NodeKind` descriptor table; host traversal and builtin lowering consume this metadata
-- `ast_verify.cpp`: trust-boundary structural validation for prefix placement, indices, public constant tags, side-table ownership, dependency arity, and bounds
-- `ast_type_verify.cpp`: exact language typing for locals, branches, builtins, structured binders, and isolated ASGP phases; it never guesses types from variable names
-- `genome.cpp`: genome metadata construction
-- `grammar_config.cpp`: native grammar config validation and helper predicates
-- `subtree_utils.*`: subtree traversal and rewrite
-- `typed_expr_analysis.*`: typed expression root analysis
-- `compiler.cpp`: AST-to-bytecode compiler
-- `genome_generation.cpp`: random genome generation
-- `selection.cpp`: the single fitness/tie ranking path, owned materialization,
-  and parent selection
-- `mutation.cpp`: mutation operators
-- `crossover.cpp`: typed subtree exchange
-- `repro/`: reproduction backend dispatch, preprocess/pack extraction, `gpu` arena/copyback logic, and sequential/overlap orchestration
-- `evolve.cpp`: backend evaluation adapters and evolution phase orchestration;
-  CPU/GPU results converge before ranking
-
-### `cpp/src/cli/`
-- `evolve_cli.cpp`: thin parse/dispatch/error-reporting entry point
-- `commands.cpp`: shared input loading plus separate AST-evaluation and
-  evolution command workflows/output; fixed-population one-generation runs use
-  `--population-json` and `--skip-final-eval`
-- `json.cpp`: shared JSON parser
-- `codec.cpp`: shared bytecode/value fixture codec
-- `options.cpp`: authoritative parser and defaults for the evolution CLI
-
-These helpers form the linked `g3pvm_cli_support` library. Parser defaults and
-failure behavior are covered independently by `g3pvm_test_cli_options`; the
-command boundary has a deterministic stdout/JSON/error contract in
-`g3pvm_test_evolve_cli_contract`.
-
-### `cpp/src/bench/`
-Benchmark binaries for runtime-focused measurement, built only with
-`G3PVM_BUILD_BENCHMARKS=ON`.
-
-### `cpp/src/experiments/`
-Non-product diagnostic probes, built only with
-`G3PVM_BUILD_EXPERIMENTS=ON` and any required backend (currently CUDA).
-
-### `cpp/tests/`
-- `runtime/`: focused CPU VM, fixture-codec, option-parser, payload-registry, and CLI-harness tests
-- `fixtures/runtime/`: intent-labelled scalar, control-flow, builtin, and typed-value corpus
-- `gpu/`: direct GPU smoke coverage
-- `parity/`: CPU/GPU fitness and evolution parity regression tests
-- `evolution/`: native case/pipeline, evolution, ranking, verifier, variation,
-  and genome tests
-
-Structured source forms have a focused compiler/runtime contract in
-`test_structured_semantics.cpp`. ASGP phase execution has a separate bytecode
-contract in `test_asgp_semantics.cpp`; malformed nesting, side tables, and
-binder isolation are rejected by the focused AST/bytecode verifier targets.
-
-## Tooling And Script Map
-
-### `tools/`
-- `fetch_psb_datasets.py`: download PSB1/PSB2 JSON Lines datasets into `data/psb1_datasets/` or `data/psb2_datasets/`
-- `convert_psb_to_fitness_cases.py`: convert PSB1/PSB2 JSON Lines into `fitness-cases` compatibility fixtures or `fitness-cases` direct-list fixtures with schema hashes and optional field-schema overrides
-
-## Data and Tooling Layout
-
-- `data/fixtures/`: canonical benchmark fixtures
-- `data/psb1_datasets/`: PSB1 dataset mirror used by fetch tooling
-- `data/psb2_datasets/`: PSB2 dataset mirror used by fetch/convert utilities
-- `tools/`: dataset fetch and conversion utilities
-- `logs/`: generated run artifacts, benchmark reports, gate outputs
-- `meeting/`: meeting notes and non-normative discussion artifacts
-
-## What To Update When Code Changes
-
-### AST, grammar, or bytecode changes
-Update:
-- `spec/grammar.md`
-- `spec/bytecode_isa.md`
-- `spec/bytecode_format.md` if the wire format changed
-- this file
-
-### Builtin, type, or payload changes
-Update:
-- `spec/builtins_base.md` or `spec/builtins_runtime.md`
-- `spec/bytecode_isa.md` if opcode behavior changed
-- this file
-
-### Fitness or evolution-arg changes
-Update:
-- `spec/fitness.md`
-- `docs/guides/development.md`
-- `README.md` if the main workflow or key defaults changed
-
-### Repo structure or entrypoint changes
-Update:
-- this file
-- `docs/reference/repository-layout.md`
-- repo skill references under `/home/hschi1106/.codex/skills/g3p-vm-gpu-repo/references/`

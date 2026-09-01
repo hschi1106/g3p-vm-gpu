@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -10,6 +11,10 @@ ROOT = Path(__file__).resolve().parents[2]
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^]]*\]\(([^)]+)\)")
 TABLE_LINK = re.compile(r"^\| \[`[^`]+`\]\(([^)]+)\) \|", re.MULTILINE)
 LAYOUT_PATH = re.compile(r"^\| `([^`]+)` \|", re.MULTILINE)
+JSON_FENCE = re.compile(r"^```(json|jsonl)\s*\n(.*?)^```", re.MULTILINE | re.DOTALL)
+CLI_ROW = re.compile(
+    r"^\| `(--[^`]+)` \| `([^`]+)` \| `([^`]+)` \|", re.MULTILINE
+)
 
 
 def maintained_markdown() -> list[Path]:
@@ -67,6 +72,71 @@ class TestDocumentationStructure(unittest.TestCase):
         self.assertGreater(len(paths), 15)
         missing = [path for path in paths if not (ROOT / path).exists()]
         self.assertEqual([], missing)
+
+    def test_json_and_json_lines_examples_parse(self) -> None:
+        failures: list[str] = []
+        for document in maintained_markdown():
+            text = document.read_text(encoding="utf-8")
+            for index, (kind, body) in enumerate(JSON_FENCE.findall(text), start=1):
+                payloads = [body] if kind == "json" else body.splitlines()
+                for payload in payloads:
+                    if not payload.strip():
+                        continue
+                    try:
+                        json.loads(payload)
+                    except json.JSONDecodeError as error:
+                        failures.append(
+                            f"{document.relative_to(ROOT)} fence {index}: {error}"
+                        )
+        self.assertEqual([], failures, "invalid JSON documentation examples")
+
+    def test_cli_reference_matches_parser_fields_and_defaults(self) -> None:
+        header = (ROOT / "cpp" / "include" / "g3pvm" / "cli" / "options.hpp").read_text(
+            encoding="utf-8"
+        )
+        parser = (ROOT / "cpp" / "src" / "cli" / "options.cpp").read_text(
+            encoding="utf-8"
+        )
+        reference = (ROOT / "docs" / "reference" / "cli.md").read_text(
+            encoding="utf-8"
+        )
+
+        field_defaults: dict[str, str] = {}
+        declaration = re.compile(
+            r"^\s*(?:std::string|bool|int|double|std::uint64_t)\s+"
+            r"([a-z_]+)(?:\s*=\s*([^;]+))?;",
+            re.MULTILINE,
+        )
+        for field, raw_default in declaration.findall(header):
+            if not raw_default:
+                field_defaults[field] = "required" if field == "cases_path" else "unset"
+            elif raw_default == "false":
+                field_defaults[field] = "off"
+            elif raw_default == "true":
+                field_defaults[field] = "on"
+            else:
+                field_defaults[field] = raw_default.strip('"')
+
+        parser_pairs = dict(
+            re.findall(
+                r'(?:if|else if) \(arg == "(--[^"]+)"\) \{\s*'
+                r"opts\.([a-z_]+)\s*=",
+                parser,
+            )
+        )
+        reference_rows = CLI_ROW.findall(reference)
+        self.assertEqual(len(reference_rows), len(set(flag for flag, _, _ in reference_rows)))
+        documented = {flag: (field, default) for flag, field, default in reference_rows}
+        self.assertEqual(set(parser_pairs), set(documented))
+        self.assertEqual(set(parser_pairs.values()), set(field_defaults))
+        for flag, field in parser_pairs.items():
+            self.assertEqual(field, documented[flag][0], flag)
+            self.assertEqual(field_defaults[field], documented[flag][1], flag)
+
+    def test_cmake_presets_cover_release_gates(self) -> None:
+        presets = json.loads((ROOT / "cpp" / "CMakePresets.json").read_text(encoding="utf-8"))
+        names = {preset["name"] for preset in presets["configurePresets"]}
+        self.assertTrue({"debug", "release", "cuda-parity", "sanitizer", "fuzz"} <= names)
 
     def test_experiment_protocol_has_one_maintained_location(self) -> None:
         canonical = ROOT / "docs" / "guides" / "experiment-protocol.md"

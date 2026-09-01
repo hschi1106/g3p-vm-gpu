@@ -1,0 +1,58 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug with CUDA parity",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "G3PVM_ENABLE_CUDA": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Release with CUDA",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "G3PVM_ENABLE_CUDA": "ON"
+      }
+    },
+    {
+      "name": "cuda-parity",
+      "inherits": "debug",
+      "displayName": "Debug CUDA parity gate"
+    },
+    {
+      "name": "sanitizer",
+      "inherits": "base",
+      "displayName": "CPU ASan and UBSan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "G3PVM_ENABLE_CUDA": "OFF",
+        "G3PVM_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "fuzz",
+      "inherits": "base",
+      "displayName": "Clang libFuzzer",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "G3PVM_ENABLE_CUDA": "OFF",
+        "G3PVM_BUILD_FUZZERS": "ON"
+      }
+    }
+  ]
+}

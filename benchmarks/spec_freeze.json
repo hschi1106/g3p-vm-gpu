@@ -3,41 +3,41 @@
   "format_version": "spec-freeze",
   "generated_at": "2026-09-01",
   "notes": [
-    "This manifest records the current normative spec set used by the breaking grammar refactor.",
+    "This manifest records the release 1.0.0 normative spec set after the native grammar refactor.",
     "The hash gate is intentionally mechanical: if a listed spec changes, update this manifest in the same semantic change."
   ],
   "specs": [
     {
       "path": "spec/grammar.md",
-      "sha256": "f4d3bed1c799231a4144ab85020e7c19d6323221e6b750dcefc01db83aa70bb9"
+      "sha256": "0141679ba48aba190944fd0000049f1667c1db2d35c924e2d94d6748f65dbefa"
     },
     {
       "path": "spec/bytecode_isa.md",
-      "sha256": "98cdfdd5f10c8e87fe061cb115c74c799779c962f48e978d99052a0a39dd8373"
+      "sha256": "ea528191bca44a6fd8f54333f61f7dd414ca607a24cc978ddec8d66e571da9c7"
     },
     {
       "path": "spec/bytecode_format.md",
-      "sha256": "adf576e2f253d90a548db70f7e6dfd727b69c36cd0914b2a5a6e6d3dc67a5259"
+      "sha256": "1a9ca3ede88780cb72490511f34e37dede1ac198416ff70973de4cda4e274ccb"
     },
     {
       "path": "spec/builtins_base.md",
-      "sha256": "68b116075863a018b24dbbe8675461a775f700410cdbb6022c01cd695c1a2c36"
+      "sha256": "fed40c96c3ab3b2edaa2d91b1b5b36ae2a1bf4162e77d600d4cfe63227abd5ad"
     },
     {
       "path": "spec/builtins_runtime.md",
-      "sha256": "6795c0cd17c9a5598aa9a078563f861dd143f858a9a98eb2b3e72aa4181ff561"
+      "sha256": "0fc1c545024cb65dc9a8e1c4ffa2b2b2b37f8331a9d51c8f9f5eb65171f37ee3"
     },
     {
       "path": "spec/fitness.md",
-      "sha256": "230569cc95925ebb84f466cd98901874ab00c4f1e78e41873a6e4482c3a21e05"
+      "sha256": "4892a500e1cb57f445428b6c9c60697721cd67dac7aa718587ad5dfc27d642d1"
     },
     {
       "path": "spec/fitness_cases.md",
-      "sha256": "5d9a696d4f95fac22680cb4800d2e0e5597e8f250d27ea87ab00895d1fb8a7c5"
+      "sha256": "f91901a0e51895053b5cf0fa196c75c7cfcf5570db8304bd0a7962c256cbc30c"
     },
     {
       "path": "spec/grammar_config.md",
-      "sha256": "2b6580206dcbf340284c3697165fe406b6feb4c9e6c438cd7883dc431cecdd61"
+      "sha256": "2bac66996a5755d6e228299bff3d9c44eb0c88ba4fa28d47b0957429cd29edd4"
     }
   ],
   "status": "frozen"

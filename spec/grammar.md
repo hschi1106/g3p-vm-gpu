@@ -7,7 +7,7 @@ All programs use prefix `AstProgram` representation. The grammar is statically
 typed for generation, crossover, mutation, compilation, and runtime
 validation.
 
-Related current specifications:
+Related specifications:
 
 - [builtins_base.md](./builtins_base.md)
 - [builtins_runtime.md](./builtins_runtime.md)

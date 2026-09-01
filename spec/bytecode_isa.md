@@ -1,6 +1,6 @@
 # Bytecode ISA
 
-This document defines the current bytecode execution contract shared by the
+This document defines the release 1.0.0 bytecode execution contract shared by the
 compiler, CPU runtime, and GPU runtime.
 
 Semantics must conform to:
@@ -9,21 +9,21 @@ Semantics must conform to:
 - [builtins_base.md](./builtins_base.md)
 - [builtins_runtime.md](./builtins_runtime.md)
 
-The current JSON representation is defined by
+The `bytecode-json` representation is defined by
 [bytecode_format.md](./bytecode_format.md).
 
 ## Compatibility
 
-Current is a breaking bytecode contract.
+Release 1.0.0 is a breaking bytecode contract relative to legacy artifacts.
 
 - Old serialized values containing `None` are invalid.
 - Old serialized values containing `NumList` are invalid.
-- Old AST programs using `ast-prefix-old` are invalid as public current AST
+- Old AST programs using `ast-prefix-old` are invalid as public `ast-prefix`
   inputs.
-- Current uses exact `Int`, `Float`, `Bool`, `Char`, `String`, `IntList`,
+- Release 1.0.0 uses exact `Int`, `Float`, `Bool`, `Char`, `String`, `IntList`,
   `FloatList`, and `StringList` value tags.
 
-Implementations may keep private migration tooling, but current runtime entrypoints
+Implementations may keep private migration tooling, but native runtime entrypoints
 must not silently reinterpret old public values.
 
 ## Execution State
@@ -69,9 +69,8 @@ The baseline public opcode set remains:
 - `CALL_BUILTIN`
 - `RETURN`
 
-Current source forms may be lowered into this opcode set plus hidden locals and
-bytecode segments. Implementations may add private optimized opcodes, but
-public behavior must be equivalent to this contract.
+Only this public opcode set is portable between bytecode consumers. Source
+forms may be lowered into it plus hidden locals and bytecode segments.
 
 Current native private helper opcodes for structured-expression lowering are:
 
@@ -83,9 +82,10 @@ Current native private helper opcodes for structured-expression lowering are:
 - `ASGP_DP1D`
 - `ASGP_DP2D`
 
-These helpers are implementation details. Serialized public current bytecode must
-not require consumers to support them unless that consumer explicitly advertises
-the same private execution profile.
+These helpers belong to the native g3pvm private execution profile. The native
+`bytecode-json` codec and verifier accept them with their required segment and
+metadata checks, but another consumer may reject them. No private helper opcode
+adds source-language behavior beyond the public grammar contract.
 
 ## Fuel and Errors
 
@@ -139,7 +139,7 @@ used as an implicit conversion mechanism.
 
 ## Builtin IDs
 
-The current builtin id mapping is normative for bytecode serialization.
+The builtin ID mapping below is normative for release 1.0.0 bytecode serialization.
 
 ```text
 0   abs

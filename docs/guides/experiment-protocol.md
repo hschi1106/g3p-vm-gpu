@@ -250,7 +250,7 @@ Case subsets 必須是同一個 1024-case fixture 的 deterministic prefixes，�
 
 ### E3：Program complexity and payload study（建議必做）
 
-使用 current AST 重新建立 controlled populations；舊 `data/exp/*` 中的 `ast-prefix-old` artifacts 不直接當正式資料。
+使用 `ast-prefix` AST 重新建立 controlled populations；舊 `data/exp/*` 中的 `ast-prefix-old` artifacts 不直接當正式資料。
 
 Modes：cpu、gpu_eval、gpu_repro、gpu_repro_overlap。
 
@@ -448,7 +448,8 @@ Current CUDA compiler: 12.2
 cmake -S cpp -B cpp/build_release -DCMAKE_BUILD_TYPE=Release
 cmake --build cpp/build_release -j
 
-PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 ctest --test-dir cpp/build_release --output-on-failure
 ```
 
@@ -540,7 +541,7 @@ logs/experiment/<study_id>/<commit>/<hardware_id>/<mode>/<problem>/<seed_or_repe
 2. evolution loop 目前不 early-stop。可維持 fixed full budget，但需保存 first-solved event；若實作 early-stop，所有 mode 必須同時使用相同規則。
 3. PSB converter 需保證 train/test random rows 跨 split 不重複，manifest 必須驗證 overlap=0。
 4. regression runner 應明確轉送並記錄 `--penalty` 與所有 `--max-*` limits，不能只依賴 CLI defaults。
-5. controlled depth/node populations 必須以 current AST/grammar 重新 materialize 並通過 replay check。
+5. controlled depth/node populations 必須以 `ast-prefix` AST 與凍結的 grammar config 重新 materialize 並通過 replay check。
 6. 若論文主張相對於一般 CPU 的 speedup，需新增可重現的 CPU-multicore baseline；否則全文固定標示 CPU-1T。
 7. 正式 run 前凍結 commit、Release binary SHA-256、dataset/config hashes 與 analysis script。
 

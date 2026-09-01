@@ -1,7 +1,7 @@
 # Grammar Config
 
 This document defines the `grammar-config` JSON format for controlling the
-current evolution search space.
+release 1.0.0 evolution search space.
 
 See also:
 
@@ -29,7 +29,7 @@ Grammar config does not affect:
 - CPU/GPU fitness semantics
 - the runtime type of an already materialized value
 
-The runtime must support the full current language regardless of which values or
+The runtime must support the full release 1.0.0 language regardless of which values or
 constructs are disabled by the active config.
 
 ## Format
@@ -216,18 +216,18 @@ Rules:
 Runtime overflow of ASGP frames, memo tables, or payload materialization must
 be deterministic.
 
-## current Full Profile
+## Native Full Profile
 
-`full` enables all current source forms subject to resource limits.
+`full` enables all release 1.0.0 source forms subject to resource limits.
 
 It is used to evaluate whether the new grammar improves solution quality or
 expressiveness. It is not the fair compatibility comparison against baseline.
 
-## current Compatibility Profile
+## Native Compatibility Profile
 
 `compat` is the fair comparison profile against the old implementation.
 
-It must be derived from an old `grammar-config` file and a current fixture
+It must be derived from a legacy `grammar-config` file and a `fitness-cases` fixture
 schema, not manually approximated.
 
 ### Compatibility Metadata
@@ -251,10 +251,10 @@ The generated config must include:
 
 Use a conservative one-way mapping:
 
-- old enabled statements map to equivalent current statements.
-- old enabled expressions map to equivalent current expressions.
-- old enabled builtins map to equivalent current builtins.
-- old `StringList` maps to current `StringList`.
+- legacy enabled statements map to equivalent release 1.0.0 statements.
+- legacy enabled expressions map to equivalent release 1.0.0 expressions.
+- legacy enabled builtins map to equivalent release 1.0.0 builtins.
+- legacy `StringList` maps to release 1.0.0 `StringList`.
 - old `NumList` maps through the problem fixture schema:
   - all-int fields map to `IntList`
   - all-float fields map to `FloatList`
@@ -265,7 +265,7 @@ Use a conservative one-way mapping:
   character traversal.
 - `MapList`, `FilterList`, `LinearRec`, `AsgpDC`, `AsgpDP1D`, and `AsgpDP2D`
   default to disabled.
-- current-only builtins default to disabled unless required to preserve an old
+- release-only builtins default to disabled unless required to preserve a legacy
   operation exactly.
 - grammar config must not reinterpret an already materialized runtime value.
 
@@ -275,7 +275,7 @@ Every `compat` run must record:
 
 - base config path
 - base config hash
-- generated current config hash
+- generated native config hash
 - fixture schema hash
 - CLI args
 - git commit
@@ -291,5 +291,5 @@ Config tooling must test:
 - `none` and `num_list` keys are rejected.
 - `compat` translation is deterministic.
 - translated configs preserve old enabled constructs where possible.
-- translated configs disable current-only constructs by default.
-- CPU and GPU reproduction both respect non-default current configs.
+- translated configs disable release-only constructs by default.
+- CPU and GPU reproduction both respect non-default native configs.

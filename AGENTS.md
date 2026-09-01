@@ -20,7 +20,7 @@
   - `fitness.md`
   - `fitness_cases.md`
   - `grammar_config.md`
-  Treat these files as the current behavioral source of truth. Historical spec
+  Treat these files as the release 1.0.0 behavioral source of truth. Historical spec
   files are not kept in-tree after the breaking refactor. Release details are
   recorded only in `VERSION.md`.
 - Maintained documentation is indexed by `docs/README.md` and grouped by

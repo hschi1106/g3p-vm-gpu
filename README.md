@@ -1,180 +1,106 @@
 # g3p-vm-gpu
 
-Prefix-AST genetic programming system with:
-- a C++ CPU execution and evolution backend,
-- a C++ CUDA GPU fitness backend.
+Native prefix-AST genetic programming with CPU execution/evolution and CUDA
+fitness/reproduction backends. The former Python semantic implementation has
+been retired; Python remains only in the independent operational tool package.
 
-## What Is Stable
+## Supported backends
 
-The current public contract is:
-- program representation: prefix `AstProgram`
-- control flow grammar: `ForRange(x, e, body)` with evaluate-once non-negative integer bounds
-- fixture schema: `fitness-cases`
-- crossover: `typed_subtree`
-- reproduction order: selected parent pairs always attempt `typed_subtree` crossover before child-level mutation
-- default reproduction backend: `cpu`
-- default selection: round-based tournament only, controlled by `selection_pressure`
-- mutation: one public mutation path, internal mix controlled by `mutation_subtree_prob`
-- fitness:
-  - numeric expected + numeric actual => `-abs(actual - expected)`
-  - numeric expected + non-numeric actual => `-penalty`
-  - `Bool` / `Char` / `String` / `IntList` / `FloatList` / `StringList` => exact match `1`, same-type mismatch `0`, type mismatch `-penalty`
-  - runtime error => `-penalty`
+| Area | CPU | CUDA GPU |
+| --- | --- | --- |
+| Bytecode execution / fitness | Supported | Supported within documented device payload limits |
+| Population evaluation | Supported | Supported |
+| Reproduction | Supported | Supported, with optional preparation/evaluation overlap |
+| AST evaluation command | Supported | CPU command path only |
 
-## Document Map
+Public language, bytecode, builtin, fitness, fixture, and grammar-config
+contracts are indexed in [`spec/README.md`](spec/README.md). Implementation and
+workflow documents must link to those specifications instead of redefining
+their semantics.
 
-- [Specifications](spec/README.md) own normative language, bytecode, builtin,
-  fitness, fixture, and grammar-config behavior.
-- [Documentation](docs/README.md) indexes design explanations, development and
-  experiment guides, checked references, and refactor evidence.
-- [Operational tools](tools/README.md) documents dataset, experiment, and report
-  commands plus their artifact policy.
-- [Benchmark manifests](benchmarks/README.md) explains committed performance and
-  quality evidence.
-- [Contributor guidance](AGENTS.md) records repo-local working constraints.
-- [Release history](VERSION.md) records compatibility and release changes.
+## Five-minute start
 
-## Repository Layout
-
-- `cpp/include/g3pvm/`: public C++ headers
-- `cpp/src/runtime/`: CPU runtime, GPU fitness runtime, payload support
-- `cpp/src/evolution/`: genome analysis, compiler, mutation, crossover, evolution loop
-- `cpp/src/evolution/repro/`: reproduction backends, preprocess/pack, GPU reproduction backend
-- `cpp/src/cli/`: `evolve_cli` and shared CLI helpers
-- `cpp/src/bench/`: benchmark binaries
-- `cpp/tests/`: native runtime, GPU smoke, parity, and evolution tests
-- `configs/grammar/`: checked-in evolution grammar config presets
-- `data/fixtures/`: canonical benchmark and evolution fixtures
-- `data/psb1_datasets/`: mirrored PSB1 datasets
-- `data/psb2_datasets/`: mirrored PSB2 datasets
-- `tools/`: PSB dataset fetch/conversion utilities
-- `meeting/`: meeting notes and discussion artifacts
-
-## Quick Start
-
-### Build
+Build and run every configured test:
 
 ```bash
 cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build cpp/build -j
-```
-
-### Test
-
-```bash
-python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
-python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
 ctest --test-dir cpp/build --output-on-failure
 ```
 
-### Full local check
-
-```bash
-python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
-python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
-cmake --build cpp/build -j4
-ctest --test-dir cpp/build --output-on-failure
-```
-
-## Main Entrypoints
-
-### Run one evolution job
+Run a small GPU evolution job:
 
 ```bash
 cpp/build/g3pvm_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
-  --engine gpu \
-  --repro-backend gpu \
-  --repro-overlap on \
-  --blocksize 1024 \
-  --population-size 1024 \
-  --generations 20 \
-  --out-json logs/simple_exp_1024.run.json
-```
-
-To restrict the evolution search space, pass a checked-in grammar config. The config affects generation and reproduction donor synthesis, not runtime execution of already-materialized programs:
-
-```bash
-cpp/build/g3pvm_evolve_cli \
-  --cases data/fixtures/simple_exp_1024.json \
-  --grammar-config configs/grammar/scalar.json \
   --engine gpu \
   --repro-backend gpu \
   --repro-overlap on \
   --population-size 64 \
-  --generations 5 \
-  --out-json logs/simple_exp_1024.scalar.json
+  --generations 2 \
+  --out-json logs/simple_exp_1024.run.json
 ```
 
-CPU and GPU reproduction both respect non-default grammar configs. GPU reproduction applies the config during host-side preprocess by filtering typed candidates and building config-aware donor buckets.
+The runtime selects the least-used visible CUDA device. Set
+`G3PVM_CUDA_DEVICE=0` to force a visible-device index.
 
-### Run one fixed-population benchmark
+## Operational tools
 
-Use one prepared `population-seeds` file and run one generation per mode:
+Install the standard-library tool package in a virtual environment:
 
 ```bash
-cpp/build/g3pvm_evolve_cli \
-  --cases data/fixtures/simple_exp_1024.json \
-  --population-json logs/fixed_population.seeds.json \
-  --engine gpu \
-  --repro-backend gpu \
-  --repro-overlap off \
-  --blocksize 1024 \
-  --generations 1 \
-  --skip-final-eval on \
-  --timing all \
-  --out-json logs/fixed_population.run.json
+python3 -m venv .venv-tools
+.venv-tools/bin/pip install -e tools
+.venv-tools/bin/g3pvm-tools --help
 ```
 
-For fair comparisons, reuse the same `population-seeds` input across `cpu`, `gpu_eval`,
-`gpu_repro`, and `gpu_repro_overlap` runs, then compare generation-0 timing fields.
+Compatibility wrapper scripts remain available during the command migration.
+The complete fetch → convert/materialize → run → compare → manifest flow is in
+[`tools/README.md`](tools/README.md).
 
-### Convert PSB1/PSB2 tasks into fitness cases
+## Common workflows
+
+- [Development](docs/guides/development.md): builds, named configurations,
+  tests, sanitizers/fuzzing, GPU policy, and CLI entry points
+- [Native CLI reference](docs/reference/cli.md): mechanically checked flags and
+  defaults
+- [Benchmarking](docs/guides/benchmarking.md): reproducible fixed-population
+  CPU/GPU comparisons
+- [PSB workflow](docs/guides/psb-workflow.md): datasets, fixture materialization,
+  regression runs, comparisons, and manifests
+- [Experiment protocol](docs/guides/experiment-protocol.md): formal performance
+  and effectiveness controls
+- [Grammar config guide](docs/guides/grammar-config.md): selecting and deriving
+  evolution search spaces
+
+Repository and tool checks can also be run directly:
 
 ```bash
-python3 tools/convert_psb_to_fitness_cases.py \
-  --suite psb1 \
-  --format-version fitness-cases \
-  --problem count-odds \
-  --datasets-root data/psb1_datasets \
-  --out data/fixtures/psb1/count-odds.train.json \
-  --out-test data/fixtures/psb1/count-odds.test.json
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
 ```
 
-```bash
-python3 tools/convert_psb_to_fitness_cases.py \
-  --suite psb2 \
-  --format-version fitness-cases \
-  --problem bouncing-balls \
-  --datasets-root data/psb2_datasets \
-  --out logs/psb2/bouncing-balls.train.json
-```
+They require no product/runtime Python package and no `PYTHONPATH`.
 
-The converters emit `fitness-cases` direct-list values by default in current
-workflows. Use `--format-version fitness-cases` only for baseline
-compatibility runs.
-Multi-output PSB rows are rejected until runtime-level multi-output support is added; they are not encoded as fake list outputs.
+## Documentation ownership
 
-### Fetch PSB1 datasets
+- [`docs/README.md`](docs/README.md): design, guide, reference, and refactor
+  document ownership
+- [`spec/README.md`](spec/README.md): normative contracts
+- [`benchmarks/README.md`](benchmarks/README.md): committed validation evidence
+- [`tools/README.md`](tools/README.md): operational command/artifact lifecycle
+- [`AGENTS.md`](AGENTS.md): contributor constraints
+- [`VERSION.md`](VERSION.md): release and compatibility history
 
-```bash
-python3 tools/fetch_psb_datasets.py --suite psb1 --out-dir data/psb1_datasets
-```
+The checked stable directory map is
+[`docs/reference/repository-layout.md`](docs/reference/repository-layout.md).
 
-## GPU Commands
+## Change discipline
 
-GPU-capable C++ paths select the least-used visible CUDA device internally.
-To force a specific visible-device index, set:
+Update an owning spec and its conformance tests with semantic changes. Update
+the CLI reference and command contracts with parser/output changes. Update the
+documentation index, checked repository layout, and external repository skill
+references with file moves. Keep compact validation evidence in `benchmarks/`;
+keep generated datasets, populations, profiler captures, and raw logs out of
+version control.
 
-```bash
-G3PVM_CUDA_DEVICE=0
-```
-
-## Change Discipline
-
-If you change code, update the matching documents in the same change:
-- language or AST semantics => `spec/grammar.md` and `spec/bytecode_isa.md`
-- builtin or payload semantics => `spec/builtins_base.md` or `spec/builtins_runtime.md`
-- fitness semantics => `spec/fitness.md`; adjustable CLI arguments => `docs/guides/development.md`
-- public CLI/tool arguments => `docs/guides/development.md` or `tools/README.md`
-- repo structure or module ownership => `docs/design/architecture.md` and `docs/reference/repository-layout.md`

@@ -141,18 +141,23 @@ if(G3PVM_HAS_CUDA)
   )
   target_link_libraries(g3pvm_test_vm_gpu_smoke PRIVATE g3pvm_gpu)
   add_test(NAME g3pvm_test_vm_gpu_smoke COMMAND g3pvm_test_vm_gpu_smoke)
+  set_tests_properties(g3pvm_test_vm_gpu_smoke PROPERTIES LABELS "gpu")
 
   add_executable(g3pvm_test_fitness_cpu_gpu_parity
     tests/parity/test_fitness_cpu_gpu_parity.cpp
   )
   target_link_libraries(g3pvm_test_fitness_cpu_gpu_parity PRIVATE g3pvm_cpu g3pvm_gpu)
   add_test(NAME g3pvm_test_fitness_cpu_gpu_parity COMMAND g3pvm_test_fitness_cpu_gpu_parity)
+  set_tests_properties(g3pvm_test_fitness_cpu_gpu_parity
+    PROPERTIES LABELS "gpu;cpu_gpu_parity")
 
   add_executable(g3pvm_test_evolution_cpu_gpu_parity
     tests/parity/test_evolution_cpu_gpu_parity.cpp
   )
   target_link_libraries(g3pvm_test_evolution_cpu_gpu_parity PRIVATE g3pvm_cpu g3pvm_gpu)
   add_test(NAME g3pvm_test_evolution_cpu_gpu_parity COMMAND g3pvm_test_evolution_cpu_gpu_parity)
+  set_tests_properties(g3pvm_test_evolution_cpu_gpu_parity
+    PROPERTIES LABELS "gpu;cpu_gpu_parity")
 
   if(G3PVM_BUILD_EXPERIMENTS)
     add_executable(g3pvm_simple_exp_population_probe
@@ -324,6 +329,7 @@ add_executable(g3pvm_test_evolve
 )
 target_link_libraries(g3pvm_test_evolve PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_evolve COMMAND g3pvm_test_evolve)
+set_tests_properties(g3pvm_test_evolve PROPERTIES LABELS "unit")
 
 add_executable(g3pvm_test_evolution_pipeline
   tests/evolution/test_evolution_pipeline.cpp
@@ -338,3 +344,14 @@ add_executable(g3pvm_test_repro_prep
 target_link_libraries(g3pvm_test_repro_prep PRIVATE g3pvm_cpu)
 add_test(NAME g3pvm_test_repro_prep COMMAND g3pvm_test_repro_prep)
 set_tests_properties(g3pvm_test_repro_prep PROPERTIES LABELS "property")
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(
+    NAME g3pvm_test_repository_contract
+    COMMAND ${Python3_EXECUTABLE} -m unittest discover -s tests/repository -p test_*.py -v
+  )
+  set_tests_properties(g3pvm_test_repository_contract PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+    LABELS "tooling;contract")
+endif()

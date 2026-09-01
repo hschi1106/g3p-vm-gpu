@@ -1,6 +1,6 @@
 # Builtins Base
 
-This document defines the current scalar, character, and conversion builtin
+This document defines the release 1.0.0 scalar, character, and conversion builtin
 whitelist.
 
 Semantics must remain consistent across the C++ CPU and CUDA GPU runtimes.

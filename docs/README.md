@@ -21,6 +21,7 @@ contract as a second source of truth.
 | [`guides/grammar-config.md`](guides/grammar-config.md) | Operational grammar-config use and replay |
 | [`guides/experiment-protocol.md`](guides/experiment-protocol.md) | Canonical experiment protocol and reporting constraints |
 | [`reference/timing.md`](reference/timing.md) | Timing field names, scopes, and output mapping |
+| [`reference/cli.md`](reference/cli.md) | Mechanically checked native CLI flags and defaults |
 | [`reference/tooling.md`](reference/tooling.md) | Maintained tool and auxiliary executable ownership |
 | [`reference/repository-layout.md`](reference/repository-layout.md) | Mechanically checked stable repository paths and roles |
 | [`refactor/README.md`](refactor/README.md) | Evidence retained for the Python-retirement/native-verifier refactor |
@@ -39,7 +40,7 @@ compatibility history. Those files link here rather than duplicating this map.
 - Put commands and reproducible procedures in `guides/` or the owning
   subsystem README.
 - Put generated or mechanically checked names and layouts in `reference/`.
-- Keep refactor evidence historical; do not turn it into current architecture
+- Keep refactor evidence historical; do not turn it into active architecture
   documentation.
 - Run the repository documentation checks after moving or linking files:
 

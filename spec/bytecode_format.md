@@ -1,6 +1,6 @@
 # Bytecode Format
 
-This document defines the current JSON wire format used by bytecode parity tooling,
+This document defines the release 1.0.0 JSON wire formats used by bytecode parity tooling,
 runtime harnesses, and fixture-driven tests.
 
 See also:
@@ -14,11 +14,11 @@ See also:
 - fixture payload: `bytecode-fixture`
 - AST payload: `ast-prefix`
 
-Old format strings are not valid current payloads.
+Old format strings are not valid release 1.0.0 payloads.
 
 ## Harness Request Schema
 
-```json
+```jsonc
 {
   "format_version": "bytecode-json",
   "engine": "cpu",
@@ -51,7 +51,7 @@ Fields:
 
 Supported values:
 
-```json
+```jsonl
 {"type": "bool", "value": true}
 {"type": "int", "value": 123}
 {"type": "float", "value": 1.5}
@@ -82,7 +82,7 @@ Rules:
 Instruction objects use opcode names from
 [bytecode_isa.md](./bytecode_isa.md):
 
-```json
+```jsonl
 {"op": "PUSH_CONST", "a": 0, "b": 0}
 {"op": "CALL_BUILTIN", "a": 7, "b": 2}
 ```
@@ -101,7 +101,7 @@ zero.
 
 ## Bytecode Program Encoding
 
-```json
+```jsonc
 {
   "n_locals": 4,
   "consts": [Value],
@@ -128,7 +128,7 @@ Optional fields:
 
 Segment encoding:
 
-```json
+```jsonc
 {
   "n_locals": 3,
   "consts": [Value],
@@ -149,7 +149,7 @@ segment code.
 The implementation-defined ASGP segment payloads are encoded under
 `segments`:
 
-```json
+```jsonc
 {
   "segments": {
     "asgp_dc": [
@@ -246,7 +246,7 @@ ASGP-DP segment arity constraints:
 
 Public AST encoding uses:
 
-```json
+```jsonc
 {
   "version": "ast-prefix",
   "nodes": [AstNode],
@@ -265,7 +265,7 @@ Node encoding:
 {"kind": 0, "i0": 0, "i1": 0}
 ```
 
-`kind` is the current numeric `NodeKind` value written by the native AST
+`kind` is the numeric `NodeKind` value written by the native AST
 serializer. `i0` and `i1` are required integers. The native verifier rejects
 unknown kinds and invalid uses of the index fields before compilation.
 
@@ -300,7 +300,7 @@ and type verifier before building genome metadata or compiling.
 
 `DpBounds1D`:
 
-```json
+```jsonc
 {
   "kind": "dp_bounds_1d",
   "lo": 0,
@@ -313,7 +313,7 @@ and type verifier before building genome metadata or compiling.
 
 `DpBounds2D`:
 
-```json
+```jsonc
 {
   "kind": "dp_bounds_2d",
   "i_lo": 0,
@@ -331,7 +331,7 @@ The `boundary_value` type must equal the ASGP-DP result type.
 
 ## Fixture Schema
 
-```json
+```jsonc
 {
   "format_version": "bytecode-fixture",
   "fuel": 20000,

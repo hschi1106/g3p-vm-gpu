@@ -349,7 +349,7 @@ std::vector<int> require_int_array_field_local(const JsonValue& raw,
   return out;
 }
 
-g3pvm::evo::AstProgram decode_ast_json(const JsonValue& raw) {
+g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("AST JSON must be an object");
   }
@@ -970,6 +970,10 @@ g3pvm::evo::EvolutionConfig make_evolution_config(
 }
 
 }  // namespace
+
+g3pvm::evo::AstProgram g3pvm::cli_detail::decode_ast_json(const JsonValue& raw) {
+  return decode_ast_json_impl(raw);
+}
 
 int g3pvm::cli_detail::run_eval_ast_command(const CliOptions& args) {
       const LoadedCommandInputs inputs = load_command_inputs(args);

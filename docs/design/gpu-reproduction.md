@@ -54,7 +54,7 @@ It then computes the preprocessing data needed by device kernels:
 - typed crossover candidate ranges
 - typed donor pool entries, bucketed by result type for subtree mutation
 
-If `--grammar-config PATH` is active, this preprocessing stage filters typed candidate ranges to grammar-allowed subtrees and builds the donor pool with the selected `grammar-config` search-space controls. Checked-in `grammar-config` presets remain accepted as compatibility input and are translated before use. Generated `compact` configs with legacy `num_list_mode=both` also seed exact numeric-list fixture inputs as `Any` for search-space compatibility. Runtime execution remains the full public grammar superset with exact current fixture values; the config only controls search-space generation.
+If `--grammar-config PATH` is active, this preprocessing stage filters typed candidate ranges to grammar-allowed subtrees and builds the donor pool with the selected `grammar-config` search-space controls. Checked-in `grammar-config` presets remain accepted as compatibility input and are translated before use. Generated `compact` configs with legacy `num_list_mode=both` also seed exact numeric-list fixture inputs as `Any` for search-space compatibility. Runtime execution remains the full public grammar superset with exact fixture values; the config only controls search-space generation.
 
 When ASGP forms are enabled by the grammar config, donor preprocessing may
 synthesize conservative ASGP donors. ASGP-DC donors may appear in the `Int`,
@@ -125,7 +125,7 @@ Selection preserves the same high-level tournament semantics as the CPU path:
 
 The GPU kernel still emits one mating pair per thread, but its per-round permutation is an internal device implementation detail rather than a shared host/device plan. CPU and GPU are not required to use identical RNG streams or identical within-round permutations as long as they preserve the same public tournament contract.
 
-Selection also chooses a typed crossover site pair for each mating pair by scanning the bounded candidate tables for parent A and parent B, finding a compatible current typed-subtree key, and picking one candidate with that key from each parent. The packed key includes result type, visible scope signature, binder/scheme identity, ASGP phase identity, and ASGP-DP dependency arity so device-side crossover does not exchange same-result-type roots from incompatible lexical or phase contexts.
+Selection also chooses a typed crossover site pair for each mating pair by scanning the bounded candidate tables for parent A and parent B, finding a compatible typed-subtree key, and picking one candidate with that key from each parent. The packed key includes result type, visible scope signature, binder/scheme identity, ASGP phase identity, and ASGP-DP dependency arity so device-side crossover does not exchange same-result-type roots from incompatible lexical or phase contexts.
 
 Variation then applies the same high-level order as the CPU backend:
 
@@ -149,7 +149,7 @@ Variation produces packed child buffers plus child metadata such as:
 - builtin usage marker
 - validity bit
 
-The device-side child metadata parser understands the current structured-expression node set (`BoundVar`, `MapList`, `FilterList`, `LinearRec`, ASGP-DC, ASGP-DP1D, and ASGP-DP2D) so valid structured children are not rejected solely because they contain current structured forms.
+The device-side child metadata parser understands the release 1.0.0 structured-expression node set (`BoundVar`, `MapList`, `FilterList`, `LinearRec`, ASGP-DC, ASGP-DP1D, and ASGP-DP2D) so valid structured children are not rejected solely because they contain structured forms.
 
 These kernels are reported as:
 

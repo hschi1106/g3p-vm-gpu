@@ -1,6 +1,6 @@
 # Fitness Cases
 
-This document defines the `fitness-cases` fixture schema used by current
+This document defines the `fitness-cases` fixture schema used by release 1.0.0
 evolution, parity tests, PSB conversion, and benchmark entrypoints.
 
 See also:
@@ -60,7 +60,7 @@ When `schema` is present, every case must conform exactly to it.
 
 Supported values:
 
-```json
+```jsonl
 {"type": "bool", "value": true}
 {"type": "int", "value": 123}
 {"type": "float", "value": 1.5}
@@ -86,7 +86,7 @@ Rules:
 - `string_list.value` must be an array of JSON strings.
 - empty lists are valid because the direct list tag is explicit.
 
-Invalid current value tags:
+Invalid release 1.0.0 value tags:
 
 - `none`
 - `num_list`
@@ -117,7 +117,7 @@ config enables it.
 
 ## Old Fixture Migration
 
-Public `None` has no current representation.
+Public `None` has no release 1.0.0 representation.
 
 Old `num_list` migration requires an explicit destination tag:
 

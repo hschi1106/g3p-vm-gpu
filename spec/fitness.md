@@ -1,6 +1,6 @@
 # Fitness
 
-This document defines current scoring rules used by evolution and benchmark
+This document defines release 1.0.0 scoring rules used by evolution and benchmark
 entrypoints.
 
 Current preserves the old scoring shape, removes public `None`, removes public

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "g3pvm/cli/codec.hpp"
+#include "g3pvm/cli/commands.hpp"
 #include "g3pvm/cli/json.hpp"
 #include "g3pvm/core/value.hpp"
 #include "g3pvm/evolution/ast_verify.hpp"
@@ -31,6 +32,24 @@ void fuzz_bytecode_json(const std::uint8_t* data, std::size_t size) noexcept {
 
 void fuzz_ast_verify(const std::uint8_t* data, std::size_t size) noexcept {
   try {
+    std::string text;
+    if (size > 0) {
+      text.assign(reinterpret_cast<const char*>(data), size);
+    }
+    try {
+      const g3pvm::cli_detail::JsonValue root =
+          g3pvm::cli_detail::JsonParser(text).parse();
+      if (root.kind == g3pvm::cli_detail::JsonValue::Kind::Object &&
+          root.object_v.find("nodes") != root.object_v.end()) {
+        const g3pvm::evo::AstProgram decoded =
+            g3pvm::cli_detail::decode_ast_json(root);
+        (void)g3pvm::evo::verify_ast_structure(decoded);
+        (void)g3pvm::evo::verify_ast(decoded, {});
+      }
+    } catch (...) {
+      // Continue into the mutation-oriented raw prefix-node path below.
+    }
+
     auto byte_at = [&](std::size_t index) -> std::uint8_t {
       return index < size ? data[index] : 0U;
     };

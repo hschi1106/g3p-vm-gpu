@@ -18,8 +18,17 @@ class TestSpecFreeze(unittest.TestCase):
 
         paths = [entry["path"] for entry in manifest["specs"]]
         self.assertEqual(len(paths), len(set(paths)))
-        self.assertIn("spec/grammar.md", paths)
-        self.assertIn("spec/grammar.md", paths)
+        expected = {
+            "spec/grammar.md",
+            "spec/bytecode_isa.md",
+            "spec/bytecode_format.md",
+            "spec/builtins_base.md",
+            "spec/builtins_runtime.md",
+            "spec/fitness.md",
+            "spec/fitness_cases.md",
+            "spec/grammar_config.md",
+        }
+        self.assertEqual(expected, set(paths))
 
         for entry in manifest["specs"]:
             spec_path = ROOT / entry["path"]

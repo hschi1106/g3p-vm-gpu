@@ -65,7 +65,7 @@ int main() {
         "--penalty", "2.5", "--selection-pressure", "4", "--seed", "42",
         "--fuel", "500", "--max-expr-depth", "8", "--max-stmts-per-block", "7",
         "--max-total-nodes", "100", "--max-for-k", "12", "--max-call-args", "5",
-        "--show-program", "best", "--timing", "all", "--out-json", "run.json"});
+        "--show-program", "both", "--timing", "all", "--out-json", "run.json"});
     assert(opts.population_json == "population.json");
     assert(opts.grammar_config_path == "grammar.json");
     assert(opts.eval_ast_json == "ast.json");
@@ -77,7 +77,7 @@ int main() {
     assert(opts.penalty == 2.5 && opts.selection_pressure == 4 && opts.seed == 42);
     assert(opts.fuel == 500 && opts.max_expr_depth == 8 && opts.max_stmts_per_block == 7);
     assert(opts.max_total_nodes == 100 && opts.max_for_k == 12 && opts.max_call_args == 5);
-    assert(opts.show_program == "best" && opts.timing == "all" && opts.out_json == "run.json");
+    assert(opts.show_program == "both" && opts.timing == "all" && opts.out_json == "run.json");
   }
 
   expect_error({"cli"}, "--cases is required");
@@ -98,6 +98,8 @@ int main() {
   expect_error({"cli", "--cases", "x", "--mutation-subtree-prob", "1.1"},
                "--mutation-subtree-prob must be in [0, 1]");
   expect_error({"cli", "--cases", "x", "--penalty", "-1"}, "--penalty must be >= 0");
+  expect_error({"cli", "--cases", "x", "--show-program", "best"},
+               "--show-program must be one of: none|ast|bytecode|both");
   expect_error({"cli", "--cases", "x", "--timing", "verbose"},
                "--timing must be one of: none|summary|per_gen|all");
 }

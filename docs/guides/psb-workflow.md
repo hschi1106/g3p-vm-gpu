@@ -26,8 +26,8 @@ Unified dataset-conversion args:
 - `--datasets-root PATH`: optional dataset root; default depends on `--suite`
 - `--edge-file PATH`: explicit edge JSONL file; use with `--random-file` instead of `--problem`
 - `--random-file PATH`: explicit random JSONL file
-- `--format-version fitness-cases|fitness-cases`: fixture schema to emit; default remains `fitness-cases` for baseline compatibility
-- `--schema-json PATH`: optional field schema overrides, required for ambiguous current empty-list fields or explicit mixed numeric-list normalization
+- `--format-version fitness-cases`: fixture schema to emit; this is the only supported value
+- `--schema-json PATH`: optional field schema overrides, required for ambiguous empty-list fields or explicit mixed numeric-list normalization
 - `--n-train N`: number of training rows to emit
 - `--n-test N`: number of test rows to emit
 - `--seed N`: sampling seed
@@ -36,11 +36,10 @@ Unified dataset-conversion args:
 - `--summary-json PATH`: optional conversion summary JSON path
 
 Conversion behavior:
-- `fitness-cases` mode emits legacy `num_list` or `string_list` values for compatibility baselines
-- `fitness-cases` mode emits direct `int_list`, `float_list`, or `string_list` values and records a deterministic schema hash
+- `fitness-cases` emits direct `int_list`, `float_list`, or `string_list` values and records a deterministic schema hash
 - empty list values use the inferred column schema when a non-empty value exists, otherwise require `--schema-json`
 - mixed numeric/string list columns are rejected
-- mixed `Int` / `Float` list columns are rejected in current unless `--schema-json` explicitly normalizes the field, for example to `float_list`
+- mixed `Int` / `Float` list columns are rejected unless `--schema-json` explicitly normalizes the field, for example to `float_list`
 - multi-output PSB rows are rejected for now and are not encoded as list values
 
 ### `tools/materialize_psb_fixtures.py`
@@ -52,7 +51,7 @@ schema overrides under `configs/psb_schemas/SUITE/PROBLEM.json` when present.
 
 Common args:
 - `--suite psb1|psb2`: dataset suite to convert
-- `--format-version fitness-cases|fitness-cases`: fixture schema to emit
+- `--format-version fitness-cases`: fixture schema to emit
 - `--datasets-root PATH`: mirrored PSB dataset root; defaults to the selected suite root
 - `--schema-root PATH`: schema override root; defaults to `configs/psb_schemas`
 - `--problems LIST`: optional comma-separated problem subset; omit for the whole suite
@@ -62,7 +61,7 @@ Common args:
 - `--out-dir PATH`: output directory for `PROBLEM.train.json`,
   `PROBLEM.test.json`, per-problem summaries, and `manifest.json`
 
-Example current materialization for the current PSB1 gate root:
+Example materialization for the PSB1 release-gate root:
 
 ```bash
 python3 tools/materialize_psb_fixtures.py \
@@ -81,7 +80,7 @@ such as `multi_output`, `schema_required`, `mixed_numeric_list`, and
 `compat` and `compact` comparisons; generate baseline roots with
 the same sampling controls when comparing against baseline fixtures.
 
-The Grammar release-gate exclusion record is compacted separately in
+The release-gate exclusion record is compacted separately in
 `benchmarks/psb_release_exclusions.json`. It references the PSB1/PSB2
 materialization manifests and records the unresolved multi-output exclusions
 without requiring raw per-problem fixture files to be inspected during release
@@ -134,7 +133,7 @@ python3 tools/run_psb_regression.py \
   --out-dir logs/psb_smoke
 ```
 
-Generate a standalone current compact grammar config using the same numeric-list
+Generate a standalone native compact grammar config using the same numeric-list
 shape as the base grammar config:
 
 ```bash
@@ -168,15 +167,15 @@ python3 tools/run_psb_regression.py \
 ```
 
 For fair `compact` comparisons, always pass the same base grammar config to
-the baseline via `--grammar-config` and to the current candidate via
+the baseline via `--grammar-config` and to the native candidate via
 `--base-grammar-config`. Do not compare a candidate translated from
 `configs/grammar/all.json` against a baseline that relies on CLI defaults.
 When `compact` is generated with `num_list_mode=both`, native generation
-uses legacy `NumList` input compatibility for search only: exact current
+uses legacy `NumList` input compatibility for search only: exact native
 `IntList`/`FloatList` fixture inputs are seeded as `Any` input variables, while
-runtime fixture values and fitness execution stay exact current values.
+runtime fixture values and fitness execution stay exact typed values.
 
-Full current compact comparison template using the same base grammar-config shape
+Full native compact comparison template using the same base grammar-config shape
 as the baseline:
 
 ```bash
@@ -246,7 +245,7 @@ When a problem fails, the comparison JSON includes:
 comparison JSON into a compact manifest suitable for keeping under
 `benchmarks/` without committing raw per-run logs.
 
-The baseline full-budget supported-PSB1 baseline used by the current compact gate is
+The baseline full-budget supported-PSB1 baseline used by the native compact gate is
 recorded separately as
 `benchmarks/psb1_supported_all_config_fullbudget_baseline.json`.
 

@@ -111,6 +111,10 @@ CliOptions parse_cli_options(int argc, char** argv) {
   if (opts.penalty < 0.0) {
     throw std::runtime_error("--penalty must be >= 0");
   }
+  if (opts.show_program != "none" && opts.show_program != "ast" &&
+      opts.show_program != "bytecode" && opts.show_program != "both") {
+    throw std::runtime_error("--show-program must be one of: none|ast|bytecode|both");
+  }
   if (opts.timing != "none" && opts.timing != "summary" &&
       opts.timing != "per_gen" && opts.timing != "all") {
     throw std::runtime_error("--timing must be one of: none|summary|per_gen|all");

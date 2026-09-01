@@ -144,11 +144,11 @@ Programs are still classifiable into four fine-grained payload flavors in `cpp/s
 - `ListOnly`
 - `Mixed`
 
-The current production GPU fitness path always launches a single `Mixed` eval kernel over the full accepted population.
+The production GPU fitness path always launches a single `Mixed` eval kernel over the full accepted population.
 
 The finer `StringOnly` / `ListOnly` labels are kept for experiment tooling and offline bucket studies rather than the production eval dispatch tree.
 
-Exact string/typed-list builtins still use bounded per-thread scratch. CPU and GPU now share the current direct-list tags (`IntList`, `FloatList`, `StringList`) for the current runtime subset. When exact string output materialization will not fit in GPU per-thread scratch, GPU string operations use the fallback path. Direct-list operations preserve the list tag and compact hash/length token even when the exact expanded payload cannot be materialized in thread-local scratch.
+Exact string/typed-list builtins use bounded per-thread scratch. CPU and GPU share the release 1.0.0 direct-list tags (`IntList`, `FloatList`, `StringList`). When exact string output materialization will not fit in GPU per-thread scratch, GPU string operations use the fallback path. Direct-list operations preserve the list tag and compact hash/length token even when the exact expanded payload cannot be materialized in thread-local scratch.
 
 Operationally, this means production GPU eval no longer maintains a runtime dispatch split between payload-free and payload-bearing programs. Timing and benchmark analysis should treat `gpu_eval_kernel_ms` as one kernel family rather than reconstructing legacy `None` / `Mixed` launch buckets.
 

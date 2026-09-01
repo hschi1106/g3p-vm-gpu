@@ -1,0 +1,16 @@
+{
+  "version": "ast-prefix",
+  "nodes": [
+    {"kind": 0, "i0": 0, "i1": 0},
+    {"kind": 2, "i0": 0, "i1": 0},
+    {"kind": 6, "i0": 0, "i1": 0},
+    {"kind": 8, "i0": 0, "i1": 0},
+    {"kind": 1, "i0": 0, "i1": 0}
+  ],
+  "names": ["input1"],
+  "consts": [],
+  "linear_rec_binders": [],
+  "asgp_dc_binders": [],
+  "asgp_dp1d_specs": [],
+  "asgp_dp2d_specs": []
+}
