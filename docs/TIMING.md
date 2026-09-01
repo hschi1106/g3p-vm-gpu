@@ -2,6 +2,12 @@
 
 This document defines the canonical timing metric names used by the native benchmark and evolution CLIs.
 
+Internally, the evolution engine stores `EvolutionTiming` with nested
+`EvaluationTiming`, `ReproductionTiming`, and one `GenerationTiming` per
+generation. The CLI output layer is the compatibility adapter that emits the
+flat names below. A metric for an inactive backend remains present as zero in
+JSON/per-generation records; it is not omitted from the internal model.
+
 The goal is to keep timing output:
 
 - explicit about scope,

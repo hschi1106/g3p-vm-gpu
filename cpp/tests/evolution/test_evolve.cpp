@@ -194,7 +194,8 @@ bool test_skip_final_eval() {
   if (!check(result.final_population.empty(), "skip_final_eval should leave final_population empty")) {
     return false;
   }
-  if (!check(result.final_eval_ms == 0.0, "skip_final_eval should report zero final_eval_ms")) {
+  if (!check(result.timing.final_eval_ms == 0.0,
+             "skip_final_eval should report zero final_eval_ms")) {
     return false;
   }
   if (!check(static_cast<int>(result.history_best_fitness.size()) == cfg.generations,
@@ -475,13 +476,16 @@ bool test_gpu_backend_smoke() {
                "gpu reproduction final_population length mismatch")) {
       return false;
     }
-    if (!check(result.generations_repro_kernel_ms_total >= 0.0, "gpu reproduction kernel timing missing")) {
+    if (!check(result.timing.reproduction_totals.kernel_ms >= 0.0,
+               "gpu reproduction kernel timing missing")) {
       return false;
     }
-    if (!check(result.generations_repro_decode_ms_total >= 0.0, "gpu reproduction decode timing missing")) {
+    if (!check(result.timing.reproduction_totals.decode_ms >= 0.0,
+               "gpu reproduction decode timing missing")) {
       return false;
     }
-    if (!check(result.generations_repro_teardown_ms_total >= 0.0, "gpu reproduction teardown timing missing")) {
+    if (!check(result.timing.reproduction_totals.teardown_ms >= 0.0,
+               "gpu reproduction teardown timing missing")) {
       return false;
     }
   } catch (const std::runtime_error& err) {
@@ -513,11 +517,11 @@ bool test_repro_overlap_smoke() {
                "gpu reproduction overlap final_population length mismatch")) {
       return false;
     }
-    if (!check(result.generations_repro_prepare_inputs_ms_total >= 0.0,
+    if (!check(result.timing.reproduction_totals.prepare_inputs_ms >= 0.0,
                "gpu reproduction overlap prepare timings missing")) {
       return false;
     }
-    if (!check(result.generations_repro_decode_ms_total >= 0.0,
+    if (!check(result.timing.reproduction_totals.decode_ms >= 0.0,
                "gpu reproduction overlap decode timings missing")) {
       return false;
     }

@@ -1115,105 +1115,112 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
     if (args.timing == "summary" || args.timing == "all") {
       double gen_eval_sum = 0.0;
       double gen_repro_sum = 0.0;
-      for (double v : result.generation_eval_ms) gen_eval_sum += v;
-      for (double v : result.generation_repro_ms) gen_repro_sum += v;
+      for (const auto& generation : result.timing.generations) {
+        gen_eval_sum += generation.eval_ms;
+        gen_repro_sum += generation.repro_ms;
+      }
+      const auto& eval = result.timing.evaluation_totals;
+      const auto& repro = result.timing.reproduction_totals;
       std::cout << "TIMING phase=init_population ms=" << std::fixed << std::setprecision(3)
-                << result.init_population_ms << "\n";
+                << result.timing.init_population_ms << "\n";
       std::cout << "TIMING phase=generations_eval_total ms=" << std::fixed << std::setprecision(3)
                 << gen_eval_sum << "\n";
       std::cout << "TIMING phase=generations_repro_total ms=" << std::fixed << std::setprecision(3)
                 << gen_repro_sum << "\n";
       std::cout << "TIMING phase=generations_selection_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_selection_ms_total << "\n";
+                << repro.selection_ms << "\n";
       std::cout << "TIMING phase=generations_crossover_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_crossover_ms_total << "\n";
+                << repro.crossover_ms << "\n";
       std::cout << "TIMING phase=generations_mutation_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_mutation_ms_total << "\n";
+                << repro.mutation_ms << "\n";
       std::cout << "TIMING phase=generations_repro_prepare_inputs_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_prepare_inputs_ms_total << "\n";
+                << std::setprecision(3) << repro.prepare_inputs_ms << "\n";
       std::cout << "TIMING phase=generations_repro_setup_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_repro_setup_ms_total << "\n";
+                << repro.setup_ms << "\n";
       std::cout << "TIMING phase=generations_repro_preprocess_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_preprocess_ms_total << "\n";
+                << std::setprecision(3) << repro.preprocess_ms << "\n";
       std::cout << "TIMING phase=generations_repro_pack_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_repro_pack_ms_total << "\n";
+                << repro.pack_ms << "\n";
       std::cout << "TIMING phase=generations_repro_upload_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_repro_upload_ms_total << "\n";
+                << repro.upload_ms << "\n";
       std::cout << "TIMING phase=generations_repro_kernel_total ms=" << std::fixed << std::setprecision(3)
-                << result.generations_repro_kernel_ms_total << "\n";
+                << repro.kernel_ms << "\n";
       std::cout << "TIMING phase=generations_repro_copyback_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_copyback_ms_total << "\n";
+                << std::setprecision(3) << repro.copyback_ms << "\n";
       std::cout << "TIMING phase=generations_repro_decode_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_decode_ms_total << "\n";
+                << std::setprecision(3) << repro.decode_ms << "\n";
       std::cout << "TIMING phase=generations_repro_teardown_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_teardown_ms_total << "\n";
+                << std::setprecision(3) << repro.teardown_ms << "\n";
       std::cout << "TIMING phase=generations_repro_selection_kernel_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_selection_kernel_ms_total << "\n";
+                << std::setprecision(3) << repro.selection_kernel_ms << "\n";
       std::cout << "TIMING phase=generations_repro_variation_kernel_total ms=" << std::fixed
-                << std::setprecision(3) << result.generations_repro_variation_kernel_ms_total << "\n";
+                << std::setprecision(3) << repro.variation_kernel_ms << "\n";
       std::cout << "TIMING phase=cpu_compile_total ms=" << std::fixed << std::setprecision(3)
-                << result.cpu_compile_ms_total << "\n";
+                << eval.cpu_compile_ms << "\n";
       std::cout << "TIMING phase=final_eval ms=" << std::fixed << std::setprecision(3)
-                << result.final_eval_ms << "\n";
+                << result.timing.final_eval_ms << "\n";
       if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
         std::cout << "TIMING phase=gpu_eval_init ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_init_ms << "\n";
+                  << result.timing.gpu_eval_init_ms << "\n";
         std::cout << "TIMING phase=gpu_compile_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_compile_ms_total << "\n";
+                  << eval.gpu_compile_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_call_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_call_ms_total << "\n";
+                  << eval.gpu_eval_call_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_pack_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_pack_ms_total << "\n";
+                  << eval.gpu_eval_pack_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_launch_prep_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_launch_prep_ms_total << "\n";
+                  << eval.gpu_eval_launch_prep_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_upload_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_upload_ms_total << "\n";
+                  << eval.gpu_eval_upload_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_pack_upload_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_pack_upload_ms_total << "\n";
+                  << eval.gpu_eval_pack_upload_ms() << "\n";
         std::cout << "TIMING phase=gpu_eval_kernel_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_kernel_ms_total << "\n";
+                  << eval.gpu_eval_kernel_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_copyback_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_copyback_ms_total << "\n";
+                  << eval.gpu_eval_copyback_ms << "\n";
         std::cout << "TIMING phase=gpu_eval_teardown_total ms=" << std::fixed << std::setprecision(3)
-                  << result.gpu_eval_teardown_ms_total << "\n";
+                  << eval.gpu_eval_teardown_ms << "\n";
       }
       std::cout << "TIMING phase=total ms=" << std::fixed << std::setprecision(3)
-                << result.total_ms << "\n";
+                << result.timing.total_ms << "\n";
     }
 
     if (args.timing == "per_gen" || args.timing == "all") {
-      for (std::size_t i = 0; i < result.generation_total_ms.size(); ++i) {
+      for (std::size_t i = 0; i < result.timing.generations.size(); ++i) {
+        const auto& generation = result.timing.generations[i];
+        const auto& eval = generation.evaluation;
+        const auto& repro = generation.reproduction;
         std::cout << "TIMING gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
-                  << " eval_ms=" << std::fixed << std::setprecision(3) << result.generation_eval_ms[i]
-                  << " repro_ms=" << result.generation_repro_ms[i]
-                  << " total_ms=" << result.generation_total_ms[i]
-                  << " selection_ms=" << result.generation_selection_ms[i]
-                  << " crossover_ms=" << result.generation_crossover_ms[i]
-                  << " mutation_ms=" << result.generation_mutation_ms[i]
-                  << " repro_prepare_inputs_ms=" << result.generation_repro_prepare_inputs_ms[i]
-                  << " repro_setup_ms=" << result.generation_repro_setup_ms[i]
-                  << " repro_preprocess_ms=" << result.generation_repro_preprocess_ms[i]
-                  << " repro_pack_ms=" << result.generation_repro_pack_ms[i]
-                  << " repro_upload_ms=" << result.generation_repro_upload_ms[i]
-                  << " repro_kernel_ms=" << result.generation_repro_kernel_ms[i]
-                  << " repro_copyback_ms=" << result.generation_repro_copyback_ms[i]
-                  << " repro_decode_ms=" << result.generation_repro_decode_ms[i]
-                  << " repro_teardown_ms=" << result.generation_repro_teardown_ms[i]
-                  << " repro_selection_kernel_ms=" << result.generation_repro_selection_kernel_ms[i]
-                  << " repro_variation_kernel_ms=" << result.generation_repro_variation_kernel_ms[i]
-                  << " cpu_compile_ms=" << result.generation_cpu_compile_ms[i] << "\n";
+                  << " eval_ms=" << std::fixed << std::setprecision(3) << generation.eval_ms
+                  << " repro_ms=" << generation.repro_ms
+                  << " total_ms=" << generation.total_ms
+                  << " selection_ms=" << repro.selection_ms
+                  << " crossover_ms=" << repro.crossover_ms
+                  << " mutation_ms=" << repro.mutation_ms
+                  << " repro_prepare_inputs_ms=" << repro.prepare_inputs_ms
+                  << " repro_setup_ms=" << repro.setup_ms
+                  << " repro_preprocess_ms=" << repro.preprocess_ms
+                  << " repro_pack_ms=" << repro.pack_ms
+                  << " repro_upload_ms=" << repro.upload_ms
+                  << " repro_kernel_ms=" << repro.kernel_ms
+                  << " repro_copyback_ms=" << repro.copyback_ms
+                  << " repro_decode_ms=" << repro.decode_ms
+                  << " repro_teardown_ms=" << repro.teardown_ms
+                  << " repro_selection_kernel_ms=" << repro.selection_kernel_ms
+                  << " repro_variation_kernel_ms=" << repro.variation_kernel_ms
+                  << " cpu_compile_ms=" << eval.cpu_compile_ms << "\n";
         if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
           std::cout << "TIMING gpu_gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
                     << " gpu_compile_ms=" << std::fixed << std::setprecision(3)
-                    << result.generation_gpu_compile_ms[i]
-                    << " gpu_eval_call_ms=" << result.generation_gpu_eval_call_ms[i]
-                    << " gpu_eval_pack_ms=" << result.generation_gpu_eval_pack_ms[i]
-                    << " gpu_eval_launch_prep_ms=" << result.generation_gpu_eval_launch_prep_ms[i]
-                    << " gpu_eval_upload_ms=" << result.generation_gpu_eval_upload_ms[i]
-                    << " gpu_eval_pack_upload_ms=" << result.generation_gpu_eval_pack_upload_ms[i]
-                    << " gpu_eval_kernel_ms=" << result.generation_gpu_eval_kernel_ms[i]
-                    << " gpu_eval_copyback_ms=" << result.generation_gpu_eval_copyback_ms[i]
-                    << " gpu_eval_teardown_ms=" << result.generation_gpu_eval_teardown_ms[i] << "\n";
+                    << eval.gpu_compile_ms
+                    << " gpu_eval_call_ms=" << eval.gpu_eval_call_ms
+                    << " gpu_eval_pack_ms=" << eval.gpu_eval_pack_ms
+                    << " gpu_eval_launch_prep_ms=" << eval.gpu_eval_launch_prep_ms
+                    << " gpu_eval_upload_ms=" << eval.gpu_eval_upload_ms
+                    << " gpu_eval_pack_upload_ms=" << eval.gpu_eval_pack_upload_ms()
+                    << " gpu_eval_kernel_ms=" << eval.gpu_eval_kernel_ms
+                    << " gpu_eval_copyback_ms=" << eval.gpu_eval_copyback_ms
+                    << " gpu_eval_teardown_ms=" << eval.gpu_eval_teardown_ms << "\n";
         }
       }
     }
@@ -1223,6 +1230,9 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       if (!out) {
         throw std::runtime_error("failed to open out-json path");
       }
+      const auto& timing = result.timing;
+      const auto& eval = timing.evaluation_totals;
+      const auto& repro = timing.reproduction_totals;
 
       out << "{\n";
       out << "  \"meta\": {\n";
@@ -1257,41 +1267,41 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       out << "    \"gpu_blocksize\": " << cfg.gpu_blocksize << ",\n";
       out << "    \"seed\": " << cfg.seed << ",\n";
       out << "    \"timing\": {\n";
-      out << "      \"init_population_ms\": " << std::setprecision(17) << result.init_population_ms << ",\n";
-      out << "      \"gpu_eval_init_ms\": " << result.gpu_eval_init_ms << ",\n";
-      out << "      \"final_eval_ms\": " << result.final_eval_ms << ",\n";
-      out << "      \"cpu_compile_ms_total\": " << result.cpu_compile_ms_total << ",\n";
-      out << "      \"gpu_compile_ms_total\": " << result.gpu_compile_ms_total << ",\n";
-      out << "      \"gpu_eval_call_ms_total\": " << result.gpu_eval_call_ms_total << ",\n";
-      out << "      \"gpu_eval_pack_ms_total\": " << result.gpu_eval_pack_ms_total << ",\n";
-      out << "      \"gpu_eval_launch_prep_ms_total\": " << result.gpu_eval_launch_prep_ms_total << ",\n";
-      out << "      \"gpu_eval_upload_ms_total\": " << result.gpu_eval_upload_ms_total << ",\n";
-      out << "      \"gpu_eval_pack_upload_ms_total\": " << result.gpu_eval_pack_upload_ms_total << ",\n";
-      out << "      \"gpu_eval_kernel_ms_total\": " << result.gpu_eval_kernel_ms_total << ",\n";
-      out << "      \"gpu_eval_copyback_ms_total\": " << result.gpu_eval_copyback_ms_total << ",\n";
-      out << "      \"gpu_eval_teardown_ms_total\": " << result.gpu_eval_teardown_ms_total << ",\n";
-      out << "      \"generations_selection_ms_total\": " << result.generations_selection_ms_total << ",\n";
-      out << "      \"generations_crossover_ms_total\": " << result.generations_crossover_ms_total << ",\n";
-      out << "      \"generations_mutation_ms_total\": " << result.generations_mutation_ms_total << ",\n";
+      out << "      \"init_population_ms\": " << std::setprecision(17) << timing.init_population_ms << ",\n";
+      out << "      \"gpu_eval_init_ms\": " << timing.gpu_eval_init_ms << ",\n";
+      out << "      \"final_eval_ms\": " << timing.final_eval_ms << ",\n";
+      out << "      \"cpu_compile_ms_total\": " << eval.cpu_compile_ms << ",\n";
+      out << "      \"gpu_compile_ms_total\": " << eval.gpu_compile_ms << ",\n";
+      out << "      \"gpu_eval_call_ms_total\": " << eval.gpu_eval_call_ms << ",\n";
+      out << "      \"gpu_eval_pack_ms_total\": " << eval.gpu_eval_pack_ms << ",\n";
+      out << "      \"gpu_eval_launch_prep_ms_total\": " << eval.gpu_eval_launch_prep_ms << ",\n";
+      out << "      \"gpu_eval_upload_ms_total\": " << eval.gpu_eval_upload_ms << ",\n";
+      out << "      \"gpu_eval_pack_upload_ms_total\": " << eval.gpu_eval_pack_upload_ms() << ",\n";
+      out << "      \"gpu_eval_kernel_ms_total\": " << eval.gpu_eval_kernel_ms << ",\n";
+      out << "      \"gpu_eval_copyback_ms_total\": " << eval.gpu_eval_copyback_ms << ",\n";
+      out << "      \"gpu_eval_teardown_ms_total\": " << eval.gpu_eval_teardown_ms << ",\n";
+      out << "      \"generations_selection_ms_total\": " << repro.selection_ms << ",\n";
+      out << "      \"generations_crossover_ms_total\": " << repro.crossover_ms << ",\n";
+      out << "      \"generations_mutation_ms_total\": " << repro.mutation_ms << ",\n";
       out << "      \"generations_repro_prepare_inputs_ms_total\": "
-          << result.generations_repro_prepare_inputs_ms_total << ",\n";
-      out << "      \"generations_repro_setup_ms_total\": " << result.generations_repro_setup_ms_total << ",\n";
-      out << "      \"generations_repro_preprocess_ms_total\": " << result.generations_repro_preprocess_ms_total
+          << repro.prepare_inputs_ms << ",\n";
+      out << "      \"generations_repro_setup_ms_total\": " << repro.setup_ms << ",\n";
+      out << "      \"generations_repro_preprocess_ms_total\": " << repro.preprocess_ms
           << ",\n";
-      out << "      \"generations_repro_pack_ms_total\": " << result.generations_repro_pack_ms_total << ",\n";
-      out << "      \"generations_repro_upload_ms_total\": " << result.generations_repro_upload_ms_total << ",\n";
-      out << "      \"generations_repro_kernel_ms_total\": " << result.generations_repro_kernel_ms_total << ",\n";
-      out << "      \"generations_repro_copyback_ms_total\": " << result.generations_repro_copyback_ms_total
+      out << "      \"generations_repro_pack_ms_total\": " << repro.pack_ms << ",\n";
+      out << "      \"generations_repro_upload_ms_total\": " << repro.upload_ms << ",\n";
+      out << "      \"generations_repro_kernel_ms_total\": " << repro.kernel_ms << ",\n";
+      out << "      \"generations_repro_copyback_ms_total\": " << repro.copyback_ms
           << ",\n";
-      out << "      \"generations_repro_decode_ms_total\": " << result.generations_repro_decode_ms_total
+      out << "      \"generations_repro_decode_ms_total\": " << repro.decode_ms
           << ",\n";
-      out << "      \"generations_repro_teardown_ms_total\": " << result.generations_repro_teardown_ms_total
+      out << "      \"generations_repro_teardown_ms_total\": " << repro.teardown_ms
           << ",\n";
       out << "      \"generations_repro_selection_kernel_ms_total\": "
-          << result.generations_repro_selection_kernel_ms_total << ",\n";
+          << repro.selection_kernel_ms << ",\n";
       out << "      \"generations_repro_variation_kernel_ms_total\": "
-          << result.generations_repro_variation_kernel_ms_total << ",\n";
-      out << "      \"total_ms\": " << result.total_ms << "\n";
+          << repro.variation_kernel_ms << ",\n";
+      out << "      \"total_ms\": " << timing.total_ms << "\n";
       out << "    }\n";
       out << "  },\n";
 
@@ -1308,11 +1318,11 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       }
       out << "  ],\n";
 
-      auto dump_vec = [&](const char* name, const std::vector<double>& values, bool last) {
+      auto dump_series = [&](const char* name, auto value_at, bool last) {
         out << "    \"" << name << "\": [";
-        for (std::size_t i = 0; i < values.size(); ++i) {
+        for (std::size_t i = 0; i < timing.generations.size(); ++i) {
           if (i > 0) out << ", ";
-          out << std::setprecision(17) << values[i];
+          out << std::setprecision(17) << value_at(timing.generations[i]);
         }
         out << "]";
         if (!last) out << ",";
@@ -1320,33 +1330,33 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       };
 
       out << "  \"timing\": {\n";
-      dump_vec("generation_eval_ms", result.generation_eval_ms, false);
-      dump_vec("generation_repro_ms", result.generation_repro_ms, false);
-      dump_vec("generation_cpu_compile_ms", result.generation_cpu_compile_ms, false);
-      dump_vec("generation_gpu_compile_ms", result.generation_gpu_compile_ms, false);
-      dump_vec("generation_gpu_eval_call_ms", result.generation_gpu_eval_call_ms, false);
-      dump_vec("generation_gpu_eval_pack_ms", result.generation_gpu_eval_pack_ms, false);
-      dump_vec("generation_gpu_eval_launch_prep_ms", result.generation_gpu_eval_launch_prep_ms, false);
-      dump_vec("generation_gpu_eval_upload_ms", result.generation_gpu_eval_upload_ms, false);
-      dump_vec("generation_gpu_eval_pack_upload_ms", result.generation_gpu_eval_pack_upload_ms, false);
-      dump_vec("generation_gpu_eval_kernel_ms", result.generation_gpu_eval_kernel_ms, false);
-      dump_vec("generation_gpu_eval_copyback_ms", result.generation_gpu_eval_copyback_ms, false);
-      dump_vec("generation_gpu_eval_teardown_ms", result.generation_gpu_eval_teardown_ms, false);
-      dump_vec("generation_selection_ms", result.generation_selection_ms, false);
-      dump_vec("generation_crossover_ms", result.generation_crossover_ms, false);
-      dump_vec("generation_mutation_ms", result.generation_mutation_ms, false);
-      dump_vec("generation_repro_prepare_inputs_ms", result.generation_repro_prepare_inputs_ms, false);
-      dump_vec("generation_repro_setup_ms", result.generation_repro_setup_ms, false);
-      dump_vec("generation_repro_preprocess_ms", result.generation_repro_preprocess_ms, false);
-      dump_vec("generation_repro_pack_ms", result.generation_repro_pack_ms, false);
-      dump_vec("generation_repro_upload_ms", result.generation_repro_upload_ms, false);
-      dump_vec("generation_repro_kernel_ms", result.generation_repro_kernel_ms, false);
-      dump_vec("generation_repro_copyback_ms", result.generation_repro_copyback_ms, false);
-      dump_vec("generation_repro_decode_ms", result.generation_repro_decode_ms, false);
-      dump_vec("generation_repro_teardown_ms", result.generation_repro_teardown_ms, false);
-      dump_vec("generation_repro_selection_kernel_ms", result.generation_repro_selection_kernel_ms, false);
-      dump_vec("generation_repro_variation_kernel_ms", result.generation_repro_variation_kernel_ms, false);
-      dump_vec("generation_total_ms", result.generation_total_ms, true);
+      dump_series("generation_eval_ms", [](const auto& g) { return g.eval_ms; }, false);
+      dump_series("generation_repro_ms", [](const auto& g) { return g.repro_ms; }, false);
+      dump_series("generation_cpu_compile_ms", [](const auto& g) { return g.evaluation.cpu_compile_ms; }, false);
+      dump_series("generation_gpu_compile_ms", [](const auto& g) { return g.evaluation.gpu_compile_ms; }, false);
+      dump_series("generation_gpu_eval_call_ms", [](const auto& g) { return g.evaluation.gpu_eval_call_ms; }, false);
+      dump_series("generation_gpu_eval_pack_ms", [](const auto& g) { return g.evaluation.gpu_eval_pack_ms; }, false);
+      dump_series("generation_gpu_eval_launch_prep_ms", [](const auto& g) { return g.evaluation.gpu_eval_launch_prep_ms; }, false);
+      dump_series("generation_gpu_eval_upload_ms", [](const auto& g) { return g.evaluation.gpu_eval_upload_ms; }, false);
+      dump_series("generation_gpu_eval_pack_upload_ms", [](const auto& g) { return g.evaluation.gpu_eval_pack_upload_ms(); }, false);
+      dump_series("generation_gpu_eval_kernel_ms", [](const auto& g) { return g.evaluation.gpu_eval_kernel_ms; }, false);
+      dump_series("generation_gpu_eval_copyback_ms", [](const auto& g) { return g.evaluation.gpu_eval_copyback_ms; }, false);
+      dump_series("generation_gpu_eval_teardown_ms", [](const auto& g) { return g.evaluation.gpu_eval_teardown_ms; }, false);
+      dump_series("generation_selection_ms", [](const auto& g) { return g.reproduction.selection_ms; }, false);
+      dump_series("generation_crossover_ms", [](const auto& g) { return g.reproduction.crossover_ms; }, false);
+      dump_series("generation_mutation_ms", [](const auto& g) { return g.reproduction.mutation_ms; }, false);
+      dump_series("generation_repro_prepare_inputs_ms", [](const auto& g) { return g.reproduction.prepare_inputs_ms; }, false);
+      dump_series("generation_repro_setup_ms", [](const auto& g) { return g.reproduction.setup_ms; }, false);
+      dump_series("generation_repro_preprocess_ms", [](const auto& g) { return g.reproduction.preprocess_ms; }, false);
+      dump_series("generation_repro_pack_ms", [](const auto& g) { return g.reproduction.pack_ms; }, false);
+      dump_series("generation_repro_upload_ms", [](const auto& g) { return g.reproduction.upload_ms; }, false);
+      dump_series("generation_repro_kernel_ms", [](const auto& g) { return g.reproduction.kernel_ms; }, false);
+      dump_series("generation_repro_copyback_ms", [](const auto& g) { return g.reproduction.copyback_ms; }, false);
+      dump_series("generation_repro_decode_ms", [](const auto& g) { return g.reproduction.decode_ms; }, false);
+      dump_series("generation_repro_teardown_ms", [](const auto& g) { return g.reproduction.teardown_ms; }, false);
+      dump_series("generation_repro_selection_kernel_ms", [](const auto& g) { return g.reproduction.selection_kernel_ms; }, false);
+      dump_series("generation_repro_variation_kernel_ms", [](const auto& g) { return g.reproduction.variation_kernel_ms; }, false);
+      dump_series("generation_total_ms", [](const auto& g) { return g.total_ms; }, true);
       out << "  },\n";
 
       out << "  \"final\": {\n";

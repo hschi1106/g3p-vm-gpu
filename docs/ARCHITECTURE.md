@@ -49,6 +49,12 @@ These are the current invariants.
 - CPU and GPU evaluators feed one backend-neutral fitness/timing result into a
   shared canonicalization and ranking path. Ranking always starts as lightweight
   references; owned scored genomes are materialized only for public results.
+- `EvolutionTiming` stores nested evaluation, reproduction, and per-generation
+  records. The CLI output layer translates that internal model to the stable
+  flat text/JSON metric names documented in `docs/TIMING.md`.
+- `PayloadLifetimeManager` owns case/population/history/final live-root closure
+  and registry pruning. GPU reproduction overlap preparation is an explicit
+  start/finish lifecycle around population evaluation.
 
 ## Runtime Model
 
@@ -249,6 +255,9 @@ Public evolution interfaces split by responsibility:
 - `case_set.hpp`: prepared names, input specs, indexed bindings, expected values,
   and expected-return type for one fitness case set
 - `population_init.hpp`: generated versus replayed initial-population boundary
+- `timing.hpp`: nested evaluation, reproduction, generation, and whole-run
+  timing records plus aggregation
+- `lifecycle.hpp`: payload live-root retention and GPU overlap start/finish
 - `node_descriptor.hpp`: authoritative host metadata for node names, categories, prefix/dependency arity, index fields, builtins, grammar switches, typing-rule identifiers, and side-table ownership
 - `ast_verify.hpp`: structured AST verification results, stable diagnostics, explicit input types, verified subtree/type/scope annotations, optional grammar-config eligibility, and opt-in resource limits
 - `genome.hpp`: genome metadata and `ProgramGenome` wrapper
@@ -279,6 +288,9 @@ Public evolution interfaces split by responsibility:
 - `ast_program.cpp`: canonical AST serialization and cache-key generation
 - `case_set.cpp`: canonical case preparation and exact/mixed type inference
 - `population_init.cpp`: deterministic generation and replay validation
+- `timing.cpp`: evaluation/reproduction timing aggregation
+- `lifecycle.cpp`: payload retention closure and asynchronous GPU reproduction
+  preparation lifecycle
 - `node_descriptor.cpp`: compile-time-complete host `NodeKind` descriptor table; host traversal and builtin lowering consume this metadata
 - `ast_verify.cpp`: trust-boundary structural validation for prefix placement, indices, public constant tags, side-table ownership, dependency arity, and bounds
 - `ast_type_verify.cpp`: exact language typing for locals, branches, builtins, structured binders, and isolated ASGP phases; it never guesses types from variable names

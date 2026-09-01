@@ -56,7 +56,15 @@ foreach(required IN ITEMS
     "\"population_source\": \"generated\""
     "\"eval_engine\": \"cpu\""
     "\"reproduction_backend\": \"cpu\""
-    "\"skipped\": false")
+    "\"skipped\": false"
+    "\"init_population_ms\""
+    "\"cpu_compile_ms_total\""
+    "\"gpu_eval_pack_upload_ms_total\""
+    "\"generations_repro_prepare_inputs_ms_total\""
+    "\"generation_eval_ms\""
+    "\"generation_gpu_eval_kernel_ms\""
+    "\"generation_repro_decode_ms\""
+    "\"generation_total_ms\"")
   string(FIND "${evolve_json}" "${required}" position)
   if(position EQUAL -1)
     message(FATAL_ERROR "representative JSON lost '${required}'")

@@ -55,6 +55,8 @@ add_library(g3pvm_cpu
   src/evolution/node_descriptor.cpp
   src/evolution/case_set.cpp
   src/evolution/population_init.cpp
+  src/evolution/timing.cpp
+  src/evolution/lifecycle.cpp
   src/evolution/ast_verify.cpp
   src/evolution/ast_type_verify.cpp
   src/evolution/genome.cpp
