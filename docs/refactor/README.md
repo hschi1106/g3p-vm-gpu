@@ -10,7 +10,9 @@ language and wire behavior remains owned by [`spec/`](../../spec/).
   and test module before removal
 - [`inventory.md`](inventory.md): duplicated node metadata, tools, documents,
   binaries, and compatibility surfaces
+- [`release-audit.md`](release-audit.md): final correctness, performance,
+  quality, build-ownership, and obsolete-path evidence
 
-The records describe commit `5f2b840724cfd06d3ec70c1515e7ea827d265e15`.
-Later stages must update a record when they change the ownership or disposition
-it assigns.
+The baseline and inventory describe commit
+`5f2b840724cfd06d3ec70c1515e7ea827d265e15`; the release audit closes the
+staged refactor through `445c358`.
