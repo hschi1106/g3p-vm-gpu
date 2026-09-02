@@ -238,6 +238,8 @@ bool GrammarConfig::allows_node_kind(NodeKind kind) const {
       return builtin_to_upper;
     case NodeKind::CALL_TO_STRING:
       return builtin_to_string;
+    case NodeKind::COUNT:
+      return false;
   }
   return false;
 }

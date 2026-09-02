@@ -44,6 +44,8 @@ int main(int argc, char** argv) {
   if (!check(config.allows_node_kind(g3pvm::evo::NodeKind::CALL_ABS) &&
                  !config.allows_node_kind(g3pvm::evo::NodeKind::CALL_CHR),
              "canonical config builtin domain mismatch")) return 1;
+  if (!check(!config.allows_node_kind(g3pvm::evo::NodeKind::COUNT),
+             "node sentinel must not be a grammar form")) return 1;
 
   auto unknown = raw;
   unknown.object_v["values"].object_v["integer"] = {};

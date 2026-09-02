@@ -134,6 +134,10 @@ int main() {
   if (!expect_code(ast, VerifyCode::ConstantIndexOutOfRange, "constant index")) return 1;
 
   ast = simple_program();
+  ast.nodes[3] = AstNode{NodeKind::VAR, 0, 0};
+  if (!expect_code(ast, VerifyCode::NameIndexOutOfRange, "name index")) return 1;
+
+  ast = simple_program();
   ast.nodes[0].i1 = 1;
   if (!expect_code(ast, VerifyCode::InvalidIndexField, "unused index")) return 1;
 
@@ -165,6 +169,10 @@ int main() {
   if (!check(verify_ast_structure(ast).ok, "valid DP1D structure")) return 1;
   ast.asgp_dp1d_specs[0].dep_offsets.push_back(2);
   if (!expect_code(ast, VerifyCode::DependencyArityMismatch, "DP1D dependency arity")) return 1;
+
+  ast = dp1_program();
+  ast.asgp_dp1d_specs[0].dep_kind = NodeKind::ADD;
+  if (!expect_code(ast, VerifyCode::InvalidDependencyKind, "DP1D dependency kind")) return 1;
 
   ast = dp1_program();
   ast.asgp_dp1d_specs[0].base_state = 5;

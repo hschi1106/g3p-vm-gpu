@@ -36,6 +36,14 @@ snapshot lookup for strings and typed lists.
 Runtime semantics are defined in `spec/`; implementation details of container
 transport are explained in [payload.md](payload.md).
 
+The CMake targets mirror these boundaries: `g3pvm_core` owns bytecode
+verification, `g3pvm_runtime_cpu` owns payload and host execution/fitness,
+`g3pvm_evolution` owns AST/compiler/operator/engine code,
+`g3pvm_cli_support` owns the command layer, and `g3pvm_gpu` owns CUDA runtime
+and reproduction kernels. `g3pvm_cpu` remains an interface-only compatibility
+aggregate for existing tests and embedders; new targets should link the
+narrowest owner they use.
+
 ### AST, compiler, and verification
 
 `cpp/include/g3pvm/evolution/` exposes prefix ASTs, node descriptors, verified
@@ -136,4 +144,3 @@ Named build/test configurations and focused commands are in
   contract together.
 - Repository moves: update `docs/README.md`, the checked repository layout, and
   the external repository skill references.
-

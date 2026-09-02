@@ -47,12 +47,21 @@ else()
   set(G3PVM_HAS_CUDA OFF)
 endif()
 
-add_library(g3pvm_cpu
-  src/runtime/payload/payload.cpp
+add_library(g3pvm_core
   src/runtime/bytecode_verify.cpp
+)
+target_include_directories(g3pvm_core PUBLIC include)
+
+add_library(g3pvm_runtime_cpu
+  src/runtime/payload/payload.cpp
   src/runtime/cpu/builtins_cpu.cpp
   src/runtime/cpu/execute_bytecode_cpu.cpp
   src/runtime/cpu/fitness_cpu.cpp
+)
+target_include_directories(g3pvm_runtime_cpu PUBLIC include)
+target_link_libraries(g3pvm_runtime_cpu PUBLIC g3pvm_core)
+
+add_library(g3pvm_evolution
   src/evolution/ast_program.cpp
   src/evolution/node_descriptor.cpp
   src/evolution/case_set.cpp
@@ -76,7 +85,13 @@ add_library(g3pvm_cpu
   src/evolution/repro/gpu.cpp
   src/evolution/evolve.cpp
 )
-target_include_directories(g3pvm_cpu PUBLIC include)
+target_include_directories(g3pvm_evolution PUBLIC include)
+target_link_libraries(g3pvm_evolution PUBLIC g3pvm_runtime_cpu)
+
+# Compatibility aggregate for existing embedders and tests. New owners should
+# link the narrowest target that provides their API surface.
+add_library(g3pvm_cpu INTERFACE)
+target_link_libraries(g3pvm_cpu INTERFACE g3pvm_evolution)
 
 add_library(g3pvm_cli_support
   src/cli/json.cpp
@@ -133,8 +148,8 @@ if(G3PVM_HAS_CUDA)
     src/evolution/repro/gpu/copyback.cu
   )
   target_include_directories(g3pvm_gpu PUBLIC include)
-  target_compile_definitions(g3pvm_cpu PUBLIC G3PVM_HAS_CUDA=1)
-  target_link_libraries(g3pvm_cpu PUBLIC g3pvm_gpu)
+  target_compile_definitions(g3pvm_evolution PUBLIC G3PVM_HAS_CUDA=1)
+  target_link_libraries(g3pvm_evolution PUBLIC g3pvm_gpu)
 
   add_executable(g3pvm_test_vm_gpu_smoke
     tests/gpu/test_vm_gpu_smoke.cpp

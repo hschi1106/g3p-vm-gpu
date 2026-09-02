@@ -8,6 +8,18 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class TestToolInventory(unittest.TestCase):
+    def test_native_library_ownership_is_explicit(self) -> None:
+        cmake = (ROOT / "cpp" / "CMakeLists.txt").read_text(encoding="utf-8")
+        for target in (
+            "g3pvm_core",
+            "g3pvm_runtime_cpu",
+            "g3pvm_evolution",
+            "g3pvm_cli_support",
+            "g3pvm_gpu",
+        ):
+            self.assertIn(f"add_library({target}", cmake)
+        self.assertIn("add_library(g3pvm_cpu INTERFACE)", cmake)
+
     def test_every_top_level_tool_is_classified(self) -> None:
         inventory = (ROOT / "docs" / "reference" / "tooling.md").read_text(
             encoding="utf-8"
