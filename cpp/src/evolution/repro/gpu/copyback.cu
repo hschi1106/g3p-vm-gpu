@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
@@ -214,4 +214,4 @@ bool copyback_gpu_repro_children(const GpuReproArena& arena,
   return true;
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

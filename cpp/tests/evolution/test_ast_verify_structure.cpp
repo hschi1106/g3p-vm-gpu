@@ -2,12 +2,12 @@
 #include <iostream>
 #include <string>
 
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/genome_generation.hpp"
 
 namespace {
 
-using namespace g3pvm::evo;
+using namespace gagp::evo;
 
 bool check(bool condition, const std::string& message) {
   if (!condition) std::cerr << "FAIL: " << message << "\n";
@@ -16,7 +16,7 @@ bool check(bool condition, const std::string& message) {
 
 AstProgram simple_program() {
   AstProgram ast;
-  ast.consts = {g3pvm::Value::from_int(7)};
+  ast.consts = {gagp::Value::from_int(7)};
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
       AstNode{NodeKind::BLOCK_CONS, 0, 0},
@@ -31,11 +31,11 @@ AstProgram linear_program() {
   AstProgram ast;
   ast.names = {"u", "v", "idx"};
   ast.consts = {
-      g3pvm::Value::from_int(1),
-      g3pvm::Value::from_int(0),
-      g3pvm::Value::from_int(2),
-      g3pvm::Value::from_int(3),
-      g3pvm::Value::from_int(4),
+      gagp::Value::from_int(1),
+      gagp::Value::from_int(0),
+      gagp::Value::from_int(2),
+      gagp::Value::from_int(3),
+      gagp::Value::from_int(4),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -57,10 +57,10 @@ AstProgram dp1_program() {
   AstProgram ast;
   ast.names = {"solve_s", "transition_s", "dep"};
   ast.consts = {
-      g3pvm::Value::from_int(2),
-      g3pvm::Value::from_int(1),
-      g3pvm::Value::from_int(3),
-      g3pvm::Value::from_int(0),
+      gagp::Value::from_int(2),
+      gagp::Value::from_int(1),
+      gagp::Value::from_int(3),
+      gagp::Value::from_int(0),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -92,7 +92,7 @@ bool expect_code(const AstProgram& ast, VerifyCode expected, const std::string& 
 }  // namespace
 
 int main() {
-  using namespace g3pvm::evo;
+  using namespace gagp::evo;
 
   const AstVerifyResult valid = verify_ast_structure(simple_program());
   if (!check(valid.ok, "simple program should verify") ||
@@ -142,7 +142,7 @@ int main() {
   if (!expect_code(ast, VerifyCode::InvalidIndexField, "unused index")) return 1;
 
   ast = simple_program();
-  ast.consts[0] = g3pvm::Value::invalid();
+  ast.consts[0] = gagp::Value::invalid();
   if (!expect_code(ast, VerifyCode::InvalidConstantTag, "invalid constant tag")) return 1;
 
   ast = simple_program();

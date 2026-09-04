@@ -9,7 +9,7 @@ execute_process(
   ERROR_VARIABLE no_args_stderr
 )
 if(NOT no_args_result EQUAL 2 OR NOT no_args_stdout STREQUAL "" OR
-   NOT no_args_stderr STREQUAL "g3pvm_evolve_cli error: --cases is required\n")
+   NOT no_args_stderr STREQUAL "gagp_evolve_cli error: --cases is required\n")
   message(FATAL_ERROR "no-argument CLI contract changed: ${no_args_result}; ${no_args_stderr}")
 endif()
 
@@ -20,7 +20,7 @@ execute_process(
   ERROR_VARIABLE help_stderr
 )
 if(NOT help_result EQUAL 2 OR NOT help_stdout STREQUAL "" OR
-   NOT help_stderr STREQUAL "g3pvm_evolve_cli error: unknown argument: --help\n")
+   NOT help_stderr STREQUAL "gagp_evolve_cli error: unknown argument: --help\n")
   message(FATAL_ERROR "--help CLI contract changed: ${help_result}; ${help_stderr}")
 endif()
 

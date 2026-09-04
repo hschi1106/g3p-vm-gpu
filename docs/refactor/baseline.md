@@ -25,9 +25,9 @@ product, benchmark, probe, and test targets.
 | --- | --- | --- |
 | Native suite | `ctest --test-dir cpp/build --output-on-failure` | 9/9 passed in 4.31 s |
 | Python suite | `PYTHONPATH=python python3 -m unittest discover -s python/tests -p 'test_*.py' -v` | 161/161 passed in 14.127 s |
-| VM GPU smoke | CTest target `g3pvm_test_vm_gpu_smoke` | passed |
-| CPU/GPU fitness parity | CTest target `g3pvm_test_fitness_cpu_gpu_parity` | passed |
-| CPU/GPU evolution parity | CTest target `g3pvm_test_evolution_cpu_gpu_parity` | passed |
+| VM GPU smoke | CTest target `gagp_test_vm_gpu_smoke` | passed |
+| CPU/GPU fitness parity | CTest target `gagp_test_fitness_cpu_gpu_parity` | passed |
+| CPU/GPU evolution parity | CTest target `gagp_test_evolution_cpu_gpu_parity` | passed |
 
 The Python fuzz-equivalence test reported 153 executable programs and 847
 generation/compile rejections. That rejection rate is baseline evidence for
@@ -92,12 +92,12 @@ until a stage deliberately re-captures an equivalent manifest.
 
 ## CLI baseline
 
-The product CLI has no discoverability output: `g3pvm_evolve_cli --help`
+The product CLI has no discoverability output: `gagp_evolve_cli --help`
 returns exit failure with `unknown argument: --help`, and invoking it without
 arguments returns `--cases is required`. At baseline, the actual parser and
 defaults were in `cpp/src/cli/evolve_cli.cpp`. Stage 11 moved that interface
 unchanged to `cpp/src/cli/options.cpp` and added
-`g3pvm_test_cli_options` contract coverage.
+`gagp_test_cli_options` contract coverage.
 
 Public flags at baseline are: `--cases`, `--population-json`,
 `--grammar-config`, `--eval-ast-json`, `--engine`, `--repro-backend`,

@@ -1,11 +1,11 @@
-#include "g3pvm/evolution/selection.hpp"
+#include "gagp/evolution/selection.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 double canonicalize_fitness_for_ranking(double fitness) {
   if (!std::isfinite(fitness) || fitness == 0.0) {
@@ -200,4 +200,4 @@ std::vector<ProgramGenome> tournament_selection_without_replacement(
   return selected;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

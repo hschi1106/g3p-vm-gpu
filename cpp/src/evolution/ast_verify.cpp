@@ -1,12 +1,12 @@
-#include "g3pvm/evolution/ast_verify.hpp"
+#include "gagp/evolution/ast_verify.hpp"
 
 #include <algorithm>
 #include <set>
 #include <string>
 
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 const char* verify_code_name(VerifyCode code) noexcept {
   switch (code) {
@@ -446,4 +446,4 @@ AstVerifyResult verify_ast_structure(const AstProgram& ast, const VerifyOptions&
   return StructuralVerifier(ast, options).run();
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

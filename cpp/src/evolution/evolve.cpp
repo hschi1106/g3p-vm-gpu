@@ -1,21 +1,21 @@
-#include "g3pvm/evolution/evolve.hpp"
+#include "gagp/evolution/evolve.hpp"
 
 #include <chrono>
 #include <stdexcept>
 #include <unordered_map>
 
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/lifecycle.hpp"
-#include "g3pvm/evolution/population_init.hpp"
-#include "g3pvm/evolution/repro/backend.hpp"
-#include "g3pvm/evolution/repro/gpu.hpp"
-#include "g3pvm/evolution/selection.hpp"
-#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
-#ifdef G3PVM_HAS_CUDA
-#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/lifecycle.hpp"
+#include "gagp/evolution/population_init.hpp"
+#include "gagp/evolution/repro/backend.hpp"
+#include "gagp/evolution/repro/gpu.hpp"
+#include "gagp/evolution/selection.hpp"
+#include "gagp/runtime/cpu/fitness_cpu.hpp"
+#ifdef GAGP_HAS_CUDA
+#include "gagp/runtime/gpu/fitness_gpu.hpp"
 #endif
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -133,7 +133,7 @@ std::vector<ScoredGenomeRef> score_population_cpu_refs(
       fitness_sum_out, raw_fitness_out, sort_output);
 }
 
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
 std::vector<ScoredGenomeRef> score_population_gpu_refs(
     const std::vector<ProgramGenome>& population,
     const std::vector<std::string>& input_names,
@@ -218,11 +218,11 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
       std::chrono::duration<double, std::milli>(init_t1 - init_t0).count();
   result.timing.generations.reserve(static_cast<std::size_t>(cfg.generations));
 
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
   FitnessSessionGpu gpu_session;
 #endif
   if (cfg.eval_engine == EvalEngine::GPU) {
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
     const FitnessSessionInitResult init_result =
         gpu_session.init(case_set.bindings, case_set.expected_values, cfg.fuel,
                          cfg.gpu_blocksize, cfg.penalty);
@@ -251,7 +251,7 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
           population, reproduction_cfg, rng());
     }
     if (cfg.eval_engine == EvalEngine::GPU) {
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
       scored = score_population_gpu_refs(population, case_set.input_names, &gpu_session, nullptr,
                                          &result, &generation_timing, &fitness_sum,
                                          overlap_gpu ? &raw_fitness : nullptr, true);
@@ -307,7 +307,7 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   } else {
     const auto final_eval_t0 = std::chrono::steady_clock::now();
     if (cfg.eval_engine == EvalEngine::GPU) {
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
       const std::vector<ScoredGenomeRef> final_scored =
           score_population_gpu_refs(population, case_set.input_names, &gpu_session,
                                     nullptr, &result, nullptr, nullptr, nullptr, true);
@@ -342,4 +342,4 @@ EvolutionResult evolve_population(const std::vector<EvalCase>& cases,
   return result;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

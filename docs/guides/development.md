@@ -24,10 +24,10 @@ them intentionally:
 
 ```bash
 cmake -S cpp -B cpp/build/aux \
-  -DG3PVM_BUILD_BENCHMARKS=ON \
-  -DG3PVM_BUILD_EXPERIMENTS=ON
+  -DGAGP_BUILD_BENCHMARKS=ON \
+  -DGAGP_BUILD_EXPERIMENTS=ON
 cmake --build cpp/build/aux -j \
-  --target g3pvm_runtime_multi_bench g3pvm_simple_exp_population_probe
+  --target gagp_runtime_multi_bench gagp_simple_exp_population_probe
 ```
 
 The experiment probe requires CUDA. See the
@@ -83,10 +83,10 @@ not modify the source tree:
 ```bash
 cmake --preset fuzz -S cpp
 cmake --build cpp/build/fuzz -j \
-  --target g3pvm_fuzz_bytecode_json g3pvm_fuzz_ast_verify
-cp -a cpp/tests/fuzz/corpus/json /tmp/g3pvm-json-corpus
-cpp/build/fuzz/g3pvm_fuzz_bytecode_json -runs=1000 /tmp/g3pvm-json-corpus
-cpp/build/fuzz/g3pvm_fuzz_ast_verify -runs=1000 /tmp/g3pvm-json-corpus
+  --target gagp_fuzz_bytecode_json gagp_fuzz_ast_verify
+cp -a cpp/tests/fuzz/corpus/json /tmp/gagp-json-corpus
+cpp/build/fuzz/gagp_fuzz_bytecode_json -runs=1000 /tmp/gagp-json-corpus
+cpp/build/fuzz/gagp_fuzz_ast_verify -runs=1000 /tmp/gagp-json-corpus
 ```
 
 Keep any smallest reproducer as a named corpus or deterministic property-test
@@ -107,7 +107,7 @@ GPU-capable native paths select the least-used visible CUDA device. To force a
 visible-device index:
 
 ```bash
-G3PVM_CUDA_DEVICE=0 cpp/build/g3pvm_evolve_cli \
+GAGP_CUDA_DEVICE=0 cpp/build/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu --repro-backend gpu --repro-overlap on \
   --population-size 64 --generations 2
@@ -118,7 +118,7 @@ Use `nsys` only when profiling is needed; do not use `ncu` in this environment.
 ## Native CLI
 
 [`../reference/cli.md`](../reference/cli.md) is the checked flag/default
-reference for `g3pvm_evolve_cli`. The parser requires `--cases`; `--help` is not
+reference for `gagp_evolve_cli`. The parser requires `--cases`; `--help` is not
 a supported flag and exits through the unknown-argument error contract. Command
 stdout and top-level JSON keys are locked by the native CLI contract test.
 

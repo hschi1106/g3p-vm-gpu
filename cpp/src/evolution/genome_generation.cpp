@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/genome_generation.hpp"
+#include "gagp/evolution/genome_generation.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 #include "subtree_utils.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -154,7 +154,7 @@ Value random_int_list_literal(std::mt19937_64& rng) {
   for (int i = 0; i < len; ++i) {
     elems.push_back(Value::from_int(std::uniform_int_distribution<int>(-8, 8)(rng)));
   }
-  return g3pvm::payload::make_int_list_value(elems);
+  return gagp::payload::make_int_list_value(elems);
 }
 
 Value random_float_list_literal(std::mt19937_64& rng) {
@@ -165,7 +165,7 @@ Value random_float_list_literal(std::mt19937_64& rng) {
     elems.push_back(Value::from_float(
         std::round(std::uniform_real_distribution<double>(-8.0, 8.0)(rng) * 1000.0) / 1000.0));
   }
-  return g3pvm::payload::make_float_list_value(elems);
+  return gagp::payload::make_float_list_value(elems);
 }
 
 Value random_string_list_literal(std::mt19937_64& rng) {
@@ -173,9 +173,9 @@ Value random_string_list_literal(std::mt19937_64& rng) {
   std::vector<Value> elems;
   elems.reserve(static_cast<std::size_t>(len));
   for (int i = 0; i < len; ++i) {
-    elems.push_back(g3pvm::payload::make_string_value(random_string_literal(rng)));
+    elems.push_back(gagp::payload::make_string_value(random_string_literal(rng)));
   }
-  return g3pvm::payload::make_string_list_value(elems);
+  return gagp::payload::make_string_list_value(elems);
 }
 
 bool can_emit_asgp_dc_for_type(RType target, const GrammarConfig& grammar) {
@@ -209,16 +209,16 @@ bool can_emit_asgp_dp2d_for_type(RType target, const GrammarConfig& grammar) {
 
 Value asgp_dc_source_literal(RType target) {
   if (target == RType::Float) {
-    return g3pvm::payload::make_float_list_value({
+    return gagp::payload::make_float_list_value({
         Value::from_float(1.0),
         Value::from_float(2.0),
         Value::from_float(3.0),
     });
   }
   if (target == RType::String) {
-    return g3pvm::payload::make_string_value("abc");
+    return gagp::payload::make_string_value("abc");
   }
-  return g3pvm::payload::make_int_list_value({
+  return gagp::payload::make_int_list_value({
       Value::from_int(1),
       Value::from_int(2),
       Value::from_int(3),
@@ -234,11 +234,11 @@ Value scalar_zero_literal(RType target) {
 }
 
 Value dp_one_literal(RType target) {
-  return target == RType::String ? g3pvm::payload::make_string_value("a") : scalar_one_literal(target);
+  return target == RType::String ? gagp::payload::make_string_value("a") : scalar_one_literal(target);
 }
 
 Value dp_zero_literal(RType target) {
-  return target == RType::String ? g3pvm::payload::make_string_value("") : scalar_zero_literal(target);
+  return target == RType::String ? gagp::payload::make_string_value("") : scalar_zero_literal(target);
 }
 
 void assign_name_type(PrefixGenCtx& ctx, int name_id, RType type) {
@@ -321,7 +321,7 @@ void emit_random_leaf(std::mt19937_64& rng,
     return;
   }
   if (target == RType::String) {
-    const Value value = g3pvm::payload::make_string_value(random_string_literal(rng));
+    const Value value = gagp::payload::make_string_value(random_string_literal(rng));
     program.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(program, value), 0});
     return;
   }
@@ -1130,18 +1130,18 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
     fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::from_float(0.0)), 0});
   } else if (fallback_type == RType::String) {
     fallback.nodes.push_back(
-        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_string_value("")), 0});
+        AstNode{NodeKind::CONST, append_const_id(fallback, gagp::payload::make_string_value("")), 0});
   } else if (fallback_type == RType::Char) {
     fallback.nodes.push_back(AstNode{NodeKind::CONST, append_const_id(fallback, Value::from_char('a')), 0});
   } else if (fallback_type == RType::IntList) {
     fallback.nodes.push_back(
-        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_int_list_value({})), 0});
+        AstNode{NodeKind::CONST, append_const_id(fallback, gagp::payload::make_int_list_value({})), 0});
   } else if (fallback_type == RType::FloatList) {
     fallback.nodes.push_back(
-        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_float_list_value({})), 0});
+        AstNode{NodeKind::CONST, append_const_id(fallback, gagp::payload::make_float_list_value({})), 0});
   } else if (fallback_type == RType::StringList) {
     fallback.nodes.push_back(
-        AstNode{NodeKind::CONST, append_const_id(fallback, g3pvm::payload::make_string_list_value({})), 0});
+        AstNode{NodeKind::CONST, append_const_id(fallback, gagp::payload::make_string_list_value({})), 0});
   } else {
     fallback.nodes.push_back(AstNode{
         NodeKind::CONST,
@@ -1152,4 +1152,4 @@ ProgramGenome generate_random_genome_for_return_type(std::uint64_t seed,
   return as_genome_prefix(fallback);
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

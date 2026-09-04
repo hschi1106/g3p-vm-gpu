@@ -1,9 +1,10 @@
 # Architecture
 
-The maintained product is a native C++/CUDA prefix-AST genetic programming
-system. This document owns component boundaries and dependency direction. The
-end-to-end sequence is in [dataflow.md](dataflow.md); language and wire behavior
-is owned by the [specifications](../../spec/README.md).
+GAGP—GPU-Accelerated Genetic Programming for Program Synthesis—is a native
+C++/CUDA prefix-AST genetic programming system. This document owns component
+boundaries and dependency direction. The end-to-end sequence is in
+[dataflow.md](dataflow.md); language and wire behavior is owned by the
+[specifications](../../spec/README.md).
 
 ## Dependency direction
 
@@ -27,7 +28,7 @@ implement AST typing, bytecode execution, fitness, or reproduction semantics.
 
 ### Core and runtime
 
-`cpp/include/g3pvm/core/` owns shared values, errors, opcodes, bytecode, and
+`cpp/include/gagp/core/` owns shared values, errors, opcodes, bytecode, and
 bytecode-verification contracts. `cpp/src/runtime/cpu/` executes and scores
 bytecode on the host. `cpp/src/runtime/gpu/` packs programs/cases and executes
 fitness on CUDA. `cpp/src/runtime/payload/` owns host payload registration and
@@ -36,17 +37,17 @@ snapshot lookup for strings and typed lists.
 Runtime semantics are defined in `spec/`; implementation details of container
 transport are explained in [payload.md](payload.md).
 
-The CMake targets mirror these boundaries: `g3pvm_core` owns bytecode
-verification, `g3pvm_runtime_cpu` owns payload and host execution/fitness,
-`g3pvm_evolution` owns AST/compiler/operator/engine code,
-`g3pvm_cli_support` owns the command layer, and `g3pvm_gpu` owns CUDA runtime
-and reproduction kernels. `g3pvm_cpu` remains an interface-only compatibility
+The CMake targets mirror these boundaries: `gagp_core` owns bytecode
+verification, `gagp_runtime_cpu` owns payload and host execution/fitness,
+`gagp_evolution` owns AST/compiler/operator/engine code,
+`gagp_cli_support` owns the command layer, and `gagp_gpu` owns CUDA runtime
+and reproduction kernels. `gagp_cpu` remains an interface-only compatibility
 aggregate for existing tests and embedders; new targets should link the
 narrowest owner they use.
 
 ### AST, compiler, and verification
 
-`cpp/include/g3pvm/evolution/` exposes prefix ASTs, node descriptors, verified
+`cpp/include/gagp/evolution/` exposes prefix ASTs, node descriptors, verified
 AST annotations, grammar search configuration, genome operations, evolution,
 and timing. Its implementation is split by responsibility under
 `cpp/src/evolution/`.
@@ -86,7 +87,7 @@ child-for-child RNG identity. Detailed reproduction scheduling is in
 
 ### CLI
 
-`g3pvm_cli_support` owns the JSON parser, codecs, complete option parser, input
+`gagp_cli_support` owns the JSON parser, codecs, complete option parser, input
 loading, command workflows, and output adaptation. `evolve_cli.cpp` is only the
 process-level parse/dispatch/error boundary. No C++ implementation file is
 included textually.
@@ -97,7 +98,7 @@ keys even though timing storage inside `EvolutionResult` is nested.
 
 ### Operational tools
 
-`tools/g3pvm_tools/` is an independently installable, standard-library Python
+`tools/gagp_tools/` is an independently installable, standard-library Python
 package organized into dataset, experiment, report, and shared-format modules.
 Historical top-level scripts are compatibility wrappers. The command pipeline
 and artifact policy are owned by [`../../tools/README.md`](../../tools/README.md),

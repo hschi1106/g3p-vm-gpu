@@ -1,9 +1,9 @@
 #pragma once
 
-#include "g3pvm/core/builtin.hpp"
+#include "gagp/core/builtin.hpp"
 #include "arith_device.cuh"
 
-namespace g3pvm::gpu_detail {
+namespace gagp::gpu_detail {
 
 struct DPayloadTables {
   const DStringPayloadEntry* string_entries = nullptr;
@@ -1011,4 +1011,4 @@ __device__ inline bool d_builtin_call(BuiltinId bid,
   return false;
 }
 
-}  // namespace g3pvm::gpu_detail
+}  // namespace gagp::gpu_detail

@@ -40,7 +40,7 @@ Source files:
 
 - [gpu.cpp](../../cpp/src/evolution/repro/gpu.cpp)
 - [prep.cpp](../../cpp/src/evolution/repro/prep.cpp)
-- [types.hpp](../../cpp/include/g3pvm/evolution/repro/types.hpp)
+- [types.hpp](../../cpp/include/gagp/evolution/repro/types.hpp)
 
 The host extracts:
 
@@ -76,7 +76,7 @@ This stage is reported as:
 Source files:
 
 - [pack.cpp](../../cpp/src/evolution/repro/pack.cpp)
-- [pack.hpp](../../cpp/include/g3pvm/evolution/repro/pack.hpp)
+- [pack.hpp](../../cpp/include/gagp/evolution/repro/pack.hpp)
 
 The host flattens the typed AST population into bounded GPU-friendly arrays:
 
@@ -270,7 +270,7 @@ In overlap mode, improvement is limited when:
 
 ## How To Read Timings
 
-For fixed-population benchmarks built on `g3pvm_evolve_cli --generations 1 --skip-final-eval on`:
+For fixed-population benchmarks built on `gagp_evolve_cli --generations 1 --skip-final-eval on`:
 
 - compare `total_ms` first
 - then inspect `eval_ms`

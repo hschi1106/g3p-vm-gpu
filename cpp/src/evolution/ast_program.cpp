@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/ast_program.hpp"
+#include "gagp/evolution/ast_program.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -139,4 +139,4 @@ std::string ast_to_string(const AstProgram& program) { return canonical_prefix_s
 
 std::string ast_cache_key(const AstProgram& program) { return canonical_cache_key_serialize(program); }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

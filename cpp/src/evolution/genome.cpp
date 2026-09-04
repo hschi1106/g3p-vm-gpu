@@ -1,11 +1,11 @@
-#include "g3pvm/evolution/genome.hpp"
+#include "gagp/evolution/genome.hpp"
 
 #include <algorithm>
 
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -122,4 +122,4 @@ GenomeMeta build_genome_meta(const AstProgram& ast) {
   return meta;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

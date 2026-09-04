@@ -9,66 +9,66 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/cli/codec.hpp"
-#include "g3pvm/cli/json.hpp"
-#include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/crossover.hpp"
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
-#include "g3pvm/evolution/mutation.hpp"
-#include "g3pvm/runtime/cpu/builtins_cpu.hpp"
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
-#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
+#include "gagp/cli/codec.hpp"
+#include "gagp/cli/json.hpp"
+#include "gagp/core/value_semantics.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/crossover.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/genome_generation.hpp"
+#include "gagp/evolution/mutation.hpp"
+#include "gagp/runtime/cpu/builtins_cpu.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/runtime/cpu/fitness_cpu.hpp"
+#include "gagp/runtime/gpu/fitness_gpu.hpp"
 
 // Keep this file directly buildable without adding new library targets.
-#include "g3pvm/cli/codec.hpp"
-#include "g3pvm/cli/json.hpp"
+#include "gagp/cli/codec.hpp"
+#include "gagp/cli/json.hpp"
 
 namespace {
 
-using g3pvm::Value;
-using g3pvm::cli_detail::JsonParser;
-using g3pvm::cli_detail::JsonValue;
-using g3pvm::evo::EvolutionConfig;
-using g3pvm::evo::EvalCase;
-using g3pvm::evo::ProgramGenome;
-using g3pvm::evo::ScoredGenome;
+using gagp::Value;
+using gagp::cli_detail::JsonParser;
+using gagp::cli_detail::JsonValue;
+using gagp::evo::EvolutionConfig;
+using gagp::evo::EvalCase;
+using gagp::evo::ProgramGenome;
+using gagp::evo::ScoredGenome;
 
 std::string value_debug_string(const Value& v) {
   std::ostringstream oss;
   oss << std::setprecision(17);
-  if (v.tag == g3pvm::ValueTag::Int) {
+  if (v.tag == gagp::ValueTag::Int) {
     oss << "int(" << v.i << ")";
-  } else if (v.tag == g3pvm::ValueTag::Float) {
+  } else if (v.tag == gagp::ValueTag::Float) {
     oss << "float(" << v.f << ")";
-  } else if (v.tag == g3pvm::ValueTag::Bool) {
+  } else if (v.tag == gagp::ValueTag::Bool) {
     oss << "bool(" << (v.b ? "true" : "false") << ")";
-  } else if (v.tag == g3pvm::ValueTag::Invalid) {
+  } else if (v.tag == gagp::ValueTag::Invalid) {
     oss << "invalid";
-  } else if (v.tag == g3pvm::ValueTag::String) {
+  } else if (v.tag == gagp::ValueTag::String) {
     oss << "string(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
-  } else if (v.tag == g3pvm::ValueTag::Char) {
+  } else if (v.tag == gagp::ValueTag::Char) {
     oss << "char(" << v.i << ")";
-  } else if (v.tag == g3pvm::ValueTag::IntList) {
+  } else if (v.tag == gagp::ValueTag::IntList) {
     oss << "int_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
-  } else if (v.tag == g3pvm::ValueTag::FloatList) {
+  } else if (v.tag == gagp::ValueTag::FloatList) {
     oss << "float_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
-  } else if (v.tag == g3pvm::ValueTag::StringList) {
+  } else if (v.tag == gagp::ValueTag::StringList) {
     oss << "string_list(hash=" << Value::container_hash48(v) << ",len=" << Value::container_len(v) << ")";
   }
   return oss.str();
 }
 
-void dump_consts(const g3pvm::BytecodeProgram& bc) {
+void dump_consts(const gagp::BytecodeProgram& bc) {
   std::cout << "consts:\n";
   for (std::size_t i = 0; i < bc.consts.size(); ++i) {
     std::cout << "const[" << i << "]=" << value_debug_string(bc.consts[i]) << "\n";
   }
 }
 
-void trace_cpu_case(const g3pvm::BytecodeProgram& program,
+void trace_cpu_case(const gagp::BytecodeProgram& program,
                     const std::vector<std::pair<int, Value>>& inputs,
                     int fuel) {
   struct LocalSlot {
@@ -91,8 +91,8 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       return;
     }
     fuel -= 1;
-    const g3pvm::Instr& ins = program.code[static_cast<std::size_t>(ip)];
-    std::cout << "trace step=" << step++ << " ip=" << ip << " op=" << g3pvm::opcode_name(ins.op);
+    const gagp::Instr& ins = program.code[static_cast<std::size_t>(ip)];
+    std::cout << "trace step=" << step++ << " ip=" << ip << " op=" << gagp::opcode_name(ins.op);
     if (ins.has_a) {
       std::cout << " a=" << ins.a;
     }
@@ -110,17 +110,17 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       std::cout << "\n";
     };
 
-    if (ins.op == g3pvm::Opcode::PushConst) {
+    if (ins.op == gagp::Opcode::PushConst) {
       stack.push_back(program.consts[static_cast<std::size_t>(ins.a)]);
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Load) {
+    if (ins.op == gagp::Opcode::Load) {
       stack.push_back(locals[static_cast<std::size_t>(ins.a)].value);
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Store) {
+    if (ins.op == gagp::Opcode::Store) {
       locals[static_cast<std::size_t>(ins.a)].is_set = true;
       locals[static_cast<std::size_t>(ins.a)].value = stack.back();
       stack.pop_back();
@@ -129,26 +129,26 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Neg) {
+    if (ins.op == gagp::Opcode::Neg) {
       const Value x = stack.back();
       stack.pop_back();
-      if (x.tag == g3pvm::ValueTag::Float) {
-        stack.push_back(Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(-x.f)));
+      if (x.tag == gagp::ValueTag::Float) {
+        stack.push_back(Value::from_float(gagp::vm_semantics::canonicalize_vm_float(-x.f)));
       } else {
-        stack.push_back(Value::from_int(g3pvm::vm_semantics::wrap_int_neg(x.i)));
+        stack.push_back(Value::from_int(gagp::vm_semantics::wrap_int_neg(x.i)));
       }
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Not) {
+    if (ins.op == gagp::Opcode::Not) {
       const Value x = stack.back();
       stack.pop_back();
       stack.push_back(Value::from_bool(!x.b));
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Add || ins.op == g3pvm::Opcode::Sub || ins.op == g3pvm::Opcode::Mul ||
-        ins.op == g3pvm::Opcode::Div || ins.op == g3pvm::Opcode::Mod) {
+    if (ins.op == gagp::Opcode::Add || ins.op == gagp::Opcode::Sub || ins.op == gagp::Opcode::Mul ||
+        ins.op == gagp::Opcode::Div || ins.op == gagp::Opcode::Mod) {
       const Value b = stack.back();
       stack.pop_back();
       const Value a = stack.back();
@@ -156,67 +156,67 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       double a_num = 0.0;
       double b_num = 0.0;
       bool any_float = false;
-      g3pvm::vm_semantics::to_numeric_pair(a, b, a_num, b_num, any_float);
+      gagp::vm_semantics::to_numeric_pair(a, b, a_num, b_num, any_float);
       std::cout << "  arith lhs=" << value_debug_string(a) << " rhs=" << value_debug_string(b) << "\n";
-      if (ins.op == g3pvm::Opcode::Add) {
-        stack.push_back(any_float ? Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num + b_num))
-                                  : Value::from_int(g3pvm::vm_semantics::wrap_int_add(
+      if (ins.op == gagp::Opcode::Add) {
+        stack.push_back(any_float ? Value::from_float(gagp::vm_semantics::canonicalize_vm_float(a_num + b_num))
+                                  : Value::from_int(gagp::vm_semantics::wrap_int_add(
                                         static_cast<long long>(a_num), static_cast<long long>(b_num))));
-      } else if (ins.op == g3pvm::Opcode::Sub) {
-        stack.push_back(any_float ? Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num - b_num))
-                                  : Value::from_int(g3pvm::vm_semantics::wrap_int_sub(
+      } else if (ins.op == gagp::Opcode::Sub) {
+        stack.push_back(any_float ? Value::from_float(gagp::vm_semantics::canonicalize_vm_float(a_num - b_num))
+                                  : Value::from_int(gagp::vm_semantics::wrap_int_sub(
                                         static_cast<long long>(a_num), static_cast<long long>(b_num))));
-      } else if (ins.op == g3pvm::Opcode::Mul) {
-        stack.push_back(any_float ? Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num * b_num))
-                                  : Value::from_int(g3pvm::vm_semantics::wrap_int_mul(
+      } else if (ins.op == gagp::Opcode::Mul) {
+        stack.push_back(any_float ? Value::from_float(gagp::vm_semantics::canonicalize_vm_float(a_num * b_num))
+                                  : Value::from_int(gagp::vm_semantics::wrap_int_mul(
                                         static_cast<long long>(a_num), static_cast<long long>(b_num))));
-      } else if (ins.op == g3pvm::Opcode::Div) {
-        stack.push_back(Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(a_num / b_num)));
+      } else if (ins.op == gagp::Opcode::Div) {
+        stack.push_back(Value::from_float(gagp::vm_semantics::canonicalize_vm_float(a_num / b_num)));
       } else if (any_float) {
-        const double mod_value = g3pvm::vm_semantics::py_float_mod(a_num, b_num);
+        const double mod_value = gagp::vm_semantics::py_float_mod(a_num, b_num);
         std::cout << "  mod_raw=" << std::setprecision(17) << mod_value << "\n";
-        stack.push_back(Value::from_float(g3pvm::vm_semantics::canonicalize_vm_float(mod_value)));
+        stack.push_back(Value::from_float(gagp::vm_semantics::canonicalize_vm_float(mod_value)));
       } else {
-        stack.push_back(Value::from_int(g3pvm::vm_semantics::py_int_mod(
+        stack.push_back(Value::from_int(gagp::vm_semantics::py_int_mod(
             static_cast<long long>(a_num), static_cast<long long>(b_num))));
       }
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Lt || ins.op == g3pvm::Opcode::Le || ins.op == g3pvm::Opcode::Gt ||
-        ins.op == g3pvm::Opcode::Ge || ins.op == g3pvm::Opcode::Eq || ins.op == g3pvm::Opcode::Ne) {
+    if (ins.op == gagp::Opcode::Lt || ins.op == gagp::Opcode::Le || ins.op == gagp::Opcode::Gt ||
+        ins.op == gagp::Opcode::Ge || ins.op == gagp::Opcode::Eq || ins.op == gagp::Opcode::Ne) {
       const Value b = stack.back();
       stack.pop_back();
       const Value a = stack.back();
       stack.pop_back();
       bool out_bool = false;
-      g3pvm::vm_semantics::CmpOp cmp_op = g3pvm::vm_semantics::CmpOp::EQ;
-      if (ins.op == g3pvm::Opcode::Lt) cmp_op = g3pvm::vm_semantics::CmpOp::LT;
-      else if (ins.op == g3pvm::Opcode::Le) cmp_op = g3pvm::vm_semantics::CmpOp::LE;
-      else if (ins.op == g3pvm::Opcode::Gt) cmp_op = g3pvm::vm_semantics::CmpOp::GT;
-      else if (ins.op == g3pvm::Opcode::Ge) cmp_op = g3pvm::vm_semantics::CmpOp::GE;
-      else if (ins.op == g3pvm::Opcode::Ne) cmp_op = g3pvm::vm_semantics::CmpOp::NE;
-      g3pvm::vm_semantics::compare_values(cmp_op, a, b, out_bool);
+      gagp::vm_semantics::CmpOp cmp_op = gagp::vm_semantics::CmpOp::EQ;
+      if (ins.op == gagp::Opcode::Lt) cmp_op = gagp::vm_semantics::CmpOp::LT;
+      else if (ins.op == gagp::Opcode::Le) cmp_op = gagp::vm_semantics::CmpOp::LE;
+      else if (ins.op == gagp::Opcode::Gt) cmp_op = gagp::vm_semantics::CmpOp::GT;
+      else if (ins.op == gagp::Opcode::Ge) cmp_op = gagp::vm_semantics::CmpOp::GE;
+      else if (ins.op == gagp::Opcode::Ne) cmp_op = gagp::vm_semantics::CmpOp::NE;
+      gagp::vm_semantics::compare_values(cmp_op, a, b, out_bool);
       stack.push_back(Value::from_bool(out_bool));
       std::cout << "  cmp lhs=" << value_debug_string(a) << " rhs=" << value_debug_string(b)
                 << " -> " << value_debug_string(stack.back()) << "\n";
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Jmp) {
+    if (ins.op == gagp::Opcode::Jmp) {
       ip = ins.a;
       continue;
     }
-    if (ins.op == g3pvm::Opcode::JmpIfFalse || ins.op == g3pvm::Opcode::JmpIfTrue) {
+    if (ins.op == gagp::Opcode::JmpIfFalse || ins.op == gagp::Opcode::JmpIfTrue) {
       const Value c = stack.back();
       stack.pop_back();
       std::cout << "  branch cond=" << value_debug_string(c) << "\n";
-      if (ins.op == g3pvm::Opcode::JmpIfFalse && !c.b) ip = ins.a;
-      if (ins.op == g3pvm::Opcode::JmpIfTrue && c.b) ip = ins.a;
+      if (ins.op == gagp::Opcode::JmpIfFalse && !c.b) ip = ins.a;
+      if (ins.op == gagp::Opcode::JmpIfTrue && c.b) ip = ins.a;
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::CallBuiltin) {
+    if (ins.op == gagp::Opcode::CallBuiltin) {
       const int argc = ins.b;
       std::vector<Value> args;
       const std::size_t start = stack.size() - static_cast<std::size_t>(argc);
@@ -224,13 +224,13 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
         args.push_back(stack[i]);
       }
       stack.resize(start);
-      g3pvm::BuiltinId builtin_id = g3pvm::BuiltinId::Abs;
-      if (!g3pvm::builtin_id_from_int(ins.a, builtin_id)) {
+      gagp::BuiltinId builtin_id = gagp::BuiltinId::Abs;
+      if (!gagp::builtin_id_from_int(ins.a, builtin_id)) {
         throw std::runtime_error("unknown builtin id in probe");
       }
-      const g3pvm::BuiltinResult out = g3pvm::builtin_call(builtin_id, args);
+      const gagp::BuiltinResult out = gagp::builtin_call(builtin_id, args);
       stack.push_back(out.value);
-      std::cout << "  builtin " << g3pvm::builtin_name(builtin_id);
+      std::cout << "  builtin " << gagp::builtin_name(builtin_id);
       for (const Value& arg : args) {
         std::cout << " " << value_debug_string(arg);
       }
@@ -238,7 +238,7 @@ void trace_cpu_case(const g3pvm::BytecodeProgram& program,
       print_stack();
       continue;
     }
-    if (ins.op == g3pvm::Opcode::Return) {
+    if (ins.op == gagp::Opcode::Return) {
       std::cout << "  return " << value_debug_string(stack.back()) << "\n";
       return;
     }
@@ -266,7 +266,7 @@ Value decode_typed_or_raw_value(const JsonValue& v) {
   if (v.kind == JsonValue::Kind::Object) {
     auto it = v.object_v.find("type");
     if (it != v.object_v.end()) {
-      return g3pvm::cli_detail::decode_typed_value(v);
+      return gagp::cli_detail::decode_typed_value(v);
     }
   }
   if (v.kind == JsonValue::Kind::Null) {
@@ -284,11 +284,11 @@ Value decode_typed_or_raw_value(const JsonValue& v) {
   throw std::runtime_error("unsupported raw value type");
 }
 
-g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw) {
+gagp::evo::NamedInputs decode_inputs(const JsonValue& raw) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("case.inputs must be an object");
   }
-  g3pvm::evo::NamedInputs out;
+  gagp::evo::NamedInputs out;
   for (const auto& kv : raw.object_v) {
     out[kv.first] = decode_typed_or_raw_value(kv.second);
   }
@@ -324,7 +324,7 @@ std::vector<ProgramGenome> init_population(const EvolutionConfig& cfg) {
   std::vector<ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(cfg.population_size));
   for (int i = 0; i < cfg.population_size; ++i) {
-    out.push_back(g3pvm::evo::generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits));
+    out.push_back(gagp::evo::generate_random_genome(cfg.seed + static_cast<std::uint64_t>(i), cfg.limits));
   }
   return out;
 }
@@ -336,7 +336,7 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   next_population.reserve(static_cast<std::size_t>(cfg.population_size));
   const int pair_count = (cfg.population_size + 1) / 2;
   const int selected_parent_count = pair_count * 2;
-  std::vector<ProgramGenome> selected_parents = g3pvm::evo::tournament_selection_without_replacement(
+  std::vector<ProgramGenome> selected_parents = gagp::evo::tournament_selection_without_replacement(
       scored, *rng, cfg.selection_pressure, selected_parent_count);
 
   std::vector<ProgramGenome> offspring = selected_parents;
@@ -346,7 +346,7 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   if (selected_parents.size() > 1) {
     std::shuffle(offspring.begin(), offspring.end(), *rng);
     for (std::size_t i = 0; i + 1 < offspring.size(); i += 2) {
-      auto children = g3pvm::evo::crossover(offspring[i], offspring[i + 1], seed_dist(*rng), cfg.limits);
+      auto children = gagp::evo::crossover(offspring[i], offspring[i + 1], seed_dist(*rng), cfg.limits);
       offspring[i] = std::move(children.first);
       offspring[i + 1] = std::move(children.second);
     }
@@ -354,7 +354,7 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
 
   for (ProgramGenome& child : offspring) {
     if (prob_dist(*rng) < cfg.mutation_rate) {
-      child = g3pvm::evo::mutate(child, seed_dist(*rng), cfg.limits, cfg.mutation_subtree_prob);
+      child = gagp::evo::mutate(child, seed_dist(*rng), cfg.limits, cfg.mutation_subtree_prob);
     }
   }
   next_population.insert(next_population.end(),
@@ -363,14 +363,14 @@ std::vector<ProgramGenome> next_population_from_scored(const std::vector<ScoredG
   return next_population;
 }
 
-g3pvm::CaseBindings to_case_inputs(const EvalCase& one_case,
+gagp::CaseBindings to_case_inputs(const EvalCase& one_case,
                                  const std::vector<std::string>& input_names) {
-  g3pvm::CaseBindings out;
+  gagp::CaseBindings out;
   out.reserve(input_names.size());
   for (std::size_t i = 0; i < input_names.size(); ++i) {
     const auto it = one_case.inputs.find(input_names[i]);
     if (it != one_case.inputs.end()) {
-      out.push_back(g3pvm::InputBinding{static_cast<int>(i), it->second});
+      out.push_back(gagp::InputBinding{static_cast<int>(i), it->second});
     }
   }
   return out;
@@ -390,25 +390,25 @@ int main() {
   cpu_cfg.seed = 0;
   cpu_cfg.fuel = 20000;
   cpu_cfg.gpu_blocksize = 256;
-  cpu_cfg.eval_engine = g3pvm::evo::EvalEngine::CPU;
+  cpu_cfg.eval_engine = gagp::evo::EvalEngine::CPU;
 
-  if (const char* generations_env = std::getenv("G3PVM_PROBE_GENERATIONS")) {
+  if (const char* generations_env = std::getenv("GAGP_PROBE_GENERATIONS")) {
     cpu_cfg.generations = std::atoi(generations_env);
   }
 
   EvolutionConfig gpu_cfg = cpu_cfg;
-  gpu_cfg.eval_engine = g3pvm::evo::EvalEngine::GPU;
+  gpu_cfg.eval_engine = gagp::evo::EvalEngine::GPU;
   const std::vector<std::string> input_names = {"x"};
 
   std::mt19937_64 rng(cpu_cfg.seed);
   std::vector<ProgramGenome> population = init_population(cpu_cfg);
 
   for (int gen = 0; gen < cpu_cfg.generations; ++gen) {
-    const std::vector<g3pvm::evo::ScoredGenome> cpu_scored =
-        g3pvm::evo::evaluate_population(population, cases, cpu_cfg);
-    std::vector<g3pvm::evo::ScoredGenome> gpu_scored;
+    const std::vector<gagp::evo::ScoredGenome> cpu_scored =
+        gagp::evo::evaluate_population(population, cases, cpu_cfg);
+    std::vector<gagp::evo::ScoredGenome> gpu_scored;
     try {
-      gpu_scored = g3pvm::evo::evaluate_population(population, cases, gpu_cfg);
+      gpu_scored = gagp::evo::evaluate_population(population, cases, gpu_cfg);
     } catch (const std::runtime_error& err) {
       if (std::string(err.what()).find("cuda device unavailable") != std::string::npos) {
         std::cout << "simple_exp_population_probe: SKIP (" << err.what() << ")\n";
@@ -427,14 +427,14 @@ int main() {
         std::cout << "gpu_fitness=" << gpu_scored[i].fitness << "\n";
         const ProgramGenome& mismatched = cpu_scored[i].genome;
         std::cout << "program_key=" << mismatched.meta.program_key << "\n";
-        const g3pvm::BytecodeProgram bc =
-            g3pvm::evo::compile_for_eval(mismatched, input_names);
+        const gagp::BytecodeProgram bc =
+            gagp::evo::compile_for_eval(mismatched, input_names);
         std::cout << std::setprecision(17);
         std::cout << "bytecode_consts=" << bc.consts.size() << " bytecode_code=" << bc.code.size() << "\n";
         dump_consts(bc);
         for (std::size_t op_idx = 0; op_idx < bc.code.size(); ++op_idx) {
           const auto& ins = bc.code[op_idx];
-          std::cout << "op[" << op_idx << "]=" << g3pvm::opcode_name(ins.op);
+          std::cout << "op[" << op_idx << "]=" << gagp::opcode_name(ins.op);
           if (ins.has_a) {
             std::cout << " a=" << ins.a;
           }
@@ -444,19 +444,19 @@ int main() {
           std::cout << "\n";
         }
         for (std::size_t case_idx = 0; case_idx < cases.size(); ++case_idx) {
-          const std::vector<g3pvm::CaseBindings> shared_cases{to_case_inputs(cases[case_idx], input_names)};
+          const std::vector<gagp::CaseBindings> shared_cases{to_case_inputs(cases[case_idx], input_names)};
           const std::vector<Value> shared_answer{cases[case_idx].expected};
           const double cpu_case =
-              g3pvm::eval_fitness_cpu({bc}, shared_cases, shared_answer, cpu_cfg.fuel, cpu_cfg.penalty,
+              gagp::eval_fitness_cpu({bc}, shared_cases, shared_answer, cpu_cfg.fuel, cpu_cfg.penalty,
                                       cpu_cfg.gpu_blocksize)[0];
-          g3pvm::FitnessSessionGpu gpu_case_session;
-          const g3pvm::FitnessSessionInitResult init =
+          gagp::FitnessSessionGpu gpu_case_session;
+          const gagp::FitnessSessionInitResult init =
               gpu_case_session.init(shared_cases, shared_answer, gpu_cfg.fuel, gpu_cfg.gpu_blocksize,
                                     gpu_cfg.penalty);
           if (!init.ok) {
             throw std::runtime_error("case-level gpu fitness init failed: " + init.err.message);
           }
-          const g3pvm::FitnessEvalResult gpu_case = gpu_case_session.eval_programs({bc});
+          const gagp::FitnessEvalResult gpu_case = gpu_case_session.eval_programs({bc});
           if (!gpu_case.ok) {
             throw std::runtime_error("case-level gpu fitness failed: " + gpu_case.err.message);
           }
@@ -474,7 +474,7 @@ int main() {
       }
     }
 
-    const std::vector<ScoredGenome> scored = g3pvm::evo::evaluate_population(population, cases, cpu_cfg);
+    const std::vector<ScoredGenome> scored = gagp::evo::evaluate_population(population, cases, cpu_cfg);
     population = next_population_from_scored(scored, cpu_cfg, &rng);
   }
 

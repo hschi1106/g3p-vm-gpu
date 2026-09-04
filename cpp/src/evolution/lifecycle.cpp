@@ -1,11 +1,11 @@
-#include "g3pvm/evolution/lifecycle.hpp"
+#include "gagp/evolution/lifecycle.hpp"
 
 #include <stdexcept>
 
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 namespace {
 
 void append_payload_root(const Value& value, std::vector<Value>* roots) {
@@ -50,7 +50,7 @@ void PayloadLifetimeManager::retain(
   append_scored_roots(history_best, &roots);
   if (best != nullptr) append_genome_roots(best->genome, &roots);
   if (final_population != nullptr) append_scored_roots(*final_population, &roots);
-  g3pvm::payload::retain_only(roots);
+  gagp::payload::retain_only(roots);
 }
 
 bool gpu_reproduction_overlap_enabled(const EvolutionConfig& config) {
@@ -89,4 +89,4 @@ repro::ReproductionResult finish_gpu_reproduction_overlap(
       scored, config, overlap.prepared, &overlap.stats);
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

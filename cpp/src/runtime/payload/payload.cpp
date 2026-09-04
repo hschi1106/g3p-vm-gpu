@@ -1,4 +1,4 @@
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace g3pvm::payload {
+namespace gagp::payload {
 
 namespace {
 
@@ -308,4 +308,4 @@ std::vector<ListSnapshot> snapshot_lists() {
   return out;
 }
 
-}  // namespace g3pvm::payload
+}  // namespace gagp::payload

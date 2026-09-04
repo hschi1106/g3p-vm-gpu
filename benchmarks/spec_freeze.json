@@ -1,7 +1,7 @@
 {
   "authoritative_entrypoint": "spec/grammar.md",
   "format_version": "spec-freeze",
-  "generated_at": "2026-09-01",
+  "generated_at": "2026-09-04",
   "notes": [
     "This manifest records the release 1.0.0 normative spec set after the native grammar refactor.",
     "The hash gate is intentionally mechanical: if a listed spec changes, update this manifest in the same semantic change."
@@ -9,11 +9,11 @@
   "specs": [
     {
       "path": "spec/grammar.md",
-      "sha256": "0141679ba48aba190944fd0000049f1667c1db2d35c924e2d94d6748f65dbefa"
+      "sha256": "0e64966597feb49a0f3bd13069eec9048f7aa1d3da93d5ee73aadb9834caed59"
     },
     {
       "path": "spec/bytecode_isa.md",
-      "sha256": "ea528191bca44a6fd8f54333f61f7dd414ca607a24cc978ddec8d66e571da9c7"
+      "sha256": "e201ec7e7ea0e78f91cd9da8bb79a683b368f71f1ab1793ccfffed84f8afd48e"
     },
     {
       "path": "spec/bytecode_format.md",

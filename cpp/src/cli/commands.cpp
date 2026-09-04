@@ -11,25 +11,25 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
-#include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/evolution/grammar_config.hpp"
-#include "g3pvm/evolution/repro/pack.hpp"
-#include "g3pvm/cli/codec.hpp"
-#include "g3pvm/cli/commands.hpp"
-#include "g3pvm/cli/json.hpp"
-#include "g3pvm/cli/options.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/genome_generation.hpp"
+#include "gagp/evolution/genome.hpp"
+#include "gagp/evolution/grammar_config.hpp"
+#include "gagp/evolution/repro/pack.hpp"
+#include "gagp/cli/codec.hpp"
+#include "gagp/cli/commands.hpp"
+#include "gagp/cli/json.hpp"
+#include "gagp/cli/options.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 namespace {
 
-using g3pvm::Value;
-using g3pvm::ValueTag;
-using g3pvm::cli_detail::CliOptions;
-using g3pvm::cli_detail::JsonValue;
+using gagp::Value;
+using gagp::ValueTag;
+using gagp::cli_detail::CliOptions;
+using gagp::cli_detail::JsonValue;
 
 std::string json_escape(const std::string& s) {
   std::ostringstream oss;
@@ -101,7 +101,7 @@ void write_typed_list_json(std::ostream& out, const char* type, const std::vecto
         throw std::runtime_error("StringList AST constant contains non-string element");
       }
       std::string s;
-      if (!g3pvm::payload::lookup_string(elems[i], &s)) {
+      if (!gagp::payload::lookup_string(elems[i], &s)) {
         throw std::runtime_error("missing string element payload while writing AST JSON");
       }
       out << "\"" << json_escape(s) << "\"";
@@ -137,7 +137,7 @@ void write_typed_value_json(std::ostream& out, const Value& v) {
   }
   if (v.tag == ValueTag::String) {
     std::string s;
-    if (!g3pvm::payload::lookup_string(v, &s)) {
+    if (!gagp::payload::lookup_string(v, &s)) {
       throw std::runtime_error("missing string payload while writing AST JSON");
     }
     out << "{\"type\":\"string\",\"value\":\"" << json_escape(s) << "\"}";
@@ -145,7 +145,7 @@ void write_typed_value_json(std::ostream& out, const Value& v) {
   }
   if (v.tag == ValueTag::IntList || v.tag == ValueTag::FloatList || v.tag == ValueTag::StringList) {
     std::vector<Value> elems;
-    if (!g3pvm::payload::lookup_list(v, &elems)) {
+    if (!gagp::payload::lookup_list(v, &elems)) {
       throw std::runtime_error("missing list payload while writing AST JSON");
     }
     if (v.tag == ValueTag::IntList) {
@@ -160,13 +160,13 @@ void write_typed_value_json(std::ostream& out, const Value& v) {
   throw std::runtime_error("unsupported AST constant value tag");
 }
 
-void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
+void write_ast_json(std::ostream& out, const gagp::evo::AstProgram& ast) {
   out << "{";
   out << "\"version\":\"" << json_escape(ast.version) << "\",";
   out << "\"nodes\":[";
   for (std::size_t i = 0; i < ast.nodes.size(); ++i) {
     if (i > 0) out << ",";
-    const g3pvm::evo::AstNode& node = ast.nodes[i];
+    const gagp::evo::AstNode& node = ast.nodes[i];
     out << "{\"kind\":" << static_cast<int>(node.kind)
         << ",\"i0\":" << node.i0
         << ",\"i1\":" << node.i1 << "}";
@@ -184,7 +184,7 @@ void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
   out << "],\"linear_rec_binders\":[";
   for (std::size_t i = 0; i < ast.linear_rec_binders.size(); ++i) {
     if (i > 0) out << ",";
-    const g3pvm::evo::LinearRecBinders& binders = ast.linear_rec_binders[i];
+    const gagp::evo::LinearRecBinders& binders = ast.linear_rec_binders[i];
     out << "{\"node_index\":" << binders.node_index
         << ",\"elem_name\":" << binders.elem_name
         << ",\"accum_name\":" << binders.accum_name
@@ -193,7 +193,7 @@ void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
   out << "],\"asgp_dc_binders\":[";
   for (std::size_t i = 0; i < ast.asgp_dc_binders.size(); ++i) {
     if (i > 0) out << ",";
-    const g3pvm::evo::AsgpDcBinders& binders = ast.asgp_dc_binders[i];
+    const gagp::evo::AsgpDcBinders& binders = ast.asgp_dc_binders[i];
     out << "{\"node_index\":" << binders.node_index
         << ",\"solve_xs_name\":" << binders.solve_xs_name
         << ",\"solve_n_name\":" << binders.solve_n_name
@@ -205,7 +205,7 @@ void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
   out << "],\"asgp_dp1d_specs\":[";
   for (std::size_t i = 0; i < ast.asgp_dp1d_specs.size(); ++i) {
     if (i > 0) out << ",";
-    const g3pvm::evo::AsgpDp1dSpec& spec = ast.asgp_dp1d_specs[i];
+    const gagp::evo::AsgpDp1dSpec& spec = ast.asgp_dp1d_specs[i];
     out << "{\"node_index\":" << spec.node_index
         << ",\"lo\":" << spec.lo
         << ",\"hi\":" << spec.hi
@@ -229,7 +229,7 @@ void write_ast_json(std::ostream& out, const g3pvm::evo::AstProgram& ast) {
   out << "],\"asgp_dp2d_specs\":[";
   for (std::size_t i = 0; i < ast.asgp_dp2d_specs.size(); ++i) {
     if (i > 0) out << ",";
-    const g3pvm::evo::AsgpDp2dSpec& spec = ast.asgp_dp2d_specs[i];
+    const gagp::evo::AsgpDp2dSpec& spec = ast.asgp_dp2d_specs[i];
     out << "{\"node_index\":" << spec.node_index
         << ",\"i_lo\":" << spec.i_lo
         << ",\"i_hi\":" << spec.i_hi
@@ -280,7 +280,7 @@ Value decode_typed_or_raw_value(const JsonValue& v, bool strict_format = false) 
           (it->second.string_v == "none" || it->second.string_v == "num_list" || it->second.string_v == "list")) {
         throw std::runtime_error("fitness-cases rejects legacy typed value type: " + it->second.string_v);
       }
-      return g3pvm::cli_detail::decode_typed_value(v);
+      return gagp::cli_detail::decode_typed_value(v);
     }
   }
 
@@ -303,11 +303,11 @@ Value decode_typed_or_raw_value(const JsonValue& v, bool strict_format = false) 
   throw std::runtime_error("unsupported raw value type");
 }
 
-g3pvm::evo::NamedInputs decode_inputs(const JsonValue& raw, bool strict_format = false) {
+gagp::evo::NamedInputs decode_inputs(const JsonValue& raw, bool strict_format = false) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("case.inputs must be an object");
   }
-  g3pvm::evo::NamedInputs out;
+  gagp::evo::NamedInputs out;
   for (const auto& kv : raw.object_v) {
     out[kv.first] = decode_typed_or_raw_value(kv.second, strict_format);
   }
@@ -349,11 +349,11 @@ std::vector<int> require_int_array_field_local(const JsonValue& raw,
   return out;
 }
 
-g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
+gagp::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("AST JSON must be an object");
   }
-  g3pvm::evo::AstProgram ast;
+  gagp::evo::AstProgram ast;
   auto version_it = raw.object_v.find("version");
   if (version_it == raw.object_v.end() || version_it->second.kind != JsonValue::Kind::String) {
     throw std::runtime_error("AST JSON missing string field: version");
@@ -370,8 +370,8 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
       throw std::runtime_error("AST node must be an object");
     }
     const int kind = require_int_field_local(row, "kind", "node");
-    ast.nodes.push_back(g3pvm::evo::AstNode{
-        static_cast<g3pvm::evo::NodeKind>(kind),
+    ast.nodes.push_back(gagp::evo::AstNode{
+        static_cast<gagp::evo::NodeKind>(kind),
         require_int_field_local(row, "i0", "node"),
         require_int_field_local(row, "i1", "node"),
     });
@@ -395,7 +395,7 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
   }
   ast.consts.reserve(consts_it->second.array_v.size());
   for (const JsonValue& item : consts_it->second.array_v) {
-    ast.consts.push_back(g3pvm::cli_detail::decode_typed_value(item));
+    ast.consts.push_back(gagp::cli_detail::decode_typed_value(item));
   }
 
   auto binders_it = raw.object_v.find("linear_rec_binders");
@@ -408,7 +408,7 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
       if (row.kind != JsonValue::Kind::Object) {
         throw std::runtime_error("AST linear_rec_binders item must be an object");
       }
-      ast.linear_rec_binders.push_back(g3pvm::evo::LinearRecBinders{
+      ast.linear_rec_binders.push_back(gagp::evo::LinearRecBinders{
           require_node_index_field_local(row, "linear_rec_binders"),
           require_int_field_local(row, "elem_name", "linear_rec_binders"),
           require_int_field_local(row, "accum_name", "linear_rec_binders"),
@@ -426,7 +426,7 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
       if (row.kind != JsonValue::Kind::Object) {
         throw std::runtime_error("AST asgp_dc_binders item must be an object");
       }
-      ast.asgp_dc_binders.push_back(g3pvm::evo::AsgpDcBinders{
+      ast.asgp_dc_binders.push_back(gagp::evo::AsgpDcBinders{
           require_node_index_field_local(row, "asgp_dc_binders"),
           require_int_field_local(row, "solve_xs_name", "asgp_dc_binders"),
           require_int_field_local(row, "solve_n_name", "asgp_dc_binders"),
@@ -447,13 +447,13 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
       if (row.kind != JsonValue::Kind::Object) {
         throw std::runtime_error("AST asgp_dp1d_specs item must be an object");
       }
-      ast.asgp_dp1d_specs.push_back(g3pvm::evo::AsgpDp1dSpec{
+      ast.asgp_dp1d_specs.push_back(gagp::evo::AsgpDp1dSpec{
           require_node_index_field_local(row, "asgp_dp1d_specs"),
           require_int_field_local(row, "lo", "asgp_dp1d_specs"),
           require_int_field_local(row, "hi", "asgp_dp1d_specs"),
           require_int_field_local(row, "base_state", "asgp_dp1d_specs"),
           require_int_field_local(row, "boundary_const", "asgp_dp1d_specs"),
-          static_cast<g3pvm::evo::NodeKind>(
+          static_cast<gagp::evo::NodeKind>(
               require_int_field_local(row, "dep_kind", "asgp_dp1d_specs")),
           require_int_array_field_local(row, "dep_offsets", "asgp_dp1d_specs"),
           require_int_field_local(row, "solve_state_name", "asgp_dp1d_specs"),
@@ -472,7 +472,7 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
       if (row.kind != JsonValue::Kind::Object) {
         throw std::runtime_error("AST asgp_dp2d_specs item must be an object");
       }
-      ast.asgp_dp2d_specs.push_back(g3pvm::evo::AsgpDp2dSpec{
+      ast.asgp_dp2d_specs.push_back(gagp::evo::AsgpDp2dSpec{
           require_node_index_field_local(row, "asgp_dp2d_specs"),
           require_int_field_local(row, "i_lo", "asgp_dp2d_specs"),
           require_int_field_local(row, "i_hi", "asgp_dp2d_specs"),
@@ -481,7 +481,7 @@ g3pvm::evo::AstProgram decode_ast_json_impl(const JsonValue& raw) {
           require_int_field_local(row, "base_i", "asgp_dp2d_specs"),
           require_int_field_local(row, "base_j", "asgp_dp2d_specs"),
           require_int_field_local(row, "boundary_const", "asgp_dp2d_specs"),
-          static_cast<g3pvm::evo::NodeKind>(
+          static_cast<gagp::evo::NodeKind>(
               require_int_field_local(row, "dep_kind", "asgp_dp2d_specs")),
           require_int_field_local(row, "solve_i_name", "asgp_dp2d_specs"),
           require_int_field_local(row, "solve_j_name", "asgp_dp2d_specs"),
@@ -615,7 +615,7 @@ bool config_requests_legacy_num_list_input_compat(const JsonValue& payload) {
          num_list_mode_it->second.string_v == "both";
 }
 
-g3pvm::evo::GrammarConfig parse_grammar_config_current_payload(const JsonValue& payload) {
+gagp::evo::GrammarConfig parse_grammar_config_current_payload(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("grammar config must be a JSON object");
   }
@@ -651,7 +651,7 @@ g3pvm::evo::GrammarConfig parse_grammar_config_current_payload(const JsonValue& 
                         "values");
   validate_optional_metadata(payload);
 
-  g3pvm::evo::GrammarConfig cfg;
+  gagp::evo::GrammarConfig cfg;
   cfg.statement_assign = require_bool_field(statements, "assign", "statements");
   cfg.statement_if_stmt = require_bool_field(statements, "if_stmt", "statements");
   cfg.statement_for_range = require_bool_field(statements, "for_range", "statements");
@@ -756,7 +756,7 @@ g3pvm::evo::GrammarConfig parse_grammar_config_current_payload(const JsonValue& 
   return cfg;
 }
 
-g3pvm::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload) {
+gagp::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("grammar config must be a JSON object");
   }
@@ -767,7 +767,7 @@ g3pvm::evo::GrammarConfig parse_grammar_config_payload(const JsonValue& payload)
   return parse_grammar_config_current_payload(payload);
 }
 
-std::vector<g3pvm::evo::EvalCase> parse_cases(const JsonValue& payload) {
+std::vector<gagp::evo::EvalCase> parse_cases(const JsonValue& payload) {
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("input JSON must be object");
   }
@@ -785,7 +785,7 @@ std::vector<g3pvm::evo::EvalCase> parse_cases(const JsonValue& payload) {
     throw std::runtime_error("input JSON must include list field: cases");
   }
 
-  std::vector<g3pvm::evo::EvalCase> out;
+  std::vector<gagp::evo::EvalCase> out;
   out.reserve(cases_it->second.array_v.size());
   for (const JsonValue& row : cases_it->second.array_v) {
     if (row.kind != JsonValue::Kind::Object) {
@@ -796,7 +796,7 @@ std::vector<g3pvm::evo::EvalCase> parse_cases(const JsonValue& payload) {
     if (inputs_it == row.object_v.end() || expected_it == row.object_v.end()) {
       throw std::runtime_error("cases[i] must include inputs/expected");
     }
-    out.push_back(g3pvm::evo::EvalCase{decode_inputs(inputs_it->second, true),
+    out.push_back(gagp::evo::EvalCase{decode_inputs(inputs_it->second, true),
                                           decode_typed_or_raw_value(expected_it->second, true)});
   }
   if (out.empty()) {
@@ -807,7 +807,7 @@ std::vector<g3pvm::evo::EvalCase> parse_cases(const JsonValue& payload) {
 
 std::string read_text_file(const std::string& path);
 
-g3pvm::evo::Limits parse_limits_object(const JsonValue& raw) {
+gagp::evo::Limits parse_limits_object(const JsonValue& raw) {
   if (raw.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("population seed set limits must be an object");
   }
@@ -818,7 +818,7 @@ g3pvm::evo::Limits parse_limits_object(const JsonValue& raw) {
     }
     return static_cast<int>(it->second.number_v);
   };
-  return g3pvm::evo::Limits{
+  return gagp::evo::Limits{
       read_int("max_expr_depth"),
       read_int("max_stmts_per_block"),
       read_int("max_total_nodes"),
@@ -828,17 +828,17 @@ g3pvm::evo::Limits parse_limits_object(const JsonValue& raw) {
 }
 
 struct LoadedPopulation {
-  g3pvm::evo::Limits limits;
+  gagp::evo::Limits limits;
   std::vector<std::uint64_t> seeds;
-  std::vector<g3pvm::evo::ProgramGenome> genomes;
+  std::vector<gagp::evo::ProgramGenome> genomes;
 };
 
 LoadedPopulation load_population_from_seed_set(const std::string& population_json,
                                                const std::string& cases_path,
-                                               const g3pvm::evo::GrammarConfig& grammar,
+                                               const gagp::evo::GrammarConfig& grammar,
                                                const std::string& grammar_config_path,
                                                const std::string& grammar_config_hash) {
-  const JsonValue payload = g3pvm::cli_detail::JsonParser(read_text_file(population_json)).parse();
+  const JsonValue payload = gagp::cli_detail::JsonParser(read_text_file(population_json)).parse();
   if (payload.kind != JsonValue::Kind::Object) {
     throw std::runtime_error("population seed set must be a JSON object");
   }
@@ -905,7 +905,7 @@ LoadedPopulation load_population_from_seed_set(const std::string& population_jso
     }
     const std::uint64_t seed = static_cast<std::uint64_t>(seed_it->second.number_v);
     out.seeds.push_back(seed);
-    out.genomes.push_back(g3pvm::evo::generate_random_genome(seed, out.limits, grammar));
+    out.genomes.push_back(gagp::evo::generate_random_genome(seed, out.limits, grammar));
   }
   if (out.genomes.empty()) {
     throw std::runtime_error("population seed set must contain at least one seed");
@@ -924,9 +924,9 @@ std::string read_text_file(const std::string& path) {
 }
 
 struct LoadedCommandInputs {
-  g3pvm::evo::GrammarConfig grammar;
+  gagp::evo::GrammarConfig grammar;
   std::string grammar_hash;
-  std::vector<g3pvm::evo::EvalCase> cases;
+  std::vector<gagp::evo::EvalCase> cases;
 };
 
 LoadedCommandInputs load_command_inputs(const CliOptions& args) {
@@ -934,30 +934,30 @@ LoadedCommandInputs load_command_inputs(const CliOptions& args) {
   if (!args.grammar_config_path.empty()) {
     const std::string grammar_text = read_text_file(args.grammar_config_path);
     inputs.grammar =
-        parse_grammar_config_payload(g3pvm::cli_detail::JsonParser(grammar_text).parse());
+        parse_grammar_config_payload(gagp::cli_detail::JsonParser(grammar_text).parse());
     inputs.grammar_hash = fnv1a64_hex(grammar_text);
   }
 
   const std::string cases_text = read_text_file(args.cases_path);
   inputs.cases =
-      parse_cases(g3pvm::cli_detail::JsonParser(cases_text).parse());
+      parse_cases(gagp::cli_detail::JsonParser(cases_text).parse());
   return inputs;
 }
 
-g3pvm::evo::EvolutionConfig make_evolution_config(
-    const CliOptions& args, const g3pvm::evo::GrammarConfig& grammar) {
-  g3pvm::evo::EvolutionConfig cfg;
+gagp::evo::EvolutionConfig make_evolution_config(
+    const CliOptions& args, const gagp::evo::GrammarConfig& grammar) {
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = args.population_size;
   cfg.generations = args.generations;
   cfg.mutation_rate = args.mutation_rate;
   cfg.mutation_subtree_prob = args.mutation_subtree_prob;
   cfg.penalty = args.penalty;
   cfg.eval_engine =
-      (args.engine == "gpu") ? g3pvm::evo::EvalEngine::GPU : g3pvm::evo::EvalEngine::CPU;
+      (args.engine == "gpu") ? gagp::evo::EvalEngine::GPU : gagp::evo::EvalEngine::CPU;
   cfg.reproduction_backend =
-      g3pvm::evo::repro::parse_reproduction_backend_name(args.repro_backend);
+      gagp::evo::repro::parse_reproduction_backend_name(args.repro_backend);
   cfg.cpu_repro_ablation =
-      g3pvm::evo::repro::parse_cpu_repro_ablation_name(args.cpu_repro_ablation);
+      gagp::evo::repro::parse_cpu_repro_ablation_name(args.cpu_repro_ablation);
   cfg.repro_overlap = args.repro_overlap;
   cfg.gpu_blocksize = args.blocksize;
   cfg.selection_pressure = args.selection_pressure;
@@ -971,41 +971,41 @@ g3pvm::evo::EvolutionConfig make_evolution_config(
 
 }  // namespace
 
-g3pvm::evo::AstProgram g3pvm::cli_detail::decode_ast_json(const JsonValue& raw) {
+gagp::evo::AstProgram gagp::cli_detail::decode_ast_json(const JsonValue& raw) {
   return decode_ast_json_impl(raw);
 }
 
-std::string g3pvm::cli_detail::encode_ast_json(const evo::AstProgram& ast) {
+std::string gagp::cli_detail::encode_ast_json(const evo::AstProgram& ast) {
   std::ostringstream out;
   write_ast_json(out, ast);
   return out.str();
 }
 
-g3pvm::evo::GrammarConfig g3pvm::cli_detail::decode_grammar_config_json(
+gagp::evo::GrammarConfig gagp::cli_detail::decode_grammar_config_json(
     const JsonValue& raw) {
   return parse_grammar_config_payload(raw);
 }
 
-int g3pvm::cli_detail::run_eval_ast_command(const CliOptions& args) {
+int gagp::cli_detail::run_eval_ast_command(const CliOptions& args) {
       const LoadedCommandInputs inputs = load_command_inputs(args);
-      const g3pvm::evo::EvolutionConfig cfg = make_evolution_config(args, inputs.grammar);
-      if (cfg.eval_engine != g3pvm::evo::EvalEngine::CPU) {
+      const gagp::evo::EvolutionConfig cfg = make_evolution_config(args, inputs.grammar);
+      if (cfg.eval_engine != gagp::evo::EvalEngine::CPU) {
         throw std::runtime_error("--eval-ast-json currently supports --engine cpu only");
       }
-      const JsonValue ast_payload = g3pvm::cli_detail::JsonParser(read_text_file(args.eval_ast_json)).parse();
-      g3pvm::evo::ProgramGenome genome;
+      const JsonValue ast_payload = gagp::cli_detail::JsonParser(read_text_file(args.eval_ast_json)).parse();
+      gagp::evo::ProgramGenome genome;
       genome.ast = decode_ast_json(ast_payload);
-      const g3pvm::evo::AstVerifyResult verified = g3pvm::evo::verify_ast(
-          genome.ast, g3pvm::evo::canonical_input_specs(inputs.cases, cfg.grammar));
+      const gagp::evo::AstVerifyResult verified = gagp::evo::verify_ast(
+          genome.ast, gagp::evo::canonical_input_specs(inputs.cases, cfg.grammar));
       if (!verified) {
         throw std::runtime_error(
             std::string("invalid AST (") +
-            g3pvm::evo::verify_code_name(verified.diagnostic.code) + ") at " +
+            gagp::evo::verify_code_name(verified.diagnostic.code) + ") at " +
             verified.diagnostic.path + ": " + verified.diagnostic.message);
       }
-      genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-      const std::vector<g3pvm::evo::ScoredGenome> scored =
-          g3pvm::evo::evaluate_population({genome}, inputs.cases, cfg);
+      genome.meta = gagp::evo::build_genome_meta(genome.ast);
+      const std::vector<gagp::evo::ScoredGenome> scored =
+          gagp::evo::evaluate_population({genome}, inputs.cases, cfg);
       if (scored.empty()) {
         throw std::runtime_error("AST evaluation produced no score");
       }
@@ -1022,7 +1022,7 @@ int g3pvm::cli_detail::run_eval_ast_command(const CliOptions& args) {
         out << "  \"meta\": {\n";
         out << "    \"cases_path\": \"" << json_escape(args.cases_path) << "\",\n";
         out << "    \"ast_json\": \"" << json_escape(args.eval_ast_json) << "\",\n";
-        out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
+        out << "    \"eval_engine\": \"" << gagp::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
         out << "    \"fuel\": " << cfg.fuel << ",\n";
         out << "    \"penalty\": " << std::setprecision(17) << cfg.penalty << "\n";
         out << "  },\n";
@@ -1035,14 +1035,14 @@ int g3pvm::cli_detail::run_eval_ast_command(const CliOptions& args) {
       return 0;
 }
 
-int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
+int gagp::cli_detail::run_evolve_command(const CliOptions& args) {
     const LoadedCommandInputs inputs = load_command_inputs(args);
-    g3pvm::evo::EvolutionConfig cfg = make_evolution_config(args, inputs.grammar);
-    const std::vector<g3pvm::evo::EvalCase>& cases = inputs.cases;
+    gagp::evo::EvolutionConfig cfg = make_evolution_config(args, inputs.grammar);
+    const std::vector<gagp::evo::EvalCase>& cases = inputs.cases;
     const std::string& grammar_config_hash = inputs.grammar_hash;
 
-    std::vector<g3pvm::evo::ProgramGenome> initial_population;
-    const std::vector<g3pvm::evo::ProgramGenome>* initial_population_ptr = nullptr;
+    std::vector<gagp::evo::ProgramGenome> initial_population;
+    const std::vector<gagp::evo::ProgramGenome>* initial_population_ptr = nullptr;
     std::string population_source = "generated";
     if (!args.population_json.empty()) {
       LoadedPopulation loaded = load_population_from_seed_set(args.population_json,
@@ -1056,15 +1056,15 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       initial_population_ptr = &initial_population;
       population_source = "population_json";
     } else {
-      cfg.limits = g3pvm::evo::Limits{args.max_expr_depth,
+      cfg.limits = gagp::evo::Limits{args.max_expr_depth,
                                       args.max_stmts_per_block,
                                       args.max_total_nodes,
                                       args.max_for_k,
                                       args.max_call_args};
     }
 
-    const g3pvm::evo::EvolutionResult result =
-        g3pvm::evo::evolve_population(cases, cfg, initial_population_ptr);
+    const gagp::evo::EvolutionResult result =
+        gagp::evo::evolve_population(cases, cfg, initial_population_ptr);
     const char* selection_label = "round_based_tournament";
     const char* crossover_label = "typed_subtree";
 
@@ -1090,10 +1090,10 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
 
       if (args.show_program == "ast" || args.show_program == "both") {
         std::cout << "AST " << std::setfill('0') << std::setw(3) << i << std::setfill(' ') << ": "
-                  << g3pvm::evo::ast_to_string(best.genome.ast) << "\n";
+                  << gagp::evo::ast_to_string(best.genome.ast) << "\n";
       }
       if (args.show_program == "bytecode" || args.show_program == "both") {
-        const g3pvm::BytecodeProgram bc = g3pvm::evo::compile_for_eval(best.genome);
+        const gagp::BytecodeProgram bc = gagp::evo::compile_for_eval(best.genome);
         std::cout << "BYTECODE " << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
                   << ": n_locals=" << bc.n_locals << " consts=" << bc.consts.size() << " code="
                   << bc.code.size() << "\n";
@@ -1101,7 +1101,7 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
         std::cout << "BYTECODE_HEAD";
         const std::size_t cap = std::min<std::size_t>(12, bc.code.size());
         for (std::size_t j = 0; j < cap; ++j) {
-          std::cout << " " << j << ":" << g3pvm::opcode_name(bc.code[j].op);
+          std::cout << " " << j << ":" << gagp::opcode_name(bc.code[j].op);
         }
         std::cout << "\n";
       }
@@ -1112,16 +1112,16 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       std::cout << "FINAL skipped=true last_history_best=" << std::fixed << std::setprecision(6)
                 << canonicalize_metric(last.best_fitness)
                 << " program_key=" << last.program_key
-                << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
-                << " cpu_repro_ablation=" << g3pvm::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation)
+                << " repro_backend=" << gagp::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+                << " cpu_repro_ablation=" << gagp::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation)
                 << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
                 << " selection=" << selection_label
                 << " crossover=" << crossover_label << "\n";
     } else {
       std::cout << "FINAL best=" << std::fixed << std::setprecision(6) << canonicalize_metric(result.best.fitness)
                 << " program_key=" << result.best.genome.meta.program_key
-                << " repro_backend=" << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
-                << " cpu_repro_ablation=" << g3pvm::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation)
+                << " repro_backend=" << gagp::evo::repro::reproduction_backend_name(cfg.reproduction_backend)
+                << " cpu_repro_ablation=" << gagp::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation)
                 << " repro_overlap=" << (cfg.repro_overlap ? "on" : "off")
                 << " selection=" << selection_label
                 << " crossover=" << crossover_label << "\n";
@@ -1174,7 +1174,7 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
                 << eval.cpu_compile_ms << "\n";
       std::cout << "TIMING phase=final_eval ms=" << std::fixed << std::setprecision(3)
                 << result.timing.final_eval_ms << "\n";
-      if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
+      if (cfg.eval_engine == gagp::evo::EvalEngine::GPU) {
         std::cout << "TIMING phase=gpu_eval_init ms=" << std::fixed << std::setprecision(3)
                   << result.timing.gpu_eval_init_ms << "\n";
         std::cout << "TIMING phase=gpu_compile_total ms=" << std::fixed << std::setprecision(3)
@@ -1224,7 +1224,7 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
                   << " repro_selection_kernel_ms=" << repro.selection_kernel_ms
                   << " repro_variation_kernel_ms=" << repro.variation_kernel_ms
                   << " cpu_compile_ms=" << eval.cpu_compile_ms << "\n";
-        if (cfg.eval_engine == g3pvm::evo::EvalEngine::GPU) {
+        if (cfg.eval_engine == gagp::evo::EvalEngine::GPU) {
           std::cout << "TIMING gpu_gen=" << std::setfill('0') << std::setw(3) << i << std::setfill(' ')
                     << " gpu_compile_ms=" << std::fixed << std::setprecision(3)
                     << eval.gpu_compile_ms
@@ -1271,11 +1271,11 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       out << "    },\n";
       out << "    \"selection\": \"" << selection_label << "\",\n";
       out << "    \"crossover_method\": \"" << crossover_label << "\",\n";
-      out << "    \"eval_engine\": \"" << g3pvm::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
+      out << "    \"eval_engine\": \"" << gagp::evo::eval_engine_name(cfg.eval_engine) << "\",\n";
       out << "    \"reproduction_backend\": \""
-          << g3pvm::evo::repro::reproduction_backend_name(cfg.reproduction_backend) << "\",\n";
+          << gagp::evo::repro::reproduction_backend_name(cfg.reproduction_backend) << "\",\n";
       out << "    \"cpu_repro_ablation\": \""
-          << g3pvm::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation) << "\",\n";
+          << gagp::evo::repro::cpu_repro_ablation_name(cfg.cpu_repro_ablation) << "\",\n";
       out << "    \"repro_overlap\": " << (cfg.repro_overlap ? "true" : "false") << ",\n";
       out << "    \"skip_final_eval\": " << (cfg.skip_final_eval ? "true" : "false") << ",\n";
       out << "    \"retain_final_population\": " << (cfg.retain_final_population ? "true" : "false") << ",\n";
@@ -1377,12 +1377,12 @@ int g3pvm::cli_detail::run_evolve_command(const CliOptions& args) {
       out << "  \"final\": {\n";
       out << "    \"skipped\": " << (result.final_eval_skipped ? "true" : "false");
       if (!result.final_eval_skipped) {
-        const g3pvm::evo::ProgramGenome best_output =
-            g3pvm::evo::repro::compact_genome_tables(result.best.genome);
+        const gagp::evo::ProgramGenome best_output =
+            gagp::evo::repro::compact_genome_tables(result.best.genome);
         out << ",\n";
         out << "    \"best_fitness\": " << std::setprecision(17) << result.best.fitness << ",\n";
         out << "    \"program_key\": \"" << json_escape(best_output.meta.program_key) << "\",\n";
-        out << "    \"ast_repr\": \"" << json_escape(g3pvm::evo::ast_to_string(best_output.ast)) << "\",\n";
+        out << "    \"ast_repr\": \"" << json_escape(gagp::evo::ast_to_string(best_output.ast)) << "\",\n";
         out << "    \"ast_names\": [";
         for (std::size_t i = 0; i < best_output.ast.names.size(); ++i) {
           if (i > 0) out << ", ";

@@ -6,14 +6,14 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/crossover.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
-#include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/evolution/grammar_config.hpp"
-#include "g3pvm/evolution/mutation.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/crossover.hpp"
+#include "gagp/evolution/genome_generation.hpp"
+#include "gagp/evolution/genome.hpp"
+#include "gagp/evolution/grammar_config.hpp"
+#include "gagp/evolution/mutation.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 #include "../../src/evolution/subtree_utils.hpp"
 #include "../../src/evolution/typed_expr_analysis.hpp"
 
@@ -28,30 +28,30 @@ bool check(bool cond, const std::string& msg) {
 }
 
 bool test_random_genome_compile_rate() {
-  g3pvm::evo::Limits limits;
+  gagp::evo::Limits limits;
   const int n = 200;
   int compiled = 0;
   for (int i = 0; i < n; ++i) {
-    const g3pvm::evo::ProgramGenome g = g3pvm::evo::generate_random_genome(static_cast<std::uint64_t>(i), limits);
-    (void)g3pvm::evo::compile_for_eval(g);
+    const gagp::evo::ProgramGenome g = gagp::evo::generate_random_genome(static_cast<std::uint64_t>(i), limits);
+    (void)gagp::evo::compile_for_eval(g);
     compiled += 1;
   }
   return check(static_cast<double>(compiled) / static_cast<double>(n) >= 0.99, "compile rate < 99%");
 }
 
 bool test_random_genome_emits_structured_expressions_when_enabled() {
-  using g3pvm::evo::NodeKind;
+  using gagp::evo::NodeKind;
 
-  g3pvm::evo::Limits limits{7, 6, 160, 16, 3};
+  gagp::evo::Limits limits{7, 6, 160, 16, 3};
   bool saw_map = false;
   bool saw_filter = false;
   bool saw_linear = false;
   bool saw_asgp = false;
   for (int i = 0; i < 1200; ++i) {
-    const g3pvm::evo::ProgramGenome g =
-        g3pvm::evo::generate_random_genome(static_cast<std::uint64_t>(9000 + i), limits);
-    (void)g3pvm::evo::compile_for_eval(g);
-    for (const g3pvm::evo::AstNode& node : g.ast.nodes) {
+    const gagp::evo::ProgramGenome g =
+        gagp::evo::generate_random_genome(static_cast<std::uint64_t>(9000 + i), limits);
+    (void)gagp::evo::compile_for_eval(g);
+    for (const gagp::evo::AstNode& node : g.ast.nodes) {
       saw_map = saw_map || node.kind == NodeKind::MAP_LIST;
       saw_filter = saw_filter || node.kind == NodeKind::FILTER_LIST;
       saw_linear = saw_linear || node.kind == NodeKind::LINEAR_REC;
@@ -70,10 +70,10 @@ bool test_random_genome_emits_structured_expressions_when_enabled() {
 }
 
 bool test_subtree_mutation_emits_structured_list_donors_when_enabled() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome base;
   base.ast.nodes = {
@@ -84,16 +84,16 @@ bool test_subtree_mutation_emits_structured_list_donors_when_enabled() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   base.ast.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
   };
-  base.meta = g3pvm::evo::build_genome_meta(base.ast);
+  base.meta = gagp::evo::build_genome_meta(base.ast);
 
-  g3pvm::evo::Limits limits{7, 6, 160, 16, 3};
+  gagp::evo::Limits limits{7, 6, 160, 16, 3};
   bool saw_map_or_filter = false;
   for (int i = 0; i < 200; ++i) {
     const ProgramGenome child =
-        g3pvm::evo::mutate(base, static_cast<std::uint64_t>(12000 + i), limits, 1.0);
-    (void)g3pvm::evo::compile_for_eval(child);
+        gagp::evo::mutate(base, static_cast<std::uint64_t>(12000 + i), limits, 1.0);
+    (void)gagp::evo::compile_for_eval(child);
     for (const AstNode& node : child.ast.nodes) {
       if (node.kind == NodeKind::MAP_LIST || node.kind == NodeKind::FILTER_LIST) {
         saw_map_or_filter = true;
@@ -105,45 +105,45 @@ bool test_subtree_mutation_emits_structured_list_donors_when_enabled() {
 }
 
 bool test_mutation_and_crossover_invariants() {
-  g3pvm::evo::Limits limits;
-  const g3pvm::evo::ProgramGenome a = g3pvm::evo::generate_random_genome(1, limits);
-  const g3pvm::evo::ProgramGenome b = g3pvm::evo::generate_random_genome(2, limits);
+  gagp::evo::Limits limits;
+  const gagp::evo::ProgramGenome a = gagp::evo::generate_random_genome(1, limits);
+  const gagp::evo::ProgramGenome b = gagp::evo::generate_random_genome(2, limits);
 
   for (int i = 0; i < 80; ++i) {
-    const g3pvm::evo::ProgramGenome m =
-        g3pvm::evo::mutate(a, static_cast<std::uint64_t>(1000 + i), limits, 0.8);
-    (void)g3pvm::evo::compile_for_eval(m);
+    const gagp::evo::ProgramGenome m =
+        gagp::evo::mutate(a, static_cast<std::uint64_t>(1000 + i), limits, 0.8);
+    (void)gagp::evo::compile_for_eval(m);
 
-    const auto children = g3pvm::evo::crossover(a, b, static_cast<std::uint64_t>(3000 + i), limits);
-    (void)g3pvm::evo::compile_for_eval(children.first);
-    (void)g3pvm::evo::compile_for_eval(children.second);
+    const auto children = gagp::evo::crossover(a, b, static_cast<std::uint64_t>(3000 + i), limits);
+    (void)gagp::evo::compile_for_eval(children.first);
+    (void)gagp::evo::compile_for_eval(children.second);
   }
 
   return true;
 }
 
 bool test_for_k_constraints() {
-  g3pvm::evo::Limits limits{5, 6, 80, 8, 3};
-  const g3pvm::evo::ProgramGenome base = g3pvm::evo::generate_random_genome(88, limits);
+  gagp::evo::Limits limits{5, 6, 80, 8, 3};
+  const gagp::evo::ProgramGenome base = gagp::evo::generate_random_genome(88, limits);
   for (int i = 0; i < 60; ++i) {
-    const g3pvm::evo::ProgramGenome child =
-        g3pvm::evo::mutate(base, static_cast<std::uint64_t>(10000 + i), limits, 0.8);
-    (void)g3pvm::evo::compile_for_eval(child);
+    const gagp::evo::ProgramGenome child =
+        gagp::evo::mutate(base, static_cast<std::uint64_t>(10000 + i), limits, 0.8);
+    (void)gagp::evo::compile_for_eval(child);
   }
   return true;
 }
 
 bool test_ast_cache_key_distinguishes_program_payload() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstProgram;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
 
   AstProgram a;
   a.nodes = {AstNode{NodeKind::PROGRAM, 0, 0}, AstNode{NodeKind::RETURN, 0, 0}, AstNode{NodeKind::CONST, 0, 0}};
   a.names = {"x"};
   a.consts = {Value::from_int(1)};
-  a.version = g3pvm::evo::k_ast_prefix_version_current;
+  a.version = gagp::evo::k_ast_prefix_version_current;
 
   AstProgram b = a;
   b.consts[0] = Value::from_int(2);
@@ -154,10 +154,10 @@ bool test_ast_cache_key_distinguishes_program_payload() {
   AstProgram d = a;
   d.version = "ast-prefix-future";
 
-  const std::string key_a = g3pvm::evo::ast_cache_key(a);
-  const std::string key_b = g3pvm::evo::ast_cache_key(b);
-  const std::string key_c = g3pvm::evo::ast_cache_key(c);
-  const std::string key_d = g3pvm::evo::ast_cache_key(d);
+  const std::string key_a = gagp::evo::ast_cache_key(a);
+  const std::string key_b = gagp::evo::ast_cache_key(b);
+  const std::string key_c = gagp::evo::ast_cache_key(c);
+  const std::string key_d = gagp::evo::ast_cache_key(d);
 
   if (!check(key_a != key_b, "ast cache key should distinguish const payload")) {
     return false;
@@ -168,18 +168,18 @@ bool test_ast_cache_key_distinguishes_program_payload() {
   if (!check(key_a != key_d, "ast cache key should distinguish version")) {
     return false;
   }
-  if (!check(key_a == g3pvm::evo::ast_cache_key(a), "ast cache key should be stable")) {
+  if (!check(key_a == gagp::evo::ast_cache_key(a), "ast cache key should be stable")) {
     return false;
   }
   return true;
 }
 
 bool test_ast_prefix_old_is_rejected() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
 
-  g3pvm::evo::ProgramGenome genome;
+  gagp::evo::ProgramGenome genome;
   genome.ast.version = "ast-prefix-old";
   genome.ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -190,7 +190,7 @@ bool test_ast_prefix_old_is_rejected() {
   };
   genome.ast.consts = {Value::from_int(1)};
   try {
-    (void)g3pvm::evo::compile_for_eval(genome);
+    (void)gagp::evo::compile_for_eval(genome);
   } catch (const std::runtime_error& e) {
     return check(std::string(e.what()).find("unsupported ast prefix version") != std::string::npos,
                  "ast-prefix-old should fail with version error");
@@ -199,10 +199,10 @@ bool test_ast_prefix_old_is_rejected() {
 }
 
 bool test_build_genome_meta_tracks_max_expr_depth() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstProgram;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
 
   AstProgram program;
   program.nodes = {
@@ -219,23 +219,23 @@ bool test_build_genome_meta_tracks_max_expr_depth() {
   };
   program.consts = {Value::from_int(1), Value::from_int(2), Value::from_int(3)};
 
-  const g3pvm::evo::GenomeMeta meta = g3pvm::evo::build_genome_meta(program);
+  const gagp::evo::GenomeMeta meta = gagp::evo::build_genome_meta(program);
   return check(meta.max_depth == 3, "genome meta should track max expression depth");
 }
 
 bool test_random_genome_uses_requested_input_specs() {
-  g3pvm::evo::Limits limits;
-  const std::vector<g3pvm::evo::InputSpec> inputs = {{"xs", g3pvm::evo::RType::IntList}};
+  gagp::evo::Limits limits;
+  const std::vector<gagp::evo::InputSpec> inputs = {{"xs", gagp::evo::RType::IntList}};
   bool saw_xs_var = false;
   for (std::uint64_t seed = 0; seed < 256; ++seed) {
-    const g3pvm::evo::ProgramGenome g =
-        g3pvm::evo::generate_random_genome_for_return_type(seed, g3pvm::evo::RType::Int, limits, inputs);
+    const gagp::evo::ProgramGenome g =
+        gagp::evo::generate_random_genome_for_return_type(seed, gagp::evo::RType::Int, limits, inputs);
     if (!check(std::find(g.ast.names.begin(), g.ast.names.end(), "xs") != g.ast.names.end(),
                "generated genome should preserve requested input name")) {
       return false;
     }
-    for (const g3pvm::evo::AstNode& node : g.ast.nodes) {
-      if (node.kind == g3pvm::evo::NodeKind::VAR &&
+    for (const gagp::evo::AstNode& node : g.ast.nodes) {
+      if (node.kind == gagp::evo::NodeKind::VAR &&
           node.i0 >= 0 &&
           static_cast<std::size_t>(node.i0) < g.ast.names.size() &&
           g.ast.names[static_cast<std::size_t>(node.i0)] == "xs") {
@@ -251,12 +251,12 @@ bool test_random_genome_uses_requested_input_specs() {
 }
 
 bool test_typed_expr_analysis_tracks_exact_list_index_types() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::RType;
-  using g3pvm::evo::typed_expr::TypedExprRoot;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::RType;
+  using gagp::evo::typed_expr::TypedExprRoot;
 
   AstProgram program;
   program.names = {"xs"};
@@ -275,9 +275,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
 
-  const std::vector<std::size_t> subtree_end = g3pvm::evo::subtree::build_subtree_end(program);
+  const std::vector<std::size_t> subtree_end = gagp::evo::subtree::build_subtree_end(program);
   const std::vector<TypedExprRoot> roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
 
   bool saw_index_int = false;
   bool saw_max_int = false;
@@ -312,9 +312,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
 
-  const std::vector<std::size_t> float_subtree_end = g3pvm::evo::subtree::build_subtree_end(float_program);
+  const std::vector<std::size_t> float_subtree_end = gagp::evo::subtree::build_subtree_end(float_program);
   const std::vector<TypedExprRoot> float_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(float_program, float_subtree_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(float_program, float_subtree_end);
   bool saw_index_float = false;
   for (const TypedExprRoot& root : float_roots) {
     if (root.type == RType::Float &&
@@ -340,9 +340,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
 
   AstProgram string_list_program;
   string_list_program.consts = {
-      g3pvm::payload::make_string_value("a"),
-      g3pvm::payload::make_string_value("b"),
-      g3pvm::payload::make_string_value("c"),
+      gagp::payload::make_string_value("a"),
+      gagp::payload::make_string_value("b"),
+      gagp::payload::make_string_value("c"),
   };
   string_list_program.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -357,9 +357,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
       AstNode{NodeKind::CONST, 2, 0},
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
-  const std::vector<std::size_t> string_list_end = g3pvm::evo::subtree::build_subtree_end(string_list_program);
+  const std::vector<std::size_t> string_list_end = gagp::evo::subtree::build_subtree_end(string_list_program);
   const std::vector<TypedExprRoot> string_list_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(string_list_program, string_list_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(string_list_program, string_list_end);
   if (!check(has_root(string_list_program, string_list_roots, 6, NodeKind::CALL_SINGLETON, RType::StringList),
              "singleton(String) should be tracked as a StringList typed root")) {
     return false;
@@ -388,9 +388,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   const std::vector<std::size_t> char_singleton_end =
-      g3pvm::evo::subtree::build_subtree_end(char_singleton_program);
+      gagp::evo::subtree::build_subtree_end(char_singleton_program);
   const std::vector<TypedExprRoot> char_singleton_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(char_singleton_program, char_singleton_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(char_singleton_program, char_singleton_end);
   if (!check(has_root(char_singleton_program, char_singleton_roots, 3, NodeKind::CALL_SINGLETON, RType::String),
              "singleton(Char) should be tracked as a String typed root")) {
     return false;
@@ -398,7 +398,7 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
 
   AstProgram valid_float_append_program;
   valid_float_append_program.consts = {
-      g3pvm::payload::make_float_list_value({Value::from_float(1.0)}),
+      gagp::payload::make_float_list_value({Value::from_float(1.0)}),
       Value::from_float(2.5),
   };
   valid_float_append_program.nodes = {
@@ -411,9 +411,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   const std::vector<std::size_t> valid_float_append_end =
-      g3pvm::evo::subtree::build_subtree_end(valid_float_append_program);
+      gagp::evo::subtree::build_subtree_end(valid_float_append_program);
   const std::vector<TypedExprRoot> valid_float_append_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(valid_float_append_program, valid_float_append_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(valid_float_append_program, valid_float_append_end);
   if (!check(has_root(valid_float_append_program, valid_float_append_roots, 3, NodeKind::CALL_APPEND, RType::FloatList),
              "append(FloatList, Float) should be tracked as a FloatList typed root")) {
     return false;
@@ -422,9 +422,9 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
   AstProgram invalid_float_append_program = valid_float_append_program;
   invalid_float_append_program.consts[1] = Value::from_int(2);
   const std::vector<std::size_t> invalid_float_append_end =
-      g3pvm::evo::subtree::build_subtree_end(invalid_float_append_program);
+      gagp::evo::subtree::build_subtree_end(invalid_float_append_program);
   const std::vector<TypedExprRoot> invalid_float_append_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(invalid_float_append_program, invalid_float_append_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(invalid_float_append_program, invalid_float_append_end);
   return check(!has_root(invalid_float_append_program,
                          invalid_float_append_roots,
                          3,
@@ -434,12 +434,12 @@ bool test_typed_expr_analysis_tracks_exact_list_index_types() {
 }
 
 bool test_current_if_type_scope_analysis() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::RType;
-  using g3pvm::evo::typed_expr::TypedExprRoot;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::RType;
+  using gagp::evo::typed_expr::TypedExprRoot;
 
   auto root_at = [](const std::vector<TypedExprRoot>& roots,
                     std::size_t start,
@@ -463,9 +463,9 @@ bool test_current_if_type_scope_analysis() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   const std::vector<std::size_t> valid_if_expr_end =
-      g3pvm::evo::subtree::build_subtree_end(valid_if_expr);
+      gagp::evo::subtree::build_subtree_end(valid_if_expr);
   const std::vector<TypedExprRoot> valid_if_expr_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(valid_if_expr, valid_if_expr_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(valid_if_expr, valid_if_expr_end);
   if (!check(root_at(valid_if_expr_roots, 3, RType::Int) != nullptr,
              "IF_EXPR with Bool condition and matching branch types should expose an Int root")) {
     return false;
@@ -474,9 +474,9 @@ bool test_current_if_type_scope_analysis() {
   AstProgram mismatched_branch_if_expr = valid_if_expr;
   mismatched_branch_if_expr.consts[2] = Value::from_float(11.0);
   const std::vector<std::size_t> mismatched_branch_end =
-      g3pvm::evo::subtree::build_subtree_end(mismatched_branch_if_expr);
+      gagp::evo::subtree::build_subtree_end(mismatched_branch_if_expr);
   const std::vector<TypedExprRoot> mismatched_branch_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(mismatched_branch_if_expr, mismatched_branch_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(mismatched_branch_if_expr, mismatched_branch_end);
   if (!check(root_at(mismatched_branch_roots, 3, RType::Int) == nullptr &&
              root_at(mismatched_branch_roots, 3, RType::Float) == nullptr,
              "IF_EXPR with mismatched branch types should not expose a typed root")) {
@@ -486,9 +486,9 @@ bool test_current_if_type_scope_analysis() {
   AstProgram non_bool_if_expr = valid_if_expr;
   non_bool_if_expr.consts[0] = Value::from_int(1);
   const std::vector<std::size_t> non_bool_if_expr_end =
-      g3pvm::evo::subtree::build_subtree_end(non_bool_if_expr);
+      gagp::evo::subtree::build_subtree_end(non_bool_if_expr);
   const std::vector<TypedExprRoot> non_bool_if_expr_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(non_bool_if_expr, non_bool_if_expr_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(non_bool_if_expr, non_bool_if_expr_end);
   if (!check(root_at(non_bool_if_expr_roots, 3, RType::Int) == nullptr,
              "IF_EXPR with non-Bool condition should not expose a typed root")) {
     return false;
@@ -529,22 +529,22 @@ bool test_current_if_type_scope_analysis() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   const std::vector<std::size_t> if_stmt_end =
-      g3pvm::evo::subtree::build_subtree_end(if_stmt_program);
+      gagp::evo::subtree::build_subtree_end(if_stmt_program);
   const std::vector<TypedExprRoot> if_stmt_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(if_stmt_program, if_stmt_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(if_stmt_program, if_stmt_end);
   const TypedExprRoot* then_const = root_at(if_stmt_roots, 11, RType::Int);
   const TypedExprRoot* else_const = root_at(if_stmt_roots, 19, RType::Int);
   if (!check(then_const != nullptr && else_const != nullptr,
              "IF_STMT branches should expose same-type typed roots inside branch-local environments")) {
     return false;
   }
-  return check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*then_const, *else_const),
+  return check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*then_const, *else_const),
                "IF_STMT branch-local visible environments should prevent cross-branch typed subtree matches");
 }
 
 bool test_subtree_donor_generation_uses_existing_list_input_names() {
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::RType;
+  using gagp::evo::AstProgram;
+  using gagp::evo::RType;
 
   std::mt19937_64 rng(123);
   AstProgram target;
@@ -555,14 +555,14 @@ bool test_subtree_donor_generation_uses_existing_list_input_names() {
   for (int i = 0; i < 256; ++i) {
     AstProgram donor;
     donor.names = target.names;
-    donor.nodes = g3pvm::evo::subtree::make_random_expr_nodes_for_type(rng, donor, RType::Int, 3);
+    donor.nodes = gagp::evo::subtree::make_random_expr_nodes_for_type(rng, donor, RType::Int, 3);
     for (const auto& name : donor.names) {
       if (name == "x") {
         saw_spurious_x = true;
       }
     }
     for (const auto& node : donor.nodes) {
-      if (node.kind == g3pvm::evo::NodeKind::VAR &&
+      if (node.kind == gagp::evo::NodeKind::VAR &&
           node.i0 >= 0 &&
           static_cast<std::size_t>(node.i0) < donor.names.size() &&
           donor.names[static_cast<std::size_t>(node.i0)] == "xs") {
@@ -577,9 +577,9 @@ bool test_subtree_donor_generation_uses_existing_list_input_names() {
 }
 
 bool test_subtree_mutation_emits_asgp_dc_donors_when_enabled() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome base;
   base.ast.nodes = {
@@ -589,13 +589,13 @@ bool test_subtree_mutation_emits_asgp_dc_donors_when_enabled() {
       AstNode{NodeKind::CONST, 0, 0},
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
-  base.ast.consts = {g3pvm::Value::from_int(0)};
-  base.meta = g3pvm::evo::build_genome_meta(base.ast);
+  base.ast.consts = {gagp::Value::from_int(0)};
+  base.meta = gagp::evo::build_genome_meta(base.ast);
 
-  g3pvm::evo::Limits limits{7, 6, 160, 16, 3};
+  gagp::evo::Limits limits{7, 6, 160, 16, 3};
   for (int i = 0; i < 300; ++i) {
     const ProgramGenome child =
-        g3pvm::evo::mutate(base, static_cast<std::uint64_t>(15000 + i), limits, 1.0);
+        gagp::evo::mutate(base, static_cast<std::uint64_t>(15000 + i), limits, 1.0);
     bool saw_asgp_dc = false;
     for (const AstNode& node : child.ast.nodes) {
       saw_asgp_dc = saw_asgp_dc || node.kind == NodeKind::ASGP_DC;
@@ -607,40 +607,40 @@ bool test_subtree_mutation_emits_asgp_dc_donors_when_enabled() {
                "ASGP-DC subtree mutation donor should carry binder metadata")) {
       return false;
     }
-    (void)g3pvm::evo::compile_for_eval(child);
+    (void)gagp::evo::compile_for_eval(child);
     return true;
   }
   return check(false, "subtree mutation should emit ASGP-DC donors when enabled");
 }
 
-g3pvm::evo::GrammarConfig grammar_with_only_asgp_form(g3pvm::evo::NodeKind form) {
-  g3pvm::evo::GrammarConfig grammar;
-  grammar.expression_asgp_dc = form == g3pvm::evo::NodeKind::ASGP_DC;
-  grammar.expression_asgp_dp1d = form == g3pvm::evo::NodeKind::ASGP_DP1D;
-  grammar.expression_asgp_dp2d = form == g3pvm::evo::NodeKind::ASGP_DP2D;
+gagp::evo::GrammarConfig grammar_with_only_asgp_form(gagp::evo::NodeKind form) {
+  gagp::evo::GrammarConfig grammar;
+  grammar.expression_asgp_dc = form == gagp::evo::NodeKind::ASGP_DC;
+  grammar.expression_asgp_dp1d = form == gagp::evo::NodeKind::ASGP_DP1D;
+  grammar.expression_asgp_dp2d = form == gagp::evo::NodeKind::ASGP_DP2D;
   return grammar;
 }
 
 bool test_asgp_dc_generation_can_use_existing_list_source() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::InputSpec;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
-  using g3pvm::evo::RType;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::InputSpec;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
+  using gagp::evo::RType;
 
-  const g3pvm::evo::GrammarConfig grammar = grammar_with_only_asgp_form(NodeKind::ASGP_DC);
-  g3pvm::evo::Limits limits{8, 6, 180, 16, 3};
+  const gagp::evo::GrammarConfig grammar = grammar_with_only_asgp_form(NodeKind::ASGP_DC);
+  gagp::evo::Limits limits{8, 6, 180, 16, 3};
 
   {
     std::mt19937_64 rng(31000);
     bool saw_var_source = false;
     for (int i = 0; i < 800; ++i) {
       AstProgram donor;
-      donor.version = g3pvm::evo::k_ast_prefix_version_current;
+      donor.version = gagp::evo::k_ast_prefix_version_current;
       donor.names = {"xs"};
-      donor.nodes = g3pvm::evo::subtree::make_random_expr_nodes_for_type(
+      donor.nodes = gagp::evo::subtree::make_random_expr_nodes_for_type(
           rng, donor, RType::Int, 5, grammar, true);
       if (donor.nodes.size() < 2 || donor.nodes[0].kind != NodeKind::ASGP_DC ||
           donor.nodes[1].kind != NodeKind::VAR || donor.names[static_cast<std::size_t>(donor.nodes[1].i0)] != "xs") {
@@ -649,10 +649,10 @@ bool test_asgp_dc_generation_can_use_existing_list_source() {
       saw_var_source = true;
 
       AstProgram base;
-      base.version = g3pvm::evo::k_ast_prefix_version_current;
+      base.version = gagp::evo::k_ast_prefix_version_current;
       base.names = {"xs"};
       base.consts = {
-          g3pvm::payload::make_int_list_value({Value::from_int(2), Value::from_int(3), Value::from_int(4)}),
+          gagp::payload::make_int_list_value({Value::from_int(2), Value::from_int(3), Value::from_int(4)}),
           Value::from_int(0),
       };
       base.nodes = {
@@ -666,10 +666,10 @@ bool test_asgp_dc_generation_can_use_existing_list_source() {
           AstNode{NodeKind::BLOCK_NIL, 0, 0},
       };
       ProgramGenome wrapped;
-      wrapped.ast = g3pvm::evo::subtree::replace_subtree(base, 6, 7, donor, 0, donor.nodes.size());
-      wrapped.meta = g3pvm::evo::build_genome_meta(wrapped.ast);
-      const g3pvm::ExecResult out =
-          g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(wrapped), {}, 20000);
+      wrapped.ast = gagp::evo::subtree::replace_subtree(base, 6, 7, donor, 0, donor.nodes.size());
+      wrapped.meta = gagp::evo::build_genome_meta(wrapped.ast);
+      const gagp::ExecResult out =
+          gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(wrapped), {}, 20000);
       if (!check(!out.is_error, "ASGP-DC donor with existing list source should execute on CPU")) {
         return false;
       }
@@ -681,7 +681,7 @@ bool test_asgp_dc_generation_can_use_existing_list_source() {
   }
 
   for (int i = 0; i < 2500; ++i) {
-    const ProgramGenome genome = g3pvm::evo::generate_random_genome_for_return_type(
+    const ProgramGenome genome = gagp::evo::generate_random_genome_for_return_type(
         32000 + static_cast<std::uint64_t>(i),
         RType::Int,
         limits,
@@ -691,7 +691,7 @@ bool test_asgp_dc_generation_can_use_existing_list_source() {
       if (genome.ast.nodes[n].kind == NodeKind::ASGP_DC &&
           genome.ast.nodes[n + 1].kind == NodeKind::VAR &&
           genome.ast.names[static_cast<std::size_t>(genome.ast.nodes[n + 1].i0)] == "xs") {
-        (void)g3pvm::evo::compile_for_eval(genome);
+        (void)gagp::evo::compile_for_eval(genome);
         return true;
       }
     }
@@ -700,21 +700,21 @@ bool test_asgp_dc_generation_can_use_existing_list_source() {
 }
 
 bool test_asgp_dc_generation_can_emit_string_roots() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::InputSpec;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
-  using g3pvm::evo::RType;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::InputSpec;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
+  using gagp::evo::RType;
 
-  const g3pvm::evo::GrammarConfig grammar = grammar_with_only_asgp_form(NodeKind::ASGP_DC);
-  g3pvm::evo::Limits limits{8, 6, 180, 16, 3};
+  const gagp::evo::GrammarConfig grammar = grammar_with_only_asgp_form(NodeKind::ASGP_DC);
+  gagp::evo::Limits limits{8, 6, 180, 16, 3};
 
   {
     ProgramGenome base;
-    base.ast.version = g3pvm::evo::k_ast_prefix_version_current;
-    base.ast.consts = {g3pvm::payload::make_string_value("")};
+    base.ast.version = gagp::evo::k_ast_prefix_version_current;
+    base.ast.consts = {gagp::payload::make_string_value("")};
     base.ast.nodes = {
         AstNode{NodeKind::PROGRAM, 0, 0},
         AstNode{NodeKind::BLOCK_CONS, 0, 0},
@@ -722,12 +722,12 @@ bool test_asgp_dc_generation_can_emit_string_roots() {
         AstNode{NodeKind::CONST, 0, 0},
         AstNode{NodeKind::BLOCK_NIL, 0, 0},
     };
-    base.meta = g3pvm::evo::build_genome_meta(base.ast);
+    base.meta = gagp::evo::build_genome_meta(base.ast);
 
     bool saw_string_asgp_dc = false;
     for (int i = 0; i < 1800; ++i) {
       const ProgramGenome child =
-          g3pvm::evo::mutate(base, 54000 + static_cast<std::uint64_t>(i), limits, 1.0, grammar);
+          gagp::evo::mutate(base, 54000 + static_cast<std::uint64_t>(i), limits, 1.0, grammar);
       bool saw_form = false;
       bool saw_concat_phase = false;
       for (const AstNode& node : child.ast.nodes) {
@@ -742,12 +742,12 @@ bool test_asgp_dc_generation_can_emit_string_roots() {
                  "String ASGP-DC mutation donor should carry binder metadata")) {
         return false;
       }
-      const g3pvm::ExecResult out =
-          g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(child), {}, 20000);
+      const gagp::ExecResult out =
+          gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(child), {}, 20000);
       if (!check(!out.is_error, "String ASGP-DC subtree mutation donor should execute on CPU")) {
         return false;
       }
-      if (!check(out.value.tag == g3pvm::ValueTag::String,
+      if (!check(out.value.tag == gagp::ValueTag::String,
                  "String ASGP-DC subtree mutation donor should return String")) {
         return false;
       }
@@ -759,7 +759,7 @@ bool test_asgp_dc_generation_can_emit_string_roots() {
   }
 
   for (int i = 0; i < 3500; ++i) {
-    const ProgramGenome genome = g3pvm::evo::generate_random_genome_for_return_type(
+    const ProgramGenome genome = gagp::evo::generate_random_genome_for_return_type(
         56000 + static_cast<std::uint64_t>(i),
         RType::String,
         limits,
@@ -778,7 +778,7 @@ bool test_asgp_dc_generation_can_emit_string_roots() {
                "random String ASGP-DC generation should carry binder metadata")) {
       return false;
     }
-    (void)g3pvm::evo::compile_for_eval(genome);
+    (void)gagp::evo::compile_for_eval(genome);
     return true;
   }
 
@@ -786,13 +786,13 @@ bool test_asgp_dc_generation_can_emit_string_roots() {
 }
 
 bool test_subtree_mutation_emits_asgp_dp_donors_when_enabled() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
-  auto base_for_type = [](g3pvm::evo::RType type) {
+  auto base_for_type = [](gagp::evo::RType type) {
     ProgramGenome base;
-    base.ast.version = g3pvm::evo::k_ast_prefix_version_current;
+    base.ast.version = gagp::evo::k_ast_prefix_version_current;
     base.ast.nodes = {
         AstNode{NodeKind::PROGRAM, 0, 0},
         AstNode{NodeKind::BLOCK_CONS, 0, 0},
@@ -800,23 +800,23 @@ bool test_subtree_mutation_emits_asgp_dp_donors_when_enabled() {
         AstNode{NodeKind::CONST, 0, 0},
         AstNode{NodeKind::BLOCK_NIL, 0, 0},
     };
-    if (type == g3pvm::evo::RType::String) {
-      base.ast.consts = {g3pvm::payload::make_string_value("")};
+    if (type == gagp::evo::RType::String) {
+      base.ast.consts = {gagp::payload::make_string_value("")};
     } else {
-      base.ast.consts = {type == g3pvm::evo::RType::Float ? g3pvm::Value::from_float(0.0)
-                                                          : g3pvm::Value::from_int(0)};
+      base.ast.consts = {type == gagp::evo::RType::Float ? gagp::Value::from_float(0.0)
+                                                          : gagp::Value::from_int(0)};
     }
-    base.meta = g3pvm::evo::build_genome_meta(base.ast);
+    base.meta = gagp::evo::build_genome_meta(base.ast);
     return base;
   };
 
-  auto seek_form = [&](NodeKind form, g3pvm::evo::RType type, std::uint64_t seed_base) {
-    const g3pvm::evo::GrammarConfig grammar = grammar_with_only_asgp_form(form);
+  auto seek_form = [&](NodeKind form, gagp::evo::RType type, std::uint64_t seed_base) {
+    const gagp::evo::GrammarConfig grammar = grammar_with_only_asgp_form(form);
     const ProgramGenome base = base_for_type(type);
-    g3pvm::evo::Limits limits{7, 6, 160, 16, 3};
+    gagp::evo::Limits limits{7, 6, 160, 16, 3};
     for (int i = 0; i < 1200; ++i) {
       const ProgramGenome child =
-          g3pvm::evo::mutate(base, seed_base + static_cast<std::uint64_t>(i), limits, 1.0, grammar);
+          gagp::evo::mutate(base, seed_base + static_cast<std::uint64_t>(i), limits, 1.0, grammar);
       bool saw_form = false;
       for (const AstNode& node : child.ast.nodes) {
         saw_form = saw_form || node.kind == form;
@@ -834,13 +834,13 @@ bool test_subtree_mutation_emits_asgp_dp_donors_when_enabled() {
                  "ASGP-DP2D subtree mutation donor should carry spec metadata")) {
         return false;
       }
-      const g3pvm::BytecodeProgram bytecode = g3pvm::evo::compile_for_eval(child);
-      const g3pvm::ExecResult out = g3pvm::execute_bytecode_cpu(bytecode, {}, 20000);
+      const gagp::BytecodeProgram bytecode = gagp::evo::compile_for_eval(child);
+      const gagp::ExecResult out = gagp::execute_bytecode_cpu(bytecode, {}, 20000);
       if (!check(!out.is_error, "ASGP-DP subtree mutation donor should compile and execute on CPU")) {
         return false;
       }
-      if (type == g3pvm::evo::RType::String &&
-          !check(out.value.tag == g3pvm::ValueTag::String,
+      if (type == gagp::evo::RType::String &&
+          !check(out.value.tag == gagp::ValueTag::String,
                  "String ASGP-DP subtree mutation donor should return String")) {
         return false;
       }
@@ -851,32 +851,32 @@ bool test_subtree_mutation_emits_asgp_dp_donors_when_enabled() {
                             : "subtree mutation should emit ASGP-DP2D donors when enabled");
   };
 
-  if (!seek_form(NodeKind::ASGP_DP1D, g3pvm::evo::RType::Int, 16000)) return false;
-  if (!seek_form(NodeKind::ASGP_DP1D, g3pvm::evo::RType::String, 17000)) return false;
-  if (!seek_form(NodeKind::ASGP_DP2D, g3pvm::evo::RType::Float, 18000)) return false;
-  return seek_form(NodeKind::ASGP_DP2D, g3pvm::evo::RType::String, 19000);
+  if (!seek_form(NodeKind::ASGP_DP1D, gagp::evo::RType::Int, 16000)) return false;
+  if (!seek_form(NodeKind::ASGP_DP1D, gagp::evo::RType::String, 17000)) return false;
+  if (!seek_form(NodeKind::ASGP_DP2D, gagp::evo::RType::Float, 18000)) return false;
+  return seek_form(NodeKind::ASGP_DP2D, gagp::evo::RType::String, 19000);
 }
 
 bool test_random_generation_emits_asgp_dp_when_enabled() {
-  using g3pvm::evo::NodeKind;
+  using gagp::evo::NodeKind;
 
-  auto seek_form = [](NodeKind form, g3pvm::evo::RType type, std::uint64_t seed_base) {
-    const g3pvm::evo::GrammarConfig grammar = grammar_with_only_asgp_form(form);
-    g3pvm::evo::Limits limits{8, 6, 180, 16, 3};
+  auto seek_form = [](NodeKind form, gagp::evo::RType type, std::uint64_t seed_base) {
+    const gagp::evo::GrammarConfig grammar = grammar_with_only_asgp_form(form);
+    gagp::evo::Limits limits{8, 6, 180, 16, 3};
     for (int i = 0; i < 2500; ++i) {
-      const g3pvm::evo::ProgramGenome genome =
-          g3pvm::evo::generate_random_genome_for_return_type(
+      const gagp::evo::ProgramGenome genome =
+          gagp::evo::generate_random_genome_for_return_type(
               seed_base + static_cast<std::uint64_t>(i), type, limits, grammar);
       bool saw_form = false;
       bool saw_string_transition = false;
-      for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
+      for (const gagp::evo::AstNode& node : genome.ast.nodes) {
         saw_form = saw_form || node.kind == form;
-        saw_string_transition = saw_string_transition || node.kind == g3pvm::evo::NodeKind::CALL_CONCAT;
+        saw_string_transition = saw_string_transition || node.kind == gagp::evo::NodeKind::CALL_CONCAT;
       }
       if (!saw_form) {
         continue;
       }
-      (void)g3pvm::evo::compile_for_eval(genome);
+      (void)gagp::evo::compile_for_eval(genome);
       if (form == NodeKind::ASGP_DP1D) {
         if (!check(!genome.ast.asgp_dp1d_specs.empty(),
                    "random ASGP-DP1D generation should carry spec metadata")) {
@@ -886,7 +886,7 @@ bool test_random_generation_emits_asgp_dp_when_enabled() {
                         "random ASGP-DP2D generation should carry spec metadata")) {
         return false;
       }
-      if (type == g3pvm::evo::RType::String &&
+      if (type == gagp::evo::RType::String &&
           !check(saw_string_transition, "random String ASGP-DP generation should use concat transition")) {
         return false;
       }
@@ -897,27 +897,27 @@ bool test_random_generation_emits_asgp_dp_when_enabled() {
                             : "random generation should emit ASGP-DP2D when enabled");
   };
 
-  if (!seek_form(NodeKind::ASGP_DP1D, g3pvm::evo::RType::Float, 20000)) return false;
-  if (!seek_form(NodeKind::ASGP_DP1D, g3pvm::evo::RType::String, 21000)) return false;
-  if (!seek_form(NodeKind::ASGP_DP2D, g3pvm::evo::RType::Int, 23000)) return false;
-  return seek_form(NodeKind::ASGP_DP2D, g3pvm::evo::RType::String, 24000);
+  if (!seek_form(NodeKind::ASGP_DP1D, gagp::evo::RType::Float, 20000)) return false;
+  if (!seek_form(NodeKind::ASGP_DP1D, gagp::evo::RType::String, 21000)) return false;
+  if (!seek_form(NodeKind::ASGP_DP2D, gagp::evo::RType::Int, 23000)) return false;
+  return seek_form(NodeKind::ASGP_DP2D, gagp::evo::RType::String, 24000);
 }
 
 bool test_for_range_expr_compiles_and_executes() {
-  using g3pvm::Value;
-  using g3pvm::ValueTag;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
-  using g3pvm::evo::RType;
-  using g3pvm::evo::typed_expr::TypedExprRoot;
+  using gagp::Value;
+  using gagp::ValueTag;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
+  using gagp::evo::RType;
+  using gagp::evo::typed_expr::TypedExprRoot;
 
   AstProgram program;
   program.names = {"x", "i"};
   program.consts = {
       Value::from_int(0),
-      g3pvm::payload::make_int_list_value({
+      gagp::payload::make_int_list_value({
           Value::from_int(10),
           Value::from_int(20),
           Value::from_int(30),
@@ -947,14 +947,14 @@ bool test_for_range_expr_compiles_and_executes() {
 
   ProgramGenome genome;
   genome.ast = program;
-  genome.meta = g3pvm::evo::build_genome_meta(program);
+  genome.meta = gagp::evo::build_genome_meta(program);
   if (!check(genome.meta.max_depth == 2, "FOR_RANGE bound should contribute expression depth")) {
     return false;
   }
 
-  const std::vector<std::size_t> subtree_end = g3pvm::evo::subtree::build_subtree_end(program);
+  const std::vector<std::size_t> subtree_end = gagp::evo::subtree::build_subtree_end(program);
   const std::vector<TypedExprRoot> roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
   const TypedExprRoot* bound_len_root = nullptr;
   const TypedExprRoot* body_add_root = nullptr;
   for (const TypedExprRoot& root : roots) {
@@ -969,13 +969,13 @@ bool test_for_range_expr_compiles_and_executes() {
              "FOR_RANGE body expression should be exposed as an Int typed root")) {
     return false;
   }
-  if (!check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*bound_len_root, *body_add_root),
+  if (!check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*bound_len_root, *body_add_root),
              "FOR_RANGE bound and body roots should have different visible loop-index scopes")) {
     return false;
   }
 
-  const g3pvm::BytecodeProgram bytecode = g3pvm::evo::compile_for_eval(genome);
-  const g3pvm::ExecResult out = g3pvm::execute_bytecode_cpu(bytecode, {}, 20000);
+  const gagp::BytecodeProgram bytecode = gagp::evo::compile_for_eval(genome);
+  const gagp::ExecResult out = gagp::execute_bytecode_cpu(bytecode, {}, 20000);
   if (!check(!out.is_error, "FOR_RANGE program should execute successfully")) {
     return false;
   }
@@ -985,19 +985,19 @@ bool test_for_range_expr_compiles_and_executes() {
   return check(out.value.i == 6, "FOR_RANGE program should sum loop indices");
 }
 
-bool scalar_config_allows_program(const g3pvm::evo::ProgramGenome& genome) {
-  const g3pvm::evo::GrammarConfig cfg = g3pvm::evo::GrammarConfig::scalar();
-  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
+bool scalar_config_allows_program(const gagp::evo::ProgramGenome& genome) {
+  const gagp::evo::GrammarConfig cfg = gagp::evo::GrammarConfig::scalar();
+  for (const gagp::evo::AstNode& node : genome.ast.nodes) {
     if (!cfg.allows_node_kind(node.kind)) {
       return false;
     }
   }
-  for (const g3pvm::Value& value : genome.ast.consts) {
-    if (value.tag == g3pvm::ValueTag::Char ||
-        value.tag == g3pvm::ValueTag::String ||
-        value.tag == g3pvm::ValueTag::IntList ||
-        value.tag == g3pvm::ValueTag::FloatList ||
-        value.tag == g3pvm::ValueTag::StringList) {
+  for (const gagp::Value& value : genome.ast.consts) {
+    if (value.tag == gagp::ValueTag::Char ||
+        value.tag == gagp::ValueTag::String ||
+        value.tag == gagp::ValueTag::IntList ||
+        value.tag == gagp::ValueTag::FloatList ||
+        value.tag == gagp::ValueTag::StringList) {
       return false;
     }
   }
@@ -1005,31 +1005,31 @@ bool scalar_config_allows_program(const g3pvm::evo::ProgramGenome& genome) {
 }
 
 bool test_scalar_grammar_config_restricts_generation_and_mutation() {
-  const g3pvm::evo::GrammarConfig cfg = g3pvm::evo::GrammarConfig::scalar();
-  g3pvm::evo::Limits limits;
+  const gagp::evo::GrammarConfig cfg = gagp::evo::GrammarConfig::scalar();
+  gagp::evo::Limits limits;
   for (std::uint64_t seed = 0; seed < 160; ++seed) {
-    const g3pvm::evo::ProgramGenome genome = g3pvm::evo::generate_random_genome(seed, limits, cfg);
+    const gagp::evo::ProgramGenome genome = gagp::evo::generate_random_genome(seed, limits, cfg);
     if (!check(scalar_config_allows_program(genome), "scalar grammar config should not generate sequence features")) {
       return false;
     }
-    (void)g3pvm::evo::compile_for_eval(genome);
+    (void)gagp::evo::compile_for_eval(genome);
   }
 
-  const g3pvm::evo::ProgramGenome base = g3pvm::evo::generate_random_genome(4242, limits, cfg);
+  const gagp::evo::ProgramGenome base = gagp::evo::generate_random_genome(4242, limits, cfg);
   for (std::uint64_t seed = 0; seed < 80; ++seed) {
-    const g3pvm::evo::ProgramGenome child =
-        g3pvm::evo::mutate(base, 9000 + seed, limits, 0.8, cfg);
+    const gagp::evo::ProgramGenome child =
+        gagp::evo::mutate(base, 9000 + seed, limits, 0.8, cfg);
     if (!check(scalar_config_allows_program(child), "scalar grammar config should not mutate in sequence features")) {
       return false;
     }
-    (void)g3pvm::evo::compile_for_eval(child);
+    (void)gagp::evo::compile_for_eval(child);
   }
   return true;
 }
 
 bool test_current_structured_node_metadata() {
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::subtree::node_arity;
+  using gagp::evo::NodeKind;
+  using gagp::evo::subtree::node_arity;
 
   if (!check(node_arity(NodeKind::BOUND_VAR) == 0, "BOUND_VAR should be leaf")) return false;
   if (!check(node_arity(NodeKind::MAP_LIST) == 2, "MAP_LIST arity should be 2")) return false;
@@ -1049,7 +1049,7 @@ bool test_current_structured_node_metadata() {
   if (!check(node_arity(NodeKind::ASGP_DP1D) == 3, "ASGP_DP1D arity should be 3")) return false;
   if (!check(node_arity(NodeKind::ASGP_DP2D) == 4, "ASGP_DP2D arity should be 4")) return false;
 
-  g3pvm::evo::GrammarConfig scalar = g3pvm::evo::GrammarConfig::scalar();
+  gagp::evo::GrammarConfig scalar = gagp::evo::GrammarConfig::scalar();
   if (!check(!scalar.allows_node_kind(NodeKind::MAP_LIST), "scalar config should disable MAP_LIST")) return false;
   if (!check(!scalar.allows_node_kind(NodeKind::FILTER_LIST), "scalar config should disable FILTER_LIST")) return false;
   if (!check(!scalar.allows_node_kind(NodeKind::LINEAR_REC), "scalar config should disable LINEAR_REC")) return false;
@@ -1060,27 +1060,27 @@ bool test_current_structured_node_metadata() {
 }
 
 bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
-  using g3pvm::Value;
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AsgpDp1dSpec;
-  using g3pvm::evo::AsgpDp2dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::Value;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AsgpDp1dSpec;
+  using gagp::evo::AsgpDp2dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   auto run_ast = [](const AstProgram& program, int fuel = 20000) {
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    return g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, fuel);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    return gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, fuel);
   };
 
   {
     AstProgram program;
     program.names = {"xs", "n", "lo", "r1", "r2"};
     program.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3), Value::from_int(4)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3), Value::from_int(4)}),
         Value::from_int(0),
         Value::from_int(999),
     };
@@ -1101,13 +1101,13 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     };
     program.asgp_dc_binders = {AsgpDcBinders{3, 0, 1, 2, 1, 3, 4}};
 
-    const std::vector<std::size_t> subtree_end = g3pvm::evo::subtree::build_subtree_end(program);
-    const std::vector<g3pvm::evo::typed_expr::TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
+    const std::vector<std::size_t> subtree_end = gagp::evo::subtree::build_subtree_end(program);
+    const std::vector<gagp::evo::typed_expr::TypedExprRoot> roots =
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
     bool saw_asgp_dc_int = false;
-    for (const g3pvm::evo::typed_expr::TypedExprRoot& root : roots) {
+    for (const gagp::evo::typed_expr::TypedExprRoot& root : roots) {
       if (root.start < program.nodes.size() && program.nodes[root.start].kind == NodeKind::ASGP_DC &&
-          root.type == g3pvm::evo::RType::Int) {
+          root.type == gagp::evo::RType::Int) {
         saw_asgp_dc_int = true;
       }
     }
@@ -1115,11 +1115,11 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
     if (!check(!out.is_error, "native ASGP-DC should compile and execute on CPU")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 10,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 10,
                "native ASGP-DC should sum IntList through clamped divide")) {
       return false;
     }
@@ -1130,7 +1130,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     program.names = {"hidden", "xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
         Value::from_int(7),
-        g3pvm::payload::make_int_list_value({Value::from_int(1)}),
+        gagp::payload::make_int_list_value({Value::from_int(1)}),
         Value::from_int(1),
     };
     program.nodes = {
@@ -1151,8 +1151,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     };
     program.asgp_dc_binders = {AsgpDcBinders{6, 1, 2, 3, 4, 5, 6}};
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DC solve phase should not see ordinary locals")) {
       return false;
     }
@@ -1163,7 +1163,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     program.names = {"hidden", "xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
         Value::from_int(7),
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(1),
     };
     program.nodes = {
@@ -1184,8 +1184,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     };
     program.asgp_dc_binders = {AsgpDcBinders{6, 1, 2, 3, 4, 5, 6}};
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DC divide phase should not see ordinary locals")) {
       return false;
     }
@@ -1196,7 +1196,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     program.names = {"hidden", "xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
         Value::from_int(7),
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(1),
     };
     program.nodes = {
@@ -1215,8 +1215,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     };
     program.asgp_dc_binders = {AsgpDcBinders{6, 1, 2, 3, 4, 5, 6}};
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DC combine phase should not see ordinary locals")) {
       return false;
     }
@@ -1225,9 +1225,9 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
   auto compile_rejects = [](const AstProgram& program) {
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
     try {
-      (void)g3pvm::evo::compile_for_eval(genome);
+      (void)gagp::evo::compile_for_eval(genome);
     } catch (const std::runtime_error&) {
       return true;
     }
@@ -1285,7 +1285,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     AstProgram program;
     program.names = {"xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(1),
     };
     program.nodes = {
@@ -1313,7 +1313,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     AstProgram program;
     program.names = {"xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(1),
     };
     program.nodes = {
@@ -1339,7 +1339,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     AstProgram program;
     program.names = {"xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(0),
         Value::from_int(1),
     };
@@ -1365,10 +1365,10 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
     bool rejected = false;
     try {
-      (void)g3pvm::evo::compile_for_eval(genome);
+      (void)gagp::evo::compile_for_eval(genome);
     } catch (const std::runtime_error&) {
       rejected = true;
     }
@@ -1381,7 +1381,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     AstProgram program;
     program.names = {"tmp", "xs", "n", "lo", "dn", "r1", "r2"};
     program.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(0),
         Value::from_int(1),
     };
@@ -1409,7 +1409,7 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
     program.names = {"state", "xs", "n", "lo", "dn", "r1", "r2", "dep"};
     program.consts = {
         Value::from_int(1),
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(0),
         Value::from_int(1),
     };
@@ -1532,13 +1532,13 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp1dSpec{3, 0, 5, 0, 2, NodeKind::DP1_BACKWARD1, {1}, 0, 0, {1}},
     };
 
-    const std::vector<std::size_t> subtree_end = g3pvm::evo::subtree::build_subtree_end(program);
-    const std::vector<g3pvm::evo::typed_expr::TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
+    const std::vector<std::size_t> subtree_end = gagp::evo::subtree::build_subtree_end(program);
+    const std::vector<gagp::evo::typed_expr::TypedExprRoot> roots =
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
     bool saw_asgp_dp1d_int = false;
-    for (const g3pvm::evo::typed_expr::TypedExprRoot& root : roots) {
+    for (const gagp::evo::typed_expr::TypedExprRoot& root : roots) {
       if (root.start < program.nodes.size() && program.nodes[root.start].kind == NodeKind::ASGP_DP1D &&
-          root.type == g3pvm::evo::RType::Int) {
+          root.type == gagp::evo::RType::Int) {
         saw_asgp_dp1d_int = true;
       }
     }
@@ -1546,11 +1546,11 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
     if (!check(!out.is_error, "native ASGP-DP1D should compile and execute on CPU")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 11,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 11,
                "native ASGP-DP1D should evaluate backward recurrence")) {
       return false;
     }
@@ -1574,9 +1574,9 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp1dSpec{3, 0, 5, 0, 2, NodeKind::DP1_BACKWARD1, {1}, 0, 0, {1}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
+    const gagp::ExecResult out = run_ast(program);
     if (!check(!out.is_error, "native ASGP-DP1D boundary case should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 99,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 99,
                "native ASGP-DP1D should return out-of-bounds boundary value")) {
       return false;
     }
@@ -1602,9 +1602,9 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp1dSpec{3, 0, 20, 0, 2, NodeKind::DP1_BACKWARD2, {1, 2}, 0, 0, {1, 2}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program, 500);
+    const gagp::ExecResult out = run_ast(program, 500);
     if (!check(!out.is_error, "native ASGP-DP1D memoized recurrence should fit bounded fuel")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 10946,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 10946,
                "native ASGP-DP1D should memoize overlapping dependencies")) {
       return false;
     }
@@ -1631,8 +1631,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp1dSpec{6, 0, 3, 0, 1, NodeKind::DP1_BACKWARD1, {1}, 1, 1, {2}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DP1D solve phase should not see ordinary locals")) {
       return false;
     }
@@ -1659,8 +1659,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp1dSpec{6, 0, 3, 0, 3, NodeKind::DP1_BACKWARD1, {1}, 1, 1, {2}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DP1D transition phase should not see ordinary locals")) {
       return false;
     }
@@ -1730,8 +1730,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp1dSpec{3, 0, 3, 0, 2, NodeKind::DP1_BACKWARD2, {1, 2}, 0, 0, {1, 2}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Type,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Type,
                "native ASGP-DP1D should reject dependency type mismatch")) {
       return false;
     }
@@ -1760,13 +1760,13 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp2dSpec{3, 0, 3, 0, 3, 0, 0, 3, NodeKind::DP2_NEIGHBORHOOD_BACKWARD3, 0, 1, 0, 1, {2, 3, 4}},
     };
 
-    const std::vector<std::size_t> subtree_end = g3pvm::evo::subtree::build_subtree_end(program);
-    const std::vector<g3pvm::evo::typed_expr::TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
+    const std::vector<std::size_t> subtree_end = gagp::evo::subtree::build_subtree_end(program);
+    const std::vector<gagp::evo::typed_expr::TypedExprRoot> roots =
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, subtree_end);
     bool saw_asgp_dp2d_int = false;
-    for (const g3pvm::evo::typed_expr::TypedExprRoot& root : roots) {
+    for (const gagp::evo::typed_expr::TypedExprRoot& root : roots) {
       if (root.start < program.nodes.size() && program.nodes[root.start].kind == NodeKind::ASGP_DP2D &&
-          root.type == g3pvm::evo::RType::Int) {
+          root.type == gagp::evo::RType::Int) {
         saw_asgp_dp2d_int = true;
       }
     }
@@ -1774,11 +1774,11 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
     if (!check(!out.is_error, "native ASGP-DP2D should compile and execute on CPU")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 13,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 13,
                "native ASGP-DP2D should evaluate neighborhood recurrence")) {
       return false;
     }
@@ -1807,9 +1807,9 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp2dSpec{3, 0, 5, 0, 5, 0, 0, 3, NodeKind::DP2_NEIGHBORHOOD_BACKWARD3, 0, 1, 0, 1, {2, 3, 4}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program, 1200);
+    const gagp::ExecResult out = run_ast(program, 1200);
     if (!check(!out.is_error, "native ASGP-DP2D memoized recurrence should fit bounded fuel")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 1683,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 1683,
                "native ASGP-DP2D should memoize overlapping dependencies")) {
       return false;
     }
@@ -1838,11 +1838,11 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
     if (!check(!out.is_error, "native ASGP-DP2D boundary case should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 99,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 99,
                "native ASGP-DP2D should return out-of-bounds boundary value")) {
       return false;
     }
@@ -1870,8 +1870,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp2dSpec{6, 0, 3, 0, 3, 0, 0, 1, NodeKind::DP2_DIAGONAL_BACKWARD, 1, 2, 1, 2, {3}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DP2D solve phase should not see ordinary locals")) {
       return false;
     }
@@ -1899,8 +1899,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp2dSpec{6, 0, 3, 0, 3, 0, 0, 3, NodeKind::DP2_DIAGONAL_BACKWARD, 1, 2, 3, 4, {5}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Name,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Name,
                "native ASGP-DP2D transition phase should not see ordinary locals")) {
       return false;
     }
@@ -1976,10 +1976,10 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Type,
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Type,
                "native ASGP-DP2D should reject transition type mismatch")) {
       return false;
     }
@@ -2008,8 +2008,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp2dSpec{3, 0, 5, 0, 5, 0, 0, 3, NodeKind::DP2_NEIGHBORHOOD_BACKWARD3, 0, 1, 0, 1, {2, 3, 4}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program, 10);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Timeout,
+    const gagp::ExecResult out = run_ast(program, 10);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Timeout,
                "native ASGP-DP2D should report timeout on fuel exhaustion")) {
       return false;
     }
@@ -2034,8 +2034,8 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
         AsgpDp2dSpec{3, 0, 3, 0, 3, 0, 0, 0, NodeKind::DP2_CROSS_BACKWARD, 0, 1, 0, 1, {2, 3}},
     };
 
-    const g3pvm::ExecResult out = run_ast(program);
-    if (!check(out.is_error && out.err.code == g3pvm::ErrCode::Type,
+    const gagp::ExecResult out = run_ast(program);
+    if (!check(out.is_error && out.err.code == gagp::ErrCode::Type,
                "native ASGP-DP2D should reject dependency type mismatch")) {
       return false;
     }
@@ -2044,27 +2044,27 @@ bool test_asgp_nodes_are_declared_and_dc_executes_on_cpu() {
 }
 
 bool test_replace_subtree_preserves_asgp_metadata() {
-  using g3pvm::Value;
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AsgpDp1dSpec;
-  using g3pvm::evo::AsgpDp2dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::Value;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AsgpDp1dSpec;
+  using gagp::evo::AsgpDp2dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   auto run_ast = [](const AstProgram& program, int fuel = 20000) {
     ProgramGenome genome;
     genome.ast = program;
-    genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
-    return g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, fuel);
+    genome.meta = gagp::evo::build_genome_meta(genome.ast);
+    return gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, fuel);
   };
 
   {
     AstProgram base;
     base.names = {"x", "xs", "n", "lo", "r1", "r2"};
     base.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(0),
         Value::from_int(999),
     };
@@ -2096,8 +2096,8 @@ bool test_replace_subtree_preserves_asgp_metadata() {
         AstNode{NodeKind::CONST, 1, 0},
     };
 
-    const std::vector<std::size_t> end = g3pvm::evo::subtree::build_subtree_end(base);
-    const AstProgram replaced = g3pvm::evo::subtree::replace_subtree(base, 3, end[3], donor, 0, donor.nodes.size());
+    const std::vector<std::size_t> end = gagp::evo::subtree::build_subtree_end(base);
+    const AstProgram replaced = gagp::evo::subtree::replace_subtree(base, 3, end[3], donor, 0, donor.nodes.size());
     if (!check(replaced.asgp_dc_binders.size() == 1, "ASGP-DC metadata should survive unrelated replacement")) {
       return false;
     }
@@ -2105,9 +2105,9 @@ bool test_replace_subtree_preserves_asgp_metadata() {
                "ASGP-DC metadata node_index should shift after insertion")) {
       return false;
     }
-    const g3pvm::ExecResult out = run_ast(replaced);
+    const gagp::ExecResult out = run_ast(replaced);
     if (!check(!out.is_error, "shifted ASGP-DC metadata program should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 3,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 3,
                "shifted ASGP-DC metadata should still bind recursive phases")) {
       return false;
     }
@@ -2137,8 +2137,8 @@ bool test_replace_subtree_preserves_asgp_metadata() {
         AsgpDp1dSpec{0, 0, 5, 0, 2, NodeKind::DP1_BACKWARD1, {1}, 0, 0, {1}},
     };
 
-    const std::vector<std::size_t> end = g3pvm::evo::subtree::build_subtree_end(base);
-    const AstProgram replaced = g3pvm::evo::subtree::replace_subtree(base, 3, end[3], donor, 0, donor.nodes.size());
+    const std::vector<std::size_t> end = gagp::evo::subtree::build_subtree_end(base);
+    const AstProgram replaced = gagp::evo::subtree::replace_subtree(base, 3, end[3], donor, 0, donor.nodes.size());
     if (!check(replaced.asgp_dp1d_specs.size() == 1,
                "donor ASGP-DP1D metadata should be inserted with the subtree")) {
       return false;
@@ -2147,14 +2147,14 @@ bool test_replace_subtree_preserves_asgp_metadata() {
     if (!check(spec.node_index == 3, "donor ASGP-DP1D node_index should map to replacement start")) return false;
     if (!check(spec.boundary_const >= 0 &&
                    static_cast<std::size_t>(spec.boundary_const) < replaced.consts.size() &&
-                   replaced.consts[static_cast<std::size_t>(spec.boundary_const)].tag == g3pvm::ValueTag::Int &&
+                   replaced.consts[static_cast<std::size_t>(spec.boundary_const)].tag == gagp::ValueTag::Int &&
                    replaced.consts[static_cast<std::size_t>(spec.boundary_const)].i == 99,
                "donor ASGP-DP1D boundary const should be remapped into the child")) {
       return false;
     }
-    const g3pvm::ExecResult out = run_ast(replaced);
+    const gagp::ExecResult out = run_ast(replaced);
     if (!check(!out.is_error, "inserted ASGP-DP1D metadata program should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 99,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 99,
                "inserted ASGP-DP1D metadata should preserve boundary behavior")) {
       return false;
     }
@@ -2164,14 +2164,14 @@ bool test_replace_subtree_preserves_asgp_metadata() {
 }
 
 bool test_current_structured_typed_expr_analysis() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::ListTypeTag;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::RType;
-  using g3pvm::evo::typed_expr::TypedExprRoot;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::ListTypeTag;
+  using gagp::evo::NodeKind;
+  using gagp::evo::RType;
+  using gagp::evo::typed_expr::TypedExprRoot;
 
   AstProgram map_program;
   map_program.names = {"xs", "u"};
@@ -2187,13 +2187,13 @@ bool test_current_structured_typed_expr_analysis() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   map_program.consts = {Value::from_int(1)};
-  if (!check(g3pvm::evo::build_genome_meta(map_program).max_depth == 3,
+  if (!check(gagp::evo::build_genome_meta(map_program).max_depth == 3,
              "genome meta should track MAP_LIST expression depth")) {
     return false;
   }
-  const std::vector<std::size_t> map_end = g3pvm::evo::subtree::build_subtree_end(map_program);
+  const std::vector<std::size_t> map_end = gagp::evo::subtree::build_subtree_end(map_program);
   const std::vector<TypedExprRoot> map_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(map_program, map_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(map_program, map_end);
   bool saw_map_int_list = false;
   bool exposed_map_bound_fragment = false;
   for (const TypedExprRoot& root : map_roots) {
@@ -2227,9 +2227,9 @@ bool test_current_structured_typed_expr_analysis() {
   };
   float_map_program.consts = {Value::from_float(2.0)};
   const std::vector<std::size_t> float_map_end =
-      g3pvm::evo::subtree::build_subtree_end(float_map_program);
+      gagp::evo::subtree::build_subtree_end(float_map_program);
   const std::vector<TypedExprRoot> float_map_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(float_map_program, float_map_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(float_map_program, float_map_end);
   bool saw_float_map_list = false;
   bool exposed_float_map_bound_fragment = false;
   for (const TypedExprRoot& root : float_map_roots) {
@@ -2264,9 +2264,9 @@ bool test_current_structured_typed_expr_analysis() {
   };
   string_filter_program.consts = {Value::from_int(1)};
   const std::vector<std::size_t> string_filter_end =
-      g3pvm::evo::subtree::build_subtree_end(string_filter_program);
+      gagp::evo::subtree::build_subtree_end(string_filter_program);
   const std::vector<TypedExprRoot> string_filter_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(string_filter_program, string_filter_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(string_filter_program, string_filter_end);
   bool saw_string_filter_list = false;
   bool exposed_string_filter_bound_fragment = false;
   for (const TypedExprRoot& root : string_filter_roots) {
@@ -2305,9 +2305,9 @@ bool test_current_structured_typed_expr_analysis() {
   };
   linear_program.consts = {Value::from_int(0), Value::from_int(0)};
   linear_program.linear_rec_binders = {LinearRecBinders{3, 1, 2, 3}};
-  const std::vector<std::size_t> linear_end = g3pvm::evo::subtree::build_subtree_end(linear_program);
+  const std::vector<std::size_t> linear_end = gagp::evo::subtree::build_subtree_end(linear_program);
   const std::vector<TypedExprRoot> linear_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(linear_program, linear_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(linear_program, linear_end);
   bool saw_linear_int = false;
   bool exposed_linear_bound_fragment = false;
   for (const TypedExprRoot& root : linear_roots) {
@@ -2329,15 +2329,15 @@ bool test_current_structured_typed_expr_analysis() {
 }
 
 bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
-  using g3pvm::Value;
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AsgpDp1dSpec;
-  using g3pvm::evo::AsgpDp2dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::RType;
-  using g3pvm::evo::typed_expr::TypedExprRoot;
+  using gagp::Value;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AsgpDp1dSpec;
+  using gagp::evo::AsgpDp2dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::RType;
+  using gagp::evo::typed_expr::TypedExprRoot;
 
   auto root_at = [](const std::vector<TypedExprRoot>& roots, std::size_t start) -> const TypedExprRoot* {
     for (const TypedExprRoot& root : roots) {
@@ -2362,9 +2362,9 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
         AstNode{NodeKind::CONST, 1, 0},
         AstNode{NodeKind::BLOCK_NIL, 0, 0},
     };
-    const std::vector<std::size_t> end = g3pvm::evo::subtree::build_subtree_end(program);
+    const std::vector<std::size_t> end = gagp::evo::subtree::build_subtree_end(program);
     const std::vector<TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, end);
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, end);
     const TypedExprRoot* assign_const = nullptr;
     const TypedExprRoot* scoped_var = nullptr;
     const TypedExprRoot* scoped_const = nullptr;
@@ -2377,11 +2377,11 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
                "typed analysis should expose roots needed for key checks")) {
       return false;
     }
-    if (!check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*assign_const, *scoped_var),
+    if (!check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*assign_const, *scoped_var),
                "typed subtree key should reject same-type roots with different visible environments")) {
       return false;
     }
-    if (!check(g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*scoped_var, *scoped_const),
+    if (!check(gagp::evo::typed_expr::typed_subtree_keys_compatible(*scoped_var, *scoped_const),
                "typed subtree key should allow different ordinary node kinds in the same visible environment")) {
       return false;
     }
@@ -2390,7 +2390,7 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
   AstProgram asgp_dc_program;
   asgp_dc_program.names = {"xs", "n", "lo", "dn", "left", "right"};
   asgp_dc_program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
       Value::from_int(7),
       Value::from_int(1),
       Value::from_int(9),
@@ -2408,9 +2408,9 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
   };
   asgp_dc_program.asgp_dc_binders = {AsgpDcBinders{3, 0, 1, 2, 3, 4, 5}};
 
-  const std::vector<std::size_t> asgp_dc_end = g3pvm::evo::subtree::build_subtree_end(asgp_dc_program);
+  const std::vector<std::size_t> asgp_dc_end = gagp::evo::subtree::build_subtree_end(asgp_dc_program);
   const std::vector<TypedExprRoot> asgp_dc_roots =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(asgp_dc_program, asgp_dc_end);
+      gagp::evo::typed_expr::collect_typed_expr_roots(asgp_dc_program, asgp_dc_end);
   const TypedExprRoot* asgp_dc_solve = root_at(asgp_dc_roots, 5);
   const TypedExprRoot* asgp_dc_divide = root_at(asgp_dc_roots, 6);
   if (!check(asgp_dc_solve != nullptr && asgp_dc_divide != nullptr,
@@ -2421,7 +2421,7 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
              "ASGP-DC phase roots should carry distinct phase names")) {
     return false;
   }
-  if (!check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*asgp_dc_solve, *asgp_dc_divide),
+  if (!check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*asgp_dc_solve, *asgp_dc_divide),
              "typed subtree key should reject same-type ASGP-DC roots from different phases")) {
     return false;
   }
@@ -2448,12 +2448,12 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
 
   AstProgram dp_one = dp1d_program(NodeKind::DP1_BACKWARD1, {1}, {1});
   AstProgram dp_two = dp1d_program(NodeKind::DP1_BACKWARD2, {1, 2}, {1, 2});
-  const std::vector<std::size_t> end_one = g3pvm::evo::subtree::build_subtree_end(dp_one);
-  const std::vector<std::size_t> end_two = g3pvm::evo::subtree::build_subtree_end(dp_two);
+  const std::vector<std::size_t> end_one = gagp::evo::subtree::build_subtree_end(dp_one);
+  const std::vector<std::size_t> end_two = gagp::evo::subtree::build_subtree_end(dp_two);
   const std::vector<TypedExprRoot> roots_one =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(dp_one, end_one);
+      gagp::evo::typed_expr::collect_typed_expr_roots(dp_one, end_one);
   const std::vector<TypedExprRoot> roots_two =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(dp_two, end_two);
+      gagp::evo::typed_expr::collect_typed_expr_roots(dp_two, end_two);
   const TypedExprRoot* dp_one_root = root_at(roots_one, 3);
   const TypedExprRoot* dp_two_root = root_at(roots_two, 3);
   const TypedExprRoot* dp_one_solve = root_at(roots_one, 5);
@@ -2468,7 +2468,7 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
              "ASGP phase roots should carry scheme kind in typed subtree keys")) {
     return false;
   }
-  if (!check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*asgp_dc_solve, *dp_one_solve),
+  if (!check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*asgp_dc_solve, *dp_one_solve),
              "typed subtree key should reject same-type ASGP roots from different schemes")) {
     return false;
   }
@@ -2476,7 +2476,7 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
              "ASGP-DP typed subtree key should track dependency arity")) {
     return false;
   }
-  if (!check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*dp_one_root, *dp_two_root),
+  if (!check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*dp_one_root, *dp_two_root),
              "typed subtree key should reject ASGP-DP roots with different dependency arity")) {
     return false;
   }
@@ -2504,12 +2504,12 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
 
   AstProgram dp2d_one = dp2d_program(NodeKind::DP2_CROSS_BACKWARD, {2});
   AstProgram dp2d_three = dp2d_program(NodeKind::DP2_NEIGHBORHOOD_BACKWARD3, {2, 3, 4});
-  const std::vector<std::size_t> end2d_one = g3pvm::evo::subtree::build_subtree_end(dp2d_one);
-  const std::vector<std::size_t> end2d_three = g3pvm::evo::subtree::build_subtree_end(dp2d_three);
+  const std::vector<std::size_t> end2d_one = gagp::evo::subtree::build_subtree_end(dp2d_one);
+  const std::vector<std::size_t> end2d_three = gagp::evo::subtree::build_subtree_end(dp2d_three);
   const std::vector<TypedExprRoot> roots2d_one =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(dp2d_one, end2d_one);
+      gagp::evo::typed_expr::collect_typed_expr_roots(dp2d_one, end2d_one);
   const std::vector<TypedExprRoot> roots2d_three =
-      g3pvm::evo::typed_expr::collect_typed_expr_roots(dp2d_three, end2d_three);
+      gagp::evo::typed_expr::collect_typed_expr_roots(dp2d_three, end2d_three);
   const TypedExprRoot* dp2d_one_root = root_at(roots2d_one, 3);
   const TypedExprRoot* dp2d_three_root = root_at(roots2d_three, 3);
   if (!check(dp2d_one_root != nullptr && dp2d_three_root != nullptr,
@@ -2520,21 +2520,21 @@ bool test_current_typed_subtree_key_tracks_scope_and_dp_arity() {
              "ASGP-DP2D typed subtree key should track dependency arity")) {
     return false;
   }
-  return check(!g3pvm::evo::typed_expr::typed_subtree_keys_compatible(*dp2d_one_root, *dp2d_three_root),
+  return check(!gagp::evo::typed_expr::typed_subtree_keys_compatible(*dp2d_one_root, *dp2d_three_root),
                "typed subtree key should reject ASGP-DP2D roots with different dependency arity");
 }
 
 bool test_subtree_mutation_preserves_structured_scope_boundaries() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::ListTypeTag;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::ListTypeTag;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome base;
   base.ast.names = {"xs", "u"};
   base.ast.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
       Value::from_int(1),
   };
   base.ast.nodes = {
@@ -2551,14 +2551,14 @@ bool test_subtree_mutation_preserves_structured_scope_boundaries() {
       AstNode{NodeKind::CONST, 1, 0},
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
-  base.meta = g3pvm::evo::build_genome_meta(base.ast);
+  base.meta = gagp::evo::build_genome_meta(base.ast);
 
-  g3pvm::evo::Limits limits{7, 6, 160, 16, 3};
+  gagp::evo::Limits limits{7, 6, 160, 16, 3};
   for (int i = 0; i < 160; ++i) {
     const ProgramGenome child =
-        g3pvm::evo::mutate(base, static_cast<std::uint64_t>(52000 + i), limits, 1.0);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(child), {}, 20000);
+        gagp::evo::mutate(base, static_cast<std::uint64_t>(52000 + i), limits, 1.0);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(child), {}, 20000);
     if (!check(!out.is_error, "subtree mutation should preserve structured scope and target type")) {
       return false;
     }
@@ -2567,12 +2567,12 @@ bool test_subtree_mutation_preserves_structured_scope_boundaries() {
 }
 
 bool test_subtree_donor_generation_preserves_target_value_type() {
-  using g3pvm::ValueTag;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
-  using g3pvm::evo::RType;
+  using gagp::ValueTag;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
+  using gagp::evo::RType;
 
   auto expected_tag = [](RType type) {
     switch (type) {
@@ -2610,10 +2610,10 @@ bool test_subtree_donor_generation_preserves_target_value_type() {
   for (RType type : types) {
     for (int i = 0; i < 32; ++i) {
       AstProgram program;
-      program.version = g3pvm::evo::k_ast_prefix_version_current;
+      program.version = gagp::evo::k_ast_prefix_version_current;
       std::mt19937_64 rng(static_cast<std::uint64_t>(61000 + static_cast<int>(type) * 100 + i));
       const std::vector<AstNode> expr =
-          g3pvm::evo::subtree::make_random_expr_nodes_for_type(rng, program, type, 3, {}, false);
+          gagp::evo::subtree::make_random_expr_nodes_for_type(rng, program, type, 3, {}, false);
       program.nodes = {
           AstNode{NodeKind::PROGRAM, 0, 0},
           AstNode{NodeKind::BLOCK_CONS, 0, 0},
@@ -2624,8 +2624,8 @@ bool test_subtree_donor_generation_preserves_target_value_type() {
 
       ProgramGenome genome;
       genome.ast = program;
-      const g3pvm::ExecResult out =
-          g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+      const gagp::ExecResult out =
+          gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
       if (!check(!out.is_error, "subtree donor should execute for requested target type")) {
         return false;
       }
@@ -2639,15 +2639,15 @@ bool test_subtree_donor_generation_preserves_target_value_type() {
 }
 
 bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
-  using g3pvm::Value;
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AsgpDp1dSpec;
-  using g3pvm::evo::AsgpDp2dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::RType;
-  using g3pvm::evo::typed_expr::TypedExprRoot;
+  using gagp::Value;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AsgpDp1dSpec;
+  using gagp::evo::AsgpDp2dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::RType;
+  using gagp::evo::typed_expr::TypedExprRoot;
 
   auto has_root = [](const std::vector<TypedExprRoot>& roots, std::size_t start, RType type) {
     return std::any_of(roots.begin(), roots.end(), [&](const TypedExprRoot& root) {
@@ -2659,7 +2659,7 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
     AstProgram program;
     program.names = {"xs", "n", "lo", "dn", "left", "right"};
     program.consts = {
-        g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+        gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
         Value::from_int(7),
         Value::from_int(1),
     };
@@ -2678,9 +2678,9 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
     };
     program.asgp_dc_binders = {AsgpDcBinders{3, 0, 1, 2, 3, 4, 5}};
 
-    const std::vector<std::size_t> end = g3pvm::evo::subtree::build_subtree_end(program);
+    const std::vector<std::size_t> end = gagp::evo::subtree::build_subtree_end(program);
     const std::vector<TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, end);
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, end);
     if (!check(has_root(roots, 3, RType::Int), "typed analysis should infer whole ASGP-DC root")) {
       return false;
     }
@@ -2689,7 +2689,7 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
     for (const TypedExprRoot& root : roots) {
       if (root.start == 5 || root.start == 6) {
         saw_phase_root =
-            saw_phase_root || g3pvm::evo::typed_expr::is_asgp_phase_body_root(program, end, root);
+            saw_phase_root || gagp::evo::typed_expr::is_asgp_phase_body_root(program, end, root);
       }
       if (root.start == 7 || root.start == 8 || root.start == 9) {
         exposed_bound_fragment = true;
@@ -2721,9 +2721,9 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
         AsgpDp1dSpec{3, 0, 4, 0, 2, NodeKind::DP1_BACKWARD1, {1}, 0, 0, {1}},
     };
 
-    const std::vector<std::size_t> end = g3pvm::evo::subtree::build_subtree_end(program);
+    const std::vector<std::size_t> end = gagp::evo::subtree::build_subtree_end(program);
     const std::vector<TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, end);
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, end);
     if (!check(has_root(roots, 3, RType::Int), "typed analysis should infer whole ASGP-DP1D root")) {
       return false;
     }
@@ -2731,7 +2731,7 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
     for (const TypedExprRoot& root : roots) {
       if (root.start == 5) {
         saw_phase_root =
-            saw_phase_root || g3pvm::evo::typed_expr::is_asgp_phase_body_root(program, end, root);
+            saw_phase_root || gagp::evo::typed_expr::is_asgp_phase_body_root(program, end, root);
       }
     }
     if (!check(saw_phase_root, "ASGP-DP1D solve root should be classified as a phase root")) {
@@ -2759,9 +2759,9 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
         AsgpDp2dSpec{3, 0, 3, 0, 3, 0, 0, 3, NodeKind::DP2_CROSS_BACKWARD, 0, 1, 0, 1, {2}},
     };
 
-    const std::vector<std::size_t> end = g3pvm::evo::subtree::build_subtree_end(program);
+    const std::vector<std::size_t> end = gagp::evo::subtree::build_subtree_end(program);
     const std::vector<TypedExprRoot> roots =
-        g3pvm::evo::typed_expr::collect_typed_expr_roots(program, end);
+        gagp::evo::typed_expr::collect_typed_expr_roots(program, end);
     if (!check(has_root(roots, 3, RType::Float), "typed analysis should infer whole ASGP-DP2D root")) {
       return false;
     }
@@ -2769,7 +2769,7 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
     for (const TypedExprRoot& root : roots) {
       if (root.start == 6) {
         saw_phase_root =
-            saw_phase_root || g3pvm::evo::typed_expr::is_asgp_phase_body_root(program, end, root);
+            saw_phase_root || gagp::evo::typed_expr::is_asgp_phase_body_root(program, end, root);
       }
     }
     if (!check(saw_phase_root, "ASGP-DP2D solve root should be classified as a phase root")) {
@@ -2781,11 +2781,11 @@ bool test_asgp_typed_expr_analysis_roots_and_phase_guards() {
 }
 
 bool test_linear_rec_metadata_affects_cache_key() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::NodeKind;
 
   AstProgram a;
   a.names = {"xs", "u", "v", "i"};
@@ -2805,42 +2805,42 @@ bool test_linear_rec_metadata_affects_cache_key() {
   a.linear_rec_binders = {LinearRecBinders{3, 1, 2, 3}};
   AstProgram b = a;
   b.linear_rec_binders = {LinearRecBinders{3, 2, 1, 3}};
-  return check(g3pvm::evo::ast_cache_key(a) != g3pvm::evo::ast_cache_key(b),
+  return check(gagp::evo::ast_cache_key(a) != gagp::evo::ast_cache_key(b),
                "cache key should include LinearRec binder metadata");
 }
 
-bool value_is_int_list(const g3pvm::Value& value, const std::vector<long long>& expected) {
-  if (value.tag != g3pvm::ValueTag::IntList) return false;
-  std::vector<g3pvm::Value> elems;
-  if (!g3pvm::payload::lookup_list(value, &elems)) return false;
+bool value_is_int_list(const gagp::Value& value, const std::vector<long long>& expected) {
+  if (value.tag != gagp::ValueTag::IntList) return false;
+  std::vector<gagp::Value> elems;
+  if (!gagp::payload::lookup_list(value, &elems)) return false;
   if (elems.size() != expected.size()) return false;
   for (std::size_t i = 0; i < elems.size(); ++i) {
-    if (elems[i].tag != g3pvm::ValueTag::Int || elems[i].i != expected[i]) return false;
+    if (elems[i].tag != gagp::ValueTag::Int || elems[i].i != expected[i]) return false;
   }
   return true;
 }
 
-bool value_is_exact_string(const g3pvm::Value& value, const std::string& expected) {
-  if (value.tag != g3pvm::ValueTag::String) return false;
+bool value_is_exact_string(const gagp::Value& value, const std::string& expected) {
+  if (value.tag != gagp::ValueTag::String) return false;
   std::string exact;
-  return g3pvm::payload::lookup_string(value, &exact) && exact == expected;
+  return gagp::payload::lookup_string(value, &exact) && exact == expected;
 }
 
 bool test_native_cpu_structured_expressions_execute() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::ListTypeTag;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::ListTypeTag;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
-  g3pvm::payload::clear();
+  gagp::payload::clear();
 
   AstProgram map_program;
   map_program.names = {"u"};
   map_program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
       Value::from_int(2),
   };
   map_program.nodes = {
@@ -2856,15 +2856,15 @@ bool test_native_cpu_structured_expressions_execute() {
   };
   ProgramGenome map_genome;
   map_genome.ast = map_program;
-  const g3pvm::ExecResult map_out =
-      g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(map_genome), {}, 20000);
+  const gagp::ExecResult map_out =
+      gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(map_genome), {}, 20000);
   if (!check(!map_out.is_error, "native MAP_LIST should execute")) return false;
   if (!check(value_is_int_list(map_out.value, {2, 4, 6}), "native MAP_LIST should return doubled IntList")) return false;
 
   AstProgram filter_program;
   filter_program.names = {"u"};
   filter_program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(3), Value::from_int(1), Value::from_int(4)}),
+      gagp::payload::make_int_list_value({Value::from_int(3), Value::from_int(1), Value::from_int(4)}),
       Value::from_int(2),
   };
   filter_program.nodes = {
@@ -2880,15 +2880,15 @@ bool test_native_cpu_structured_expressions_execute() {
   };
   ProgramGenome filter_genome;
   filter_genome.ast = filter_program;
-  const g3pvm::ExecResult filter_out =
-      g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(filter_genome), {}, 20000);
+  const gagp::ExecResult filter_out =
+      gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(filter_genome), {}, 20000);
   if (!check(!filter_out.is_error, "native FILTER_LIST should execute")) return false;
   if (!check(value_is_int_list(filter_out.value, {3, 4}), "native FILTER_LIST should preserve filtered order")) return false;
 
   AstProgram linear_program;
   linear_program.names = {"u", "v", "i"};
   linear_program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
       Value::from_int(4),
       Value::from_int(0),
       Value::from_int(10),
@@ -2917,16 +2917,16 @@ bool test_native_cpu_structured_expressions_execute() {
   linear_program.linear_rec_binders = {LinearRecBinders{3, 0, 1, 2}};
   ProgramGenome linear_genome;
   linear_genome.ast = linear_program;
-  const g3pvm::ExecResult linear_out =
-      g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(linear_genome), {}, 20000);
+  const gagp::ExecResult linear_out =
+      gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(linear_genome), {}, 20000);
   if (!check(!linear_out.is_error, "native LINEAR_REC should execute")) return false;
-  if (!check(linear_out.value.tag == g3pvm::ValueTag::Int && linear_out.value.i == 30621,
+  if (!check(linear_out.value.tag == gagp::ValueTag::Int && linear_out.value.i == 30621,
              "native LINEAR_REC should run right-to-left recurrence")) return false;
 
   AstProgram float_linear_program;
   float_linear_program.names = {"u", "v", "i"};
   float_linear_program.consts = {
-      g3pvm::payload::make_float_list_value({Value::from_float(1.5), Value::from_float(2.5)}),
+      gagp::payload::make_float_list_value({Value::from_float(1.5), Value::from_float(2.5)}),
       Value::from_int(0),
       Value::from_float(0.0),
   };
@@ -2947,21 +2947,21 @@ bool test_native_cpu_structured_expressions_execute() {
   float_linear_program.linear_rec_binders = {LinearRecBinders{3, 0, 1, 2}};
   ProgramGenome float_linear_genome;
   float_linear_genome.ast = float_linear_program;
-  const g3pvm::ExecResult float_linear_out =
-      g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(float_linear_genome), {}, 20000);
+  const gagp::ExecResult float_linear_out =
+      gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(float_linear_genome), {}, 20000);
   if (!check(!float_linear_out.is_error, "native LINEAR_REC FloatList should execute")) return false;
-  if (!check(float_linear_out.value.tag == g3pvm::ValueTag::Float && float_linear_out.value.f == 4.0,
+  if (!check(float_linear_out.value.tag == gagp::ValueTag::Float && float_linear_out.value.f == 4.0,
              "native LINEAR_REC FloatList should accumulate Float result")) return false;
 
   AstProgram string_linear_program;
   string_linear_program.names = {"u", "v", "i"};
-  const Value str_a = g3pvm::payload::make_string_value("a");
-  const Value str_b = g3pvm::payload::make_string_value("b");
-  const Value str_c = g3pvm::payload::make_string_value("c");
+  const Value str_a = gagp::payload::make_string_value("a");
+  const Value str_b = gagp::payload::make_string_value("b");
+  const Value str_c = gagp::payload::make_string_value("c");
   string_linear_program.consts = {
-      g3pvm::payload::make_string_list_value({str_a, str_b, str_c}),
+      gagp::payload::make_string_list_value({str_a, str_b, str_c}),
       Value::from_int(0),
-      g3pvm::payload::make_string_value(""),
+      gagp::payload::make_string_value(""),
   };
   string_linear_program.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -2980,8 +2980,8 @@ bool test_native_cpu_structured_expressions_execute() {
   string_linear_program.linear_rec_binders = {LinearRecBinders{3, 0, 1, 2}};
   ProgramGenome string_linear_genome;
   string_linear_genome.ast = string_linear_program;
-  const g3pvm::ExecResult string_linear_out =
-      g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(string_linear_genome), {}, 20000);
+  const gagp::ExecResult string_linear_out =
+      gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(string_linear_genome), {}, 20000);
   if (!check(!string_linear_out.is_error, "native LINEAR_REC StringList should execute")) return false;
   if (!check(value_is_exact_string(string_linear_out.value, "abc"),
              "native LINEAR_REC StringList should concatenate String result")) return false;
@@ -2990,11 +2990,11 @@ bool test_native_cpu_structured_expressions_execute() {
 }
 
 bool test_native_cpu_current_builtin_ast_nodes_execute() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   auto run_return_expr = [](std::vector<AstNode> expr_nodes, std::vector<Value> consts) {
     AstProgram program;
@@ -3008,37 +3008,37 @@ bool test_native_cpu_current_builtin_ast_nodes_execute() {
     program.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
     ProgramGenome genome;
     genome.ast = program;
-    return g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+    return gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
   };
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_IDIV0, 0, 0}, AstNode{NodeKind::CONST, 0, 0}, AstNode{NodeKind::CONST, 1, 0}},
         {Value::from_int(-7), Value::from_int(2)});
     if (!check(!out.is_error, "native CALL_IDIV0 should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == -3,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == -3,
                "native CALL_IDIV0 should truncate toward zero")) return false;
   }
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_IMOD0, 0, 0}, AstNode{NodeKind::CONST, 0, 0}, AstNode{NodeKind::CONST, 1, 0}},
         {Value::from_int(7), Value::from_int(0)});
     if (!check(!out.is_error, "native CALL_IMOD0 should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Int && out.value.i == 0,
+    if (!check(out.value.tag == gagp::ValueTag::Int && out.value.i == 0,
                "native CALL_IMOD0 should protect zero divisor")) return false;
   }
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_PREPEND, 0, 0}, AstNode{NodeKind::CONST, 0, 0}, AstNode{NodeKind::CONST, 1, 0}},
-        {g3pvm::payload::make_int_list_value({Value::from_int(2), Value::from_int(3)}), Value::from_int(1)});
+        {gagp::payload::make_int_list_value({Value::from_int(2), Value::from_int(3)}), Value::from_int(1)});
     if (!check(!out.is_error, "native CALL_PREPEND should execute")) return false;
     if (!check(value_is_int_list(out.value, {1, 2, 3}), "native CALL_PREPEND should add element first")) return false;
   }
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_SINGLETON, 0, 0}, AstNode{NodeKind::CONST, 0, 0}},
         {Value::from_int(42)});
     if (!check(!out.is_error, "native CALL_SINGLETON(Int) should execute")) return false;
@@ -3046,35 +3046,35 @@ bool test_native_cpu_current_builtin_ast_nodes_execute() {
   }
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_CHAR_TO_STRING, 0, 0}, AstNode{NodeKind::CALL_TO_UPPER, 0, 0},
          AstNode{NodeKind::CALL_CHR, 0, 0}, AstNode{NodeKind::CONST, 0, 0}},
         {Value::from_int(97)});
     if (!check(!out.is_error, "native char conversion builtin chain should execute")) return false;
     std::string exact;
-    if (!check(out.value.tag == g3pvm::ValueTag::String &&
-               g3pvm::payload::lookup_string(out.value, &exact) && exact == "A",
+    if (!check(out.value.tag == gagp::ValueTag::String &&
+               gagp::payload::lookup_string(out.value, &exact) && exact == "A",
                "native char conversion builtin chain should return string A")) return false;
   }
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_IS_VOWEL, 0, 0}, AstNode{NodeKind::CALL_STRING_TO_CHAR, 0, 0},
          AstNode{NodeKind::CONST, 0, 0}},
-        {g3pvm::payload::make_string_value("E")});
+        {gagp::payload::make_string_value("E")});
     if (!check(!out.is_error, "native char predicate builtin chain should execute")) return false;
-    if (!check(out.value.tag == g3pvm::ValueTag::Bool && out.value.b,
+    if (!check(out.value.tag == gagp::ValueTag::Bool && out.value.b,
                "native char predicate builtin chain should return true")) return false;
   }
 
   {
-    const g3pvm::ExecResult out = run_return_expr(
+    const gagp::ExecResult out = run_return_expr(
         {AstNode{NodeKind::CALL_TO_STRING, 0, 0}, AstNode{NodeKind::CONST, 0, 0}},
         {Value::from_int(123)});
     if (!check(!out.is_error, "native CALL_TO_STRING should execute")) return false;
     std::string exact;
-    if (!check(out.value.tag == g3pvm::ValueTag::String &&
-               g3pvm::payload::lookup_string(out.value, &exact) && exact == "123",
+    if (!check(out.value.tag == gagp::ValueTag::String &&
+               gagp::payload::lookup_string(out.value, &exact) && exact == "123",
                "native CALL_TO_STRING should return string payload")) return false;
   }
 
@@ -3114,6 +3114,6 @@ int main() {
   if (!test_linear_rec_metadata_affects_cache_key()) return 1;
   if (!test_native_cpu_structured_expressions_execute()) return 1;
   if (!test_native_cpu_current_builtin_ast_nodes_execute()) return 1;
-  std::cout << "g3pvm_test_genome: OK\n";
+  std::cout << "gagp_test_genome: OK\n";
   return 0;
 }

@@ -10,7 +10,7 @@
 
 int main(int argc, char** argv) {
   if (argc != 2) {
-    std::cerr << "usage: g3pvm_test_decode_fuzz_smoke CORPUS_DIR\n";
+    std::cerr << "usage: gagp_test_decode_fuzz_smoke CORPUS_DIR\n";
     return 2;
   }
   int corpus_cases = 0;
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     fuzz_bytecode_json(bytes.data(), bytes.size());
     fuzz_ast_verify(bytes.data(), bytes.size());
   }
-  std::cout << "g3pvm_test_decode_fuzz_smoke: OK corpus " << corpus_cases
+  std::cout << "gagp_test_decode_fuzz_smoke: OK corpus " << corpus_cases
             << " random 1000\n";
   return 0;
 }

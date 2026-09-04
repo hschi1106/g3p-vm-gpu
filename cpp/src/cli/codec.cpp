@@ -1,4 +1,4 @@
-#include "g3pvm/cli/codec.hpp"
+#include "gagp/cli/codec.hpp"
 
 #include <iomanip>
 #include <iostream>
@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <utility>
 
-#include "g3pvm/core/bytecode_verify.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/core/bytecode_verify.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
-namespace g3pvm::cli_detail {
+namespace gagp::cli_detail {
 
 Value decode_typed_value(const JsonValue& v);
 
@@ -608,4 +608,4 @@ void print_value(const Value& v) {
   std::cout << "invalid\n";
 }
 
-}  // namespace g3pvm::cli_detail
+}  // namespace gagp::cli_detail

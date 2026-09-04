@@ -3,15 +3,15 @@ requires = ["setuptools>=59"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "g3pvm-tools"
+name = "gagp-tools"
 version = "0.1.0"
-description = "Standard-library operational tools for g3p-vm-gpu"
+description = "Operational tools for GAGP program synthesis workflows"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-g3pvm-tools = "g3pvm_tools.cli:main"
+gagp-tools = "gagp_tools.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["g3pvm_tools*"]
+include = ["gagp_tools*"]

@@ -3,8 +3,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "g3pvm/cli/codec.hpp"
-#include "g3pvm/cli/json.hpp"
+#include "gagp/cli/codec.hpp"
+#include "gagp/cli/json.hpp"
 
 namespace {
 
@@ -17,13 +17,13 @@ bool check(bool cond, const std::string& msg) {
 }
 
 bool test_subnormal_number_is_accepted() {
-  const g3pvm::cli_detail::JsonValue root =
-      g3pvm::cli_detail::JsonParser("{\"x\":3.340886621450795e-309}").parse();
+  const gagp::cli_detail::JsonValue root =
+      gagp::cli_detail::JsonParser("{\"x\":3.340886621450795e-309}").parse();
   const auto it = root.object_v.find("x");
   if (!check(it != root.object_v.end(), "subnormal field missing")) {
     return false;
   }
-  if (!check(it->second.kind == g3pvm::cli_detail::JsonValue::Kind::Number,
+  if (!check(it->second.kind == gagp::cli_detail::JsonValue::Kind::Number,
              "subnormal field should parse as number")) {
     return false;
   }
@@ -35,7 +35,7 @@ bool test_subnormal_number_is_accepted() {
 
 bool test_overflow_number_is_rejected() {
   try {
-    (void)g3pvm::cli_detail::JsonParser("{\"x\":1e9999}").parse();
+    (void)gagp::cli_detail::JsonParser("{\"x\":1e9999}").parse();
   } catch (const std::runtime_error& err) {
     return std::string(err.what()).find("out of range") != std::string::npos;
   }
@@ -45,8 +45,8 @@ bool test_overflow_number_is_rejected() {
 
 bool decode_programs_rejects(const std::string& json, const std::string& needle) {
   try {
-    const g3pvm::cli_detail::JsonValue root = g3pvm::cli_detail::JsonParser(json).parse();
-    (void)g3pvm::cli_detail::decode_programs(root);
+    const gagp::cli_detail::JsonValue root = gagp::cli_detail::JsonParser(json).parse();
+    (void)gagp::cli_detail::decode_programs(root);
   } catch (const std::runtime_error& err) {
     return std::string(err.what()).find(needle) != std::string::npos;
   }
@@ -129,8 +129,8 @@ bool test_bytecode_verifier_runs_at_decode_boundary() {
     }
   ])";
   try {
-    const auto root = g3pvm::cli_detail::JsonParser(valid).parse();
-    if (!check(g3pvm::cli_detail::decode_programs(root).size() == 1,
+    const auto root = gagp::cli_detail::JsonParser(valid).parse();
+    if (!check(gagp::cli_detail::decode_programs(root).size() == 1,
                "valid bytecode should decode")) return false;
   } catch (const std::runtime_error& err) {
     std::cerr << "FAIL: valid bytecode decode failed: " << err.what() << "\n";
@@ -159,8 +159,8 @@ bool test_bytecode_verifier_runs_at_decode_boundary() {
     }
   ])";
   try {
-    const auto root = g3pvm::cli_detail::JsonParser(runtime_type_error).parse();
-    if (!check(g3pvm::cli_detail::decode_programs(root).size() == 1,
+    const auto root = gagp::cli_detail::JsonParser(runtime_type_error).parse();
+    if (!check(gagp::cli_detail::decode_programs(root).size() == 1,
                "runtime TypeError bytecode should remain decodable")) return false;
   } catch (const std::runtime_error& err) {
     std::cerr << "FAIL: runtime error bytecode was treated as malformed: " << err.what() << "\n";
@@ -176,6 +176,6 @@ int main() {
   if (!test_overflow_number_is_rejected()) return 1;
   if (!test_bytecode_asgp_dp_segment_arity_is_validated()) return 1;
   if (!test_bytecode_verifier_runs_at_decode_boundary()) return 1;
-  std::cout << "g3pvm_test_cli_json: OK\n";
+  std::cout << "gagp_test_cli_json: OK\n";
   return 0;
 }

@@ -1,8 +1,8 @@
-#include "g3pvm/evolution/case_set.hpp"
+#include "gagp/evolution/case_set.hpp"
 
 #include <set>
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 namespace {
 
 RType value_rtype(const Value& value, bool allow_fallback) {
@@ -97,4 +97,4 @@ std::vector<InputSpec> canonical_input_specs(const std::vector<EvalCase>& cases,
   return prepare_case_set(cases, grammar).input_specs;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

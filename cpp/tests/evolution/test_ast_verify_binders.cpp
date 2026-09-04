@@ -2,11 +2,11 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/evolution/ast_verify.hpp"
+#include "gagp/evolution/ast_verify.hpp"
 
 namespace {
 
-using namespace g3pvm::evo;
+using namespace gagp::evo;
 
 bool check(bool condition, const std::string& message) {
   if (!condition) std::cerr << "FAIL: " << message << "\n";
@@ -25,8 +25,8 @@ AstProgram map_program() {
   AstProgram ast;
   ast.names = {"u", "outside"};
   ast.consts = {
-      g3pvm::Value::from_int_list_hash_len(1, 2),
-      g3pvm::Value::from_int(1),
+      gagp::Value::from_int_list_hash_len(1, 2),
+      gagp::Value::from_int(1),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -46,8 +46,8 @@ AstProgram filter_program() {
   AstProgram ast;
   ast.names = {"u"};
   ast.consts = {
-      g3pvm::Value::from_float_list_hash_len(1, 2),
-      g3pvm::Value::from_float(0.0),
+      gagp::Value::from_float_list_hash_len(1, 2),
+      gagp::Value::from_float(0.0),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -67,9 +67,9 @@ AstProgram linear_program() {
   AstProgram ast;
   ast.names = {"u", "v", "idx"};
   ast.consts = {
-      g3pvm::Value::from_int_list_hash_len(1, 3),
-      g3pvm::Value::from_int(0),
-      g3pvm::Value::from_int(0),
+      gagp::Value::from_int_list_hash_len(1, 3),
+      gagp::Value::from_int(0),
+      gagp::Value::from_int(0),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -92,7 +92,7 @@ AstProgram linear_program() {
 }  // namespace
 
 int main() {
-  using namespace g3pvm::evo;
+  using namespace gagp::evo;
 
   AstProgram ast = map_program();
   AstVerifyResult result = verify_ast(ast, {});
@@ -148,8 +148,8 @@ int main() {
   ast = map_program();
   ast.names = {"shared"};
   ast.consts = {
-      g3pvm::Value::from_int(10),
-      g3pvm::Value::from_int_list_hash_len(1, 2),
+      gagp::Value::from_int(10),
+      gagp::Value::from_int_list_hash_len(1, 2),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},

@@ -2,8 +2,9 @@
 
 Current release: 1.0.0
 
-This release defines the current grammar, AST, bytecode, builtin, fitness, and
-PSB fixture contracts in `spec/`.
+GAGP—GPU-Accelerated Genetic Programming for Program Synthesis—defines the
+current grammar, AST, bytecode, builtin, fitness, and PSB fixture contracts in
+`spec/`.
 
 Public format identifiers are intentionally unversioned in source files:
 

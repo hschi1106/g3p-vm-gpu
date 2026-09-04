@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
@@ -29,7 +29,7 @@ bool query_device(int dev, std::string* message_out) {
 }
 
 bool parse_env_device_override(int* out_dev) {
-  const char* raw = std::getenv("G3PVM_CUDA_DEVICE");
+  const char* raw = std::getenv("GAGP_CUDA_DEVICE");
   if (raw == nullptr || *raw == '\0') {
     return false;
   }
@@ -378,4 +378,4 @@ bool ensure_gpu_repro_host_staging_capacity(GpuReproHostStaging* staging,
   return true;
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

@@ -4,26 +4,26 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/core/bytecode.hpp"
-#include "g3pvm/core/bytecode_verify.hpp"
-#include "g3pvm/core/errors.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/core/bytecode.hpp"
+#include "gagp/core/bytecode_verify.hpp"
+#include "gagp/core/errors.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 namespace {
 
-using g3pvm::AsgpDcSegment;
-using g3pvm::AsgpDp1dSegment;
-using g3pvm::AsgpDp2dSegment;
-using g3pvm::BuiltinId;
-using g3pvm::BytecodeProgram;
-using g3pvm::ErrCode;
-using g3pvm::ExecResult;
-using g3pvm::Instr;
-using g3pvm::Opcode;
-using g3pvm::PhaseProgram;
-using g3pvm::Value;
+using gagp::AsgpDcSegment;
+using gagp::AsgpDp1dSegment;
+using gagp::AsgpDp2dSegment;
+using gagp::BuiltinId;
+using gagp::BytecodeProgram;
+using gagp::ErrCode;
+using gagp::ExecResult;
+using gagp::Instr;
+using gagp::Opcode;
+using gagp::PhaseProgram;
+using gagp::Value;
 
 Instr ins(Opcode op) { return {op, 0, 0, false, false}; }
 Instr ins_a(Opcode op, int a) { return {op, a, 0, true, false}; }
@@ -45,15 +45,15 @@ PhaseProgram phase(std::vector<Value> consts, std::vector<Instr> code, int n_loc
 }
 
 ExecResult run_verified(const BytecodeProgram& program, int fuel = 20000) {
-  const g3pvm::BytecodeVerifyResult verified = g3pvm::verify_bytecode(program);
+  const gagp::BytecodeVerifyResult verified = gagp::verify_bytecode(program);
   if (!verified) {
     return {true, Value::invalid(),
             {ErrCode::Value,
              std::string("test bytecode did not verify: ") +
-                 g3pvm::bytecode_verify_code_name(verified.diagnostic.code) + " " +
+                 gagp::bytecode_verify_code_name(verified.diagnostic.code) + " " +
                  verified.diagnostic.message}};
   }
-  return g3pvm::execute_bytecode_cpu(program, {}, fuel);
+  return gagp::execute_bytecode_cpu(program, {}, fuel);
 }
 
 AsgpDcSegment dc_segment(PhaseProgram solve, PhaseProgram divide,
@@ -110,26 +110,26 @@ PhaseProgram dc_combine(BuiltinId builtin) {
 }
 
 bool test_dc_success_errors_visibility_and_fuel() {
-  g3pvm::payload::clear();
-  const Value ints = g3pvm::payload::make_int_list_value(
+  gagp::payload::clear();
+  const Value ints = gagp::payload::make_int_list_value(
       {Value::from_int(1), Value::from_int(2), Value::from_int(3),
        Value::from_int(4)});
   const BytecodeProgram sum = dc_program(
       ints, dc_segment(dc_index_solve(), dc_divide(Value::from_int(999)),
                        dc_combine(BuiltinId::Abs)));
   const ExecResult sum_out = run_verified(sum);
-  if (!check(!sum_out.is_error && sum_out.value.tag == g3pvm::ValueTag::Int &&
+  if (!check(!sum_out.is_error && sum_out.value.tag == gagp::ValueTag::Int &&
                  sum_out.value.i == 10,
              "ASGP-DC should sum IntList with a clamped split")) return false;
 
   const BytecodeProgram text = dc_program(
-      g3pvm::payload::make_string_value("abc"),
+      gagp::payload::make_string_value("abc"),
       dc_segment(dc_index_solve(true), dc_divide(Value::from_int(1)),
                  dc_combine(BuiltinId::Concat)));
   const ExecResult text_out = run_verified(text);
   std::string exact;
   if (!check(!text_out.is_error &&
-                 g3pvm::payload::lookup_string(text_out.value, &exact) && exact == "abc",
+                 gagp::payload::lookup_string(text_out.value, &exact) && exact == "abc",
              "ASGP-DC should traverse String as a Char sequence")) return false;
 
   const ExecResult source_error = run_verified(dc_program(
@@ -152,7 +152,7 @@ bool test_dc_success_errors_visibility_and_fuel() {
        ins(Opcode::Return), ins_a(Opcode::PushConst, 2), ins(Opcode::Return)},
       3, {{10, 0}, {11, 1}, {12, 2}});
   const ExecResult recursive_type_error = run_verified(dc_program(
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
       dc_segment(varying_solve, dc_divide(Value::from_int(1)),
                  phase({}, {ins_a(Opcode::Load, 0), ins(Opcode::Return)}, 2,
                        {{14, 0}, {15, 1}}))));
@@ -163,7 +163,7 @@ bool test_dc_success_errors_visibility_and_fuel() {
   PhaseProgram hidden = phase({}, {ins_a(Opcode::Load, 3), ins(Opcode::Return)},
                               4, {{10, 0}, {11, 1}, {12, 2}});
   const ExecResult hidden_error = run_verified(dc_program(
-      g3pvm::payload::make_int_list_value({Value::from_int(1)}),
+      gagp::payload::make_int_list_value({Value::from_int(1)}),
       dc_segment(std::move(hidden), dc_divide(Value::from_int(1)),
                  dc_combine(BuiltinId::Abs))));
   if (!check(hidden_error.is_error && hidden_error.err.code == ErrCode::Name,
@@ -374,6 +374,6 @@ int main() {
   if (!test_dc_success_errors_visibility_and_fuel()) return 1;
   if (!test_dp1_success_boundary_memo_errors_and_fuel()) return 1;
   if (!test_dp2_success_boundary_memo_errors_and_fuel()) return 1;
-  std::cout << "g3pvm_test_asgp_semantics: OK\n";
+  std::cout << "gagp_test_asgp_semantics: OK\n";
   return 0;
 }

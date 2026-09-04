@@ -1,4 +1,4 @@
-#include "g3pvm/cli/json.hpp"
+#include "gagp/cli/json.hpp"
 
 #include <cerrno>
 #include <cctype>
@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace g3pvm::cli_detail {
+namespace gagp::cli_detail {
 
 JsonParser::JsonParser(std::string text) : text_(std::move(text)) {}
 
@@ -224,4 +224,4 @@ std::string require_string(const JsonValue& v, const char* field_name) {
   return v.string_v;
 }
 
-}  // namespace g3pvm::cli_detail
+}  // namespace gagp::cli_detail

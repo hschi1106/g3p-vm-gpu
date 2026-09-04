@@ -3,22 +3,22 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/core/errors.hpp"
-#include "g3pvm/core/value.hpp"
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/evolution/input_spec.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/core/errors.hpp"
+#include "gagp/core/value.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/genome.hpp"
+#include "gagp/evolution/input_spec.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
 
 namespace {
 
-using g3pvm::Value;
-using g3pvm::evo::AstNode;
-using g3pvm::evo::AstProgram;
-using g3pvm::evo::NodeKind;
-using g3pvm::evo::ProgramGenome;
-using g3pvm::evo::RType;
+using gagp::Value;
+using gagp::evo::AstNode;
+using gagp::evo::AstProgram;
+using gagp::evo::NodeKind;
+using gagp::evo::ProgramGenome;
+using gagp::evo::RType;
 
 bool check(bool condition, const std::string& message) {
   if (!condition) std::cerr << "FAIL: " << message << "\n";
@@ -27,7 +27,7 @@ bool check(bool condition, const std::string& message) {
 
 ProgramGenome genome(AstProgram ast) {
   ProgramGenome out;
-  out.meta = g3pvm::evo::build_genome_meta(ast);
+  out.meta = gagp::evo::build_genome_meta(ast);
   out.ast = std::move(ast);
   return out;
 }
@@ -59,14 +59,14 @@ bool test_for_range_bound_is_evaluated_once() {
       {NodeKind::BLOCK_NIL, 0, 0},
   };
 
-  const std::vector<g3pvm::evo::InputSpec> inputs{{"n", RType::Int}};
-  const auto verified = g3pvm::evo::verify_ast(ast, inputs);
+  const std::vector<gagp::evo::InputSpec> inputs{{"n", RType::Int}};
+  const auto verified = gagp::evo::verify_ast(ast, inputs);
   if (!check(verified.ok, "evaluate-once loop AST should verify")) return false;
 
-  const auto bytecode = g3pvm::evo::compile_for_eval(genome(ast), {"n"});
-  const auto result = g3pvm::execute_bytecode_cpu(
+  const auto bytecode = gagp::evo::compile_for_eval(genome(ast), {"n"});
+  const auto result = gagp::execute_bytecode_cpu(
       bytecode, {{0, Value::from_int(3)}}, 20000);
-  return check(!result.is_error && result.value.tag == g3pvm::ValueTag::Int &&
+  return check(!result.is_error && result.value.tag == gagp::ValueTag::Int &&
                    result.value.i == 3,
                "loop bound must be cached before the loop body mutates n");
 }
@@ -95,14 +95,14 @@ bool test_logical_operators_short_circuit() {
        std::vector<std::pair<NodeKind, bool>>{{NodeKind::AND, false},
                                               {NodeKind::OR, true}}) {
     AstProgram ast = short_circuit_program(item.first, item.second);
-    const auto verified = g3pvm::evo::verify_ast(ast, {});
+    const auto verified = gagp::evo::verify_ast(ast, {});
     if (!check(verified.ok,
                std::string("short-circuit AST should verify: ") +
-                   g3pvm::evo::verify_code_name(verified.diagnostic.code) + " " +
+                   gagp::evo::verify_code_name(verified.diagnostic.code) + " " +
                    verified.diagnostic.message)) return false;
-    const auto result = g3pvm::execute_bytecode_cpu(
-        g3pvm::evo::compile_for_eval(genome(std::move(ast))), {}, 20000);
-    if (!check(!result.is_error && result.value.tag == g3pvm::ValueTag::Bool &&
+    const auto result = gagp::execute_bytecode_cpu(
+        gagp::evo::compile_for_eval(genome(std::move(ast))), {}, 20000);
+    if (!check(!result.is_error && result.value.tag == gagp::ValueTag::Bool &&
                    result.value.b == item.second,
                "short-circuit lowering must skip division by zero")) return false;
   }
@@ -111,20 +111,20 @@ bool test_logical_operators_short_circuit() {
 
 bool test_verified_compile_reuses_and_validates_annotations() {
   AstProgram ast = short_circuit_program(NodeKind::AND, false);
-  const auto verified = g3pvm::evo::verify_ast(ast, {});
+  const auto verified = gagp::evo::verify_ast(ast, {});
   if (!check(verified.ok, "verified compile fixture should verify")) return false;
 
   const ProgramGenome program = genome(ast);
-  const auto bytecode = g3pvm::evo::compile_for_eval(program, verified.verified);
-  const auto result = g3pvm::execute_bytecode_cpu(bytecode, {}, 20000);
-  if (!check(!result.is_error && result.value.tag == g3pvm::ValueTag::Bool &&
+  const auto bytecode = gagp::evo::compile_for_eval(program, verified.verified);
+  const auto result = gagp::execute_bytecode_cpu(bytecode, {}, 20000);
+  if (!check(!result.is_error && result.value.tag == gagp::ValueTag::Bool &&
                  !result.value.b,
              "verified compile should preserve execution semantics")) return false;
 
-  g3pvm::evo::VerifiedAst malformed = verified.verified;
+  gagp::evo::VerifiedAst malformed = verified.verified;
   malformed.subtree_end.pop_back();
   try {
-    (void)g3pvm::evo::compile_for_eval(program, malformed);
+    (void)gagp::evo::compile_for_eval(program, malformed);
   } catch (const std::invalid_argument&) {
     return true;
   }
@@ -137,6 +137,6 @@ int main() {
   if (!test_for_range_bound_is_evaluated_once()) return 1;
   if (!test_logical_operators_short_circuit()) return 1;
   if (!test_verified_compile_reuses_and_validates_annotations()) return 1;
-  std::cout << "g3pvm_test_compiler_lowering: OK\n";
+  std::cout << "gagp_test_compiler_lowering: OK\n";
   return 0;
 }

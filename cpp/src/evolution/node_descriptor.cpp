@@ -1,10 +1,10 @@
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 
 #include <stdexcept>
 
-#include "g3pvm/core/builtin.hpp"
+#include "gagp/core/builtin.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 namespace {
 
 constexpr int k_no_builtin = -1;
@@ -155,4 +155,4 @@ bool is_known_node_kind(int value) noexcept {
   return value >= 0 && static_cast<std::size_t>(value) < k_descriptors.size();
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

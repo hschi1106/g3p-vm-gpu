@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/mutation.hpp"
+#include "gagp/evolution/mutation.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -7,11 +7,11 @@
 #include <stdexcept>
 #include <vector>
 
-#include "g3pvm/evolution/genome_generation.hpp"
+#include "gagp/evolution/genome_generation.hpp"
 #include "subtree_utils.hpp"
 #include "typed_expr_analysis.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -158,4 +158,4 @@ ProgramGenome mutate(const ProgramGenome& genome,
   return mutate_impl(genome, &verified, seed, limits, mutation_subtree_prob, grammar);
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

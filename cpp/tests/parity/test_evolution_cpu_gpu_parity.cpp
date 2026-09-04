@@ -4,8 +4,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "g3pvm/core/value.hpp"
-#include "g3pvm/evolution/evolve.hpp"
+#include "gagp/core/value.hpp"
+#include "gagp/evolution/evolve.hpp"
 
 namespace {
 
@@ -17,9 +17,9 @@ bool check(bool cond, const std::string& msg) {
   return true;
 }
 
-std::vector<g3pvm::evo::EvalCase> simple_cases() {
-  using g3pvm::Value;
-  using g3pvm::evo::EvalCase;
+std::vector<gagp::evo::EvalCase> simple_cases() {
+  using gagp::Value;
+  using gagp::evo::EvalCase;
   return {
       EvalCase{{{"x", Value::from_int(-2)}}, Value::from_int(-1)},
       EvalCase{{{"x", Value::from_int(-1)}}, Value::from_int(0)},
@@ -30,33 +30,33 @@ std::vector<g3pvm::evo::EvalCase> simple_cases() {
   };
 }
 
-bool genome_contains_asgp(const g3pvm::evo::ProgramGenome& genome) {
-  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
-    if (node.kind == g3pvm::evo::NodeKind::ASGP_DC ||
-        node.kind == g3pvm::evo::NodeKind::ASGP_DP1D ||
-        node.kind == g3pvm::evo::NodeKind::ASGP_DP2D) {
+bool genome_contains_asgp(const gagp::evo::ProgramGenome& genome) {
+  for (const gagp::evo::AstNode& node : genome.ast.nodes) {
+    if (node.kind == gagp::evo::NodeKind::ASGP_DC ||
+        node.kind == gagp::evo::NodeKind::ASGP_DP1D ||
+        node.kind == gagp::evo::NodeKind::ASGP_DP2D) {
       return true;
     }
   }
   return false;
 }
 
-void diagnose_generation_population(const std::vector<g3pvm::evo::EvalCase>& cases,
-                                    g3pvm::evo::EvolutionConfig cpu_cfg,
-                                    g3pvm::evo::EvolutionConfig gpu_cfg,
+void diagnose_generation_population(const std::vector<gagp::evo::EvalCase>& cases,
+                                    gagp::evo::EvolutionConfig cpu_cfg,
+                                    gagp::evo::EvolutionConfig gpu_cfg,
                                     int generation) {
   cpu_cfg.generations = generation;
   gpu_cfg.generations = generation;
   cpu_cfg.retain_final_population = true;
   gpu_cfg.retain_final_population = true;
-  const auto cpu = g3pvm::evo::evolve_population(cases, cpu_cfg);
-  const auto gpu = g3pvm::evo::evolve_population(cases, gpu_cfg);
+  const auto cpu = gagp::evo::evolve_population(cases, cpu_cfg);
+  const auto gpu = gagp::evo::evolve_population(cases, gpu_cfg);
 
-  std::unordered_map<std::string, const g3pvm::evo::ScoredGenome*> gpu_by_key;
-  for (const g3pvm::evo::ScoredGenome& one : gpu.final_population) {
+  std::unordered_map<std::string, const gagp::evo::ScoredGenome*> gpu_by_key;
+  for (const gagp::evo::ScoredGenome& one : gpu.final_population) {
     gpu_by_key[one.genome.meta.program_key] = &one;
   }
-  for (const g3pvm::evo::ScoredGenome& one : cpu.final_population) {
+  for (const gagp::evo::ScoredGenome& one : cpu.final_population) {
     auto it = gpu_by_key.find(one.genome.meta.program_key);
     if (it == gpu_by_key.end()) {
       std::cerr << "DIAG: missing gpu program key at generation " << generation
@@ -76,7 +76,7 @@ void diagnose_generation_population(const std::vector<g3pvm::evo::EvalCase>& cas
   }
 }
 
-bool same_history(const g3pvm::evo::EvolutionResult& cpu, const g3pvm::evo::EvolutionResult& gpu) {
+bool same_history(const gagp::evo::EvolutionResult& cpu, const gagp::evo::EvolutionResult& gpu) {
   if (!check(cpu.history_best.size() == gpu.history_best.size(), "history_best size mismatch")) {
     return false;
   }
@@ -126,22 +126,22 @@ bool same_history(const g3pvm::evo::EvolutionResult& cpu, const g3pvm::evo::Evol
 }  // namespace
 
 int main() {
-  g3pvm::evo::EvolutionConfig cpu_cfg;
+  gagp::evo::EvolutionConfig cpu_cfg;
   cpu_cfg.population_size = 64;
   cpu_cfg.generations = 8;
   cpu_cfg.mutation_rate = 0.7;
   cpu_cfg.mutation_subtree_prob = 0.8;
   cpu_cfg.selection_pressure = 3;
   cpu_cfg.seed = 42;
-  cpu_cfg.eval_engine = g3pvm::evo::EvalEngine::CPU;
+  cpu_cfg.eval_engine = gagp::evo::EvalEngine::CPU;
 
-  g3pvm::evo::EvolutionConfig gpu_cfg = cpu_cfg;
-  gpu_cfg.eval_engine = g3pvm::evo::EvalEngine::GPU;
+  gagp::evo::EvolutionConfig gpu_cfg = cpu_cfg;
+  gpu_cfg.eval_engine = gagp::evo::EvalEngine::GPU;
   gpu_cfg.gpu_blocksize = 128;
 
-  const auto cpu = g3pvm::evo::evolve_population(simple_cases(), cpu_cfg);
+  const auto cpu = gagp::evo::evolve_population(simple_cases(), cpu_cfg);
   try {
-    const auto gpu = g3pvm::evo::evolve_population(simple_cases(), gpu_cfg);
+    const auto gpu = gagp::evo::evolve_population(simple_cases(), gpu_cfg);
     if (!same_history(cpu, gpu)) {
       diagnose_generation_population(simple_cases(), cpu_cfg, gpu_cfg, 4);
       return 1;
@@ -149,13 +149,13 @@ int main() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_evolution_cpu_gpu_parity: SKIP (" << message << ")\n";
+      std::cout << "gagp_test_evolution_cpu_gpu_parity: SKIP (" << message << ")\n";
       return 0;
     }
     std::cerr << "FAIL: gpu evolution run failed: " << message << "\n";
     return 1;
   }
 
-  std::cout << "g3pvm_test_evolution_cpu_gpu_parity: OK\n";
+  std::cout << "gagp_test_evolution_cpu_gpu_parity: OK\n";
   return 0;
 }

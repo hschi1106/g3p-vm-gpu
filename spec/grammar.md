@@ -1,7 +1,7 @@
 # Grammar
 
 This document defines the source grammar, type rules, structured expression
-forms, and ASGP scheme forms used by `g3p-vm-gpu`.
+forms, and ASGP scheme forms used by GAGP.
 
 All programs use prefix `AstProgram` representation. The grammar is statically
 typed for generation, crossover, mutation, compilation, and runtime

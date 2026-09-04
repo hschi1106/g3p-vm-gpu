@@ -10,7 +10,7 @@ test may be deleted until its target stage is green.
 | Current module(s) | Responsibility | Target owner | Removal stage |
 | --- | --- | --- | --- |
 | `core/ast.py` (removed in Stage 10) | prefix AST classes, evaluation helpers | native AST descriptor/verifier plus corpus | 10 |
-| `core/errors.py` (removed in Stage 10) | semantic error codes | `g3pvm/core/errors.hpp` contract tests | 10 |
+| `core/errors.py` (removed in Stage 10) | semantic error codes | `gagp/core/errors.hpp` contract tests | 10 |
 | `core/value_semantics.py` (removed in Stage 10) | exact public value typing/equality | native value/runtime contract tests | 10 |
 | `runtime/builtins.py` (removed in Stage 10) | scalar, char, and sequence builtin oracle | native runtime corpus and CPU/GPU parity | 10 |
 | `runtime/interp.py` (removed in Stage 10) | direct AST execution oracle | native AST verifier and semantic corpus | 10 |
@@ -57,15 +57,15 @@ build. Its 13 methods are owned as follows:
 
 | Retired responsibility | Native owner |
 | --- | --- |
-| reject old bytecode and fixture format identifiers | `g3pvm_test_fixture_codec` |
-| execute current fixtures and report mismatches | `g3pvm_test_fixture_codec` plus the four `g3pvm_test_runtime_*` targets |
-| decode and execute ASGP-DC, DP1D, and DP2D segments | `g3pvm_test_bytecode_verify`, `g3pvm_test_cli_json`, and `g3pvm_test_ast_json_boundary` |
-| accept compiler-generated ASGP segment layouts | compiler-output property cases in `g3pvm_test_bytecode_verify` and native ASGP AST boundary fixtures |
-| `ForRange` lowering and evaluate-once bounds | `g3pvm_test_compiler_lowering` and `g3pvm_test_runtime_control_flow` |
-| protected integer builtins | `g3pvm_test_runtime_builtins` |
-| `Char` equality and exact `Char`/`String` distinction | `g3pvm_test_runtime_typed_values` |
-| string indexing returns `Char` | `g3pvm_test_runtime_typed_values` and `g3pvm_test_runtime_builtins` |
-| direct typed-list builtins return exact scalars | `g3pvm_test_runtime_typed_values` and `g3pvm_test_runtime_builtins` |
+| reject old bytecode and fixture format identifiers | `gagp_test_fixture_codec` |
+| execute current fixtures and report mismatches | `gagp_test_fixture_codec` plus the four `gagp_test_runtime_*` targets |
+| decode and execute ASGP-DC, DP1D, and DP2D segments | `gagp_test_bytecode_verify`, `gagp_test_cli_json`, and `gagp_test_ast_json_boundary` |
+| accept compiler-generated ASGP segment layouts | compiler-output property cases in `gagp_test_bytecode_verify` and native ASGP AST boundary fixtures |
+| `ForRange` lowering and evaluate-once bounds | `gagp_test_compiler_lowering` and `gagp_test_runtime_control_flow` |
+| protected integer builtins | `gagp_test_runtime_builtins` |
+| `Char` equality and exact `Char`/`String` distinction | `gagp_test_runtime_typed_values` |
+| string indexing returns `Char` | `gagp_test_runtime_typed_values` and `gagp_test_runtime_builtins` |
+| direct typed-list builtins return exact scalars | `gagp_test_runtime_typed_values` and `gagp_test_runtime_builtins` |
 
 The baseline remains 161 tests; after this retirement the Python runner owns
 148 declarations and the 13 removed responsibilities are native CTest owners.
@@ -79,13 +79,13 @@ Stage 06 removes the 30-method `test_grammar_vm.py` and 14-method
 
 | Retired responsibility | Native owner |
 | --- | --- |
-| scalar, exact value, char, protected integer, and direct-list behavior | Stage 05 `g3pvm_test_runtime_{scalar,builtins,typed_values}` |
-| `MapList` / `FilterList` ordering, evaluate-once source, typed empty result, error, and fuel | `g3pvm_test_structured_semantics` |
-| `LinearRec` empty/singleton branch selection, right-to-left step, binder metadata, error, and fuel | `g3pvm_test_structured_semantics`, `g3pvm_test_ast_verify_binders`, and reproduction metadata tests |
-| nested binder capture and ordinary-local isolation | `g3pvm_test_structured_semantics` and `g3pvm_test_ast_verify_binders` |
-| ASGP-DC success, string traversal, clamped split, result typing, phase visibility, and fuel | `g3pvm_test_asgp_semantics` plus `g3pvm_test_ast_verify_asgp` |
-| ASGP-DP1D/DP2D recurrence, boundary, memoization, dependency/result typing, phase visibility, and fuel | `g3pvm_test_asgp_semantics` plus `g3pvm_test_ast_verify_asgp` |
-| nested ASGP forms, dependency arity, and malformed side tables | `g3pvm_test_ast_verify_asgp`, `g3pvm_test_bytecode_verify`, and `g3pvm_test_cli_json` |
+| scalar, exact value, char, protected integer, and direct-list behavior | Stage 05 `gagp_test_runtime_{scalar,builtins,typed_values}` |
+| `MapList` / `FilterList` ordering, evaluate-once source, typed empty result, error, and fuel | `gagp_test_structured_semantics` |
+| `LinearRec` empty/singleton branch selection, right-to-left step, binder metadata, error, and fuel | `gagp_test_structured_semantics`, `gagp_test_ast_verify_binders`, and reproduction metadata tests |
+| nested binder capture and ordinary-local isolation | `gagp_test_structured_semantics` and `gagp_test_ast_verify_binders` |
+| ASGP-DC success, string traversal, clamped split, result typing, phase visibility, and fuel | `gagp_test_asgp_semantics` plus `gagp_test_ast_verify_asgp` |
+| ASGP-DP1D/DP2D recurrence, boundary, memoization, dependency/result typing, phase visibility, and fuel | `gagp_test_asgp_semantics` plus `gagp_test_ast_verify_asgp` |
+| nested ASGP forms, dependency arity, and malformed side tables | `gagp_test_ast_verify_asgp`, `gagp_test_bytecode_verify`, and `gagp_test_cli_json` |
 | interpreter-versus-VM comparison | obsolete once reviewed outcomes execute in the native compiler/runtime contracts; CPU/GPU behavior remains checked by the canonical parity targets |
 
 After Stages 05–06, the remaining Python runner owns 104 declarations. The 57
@@ -99,7 +99,7 @@ Stage 07 removes `test_vm_equiv.py` after its eight methods have native owners:
 | --- | --- |
 | manual program, dynamic loop bound, short-circuit, invalid loop bounds, and missing return | Stage 05 scalar/control-flow corpus and compiler-lowering contracts |
 | current builtin and exact `Char`/`String` behavior | Stage 05 builtin and typed-value corpus |
-| interpreter-versus-VM random equivalence | `g3pvm_test_genome_properties`: deterministic generation → verify → compile → execute; mutation/crossover/reproduction verify → compile properties |
+| interpreter-versus-VM random equivalence | `gagp_test_genome_properties`: deterministic generation → verify → compile → execute; mutation/crossover/reproduction verify → compile properties |
 
 After Stage 07 the Python runner owned 96 declarations. Stage 08 moves the 26
 operational methods to `tools/tests`, leaving 70 transitional semantic/docs
@@ -113,16 +113,16 @@ methods, and the one random-program method formerly embedded in `test_eval.py`.
 
 | Retired responsibility | Native owner |
 | --- | --- |
-| genome metadata, statement traversal, cache keys | `g3pvm_test_genome`, AST descriptor/verifier contracts, and reproduction compaction tests |
-| random generation and deterministic replay | `g3pvm_test_genome_properties` plus generation coverage in `g3pvm_test_genome` |
-| mutation and typed crossover | deterministic mutation/crossover properties and `g3pvm_test_genome` operator contracts |
-| grammar config parsing, presets, and construct filtering | native grammar-config tests in `g3pvm_test_genome`, property filtering, CLI config coverage, and GPU preprocess tests |
-| fitness scoring, selection, option validation, and evolution loop | `g3pvm_test_evolve` and canonical CPU/GPU evolution parity |
+| genome metadata, statement traversal, cache keys | `gagp_test_genome`, AST descriptor/verifier contracts, and reproduction compaction tests |
+| random generation and deterministic replay | `gagp_test_genome_properties` plus generation coverage in `gagp_test_genome` |
+| mutation and typed crossover | deterministic mutation/crossover properties and `gagp_test_genome` operator contracts |
+| grammar config parsing, presets, and construct filtering | native grammar-config tests in `gagp_test_genome`, property filtering, CLI config coverage, and GPU preprocess tests |
+| fitness scoring, selection, option validation, and evolution loop | `gagp_test_evolve` and canonical CPU/GPU evolution parity |
 | affine, square, and x+1 fixture ownership | retained `data/fixtures` inputs, native CLI/evolution tests, and independent tool schema tests |
 | random interpreter smoke generated by `random_program.py` | deterministic generation → verify → compile → execute property and sanitizer/fuzz gates |
 
 After Stage 09, `python/tests` contains 47 transitional core/runtime/docs
-methods. No remaining Python source or test imports `g3p_vm_gpu.evolution`.
+methods. No remaining Python source or test imports `gagp.evolution`.
 
 ### Retired Python runtime mapping
 
@@ -136,15 +136,15 @@ runtime-independent documentation/spec checks to `tests/repository`.
 | scalar, char/string, and direct typed-list builtins | builtin and typed-value corpus plus CPU/GPU parity |
 | exact value tags/equality and `None`/generic-list rejection | native value/runtime contracts and normative grammar/builtin specs |
 | compiler/VM lowering and execution | compiler-lowering contracts, bytecode verification, semantic fixture runner, and parity targets |
-| demo entry point | documented `g3pvm_evolve_cli` native examples |
+| demo entry point | documented `gagp_evolve_cli` native examples |
 
-No `python/src/g3p_vm_gpu` implementation or `python/tests` semantic suite
+No `python/src/gagp` implementation or `python/tests` semantic suite
 remains. Operational Python is limited to independent standard-library tools;
 repository checks run from `tests/repository` without `PYTHONPATH`.
 
 ## Removal invariants
 
-- Tool tests must import tool modules without `g3p_vm_gpu` or `PYTHONPATH`.
+- Tool tests must import tool modules without `gagp` or `PYTHONPATH`.
 - Golden results are reviewed against `spec/`; they are not copied blindly
   from the Python implementation.
 - The former C++/Python differential harness was removed only after its fixture

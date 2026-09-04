@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from g3pvm_tools.experiments.population_seeds import main
+from gagp_tools.experiments.population_seeds import main
 
 
 if __name__ == "__main__":

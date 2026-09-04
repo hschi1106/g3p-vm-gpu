@@ -6,7 +6,7 @@ Normative AST, bytecode, fitness, and fixture behavior remains in
 
 ## Command boundary
 
-`g3pvm_evolve_cli` is a thin process boundary. The CLI support library parses
+`gagp_evolve_cli` is a thin process boundary. The CLI support library parses
 and validates options, loads JSON cases, grammar configuration, and optional
 population seeds, then dispatches either AST evaluation or evolution. The
 command layer writes stable console and JSON output; it does not own evolution

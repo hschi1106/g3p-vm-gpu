@@ -7,7 +7,7 @@ these tools; `spec/` and the native implementation remain authoritative.
 ## Operational Python commands
 
 All retained commands use the Python standard library and are covered by
-`tools/tests/`. Their implementations live in the `g3pvm_tools` package behind
+`tools/tests/`. Their implementations live in the `gagp_tools` package behind
 one discoverable command. The listed file paths are thin temporary
 compatibility wrappers.
 
@@ -35,12 +35,12 @@ their existing explicit policies documented in `docs/guides/development.md`.
 
 | Target | Class / owner | Build policy | Use case |
 | --- | --- | --- | --- |
-| `g3pvm_evolve_cli` | product CLI / native runtime | default | supported evolution, AST evaluation, and fixed-pop workflow |
-| `g3pvm_runtime_multi_bench` | benchmark / performance | `-DG3PVM_BUILD_BENCHMARKS=ON` | low-level runtime throughput experiments |
-| `g3pvm_simple_exp_population_probe` | experiment probe / parity research | `-DG3PVM_BUILD_EXPERIMENTS=ON`, CUDA only | diagnostic fixed-pop CPU/GPU fitness comparison; not a product command |
-| `g3pvm_test_vm_cli_harness` | test harness / runtime contracts | default, driven by CTest | executes versioned runtime fixtures |
-| `g3pvm_test_*` | tests / owning native module | default, registered with CTest | unit, contract, property, integration, GPU, and parity gates |
-| `g3pvm_fuzz_*` | fuzz harness / verifier boundaries | `-DG3PVM_BUILD_FUZZERS=ON`, Clang and CPU-only | extended malformed-input campaigns |
+| `gagp_evolve_cli` | product CLI / native runtime | default | supported evolution, AST evaluation, and fixed-pop workflow |
+| `gagp_runtime_multi_bench` | benchmark / performance | `-DGAGP_BUILD_BENCHMARKS=ON` | low-level runtime throughput experiments |
+| `gagp_simple_exp_population_probe` | experiment probe / parity research | `-DGAGP_BUILD_EXPERIMENTS=ON`, CUDA only | diagnostic fixed-pop CPU/GPU fitness comparison; not a product command |
+| `gagp_test_vm_cli_harness` | test harness / runtime contracts | default, driven by CTest | executes versioned runtime fixtures |
+| `gagp_test_*` | tests / owning native module | default, registered with CTest | unit, contract, property, integration, GPU, and parity gates |
+| `gagp_fuzz_*` | fuzz harness / verifier boundaries | `-DGAGP_BUILD_FUZZERS=ON`, Clang and CPU-only | extended malformed-input campaigns |
 
 The experiment probe source is under `cpp/src/experiments/`, not the CTest
 tree. Maintained tests and the fixture harness remain normal CMake/CTest owners.

@@ -1,14 +1,14 @@
-#include "g3pvm/runtime/cpu/builtins_cpu.hpp"
+#include "gagp/runtime/cpu/builtins_cpu.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
 #include <sstream>
 
-#include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/core/value_semantics.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
-namespace g3pvm {
+namespace gagp {
 
 namespace {
 
@@ -577,4 +577,4 @@ BuiltinResult builtin_call(BuiltinId id, const std::vector<Value>& args) {
   return fail(ErrCode::Name, "unknown builtin");
 }
 
-}  // namespace g3pvm
+}  // namespace gagp

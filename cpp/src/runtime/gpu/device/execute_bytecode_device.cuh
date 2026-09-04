@@ -2,12 +2,12 @@
 
 #include <cstdint>
 
-#include "g3pvm/core/builtin.hpp"
+#include "gagp/core/builtin.hpp"
 #include "builtins_device.cuh"
-#include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/gpu/device_types_gpu.hpp"
+#include "gagp/core/value_semantics.hpp"
+#include "gagp/runtime/gpu/device_types_gpu.hpp"
 
-namespace g3pvm::gpu_detail {
+namespace gagp::gpu_detail {
 
 __device__ inline void d_fail(DResult& out, ErrCode code) {
   out.is_error = 1;
@@ -1211,4 +1211,4 @@ __device__ __noinline__ DResult d_execute_bytecode_impl(const DProgramMeta& meta
                                             payload_state_storage.ref(), asgp_tables, fuel_left, true);
 }
 
-}  // namespace g3pvm::gpu_detail
+}  // namespace gagp::gpu_detail

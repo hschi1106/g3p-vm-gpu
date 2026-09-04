@@ -4,26 +4,26 @@
 #include <iostream>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/core/bytecode.hpp"
-#include "g3pvm/core/value.hpp"
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
-#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/core/bytecode.hpp"
+#include "gagp/core/value.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/genome.hpp"
+#include "gagp/runtime/cpu/fitness_cpu.hpp"
+#include "gagp/runtime/gpu/fitness_gpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 namespace {
 
-using g3pvm::BytecodeProgram;
-using g3pvm::CaseBindings;
-using g3pvm::InputBinding;
-using g3pvm::Opcode;
-using g3pvm::Value;
+using gagp::BytecodeProgram;
+using gagp::CaseBindings;
+using gagp::InputBinding;
+using gagp::Opcode;
+using gagp::Value;
 
-g3pvm::Instr ins(Opcode op) { return g3pvm::Instr{op, 0, 0, false, false}; }
-g3pvm::Instr ins_a(Opcode op, int a) { return g3pvm::Instr{op, a, 0, true, false}; }
-g3pvm::Instr ins_ab(Opcode op, int a, int b) { return g3pvm::Instr{op, a, b, true, true}; }
+gagp::Instr ins(Opcode op) { return gagp::Instr{op, 0, 0, false, false}; }
+gagp::Instr ins_a(Opcode op, int a) { return gagp::Instr{op, a, 0, true, false}; }
+gagp::Instr ins_ab(Opcode op, int a, int b) { return gagp::Instr{op, a, b, true, true}; }
 
 BytecodeProgram make_add_one_program() {
   BytecodeProgram p;
@@ -87,7 +87,7 @@ BytecodeProgram make_index_fallback_program() {
   p.code = {
       ins_a(Opcode::PushConst, 0),
       ins_a(Opcode::PushConst, 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), 2),
       ins(Opcode::Return),
   };
   return p;
@@ -131,13 +131,13 @@ BytecodeProgram make_nested_exact_string_payload_program() {
   BytecodeProgram p;
   p.n_locals = 1;
   p.consts = {
-      g3pvm::payload::make_string_value("wepw"),
+      gagp::payload::make_string_value("wepw"),
       Value::from_int(-4),
       Value::from_int(-2),
       Value::from_int(1),
       Value::from_int(-4),
-      g3pvm::payload::make_string_value("vww"),
-      g3pvm::payload::make_string_value("cnwl"),
+      gagp::payload::make_string_value("vww"),
+      gagp::payload::make_string_value("cnwl"),
   };
   p.code = {
       ins_a(Opcode::Load, 0),
@@ -153,16 +153,16 @@ BytecodeProgram make_nested_exact_string_payload_program() {
       ins_a(Opcode::PushConst, 0),
       ins_a(Opcode::PushConst, 1),
       ins_a(Opcode::PushConst, 2),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Slice), 3),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Slice), 3),
       ins_a(Opcode::PushConst, 3),
       ins_a(Opcode::PushConst, 4),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Slice), 3),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Slice), 3),
       ins_a(Opcode::PushConst, 5),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Concat), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Concat), 2),
       ins_a(Opcode::PushConst, 6),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Concat), 2),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Len), 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Min), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Concat), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Len), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Min), 2),
       ins(Opcode::Return),
   };
   return p;
@@ -174,7 +174,7 @@ BytecodeProgram make_exact_string_index_program(const Value& s, int idx) {
   p.code = {
       ins_a(Opcode::PushConst, 0),
       ins_a(Opcode::PushConst, 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), 2),
       ins(Opcode::Return),
   };
   return p;
@@ -187,7 +187,7 @@ BytecodeProgram make_contains_string_const_program(const Value& needle) {
   p.code = {
       ins_a(Opcode::Load, 0),
       ins_a(Opcode::PushConst, 0),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Contains), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Contains), 2),
       ins(Opcode::Return),
   };
   return p;
@@ -196,7 +196,7 @@ BytecodeProgram make_contains_string_const_program(const Value& needle) {
 BytecodeProgram make_repeated_list_append_len_program() {
   BytecodeProgram p;
   p.consts = {
-      g3pvm::payload::make_int_list_value({
+      gagp::payload::make_int_list_value({
           Value::from_int(1),
           Value::from_int(2),
           Value::from_int(3),
@@ -207,14 +207,14 @@ BytecodeProgram make_repeated_list_append_len_program() {
   for (int i = 0; i < 40; ++i) {
     p.code.push_back(ins_a(Opcode::PushConst, 0));
     p.code.push_back(ins_a(Opcode::PushConst, 1));
-    p.code.push_back(ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Append), 2));
-    p.code.push_back(ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Len), 1));
+    p.code.push_back(ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Append), 2));
+    p.code.push_back(ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Len), 1));
   }
   p.code.push_back(ins(Opcode::Return));
   return p;
 }
 
-BytecodeProgram make_builtin_program(std::vector<Value> consts, g3pvm::BuiltinId builtin, int argc) {
+BytecodeProgram make_builtin_program(std::vector<Value> consts, gagp::BuiltinId builtin, int argc) {
   BytecodeProgram p;
   p.consts = std::move(consts);
   for (int i = 0; i < argc; ++i) {
@@ -283,9 +283,9 @@ BytecodeProgram make_char_conversion_chain_program() {
   p.consts = {Value::from_int(97)};
   p.code = {
       ins_a(Opcode::PushConst, 0),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Chr), 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::ToUpper), 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::CharToString), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Chr), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::ToUpper), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::CharToString), 1),
       ins(Opcode::Return),
   };
   return p;
@@ -293,22 +293,22 @@ BytecodeProgram make_char_conversion_chain_program() {
 
 BytecodeProgram make_string_char_ord_chain_program() {
   BytecodeProgram p;
-  p.consts = {g3pvm::payload::make_string_value("E")};
+  p.consts = {gagp::payload::make_string_value("E")};
   p.code = {
       ins_a(Opcode::PushConst, 0),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::StringToChar), 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::ToLower), 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Ord), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::StringToChar), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::ToLower), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Ord), 1),
       ins(Opcode::Return),
   };
   return p;
 }
 
 BytecodeProgram make_compiled_for_range_sum_program_with_bound(const Value& bound) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"x", "i"};
@@ -338,11 +338,11 @@ BytecodeProgram make_compiled_for_range_sum_program_with_bound(const Value& boun
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_for_range_sum_program() {
-  return make_compiled_for_range_sum_program_with_bound(g3pvm::payload::make_int_list_value({
+  return make_compiled_for_range_sum_program_with_bound(gagp::payload::make_int_list_value({
       Value::from_int(10),
       Value::from_int(20),
       Value::from_int(30),
@@ -351,10 +351,10 @@ BytecodeProgram make_compiled_for_range_sum_program() {
 }
 
 BytecodeProgram make_compiled_for_range_sum_program_with_direct_bound(const Value& bound) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"x", "i"};
@@ -383,14 +383,14 @@ BytecodeProgram make_compiled_for_range_sum_program_with_direct_bound(const Valu
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_if_stmt_branch_program(const Value& condition) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"x"};
@@ -423,14 +423,14 @@ BytecodeProgram make_compiled_if_stmt_branch_program(const Value& condition) {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_if_expr_program(const Value& condition) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.consts = {
@@ -450,16 +450,16 @@ BytecodeProgram make_compiled_if_expr_program(const Value& condition) {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
-BytecodeProgram make_compiled_binary_expr_program(g3pvm::evo::NodeKind op,
+BytecodeProgram make_compiled_binary_expr_program(gagp::evo::NodeKind op,
                                                   const Value& lhs,
                                                   const Value& rhs) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.consts = {lhs, rhs};
@@ -474,20 +474,20 @@ BytecodeProgram make_compiled_binary_expr_program(g3pvm::evo::NodeKind op,
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
-BytecodeProgram make_compiled_bool_binary_program(g3pvm::evo::NodeKind op,
+BytecodeProgram make_compiled_bool_binary_program(gagp::evo::NodeKind op,
                                                   const Value& lhs,
                                                   const Value& rhs) {
   return make_compiled_binary_expr_program(op, lhs, rhs);
 }
 
-BytecodeProgram make_compiled_builtin_call_program(g3pvm::evo::NodeKind op, std::vector<Value> consts) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+BytecodeProgram make_compiled_builtin_call_program(gagp::evo::NodeKind op, std::vector<Value> consts) {
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.consts = std::move(consts);
@@ -503,14 +503,14 @@ BytecodeProgram make_compiled_builtin_call_program(g3pvm::evo::NodeKind op, std:
   program.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
-BytecodeProgram make_compiled_unary_program(g3pvm::evo::NodeKind op, const Value& operand) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+BytecodeProgram make_compiled_unary_program(gagp::evo::NodeKind op, const Value& operand) {
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.consts = {operand};
@@ -524,20 +524,20 @@ BytecodeProgram make_compiled_unary_program(g3pvm::evo::NodeKind op, const Value
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_map_list_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::ListTypeTag;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::ListTypeTag;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"u"};
   program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
       Value::from_int(2),
   };
   program.nodes = {
@@ -553,19 +553,19 @@ BytecodeProgram make_compiled_map_list_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_filter_list_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"u"};
   program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(3), Value::from_int(1), Value::from_int(4)}),
+      gagp::payload::make_int_list_value({Value::from_int(3), Value::from_int(1), Value::from_int(4)}),
       Value::from_int(2),
   };
   program.nodes = {
@@ -581,20 +581,20 @@ BytecodeProgram make_compiled_filter_list_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_float_map_list_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::ListTypeTag;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::ListTypeTag;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"u"};
   program.consts = {
-      g3pvm::payload::make_float_list_value({Value::from_float(1.0), Value::from_float(2.5)}),
+      gagp::payload::make_float_list_value({Value::from_float(1.0), Value::from_float(2.5)}),
       Value::from_float(2.0),
   };
   program.nodes = {
@@ -610,23 +610,23 @@ BytecodeProgram make_compiled_float_map_list_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_string_filter_list_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
-  const Value aa = g3pvm::payload::make_string_value("aa");
-  const Value b = g3pvm::payload::make_string_value("b");
-  const Value ccc = g3pvm::payload::make_string_value("ccc");
+  const Value aa = gagp::payload::make_string_value("aa");
+  const Value b = gagp::payload::make_string_value("b");
+  const Value ccc = gagp::payload::make_string_value("ccc");
 
   AstProgram program;
   program.names = {"u"};
   program.consts = {
-      g3pvm::payload::make_string_list_value({aa, b, ccc}),
+      gagp::payload::make_string_list_value({aa, b, ccc}),
       Value::from_int(1),
   };
   program.nodes = {
@@ -643,21 +643,21 @@ BytecodeProgram make_compiled_string_filter_list_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_empty_string_map_list_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::ListTypeTag;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::ListTypeTag;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"u"};
   program.consts = {
-      g3pvm::payload::make_string_list_value({}),
-      g3pvm::payload::make_string_value("!"),
+      gagp::payload::make_string_list_value({}),
+      gagp::payload::make_string_value("!"),
   };
   program.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -672,20 +672,20 @@ BytecodeProgram make_compiled_empty_string_map_list_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_linear_rec_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"u", "v", "i"};
   program.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
       Value::from_int(4),
       Value::from_int(0),
       Value::from_int(10),
@@ -714,20 +714,20 @@ BytecodeProgram make_compiled_linear_rec_program() {
   program.linear_rec_binders = {LinearRecBinders{3, 0, 1, 2}};
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_float_linear_rec_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"u", "v", "i"};
   program.consts = {
-      g3pvm::payload::make_float_list_value({Value::from_float(1.5), Value::from_float(2.5)}),
+      gagp::payload::make_float_list_value({Value::from_float(1.5), Value::from_float(2.5)}),
       Value::from_int(0),
       Value::from_float(0.0),
   };
@@ -748,26 +748,26 @@ BytecodeProgram make_compiled_float_linear_rec_program() {
   program.linear_rec_binders = {LinearRecBinders{3, 0, 1, 2}};
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_string_linear_rec_program() {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
-  const Value str_a = g3pvm::payload::make_string_value("a");
-  const Value str_b = g3pvm::payload::make_string_value("b");
-  const Value str_c = g3pvm::payload::make_string_value("c");
+  const Value str_a = gagp::payload::make_string_value("a");
+  const Value str_b = gagp::payload::make_string_value("b");
+  const Value str_c = gagp::payload::make_string_value("c");
 
   AstProgram program;
   program.names = {"u", "v", "i"};
   program.consts = {
-      g3pvm::payload::make_string_list_value({str_a, str_b, str_c}),
+      gagp::payload::make_string_list_value({str_a, str_b, str_c}),
       Value::from_int(0),
-      g3pvm::payload::make_string_value(""),
+      gagp::payload::make_string_value(""),
   };
   program.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -786,23 +786,23 @@ BytecodeProgram make_compiled_string_linear_rec_program() {
   program.linear_rec_binders = {LinearRecBinders{3, 0, 1, 2}};
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_asgp_dc_sum_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 3;
   solve.consts = {Value::from_int(0)};
   solve.binder_locals = {{10, 0}, {11, 1}, {12, 2}};
   solve.code = {
       ins_a(Opcode::Load, 0),
       ins_a(Opcode::PushConst, 0),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Singleton), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Singleton), 1),
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram divide;
+  gagp::PhaseProgram divide;
   divide.n_locals = 1;
   divide.consts = {Value::from_int(1)};
   divide.binder_locals = {{13, 0}};
@@ -811,7 +811,7 @@ BytecodeProgram make_asgp_dc_sum_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram combine;
+  gagp::PhaseProgram combine;
   combine.n_locals = 2;
   combine.binder_locals = {{14, 0}, {15, 1}};
   combine.code = {
@@ -821,7 +821,7 @@ BytecodeProgram make_asgp_dc_sum_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDcSegment segment;
+  gagp::AsgpDcSegment segment;
   segment.solve_xs_name = 10;
   segment.solve_n_name = 11;
   segment.solve_lo_name = 12;
@@ -834,7 +834,7 @@ BytecodeProgram make_asgp_dc_sum_program() {
 
   BytecodeProgram p;
   p.consts = {
-      g3pvm::payload::make_int_list_value({
+      gagp::payload::make_int_list_value({
           Value::from_int(1),
           Value::from_int(2),
           Value::from_int(3),
@@ -851,19 +851,19 @@ BytecodeProgram make_asgp_dc_sum_program() {
 }
 
 BytecodeProgram make_asgp_dc_string_concat_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 3;
   solve.consts = {Value::from_int(0)};
   solve.binder_locals = {{20, 0}, {24, 1}, {25, 2}};
   solve.code = {
       ins_a(Opcode::Load, 0),
       ins_a(Opcode::PushConst, 0),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), 2),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Singleton), 1),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Singleton), 1),
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram divide;
+  gagp::PhaseProgram divide;
   divide.n_locals = 1;
   divide.consts = {Value::from_int(1)};
   divide.binder_locals = {{21, 0}};
@@ -872,17 +872,17 @@ BytecodeProgram make_asgp_dc_string_concat_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram combine;
+  gagp::PhaseProgram combine;
   combine.n_locals = 2;
   combine.binder_locals = {{22, 0}, {23, 1}};
   combine.code = {
       ins_a(Opcode::Load, 0),
       ins_a(Opcode::Load, 1),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Concat), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Concat), 2),
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDcSegment segment;
+  gagp::AsgpDcSegment segment;
   segment.solve_xs_name = 20;
   segment.solve_n_name = 24;
   segment.solve_lo_name = 25;
@@ -895,7 +895,7 @@ BytecodeProgram make_asgp_dc_string_concat_program() {
 
   BytecodeProgram p;
   p.consts = {
-      g3pvm::payload::make_string_value("abc"),
+      gagp::payload::make_string_value("abc"),
   };
   p.code = {
       ins_a(Opcode::PushConst, 0),
@@ -907,17 +907,17 @@ BytecodeProgram make_asgp_dc_string_concat_program() {
 }
 
 BytecodeProgram make_compiled_asgp_dc_program(bool as_float) {
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"xs", "n", "lo", "dn", "l", "r"};
   if (as_float) {
     program.consts = {
-        g3pvm::payload::make_float_list_value({
+        gagp::payload::make_float_list_value({
             Value::from_float(1.0),
             Value::from_float(2.0),
             Value::from_float(3.0),
@@ -927,7 +927,7 @@ BytecodeProgram make_compiled_asgp_dc_program(bool as_float) {
     };
   } else {
     program.consts = {
-        g3pvm::payload::make_int_list_value({
+        gagp::payload::make_int_list_value({
             Value::from_int(1),
             Value::from_int(2),
             Value::from_int(3),
@@ -954,21 +954,21 @@ BytecodeProgram make_compiled_asgp_dc_program(bool as_float) {
   program.asgp_dc_binders = {AsgpDcBinders{3, 0, 1, 2, 3, 4, 5}};
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_asgp_dc_hidden_local_program() {
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"hidden", "xs", "n", "lo", "dn", "l", "r"};
   program.consts = {
       Value::from_int(7),
-      g3pvm::payload::make_int_list_value({Value::from_int(1)}),
+      gagp::payload::make_int_list_value({Value::from_int(1)}),
       Value::from_int(1),
   };
   program.nodes = {
@@ -990,21 +990,21 @@ BytecodeProgram make_compiled_asgp_dc_hidden_local_program() {
   program.asgp_dc_binders = {AsgpDcBinders{6, 1, 2, 3, 4, 5, 6}};
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_asgp_dc_divide_hidden_local_program() {
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"hidden", "xs", "n", "lo", "dn", "l", "r"};
   program.consts = {
       Value::from_int(7),
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
       Value::from_int(1),
   };
   program.nodes = {
@@ -1026,11 +1026,11 @@ BytecodeProgram make_compiled_asgp_dc_divide_hidden_local_program() {
   program.asgp_dc_binders = {AsgpDcBinders{6, 1, 2, 3, 4, 5, 6}};
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_asgp_dp1d_backward_sum_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 1;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}};
@@ -1039,7 +1039,7 @@ BytecodeProgram make_asgp_dp1d_backward_sum_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 2;
   transition.binder_locals = {{11, 0}, {12, 1}};
   transition.code = {
@@ -1049,7 +1049,7 @@ BytecodeProgram make_asgp_dp1d_backward_sum_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp1dSegment segment;
+  gagp::AsgpDp1dSegment segment;
   segment.lo = 0;
   segment.hi = 5;
   segment.base_state = 0;
@@ -1074,7 +1074,7 @@ BytecodeProgram make_asgp_dp1d_backward_sum_program() {
 }
 
 BytecodeProgram make_asgp_dp1d_fib_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 1;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}};
@@ -1083,7 +1083,7 @@ BytecodeProgram make_asgp_dp1d_fib_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 3;
   transition.binder_locals = {{11, 0}, {12, 1}, {13, 2}};
   transition.code = {
@@ -1093,7 +1093,7 @@ BytecodeProgram make_asgp_dp1d_fib_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp1dSegment segment;
+  gagp::AsgpDp1dSegment segment;
   segment.lo = 0;
   segment.hi = 20;
   segment.base_state = 0;
@@ -1118,7 +1118,7 @@ BytecodeProgram make_asgp_dp1d_fib_program() {
 }
 
 BytecodeProgram make_asgp_dp1d_boundary_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 1;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}};
@@ -1127,7 +1127,7 @@ BytecodeProgram make_asgp_dp1d_boundary_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 2;
   transition.binder_locals = {{11, 0}, {12, 1}};
   transition.code = {
@@ -1135,7 +1135,7 @@ BytecodeProgram make_asgp_dp1d_boundary_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp1dSegment segment;
+  gagp::AsgpDp1dSegment segment;
   segment.lo = 0;
   segment.hi = 5;
   segment.base_state = 0;
@@ -1160,7 +1160,7 @@ BytecodeProgram make_asgp_dp1d_boundary_program() {
 }
 
 BytecodeProgram make_asgp_dp1d_dependency_type_error_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 1;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}};
@@ -1169,7 +1169,7 @@ BytecodeProgram make_asgp_dp1d_dependency_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 3;
   transition.binder_locals = {{11, 0}, {12, 1}, {13, 2}};
   transition.code = {
@@ -1177,7 +1177,7 @@ BytecodeProgram make_asgp_dp1d_dependency_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp1dSegment segment;
+  gagp::AsgpDp1dSegment segment;
   segment.lo = 0;
   segment.hi = 5;
   segment.base_state = 0;
@@ -1202,7 +1202,7 @@ BytecodeProgram make_asgp_dp1d_dependency_type_error_program() {
 }
 
 BytecodeProgram make_asgp_dp1d_transition_type_error_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 1;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}};
@@ -1211,7 +1211,7 @@ BytecodeProgram make_asgp_dp1d_transition_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 2;
   transition.consts = {Value::from_bool(true)};
   transition.binder_locals = {{11, 0}, {12, 1}};
@@ -1220,7 +1220,7 @@ BytecodeProgram make_asgp_dp1d_transition_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp1dSegment segment;
+  gagp::AsgpDp1dSegment segment;
   segment.lo = 0;
   segment.hi = 5;
   segment.base_state = 0;
@@ -1251,7 +1251,7 @@ BytecodeProgram make_asgp_dp1d_state_type_error_program() {
 }
 
 BytecodeProgram make_asgp_dp2d_grid_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 2;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}, {11, 1}};
@@ -1260,7 +1260,7 @@ BytecodeProgram make_asgp_dp2d_grid_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 4;
   transition.binder_locals = {{12, 0}, {13, 1}, {14, 2}, {15, 3}};
   transition.code = {
@@ -1270,7 +1270,7 @@ BytecodeProgram make_asgp_dp2d_grid_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp2dSegment segment;
+  gagp::AsgpDp2dSegment segment;
   segment.i_lo = 0;
   segment.i_hi = 3;
   segment.j_lo = 0;
@@ -1300,7 +1300,7 @@ BytecodeProgram make_asgp_dp2d_grid_program() {
 }
 
 BytecodeProgram make_asgp_dp2d_boundary_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 2;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}, {11, 1}};
@@ -1309,7 +1309,7 @@ BytecodeProgram make_asgp_dp2d_boundary_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 3;
   transition.binder_locals = {{12, 0}, {13, 1}, {14, 2}};
   transition.code = {
@@ -1317,7 +1317,7 @@ BytecodeProgram make_asgp_dp2d_boundary_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp2dSegment segment;
+  gagp::AsgpDp2dSegment segment;
   segment.i_lo = 0;
   segment.i_hi = 3;
   segment.j_lo = 0;
@@ -1353,7 +1353,7 @@ BytecodeProgram make_asgp_dp2d_dep_kind_program(int dep_kind,
                                                 long long base_j) {
   const int dep_count = (dep_kind == 2 || dep_kind == 3) ? 1 : (dep_kind == 4 || dep_kind == 5) ? 3 : 2;
 
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 2;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}, {11, 1}};
@@ -1362,7 +1362,7 @@ BytecodeProgram make_asgp_dp2d_dep_kind_program(int dep_kind,
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 2 + dep_count;
   transition.binder_locals = {{12, 0}, {13, 1}};
   for (int i = 0; i < dep_count; ++i) {
@@ -1375,7 +1375,7 @@ BytecodeProgram make_asgp_dp2d_dep_kind_program(int dep_kind,
   }
   transition.code.push_back(ins(Opcode::Return));
 
-  g3pvm::AsgpDp2dSegment segment;
+  gagp::AsgpDp2dSegment segment;
   segment.i_lo = 0;
   segment.i_hi = 3;
   segment.j_lo = 0;
@@ -1407,7 +1407,7 @@ BytecodeProgram make_asgp_dp2d_dep_kind_program(int dep_kind,
 }
 
 BytecodeProgram make_asgp_dp2d_dependency_type_error_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 2;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}, {11, 1}};
@@ -1416,7 +1416,7 @@ BytecodeProgram make_asgp_dp2d_dependency_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 4;
   transition.binder_locals = {{12, 0}, {13, 1}, {14, 2}, {15, 3}};
   transition.code = {
@@ -1424,7 +1424,7 @@ BytecodeProgram make_asgp_dp2d_dependency_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp2dSegment segment;
+  gagp::AsgpDp2dSegment segment;
   segment.i_lo = 0;
   segment.i_hi = 3;
   segment.j_lo = 0;
@@ -1454,7 +1454,7 @@ BytecodeProgram make_asgp_dp2d_dependency_type_error_program() {
 }
 
 BytecodeProgram make_asgp_dp2d_transition_type_error_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 2;
   solve.consts = {Value::from_int(1)};
   solve.binder_locals = {{10, 0}, {11, 1}};
@@ -1463,7 +1463,7 @@ BytecodeProgram make_asgp_dp2d_transition_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 3;
   transition.consts = {Value::from_bool(true)};
   transition.binder_locals = {{12, 0}, {13, 1}, {14, 2}};
@@ -1472,7 +1472,7 @@ BytecodeProgram make_asgp_dp2d_transition_type_error_program() {
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp2dSegment segment;
+  gagp::AsgpDp2dSegment segment;
   segment.i_lo = 0;
   segment.i_hi = 3;
   segment.j_lo = 0;
@@ -1509,11 +1509,11 @@ BytecodeProgram make_asgp_dp2d_state_type_error_program(bool invalid_i) {
 }
 
 BytecodeProgram make_compiled_asgp_dp1d_transition_hidden_local_program() {
-  using g3pvm::evo::AsgpDp1dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDp1dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"hidden", "s", "d1"};
@@ -1536,15 +1536,15 @@ BytecodeProgram make_compiled_asgp_dp1d_transition_hidden_local_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_asgp_dp1d_solve_hidden_local_program() {
-  using g3pvm::evo::AsgpDp1dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDp1dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"hidden", "s", "d1"};
@@ -1567,15 +1567,15 @@ BytecodeProgram make_compiled_asgp_dp1d_solve_hidden_local_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_asgp_dp2d_transition_hidden_local_program() {
-  using g3pvm::evo::AsgpDp2dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDp2dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"hidden", "i", "j", "ti", "tj", "d1"};
@@ -1599,15 +1599,15 @@ BytecodeProgram make_compiled_asgp_dp2d_transition_hidden_local_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_compiled_asgp_dp2d_solve_hidden_local_program() {
-  using g3pvm::evo::AsgpDp2dSpec;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+  using gagp::evo::AsgpDp2dSpec;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   AstProgram program;
   program.names = {"hidden", "i", "j", "d1"};
@@ -1631,35 +1631,35 @@ BytecodeProgram make_compiled_asgp_dp2d_solve_hidden_local_program() {
   };
   ProgramGenome genome;
   genome.ast = program;
-  return g3pvm::evo::compile_for_eval(genome);
+  return gagp::evo::compile_for_eval(genome);
 }
 
 BytecodeProgram make_asgp_dp1d_string_concat_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 1;
-  solve.consts = {g3pvm::payload::make_string_value("a")};
+  solve.consts = {gagp::payload::make_string_value("a")};
   solve.binder_locals = {{10, 0}};
   solve.code = {
       ins_a(Opcode::PushConst, 0),
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 2;
-  transition.consts = {g3pvm::payload::make_string_value("a")};
+  transition.consts = {gagp::payload::make_string_value("a")};
   transition.binder_locals = {{11, 0}, {12, 1}};
   transition.code = {
       ins_a(Opcode::Load, 1),
       ins_a(Opcode::PushConst, 0),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Concat), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Concat), 2),
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp1dSegment segment;
+  gagp::AsgpDp1dSegment segment;
   segment.lo = 0;
   segment.hi = 5;
   segment.base_state = 0;
-  segment.boundary_value = g3pvm::payload::make_string_value("");
+  segment.boundary_value = gagp::payload::make_string_value("");
   segment.dep_kind = -1;
   segment.dep_offsets = {1};
   segment.solve_state_name = 10;
@@ -1680,33 +1680,33 @@ BytecodeProgram make_asgp_dp1d_string_concat_program() {
 }
 
 BytecodeProgram make_asgp_dp2d_string_concat_program() {
-  g3pvm::PhaseProgram solve;
+  gagp::PhaseProgram solve;
   solve.n_locals = 2;
-  solve.consts = {g3pvm::payload::make_string_value("a")};
+  solve.consts = {gagp::payload::make_string_value("a")};
   solve.binder_locals = {{10, 0}, {11, 1}};
   solve.code = {
       ins_a(Opcode::PushConst, 0),
       ins(Opcode::Return),
   };
 
-  g3pvm::PhaseProgram transition;
+  gagp::PhaseProgram transition;
   transition.n_locals = 4;
   transition.binder_locals = {{12, 0}, {13, 1}, {14, 2}, {15, 3}};
   transition.code = {
       ins_a(Opcode::Load, 2),
       ins_a(Opcode::Load, 3),
-      ins_ab(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Concat), 2),
+      ins_ab(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Concat), 2),
       ins(Opcode::Return),
   };
 
-  g3pvm::AsgpDp2dSegment segment;
+  gagp::AsgpDp2dSegment segment;
   segment.i_lo = 0;
   segment.i_hi = 3;
   segment.j_lo = 0;
   segment.j_hi = 3;
   segment.base_i = 0;
   segment.base_j = 0;
-  segment.boundary_value = g3pvm::payload::make_string_value("");
+  segment.boundary_value = gagp::payload::make_string_value("");
   segment.dep_kind = 0;
   segment.solve_i_name = 10;
   segment.solve_j_name = 11;
@@ -1736,16 +1736,16 @@ bool exact(double a, double b) {
   return a == b;
 }
 
-g3pvm::FitnessEvalResult eval_gpu_via_session(const std::vector<BytecodeProgram>& programs,
+gagp::FitnessEvalResult eval_gpu_via_session(const std::vector<BytecodeProgram>& programs,
                                               const std::vector<CaseBindings>& shared_cases,
                                               const std::vector<Value>& shared_answer,
                                               int fuel,
                                               int blocksize,
                                               double penalty) {
-  g3pvm::FitnessSessionGpu session;
-  g3pvm::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, fuel, blocksize, penalty);
+  gagp::FitnessSessionGpu session;
+  gagp::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, fuel, blocksize, penalty);
   if (!init.ok) {
-    g3pvm::FitnessEvalResult out;
+    gagp::FitnessEvalResult out;
     out.ok = false;
     out.err = init.err;
     return out;
@@ -1764,12 +1764,12 @@ bool check_single_cpu_gpu_exact(const BytecodeProgram& program,
   const std::vector<CaseBindings> shared_cases(1);
   const std::vector<Value> shared_answer{expected};
   const std::vector<double> cpu_fit =
-      g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, fuel, penalty, blocksize);
-  const g3pvm::FitnessEvalResult gpu_fit =
+      gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, fuel, penalty, blocksize);
+  const gagp::FitnessEvalResult gpu_fit =
       eval_gpu_via_session(programs, shared_cases, shared_answer, fuel, blocksize, penalty);
   if (!gpu_fit.ok) {
     if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+      std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
       return true;
     }
     std::cerr << "FAIL: gpu fitness run failed on " << label << ": " << gpu_fit.err.message << "\n";
@@ -1817,13 +1817,13 @@ int main() {
     }
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 64, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed: " << gpu_fit.err.message << "\n";
@@ -1880,13 +1880,13 @@ int main() {
     std::vector<Value> shared_answer(16, Value::from_string_hash_len(0x9999ULL, 3));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 64, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on binary cases: " << gpu_fit.err.message << "\n";
@@ -1925,13 +1925,13 @@ int main() {
     std::vector<Value> shared_answer{Value::from_float(2.5)};
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 64, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on mixed numeric type-error case: "
@@ -1950,11 +1950,11 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_return_bool_program(false));
     programs.push_back(make_return_bool_program(true));
-    programs.push_back(make_contains_string_const_program(g3pvm::payload::make_string_value("a")));
+    programs.push_back(make_contains_string_const_program(gagp::payload::make_string_value("a")));
 
     std::vector<CaseBindings> shared_cases;
     std::vector<Value> shared_answer;
@@ -1962,18 +1962,18 @@ int main() {
     shared_answer.reserve(64);
     for (int i = 0; i < 64; ++i) {
       shared_cases.push_back(CaseBindings{InputBinding{
-          0, g3pvm::payload::make_string_value((i % 2 == 0) ? "a" : "b")}});
+          0, gagp::payload::make_string_value((i % 2 == 0) ? "a" : "b")}});
       shared_answer.push_back(Value::from_bool(i % 2 == 0));
     }
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, 1024);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, 1024);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 64, 1024, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on bool exact string cases: " << gpu_fit.err.message << "\n";
@@ -2009,13 +2009,13 @@ int main() {
     std::vector<Value> shared_answer(4, Value::from_int(LLONG_MIN));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 64, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on wrap cases: " << gpu_fit.err.message << "\n";
@@ -2048,13 +2048,13 @@ int main() {
     std::vector<Value> shared_answer{Value::from_float(0.99124093216)};
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 64, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on float mod/div case: " << gpu_fit.err.message << "\n";
@@ -2072,18 +2072,18 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_int_list_value({
+                                     gagp::payload::make_int_list_value({
                                          Value::from_int(2),
                                          Value::from_int(3),
                                      }),
                                      Value::from_int(1),
                                  },
-                                 g3pvm::BuiltinId::Prepend,
+                                 gagp::BuiltinId::Prepend,
                                  2),
-            g3pvm::payload::make_int_list_value({
+            gagp::payload::make_int_list_value({
                 Value::from_int(1),
                 Value::from_int(2),
                 Value::from_int(3),
@@ -2097,10 +2097,10 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abc"),
+                                     gagp::payload::make_string_value("abc"),
                                      Value::from_int(1),
                                  },
-                                 g3pvm::BuiltinId::Index,
+                                 gagp::BuiltinId::Index,
                                  2),
             Value::from_char('b'),
             1.0,
@@ -2111,7 +2111,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_char_conversion_chain_program(),
-                                    g3pvm::payload::make_string_value("A"),
+                                    gagp::payload::make_string_value("A"),
                                     1.0,
                                     128,
                                     kParityBlocksize,
@@ -2129,7 +2129,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char('7')}, g3pvm::BuiltinId::IsDigit, 1),
+            make_builtin_program({Value::from_char('7')}, gagp::BuiltinId::IsDigit, 1),
             Value::from_bool(true),
             1.0,
             128,
@@ -2139,8 +2139,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(123)}, g3pvm::BuiltinId::ToString, 1),
-            g3pvm::payload::make_string_value("123"),
+            make_builtin_program({Value::from_int(123)}, gagp::BuiltinId::ToString, 1),
+            gagp::payload::make_string_value("123"),
             1.0,
             128,
             kParityBlocksize,
@@ -2149,8 +2149,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_float(1.5)}, g3pvm::BuiltinId::ToString, 1),
-            g3pvm::payload::make_string_value("1.5"),
+            make_builtin_program({Value::from_float(1.5)}, gagp::BuiltinId::ToString, 1),
+            gagp::payload::make_string_value("1.5"),
             1.0,
             128,
             kParityBlocksize,
@@ -2159,8 +2159,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_float(2.0)}, g3pvm::BuiltinId::ToString, 1),
-            g3pvm::payload::make_string_value("2"),
+            make_builtin_program({Value::from_float(2.0)}, gagp::BuiltinId::ToString, 1),
+            gagp::payload::make_string_value("2"),
             1.0,
             128,
             kParityBlocksize,
@@ -2169,8 +2169,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_float(-0.0)}, g3pvm::BuiltinId::ToString, 1),
-            g3pvm::payload::make_string_value("0"),
+            make_builtin_program({Value::from_float(-0.0)}, gagp::BuiltinId::ToString, 1),
+            gagp::payload::make_string_value("0"),
             1.0,
             128,
             kParityBlocksize,
@@ -2179,8 +2179,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_float(1.2345678)}, g3pvm::BuiltinId::ToString, 1),
-            g3pvm::payload::make_string_value("1.234568"),
+            make_builtin_program({Value::from_float(1.2345678)}, gagp::BuiltinId::ToString, 1),
+            gagp::payload::make_string_value("1.234568"),
             1.0,
             128,
             kParityBlocksize,
@@ -2190,9 +2190,9 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({Value::from_float(std::numeric_limits<double>::quiet_NaN())},
-                                 g3pvm::BuiltinId::ToString,
+                                 gagp::BuiltinId::ToString,
                                  1),
-            g3pvm::payload::make_string_value("nan"),
+            gagp::payload::make_string_value("nan"),
             1.0,
             128,
             kParityBlocksize,
@@ -2202,9 +2202,9 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({Value::from_float(std::numeric_limits<double>::infinity())},
-                                 g3pvm::BuiltinId::ToString,
+                                 gagp::BuiltinId::ToString,
                                  1),
-            g3pvm::payload::make_string_value("inf"),
+            gagp::payload::make_string_value("inf"),
             1.0,
             128,
             kParityBlocksize,
@@ -2214,9 +2214,9 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({Value::from_float(-std::numeric_limits<double>::infinity())},
-                                 g3pvm::BuiltinId::ToString,
+                                 gagp::BuiltinId::ToString,
                                  1),
-            g3pvm::payload::make_string_value("-inf"),
+            gagp::payload::make_string_value("-inf"),
             1.0,
             128,
             kParityBlocksize,
@@ -2225,7 +2225,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(-7), Value::from_int(2)}, g3pvm::BuiltinId::IDiv0, 2),
+            make_builtin_program({Value::from_int(-7), Value::from_int(2)}, gagp::BuiltinId::IDiv0, 2),
             Value::from_int(-3),
             0.0,
             128,
@@ -2235,7 +2235,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(-7), Value::from_int(2)}, g3pvm::BuiltinId::IMod0, 2),
+            make_builtin_program({Value::from_int(-7), Value::from_int(2)}, gagp::BuiltinId::IMod0, 2),
             Value::from_int(1),
             0.0,
             128,
@@ -2245,7 +2245,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(7), Value::from_int(-2)}, g3pvm::BuiltinId::IMod0, 2),
+            make_builtin_program({Value::from_int(7), Value::from_int(-2)}, gagp::BuiltinId::IMod0, 2),
             Value::from_int(-1),
             0.0,
             128,
@@ -2255,7 +2255,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char('A')}, g3pvm::BuiltinId::IsLetter, 1),
+            make_builtin_program({Value::from_char('A')}, gagp::BuiltinId::IsLetter, 1),
             Value::from_bool(true),
             1.0,
             128,
@@ -2265,7 +2265,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char(' ')}, g3pvm::BuiltinId::IsSpace, 1),
+            make_builtin_program({Value::from_char(' ')}, gagp::BuiltinId::IsSpace, 1),
             Value::from_bool(true),
             1.0,
             128,
@@ -2275,7 +2275,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char('E')}, g3pvm::BuiltinId::IsVowel, 1),
+            make_builtin_program({Value::from_char('E')}, gagp::BuiltinId::IsVowel, 1),
             Value::from_bool(true),
             1.0,
             128,
@@ -2285,8 +2285,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(7)}, g3pvm::BuiltinId::Singleton, 1),
-            g3pvm::payload::make_int_list_value({Value::from_int(7)}),
+            make_builtin_program({Value::from_int(7)}, gagp::BuiltinId::Singleton, 1),
+            gagp::payload::make_int_list_value({Value::from_int(7)}),
             1.0,
             128,
             kParityBlocksize,
@@ -2295,8 +2295,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_float(1.5)}, g3pvm::BuiltinId::Singleton, 1),
-            g3pvm::payload::make_float_list_value({Value::from_float(1.5)}),
+            make_builtin_program({Value::from_float(1.5)}, gagp::BuiltinId::Singleton, 1),
+            gagp::payload::make_float_list_value({Value::from_float(1.5)}),
             1.0,
             128,
             kParityBlocksize,
@@ -2305,8 +2305,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char('z')}, g3pvm::BuiltinId::Singleton, 1),
-            g3pvm::payload::make_string_value("z"),
+            make_builtin_program({Value::from_char('z')}, gagp::BuiltinId::Singleton, 1),
+            gagp::payload::make_string_value("z"),
             1.0,
             128,
             kParityBlocksize,
@@ -2315,8 +2315,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({g3pvm::payload::make_string_value("ab")}, g3pvm::BuiltinId::Singleton, 1),
-            g3pvm::payload::make_string_list_value({g3pvm::payload::make_string_value("ab")}),
+            make_builtin_program({gagp::payload::make_string_value("ab")}, gagp::BuiltinId::Singleton, 1),
+            gagp::payload::make_string_list_value({gagp::payload::make_string_value("ab")}),
             1.0,
             128,
             kParityBlocksize,
@@ -2325,8 +2325,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({g3pvm::payload::make_string_value("ab")},
-                                 g3pvm::BuiltinId::StringToChar,
+            make_builtin_program({gagp::payload::make_string_value("ab")},
+                                 gagp::BuiltinId::StringToChar,
                                  1),
             Value::from_char('a'),
             -penalty,
@@ -2337,7 +2337,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(256)}, g3pvm::BuiltinId::Chr, 1),
+            make_builtin_program({Value::from_int(256)}, gagp::BuiltinId::Chr, 1),
             Value::from_char(0),
             -penalty,
             128,
@@ -2347,8 +2347,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char('q')}, g3pvm::BuiltinId::ToString, 1),
-            g3pvm::payload::make_string_value("q"),
+            make_builtin_program({Value::from_char('q')}, gagp::BuiltinId::ToString, 1),
+            gagp::payload::make_string_value("q"),
             -penalty,
             128,
             kParityBlocksize,
@@ -2357,8 +2357,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_char(300)}, g3pvm::BuiltinId::CharToString, 1),
-            g3pvm::payload::make_string_value("?"),
+            make_builtin_program({Value::from_char(300)}, gagp::BuiltinId::CharToString, 1),
+            gagp::payload::make_string_value("?"),
             -penalty,
             128,
             kParityBlocksize,
@@ -2367,7 +2367,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(3)}, g3pvm::BuiltinId::Len, 1),
+            make_builtin_program({Value::from_int(3)}, gagp::BuiltinId::Len, 1),
             Value::from_int(0),
             -penalty,
             128,
@@ -2378,13 +2378,13 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abc"),
+                                     gagp::payload::make_string_value("abc"),
                                      Value::from_bool(false),
                                      Value::from_int(2),
                                  },
-                                 g3pvm::BuiltinId::Slice,
+                                 gagp::BuiltinId::Slice,
                                  3),
-            g3pvm::payload::make_string_value("ab"),
+            gagp::payload::make_string_value("ab"),
             -penalty,
             128,
             kParityBlocksize,
@@ -2393,7 +2393,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({Value::from_int(3)}, g3pvm::BuiltinId::Reverse, 1),
+            make_builtin_program({Value::from_int(3)}, gagp::BuiltinId::Reverse, 1),
             Value::from_int(3),
             -penalty,
             128,
@@ -2415,11 +2415,11 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_binary_op_program({
-                                       g3pvm::payload::make_string_list_value({
-                                           g3pvm::payload::make_string_value("a"),
+                                       gagp::payload::make_string_list_value({
+                                           gagp::payload::make_string_value("a"),
                                        }),
-                                       g3pvm::payload::make_string_list_value({
-                                           g3pvm::payload::make_string_value("b"),
+                                       gagp::payload::make_string_list_value({
+                                           gagp::payload::make_string_value("b"),
                                        }),
                                    },
                                    Opcode::Ne),
@@ -2433,8 +2433,8 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_binary_op_program({
-                                       g3pvm::payload::make_string_value("a"),
-                                       g3pvm::payload::make_string_value("b"),
+                                       gagp::payload::make_string_value("a"),
+                                       gagp::payload::make_string_value("b"),
                                    },
                                    Opcode::Lt),
             Value::from_bool(false),
@@ -2446,7 +2446,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_empty_list_program(1),
-                                    g3pvm::payload::make_int_list_value({}),
+                                    gagp::payload::make_int_list_value({}),
                                     1.0,
                                     128,
                                     kParityBlocksize,
@@ -2455,7 +2455,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_empty_list_program(2),
-                                    g3pvm::payload::make_float_list_value({}),
+                                    gagp::payload::make_float_list_value({}),
                                     1.0,
                                     128,
                                     kParityBlocksize,
@@ -2464,7 +2464,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_empty_list_program(3),
-                                    g3pvm::payload::make_string_list_value({}),
+                                    gagp::payload::make_string_list_value({}),
                                     1.0,
                                     128,
                                     kParityBlocksize,
@@ -2473,7 +2473,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_empty_list_program(99),
-                                    g3pvm::payload::make_int_list_value({}),
+                                    gagp::payload::make_int_list_value({}),
                                     -penalty,
                                     128,
                                     kParityBlocksize,
@@ -2482,10 +2482,10 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_empty_list_like_program(g3pvm::payload::make_string_list_value({
-                g3pvm::payload::make_string_value("x"),
+            make_empty_list_like_program(gagp::payload::make_string_list_value({
+                gagp::payload::make_string_value("x"),
             })),
-            g3pvm::payload::make_string_list_value({}),
+            gagp::payload::make_string_list_value({}),
             1.0,
             128,
             kParityBlocksize,
@@ -2494,8 +2494,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_empty_list_like_program(g3pvm::payload::make_int_list_value({Value::from_int(1)})),
-            g3pvm::payload::make_int_list_value({}),
+            make_empty_list_like_program(gagp::payload::make_int_list_value({Value::from_int(1)})),
+            gagp::payload::make_int_list_value({}),
             1.0,
             128,
             kParityBlocksize,
@@ -2504,8 +2504,8 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_empty_list_like_program(g3pvm::payload::make_float_list_value({Value::from_float(1.25)})),
-            g3pvm::payload::make_float_list_value({}),
+            make_empty_list_like_program(gagp::payload::make_float_list_value({Value::from_float(1.25)})),
+            gagp::payload::make_float_list_value({}),
             1.0,
             128,
             kParityBlocksize,
@@ -2514,7 +2514,7 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_empty_list_like_program(Value::from_int(7)),
-                                    g3pvm::payload::make_int_list_value({}),
+                                    gagp::payload::make_int_list_value({}),
                                     -penalty,
                                     128,
                                     kParityBlocksize,
@@ -2523,12 +2523,12 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(
-            make_check_program(g3pvm::payload::make_string_list_value({
-                                   g3pvm::payload::make_string_value("ok"),
+            make_check_program(gagp::payload::make_string_list_value({
+                                   gagp::payload::make_string_value("ok"),
                                }),
                                Opcode::CheckList),
-            g3pvm::payload::make_string_list_value({
-                g3pvm::payload::make_string_value("ok"),
+            gagp::payload::make_string_list_value({
+                gagp::payload::make_string_value("ok"),
             }),
             1.0,
             128,
@@ -2567,16 +2567,16 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("we"),
+                                     gagp::payload::make_string_value("we"),
                                      Value::from_int(1),
                                      Value::from_int(-4),
                                  },
-                                 g3pvm::BuiltinId::Slice,
+                                 gagp::BuiltinId::Slice,
                                  3),
-            g3pvm::payload::make_string_value(""),
+            gagp::payload::make_string_value(""),
             1.0,
             128,
             kParityBlocksize,
@@ -2586,16 +2586,16 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_float_list_value({
+                                     gagp::payload::make_float_list_value({
                                          Value::from_float(1.0),
                                          Value::from_float(2.0),
                                      }),
                                      Value::from_int(2),
                                      Value::from_int(0),
                                  },
-                                 g3pvm::BuiltinId::Slice,
+                                 gagp::BuiltinId::Slice,
                                  3),
-            g3pvm::payload::make_float_list_value({}),
+            gagp::payload::make_float_list_value({}),
             1.0,
             128,
             kParityBlocksize,
@@ -2605,16 +2605,16 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_list_value({
-                                         g3pvm::payload::make_string_value("a"),
-                                         g3pvm::payload::make_string_value("b"),
+                                     gagp::payload::make_string_list_value({
+                                         gagp::payload::make_string_value("a"),
+                                         gagp::payload::make_string_value("b"),
                                      }),
                                      Value::from_int(2),
                                      Value::from_int(0),
                                  },
-                                 g3pvm::BuiltinId::Slice,
+                                 gagp::BuiltinId::Slice,
                                  3),
-            g3pvm::payload::make_string_list_value({}),
+            gagp::payload::make_string_list_value({}),
             1.0,
             128,
             kParityBlocksize,
@@ -2624,13 +2624,13 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_float_list_value({
+                                     gagp::payload::make_float_list_value({
                                          Value::from_float(1.0),
                                          Value::from_float(2.5),
                                      }),
                                      Value::from_int(-1),
                                  },
-                                 g3pvm::BuiltinId::Index,
+                                 gagp::BuiltinId::Index,
                                  2),
             Value::from_float(2.5),
             0.0,
@@ -2642,15 +2642,15 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_list_value({
-                                         g3pvm::payload::make_string_value("aa"),
-                                         g3pvm::payload::make_string_value("bb"),
+                                     gagp::payload::make_string_list_value({
+                                         gagp::payload::make_string_value("aa"),
+                                         gagp::payload::make_string_value("bb"),
                                      }),
                                      Value::from_int(-1),
                                  },
-                                 g3pvm::BuiltinId::Index,
+                                 gagp::BuiltinId::Index,
                                  2),
-            g3pvm::payload::make_string_value("bb"),
+            gagp::payload::make_string_value("bb"),
             1.0,
             128,
             kParityBlocksize,
@@ -2660,13 +2660,13 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_int_list_value({
+                                     gagp::payload::make_int_list_value({
                                          Value::from_int(1),
                                          Value::from_int(2),
                                      }),
                                      Value::from_int(2),
                                  },
-                                 g3pvm::BuiltinId::Index,
+                                 gagp::BuiltinId::Index,
                                  2),
             Value::from_int(0),
             -penalty,
@@ -2678,10 +2678,10 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abracadabra"),
-                                     g3pvm::payload::make_string_value("xyz"),
+                                     gagp::payload::make_string_value("abracadabra"),
+                                     gagp::payload::make_string_value("xyz"),
                                  },
-                                 g3pvm::BuiltinId::Find,
+                                 gagp::BuiltinId::Find,
                                  2),
             Value::from_int(-1),
             0.0,
@@ -2693,10 +2693,10 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abracadabra"),
-                                     g3pvm::payload::make_string_value(""),
+                                     gagp::payload::make_string_value("abracadabra"),
+                                     gagp::payload::make_string_value(""),
                                  },
-                                 g3pvm::BuiltinId::Find,
+                                 gagp::BuiltinId::Find,
                                  2),
             Value::from_int(0),
             0.0,
@@ -2708,10 +2708,10 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abracadabra"),
-                                     g3pvm::payload::make_string_value("xyz"),
+                                     gagp::payload::make_string_value("abracadabra"),
+                                     gagp::payload::make_string_value("xyz"),
                                  },
-                                 g3pvm::BuiltinId::Contains,
+                                 gagp::BuiltinId::Contains,
                                  2),
             Value::from_bool(false),
             1.0,
@@ -2723,10 +2723,10 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abracadabra"),
-                                     g3pvm::payload::make_string_value(""),
+                                     gagp::payload::make_string_value("abracadabra"),
+                                     gagp::payload::make_string_value(""),
                                  },
-                                 g3pvm::BuiltinId::Contains,
+                                 gagp::BuiltinId::Contains,
                                  2),
             Value::from_bool(true),
             1.0,
@@ -2739,9 +2739,9 @@ int main() {
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
                                      Value::from_string_hash_len(0x9876ULL, 3),
-                                     g3pvm::payload::make_string_value("a"),
+                                     gagp::payload::make_string_value("a"),
                                  },
-                                 g3pvm::BuiltinId::Find,
+                                 gagp::BuiltinId::Find,
                                  2),
             Value::from_int(0),
             -penalty,
@@ -2753,10 +2753,10 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("abc"),
+                                     gagp::payload::make_string_value("abc"),
                                      Value::from_string_hash_len(0x9877ULL, 1),
                                  },
-                                 g3pvm::BuiltinId::Contains,
+                                 gagp::BuiltinId::Contains,
                                  2),
             Value::from_bool(false),
             -penalty,
@@ -2769,12 +2769,12 @@ int main() {
 
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_int_list_value({Value::from_int(1)}),
-                                     g3pvm::payload::make_float_list_value({Value::from_float(2.0)}),
+                                     gagp::payload::make_int_list_value({Value::from_int(1)}),
+                                     gagp::payload::make_float_list_value({Value::from_float(2.0)}),
                                  },
-                                 g3pvm::BuiltinId::Concat,
+                                 gagp::BuiltinId::Concat,
                                  2),
-            g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+            gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
             -penalty,
             128,
             kParityBlocksize,
@@ -2784,12 +2784,12 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_float_list_value({Value::from_float(1.0)}),
+                                     gagp::payload::make_float_list_value({Value::from_float(1.0)}),
                                      Value::from_int(2),
                                  },
-                                 g3pvm::BuiltinId::Append,
+                                 gagp::BuiltinId::Append,
                                  2),
-            g3pvm::payload::make_float_list_value({Value::from_float(1.0), Value::from_float(2.0)}),
+            gagp::payload::make_float_list_value({Value::from_float(1.0), Value::from_float(2.0)}),
             -penalty,
             128,
             kParityBlocksize,
@@ -2799,12 +2799,12 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_int_list_value({Value::from_int(1)}),
+                                     gagp::payload::make_int_list_value({Value::from_int(1)}),
                                      Value::from_float(2.0),
                                  },
-                                 g3pvm::BuiltinId::Prepend,
+                                 gagp::BuiltinId::Prepend,
                                  2),
-            g3pvm::payload::make_int_list_value({Value::from_int(2), Value::from_int(1)}),
+            gagp::payload::make_int_list_value({Value::from_int(2), Value::from_int(1)}),
             -penalty,
             128,
             kParityBlocksize,
@@ -2814,12 +2814,12 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_value("ab"),
+                                     gagp::payload::make_string_value("ab"),
                                      Value::from_char('c'),
                                  },
-                                 g3pvm::BuiltinId::Append,
+                                 gagp::BuiltinId::Append,
                                  2),
-            g3pvm::payload::make_string_value("abc"),
+            gagp::payload::make_string_value("abc"),
             -penalty,
             128,
             kParityBlocksize,
@@ -2834,7 +2834,7 @@ int main() {
         Value::combine_container_hash48(2U, int_list_a, int_list_b),
         Value::saturating_len_add(Value::container_len(int_list_a), Value::container_len(int_list_b)));
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({int_list_a, int_list_b}, g3pvm::BuiltinId::Concat, 2),
+            make_builtin_program({int_list_a, int_list_b}, gagp::BuiltinId::Concat, 2),
             int_concat_expected,
             1.0,
             128,
@@ -2850,7 +2850,7 @@ int main() {
         4);
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({float_list, Value::from_int(-5), Value::from_int(-1)},
-                                 g3pvm::BuiltinId::Slice,
+                                 gagp::BuiltinId::Slice,
                                  3),
             float_slice_expected,
             1.0,
@@ -2867,7 +2867,7 @@ int main() {
         Value::append_list_hash48(4U, string_list, raw_string),
         Value::saturating_len_add(Value::container_len(string_list), 1U));
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({string_list, raw_string}, g3pvm::BuiltinId::Append, 2),
+            make_builtin_program({string_list, raw_string}, gagp::BuiltinId::Append, 2),
             append_expected,
             1.0,
             128,
@@ -2883,7 +2883,7 @@ int main() {
         prepend_list_hash48(2U, prepend_elem, prepend_src),
         Value::saturating_len_add(Value::container_len(prepend_src), 1U));
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({prepend_src, prepend_elem}, g3pvm::BuiltinId::Prepend, 2),
+            make_builtin_program({prepend_src, prepend_elem}, gagp::BuiltinId::Prepend, 2),
             prepend_expected,
             1.0,
             128,
@@ -2898,7 +2898,7 @@ int main() {
         Value::reverse_container_hash48(2U, reverse_src),
         Value::container_len(reverse_src));
     if (!check_single_cpu_gpu_exact(
-            make_builtin_program({reverse_src}, g3pvm::BuiltinId::Reverse, 1),
+            make_builtin_program({reverse_src}, gagp::BuiltinId::Reverse, 1),
             reverse_expected,
             1.0,
             128,
@@ -2909,15 +2909,15 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_float_list_value({
+                                     gagp::payload::make_float_list_value({
                                          Value::from_float(1.0),
                                          Value::from_float(2.5),
                                          Value::from_float(-3.0),
                                      }),
                                  },
-                                 g3pvm::BuiltinId::Reverse,
+                                 gagp::BuiltinId::Reverse,
                                  1),
-            g3pvm::payload::make_float_list_value({
+            gagp::payload::make_float_list_value({
                 Value::from_float(-3.0),
                 Value::from_float(2.5),
                 Value::from_float(1.0),
@@ -2931,16 +2931,16 @@ int main() {
     }
     if (!check_single_cpu_gpu_exact(
             make_builtin_program({
-                                     g3pvm::payload::make_string_list_value({
-                                         g3pvm::payload::make_string_value("aa"),
-                                         g3pvm::payload::make_string_value("bb"),
+                                     gagp::payload::make_string_list_value({
+                                         gagp::payload::make_string_value("aa"),
+                                         gagp::payload::make_string_value("bb"),
                                      }),
                                  },
-                                 g3pvm::BuiltinId::Reverse,
+                                 gagp::BuiltinId::Reverse,
                                  1),
-            g3pvm::payload::make_string_list_value({
-                g3pvm::payload::make_string_value("bb"),
-                g3pvm::payload::make_string_value("aa"),
+            gagp::payload::make_string_list_value({
+                gagp::payload::make_string_value("bb"),
+                gagp::payload::make_string_value("aa"),
             }),
             1.0,
             128,
@@ -2952,7 +2952,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_nested_exact_string_payload_program());
     programs.push_back(make_return_const_program(7));
@@ -2968,13 +2968,13 @@ int main() {
     }
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 256, penalty, 256);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 256, penalty, 256);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 256, 256, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on nested exact payload case: "
@@ -2995,29 +2995,29 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     const Value expected_char = Value::from_char('x');
     std::vector<CaseBindings> shared_cases(8);
     std::vector<Value> shared_answer(8, expected_char);
 
-    g3pvm::FitnessSessionGpu session;
-    const g3pvm::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, 64, kParityBlocksize, penalty);
+    gagp::FitnessSessionGpu session;
+    const gagp::FitnessSessionInitResult init = session.init(shared_cases, shared_answer, 64, kParityBlocksize, penalty);
     if (!init.ok) {
       if (init.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << init.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << init.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu session init failed on late payload case: " << init.err.message << "\n";
       return 1;
     }
 
-    const Value late_string = g3pvm::payload::make_string_value("xy");
+    const Value late_string = gagp::payload::make_string_value("xy");
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_exact_string_index_program(late_string, 0));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit = session.eval_programs(programs);
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 64, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit = session.eval_programs(programs);
 
     if (!gpu_fit.ok) {
       std::cerr << "FAIL: gpu fitness run failed on late payload case: " << gpu_fit.err.message << "\n";
@@ -3040,7 +3040,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_repeated_list_append_len_program());
 
@@ -3048,13 +3048,13 @@ int main() {
     std::vector<Value> shared_answer(1, Value::from_int(5));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 512, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 512, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 512, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on repeated append-len case: "
@@ -3078,8 +3078,8 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_CHR,
+    gagp::payload::clear();
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_CHR,
                                                                        {Value::from_int(65)}),
                                     Value::from_char('A'),
                                     1.0,
@@ -3089,7 +3089,7 @@ int main() {
                                     "compiled CALL_CHR int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_ORD,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_ORD,
                                                                        {Value::from_char('A')}),
                                     Value::from_int(65),
                                     0.0,
@@ -3099,8 +3099,8 @@ int main() {
                                     "compiled CALL_ORD char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_STRING_TO_CHAR,
-                                                                       {g3pvm::payload::make_string_value("z")}),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_STRING_TO_CHAR,
+                                                                       {gagp::payload::make_string_value("z")}),
                                     Value::from_char('z'),
                                     1.0,
                                     20000,
@@ -3109,9 +3109,9 @@ int main() {
                                     "compiled CALL_STRING_TO_CHAR exact CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_CHAR_TO_STRING,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_CHAR_TO_STRING,
                                                                        {Value::from_char('q')}),
-                                    g3pvm::payload::make_string_value("q"),
+                                    gagp::payload::make_string_value("q"),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3119,7 +3119,7 @@ int main() {
                                     "compiled CALL_CHAR_TO_STRING exact CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_TO_UPPER,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_TO_UPPER,
                                                                        {Value::from_char('m')}),
                                     Value::from_char('M'),
                                     1.0,
@@ -3129,7 +3129,7 @@ int main() {
                                     "compiled CALL_TO_UPPER char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_TO_LOWER,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_TO_LOWER,
                                                                        {Value::from_char('Z')}),
                                     Value::from_char('z'),
                                     1.0,
@@ -3139,7 +3139,7 @@ int main() {
                                     "compiled CALL_TO_LOWER char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_IS_LETTER,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_IS_LETTER,
                                                                        {Value::from_char('Q')}),
                                     Value::from_bool(true),
                                     1.0,
@@ -3149,7 +3149,7 @@ int main() {
                                     "compiled CALL_IS_LETTER char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_IS_DIGIT,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_IS_DIGIT,
                                                                        {Value::from_char('7')}),
                                     Value::from_bool(true),
                                     1.0,
@@ -3159,7 +3159,7 @@ int main() {
                                     "compiled CALL_IS_DIGIT char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_IS_SPACE,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_IS_SPACE,
                                                                        {Value::from_char(' ')}),
                                     Value::from_bool(true),
                                     1.0,
@@ -3169,7 +3169,7 @@ int main() {
                                     "compiled CALL_IS_SPACE char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_IS_VOWEL,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_IS_VOWEL,
                                                                        {Value::from_char('E')}),
                                     Value::from_bool(true),
                                     1.0,
@@ -3179,9 +3179,9 @@ int main() {
                                     "compiled CALL_IS_VOWEL char CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_TO_STRING,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_TO_STRING,
                                                                        {Value::from_int(123)}),
-                                    g3pvm::payload::make_string_value("123"),
+                                    gagp::payload::make_string_value("123"),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3189,8 +3189,8 @@ int main() {
                                     "compiled CALL_TO_STRING int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_STRING_TO_CHAR,
-                                                                       {g3pvm::payload::make_string_value("xy")}),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_STRING_TO_CHAR,
+                                                                       {gagp::payload::make_string_value("xy")}),
                                     Value::from_char(0),
                                     -penalty,
                                     20000,
@@ -3199,8 +3199,8 @@ int main() {
                                     "compiled CALL_STRING_TO_CHAR length ValueError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_LEN,
-                                                                       {g3pvm::payload::make_string_value("abc")}),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_LEN,
+                                                                       {gagp::payload::make_string_value("abc")}),
                                     Value::from_int(3),
                                     0.0,
                                     20000,
@@ -3209,8 +3209,8 @@ int main() {
                                     "compiled CALL_LEN string CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_INDEX,
-                                                                       {g3pvm::payload::make_string_value("abc"),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_INDEX,
+                                                                       {gagp::payload::make_string_value("abc"),
                                                                         Value::from_int(1)}),
                                     Value::from_char('b'),
                                     1.0,
@@ -3220,10 +3220,10 @@ int main() {
                                     "compiled CALL_INDEX string CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_CONCAT,
-                                                                       {g3pvm::payload::make_string_value("ab"),
-                                                                        g3pvm::payload::make_string_value("cd")}),
-                                    g3pvm::payload::make_string_value("abcd"),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_CONCAT,
+                                                                       {gagp::payload::make_string_value("ab"),
+                                                                        gagp::payload::make_string_value("cd")}),
+                                    gagp::payload::make_string_value("abcd"),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3231,11 +3231,11 @@ int main() {
                                     "compiled CALL_CONCAT string CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_SLICE,
-                                                                       {g3pvm::payload::make_string_value("abcd"),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_SLICE,
+                                                                       {gagp::payload::make_string_value("abcd"),
                                                                         Value::from_int(1),
                                                                         Value::from_int(3)}),
-                                    g3pvm::payload::make_string_value("bc"),
+                                    gagp::payload::make_string_value("bc"),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3244,13 +3244,13 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(
-                                        g3pvm::evo::NodeKind::CALL_APPEND,
-                                        {g3pvm::payload::make_int_list_value({
+                                        gagp::evo::NodeKind::CALL_APPEND,
+                                        {gagp::payload::make_int_list_value({
                                              Value::from_int(1),
                                              Value::from_int(2),
                                          }),
                                          Value::from_int(3)}),
-                                    g3pvm::payload::make_int_list_value({
+                                    gagp::payload::make_int_list_value({
                                         Value::from_int(1),
                                         Value::from_int(2),
                                         Value::from_int(3),
@@ -3263,13 +3263,13 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(
-                                        g3pvm::evo::NodeKind::CALL_PREPEND,
-                                        {g3pvm::payload::make_int_list_value({
+                                        gagp::evo::NodeKind::CALL_PREPEND,
+                                        {gagp::payload::make_int_list_value({
                                              Value::from_int(2),
                                              Value::from_int(3),
                                          }),
                                          Value::from_int(1)}),
-                                    g3pvm::payload::make_int_list_value({
+                                    gagp::payload::make_int_list_value({
                                         Value::from_int(1),
                                         Value::from_int(2),
                                         Value::from_int(3),
@@ -3281,9 +3281,9 @@ int main() {
                                     "compiled CALL_PREPEND IntList CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_SINGLETON,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_SINGLETON,
                                                                        {Value::from_int(42)}),
-                                    g3pvm::payload::make_int_list_value({Value::from_int(42)}),
+                                    gagp::payload::make_int_list_value({Value::from_int(42)}),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3292,14 +3292,14 @@ int main() {
       return 1;
     }
     if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(
-                                        g3pvm::evo::NodeKind::CALL_REVERSE,
-                                        {g3pvm::payload::make_string_list_value({
-                                            g3pvm::payload::make_string_value("aa"),
-                                            g3pvm::payload::make_string_value("bb"),
+                                        gagp::evo::NodeKind::CALL_REVERSE,
+                                        {gagp::payload::make_string_list_value({
+                                            gagp::payload::make_string_value("aa"),
+                                            gagp::payload::make_string_value("bb"),
                                         })}),
-                                    g3pvm::payload::make_string_list_value({
-                                        g3pvm::payload::make_string_value("bb"),
-                                        g3pvm::payload::make_string_value("aa"),
+                                    gagp::payload::make_string_list_value({
+                                        gagp::payload::make_string_value("bb"),
+                                        gagp::payload::make_string_value("aa"),
                                     }),
                                     1.0,
                                     20000,
@@ -3308,9 +3308,9 @@ int main() {
                                     "compiled CALL_REVERSE StringList CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_FIND,
-                                                                       {g3pvm::payload::make_string_value("abracadabra"),
-                                                                        g3pvm::payload::make_string_value("cad")}),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_FIND,
+                                                                       {gagp::payload::make_string_value("abracadabra"),
+                                                                        gagp::payload::make_string_value("cad")}),
                                     Value::from_int(4),
                                     0.0,
                                     20000,
@@ -3319,9 +3319,9 @@ int main() {
                                     "compiled CALL_FIND string CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_CONTAINS,
-                                                                       {g3pvm::payload::make_string_value("abracadabra"),
-                                                                        g3pvm::payload::make_string_value("xyz")}),
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_CONTAINS,
+                                                                       {gagp::payload::make_string_value("abracadabra"),
+                                                                        gagp::payload::make_string_value("xyz")}),
                                     Value::from_bool(false),
                                     1.0,
                                     20000,
@@ -3330,7 +3330,7 @@ int main() {
                                     "compiled CALL_CONTAINS string CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_LEN,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_LEN,
                                                                        {Value::from_int(7)}),
                                     Value::from_int(0),
                                     -penalty,
@@ -3340,7 +3340,7 @@ int main() {
                                     "compiled CALL_LEN non-container TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_ABS,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_ABS,
                                                                        {Value::from_int(-5)}),
                                     Value::from_int(5),
                                     0.0,
@@ -3350,7 +3350,7 @@ int main() {
                                     "compiled CALL_ABS int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_MIN,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_MIN,
                                                                        {Value::from_int(9), Value::from_int(4)}),
                                     Value::from_int(4),
                                     0.0,
@@ -3360,7 +3360,7 @@ int main() {
                                     "compiled CALL_MIN int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_MAX,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_MAX,
                                                                        {Value::from_int(9), Value::from_int(4)}),
                                     Value::from_int(9),
                                     0.0,
@@ -3370,7 +3370,7 @@ int main() {
                                     "compiled CALL_MAX int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_CLIP,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_CLIP,
                                                                        {Value::from_int(12),
                                                                         Value::from_int(0),
                                                                         Value::from_int(10)}),
@@ -3382,7 +3382,7 @@ int main() {
                                     "compiled CALL_CLIP int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_IDIV0,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_IDIV0,
                                                                        {Value::from_int(-7), Value::from_int(2)}),
                                     Value::from_int(-3),
                                     0.0,
@@ -3392,7 +3392,7 @@ int main() {
                                     "compiled CALL_IDIV0 negative CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_IMOD0,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_IMOD0,
                                                                        {Value::from_int(7), Value::from_int(-2)}),
                                     Value::from_int(-1),
                                     0.0,
@@ -3402,7 +3402,7 @@ int main() {
                                     "compiled CALL_IMOD0 negative divisor CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(g3pvm::evo::NodeKind::CALL_ABS,
+    if (!check_single_cpu_gpu_exact(make_compiled_builtin_call_program(gagp::evo::NodeKind::CALL_ABS,
                                                                        {Value::from_bool(true)}),
                                     Value::from_int(0),
                                     -penalty,
@@ -3412,7 +3412,7 @@ int main() {
                                     "compiled CALL_ABS non-numeric TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::ADD,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::ADD,
                                                                       Value::from_int(2),
                                                                       Value::from_int(3)),
                                     Value::from_int(5),
@@ -3423,7 +3423,7 @@ int main() {
                                     "compiled ADD int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::SUB,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::SUB,
                                                                       Value::from_int(9),
                                                                       Value::from_int(4)),
                                     Value::from_int(5),
@@ -3434,7 +3434,7 @@ int main() {
                                     "compiled SUB int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::MUL,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::MUL,
                                                                       Value::from_int(6),
                                                                       Value::from_int(7)),
                                     Value::from_int(42),
@@ -3445,7 +3445,7 @@ int main() {
                                     "compiled MUL int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::DIV,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::DIV,
                                                                       Value::from_int(7),
                                                                       Value::from_int(2)),
                                     Value::from_float(3.5),
@@ -3456,7 +3456,7 @@ int main() {
                                     "compiled DIV int-to-float CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::MOD,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::MOD,
                                                                       Value::from_int(7),
                                                                       Value::from_int(3)),
                                     Value::from_int(1),
@@ -3467,7 +3467,7 @@ int main() {
                                     "compiled MOD int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::LT,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::LT,
                                                                       Value::from_int(2),
                                                                       Value::from_int(3)),
                                     Value::from_bool(true),
@@ -3478,7 +3478,7 @@ int main() {
                                     "compiled LT int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::LE,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::LE,
                                                                       Value::from_int(3),
                                                                       Value::from_int(3)),
                                     Value::from_bool(true),
@@ -3489,7 +3489,7 @@ int main() {
                                     "compiled LE int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::GT,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::GT,
                                                                       Value::from_int(5),
                                                                       Value::from_int(2)),
                                     Value::from_bool(true),
@@ -3500,7 +3500,7 @@ int main() {
                                     "compiled GT int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::GE,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::GE,
                                                                       Value::from_int(5),
                                                                       Value::from_int(5)),
                                     Value::from_bool(true),
@@ -3511,7 +3511,7 @@ int main() {
                                     "compiled GE int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::EQ,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::EQ,
                                                                       Value::from_int(4),
                                                                       Value::from_int(4)),
                                     Value::from_bool(true),
@@ -3522,7 +3522,7 @@ int main() {
                                     "compiled EQ int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::NE,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::NE,
                                                                       Value::from_int(4),
                                                                       Value::from_int(5)),
                                     Value::from_bool(true),
@@ -3533,7 +3533,7 @@ int main() {
                                     "compiled NE int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::ADD,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::ADD,
                                                                       Value::from_int(2),
                                                                       Value::from_bool(true)),
                                     Value::from_int(0),
@@ -3544,7 +3544,7 @@ int main() {
                                     "compiled ADD non-numeric TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::DIV,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::DIV,
                                                                       Value::from_int(7),
                                                                       Value::from_int(0)),
                                     Value::from_float(0.0),
@@ -3555,7 +3555,7 @@ int main() {
                                     "compiled DIV zero TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(g3pvm::evo::NodeKind::LT,
+    if (!check_single_cpu_gpu_exact(make_compiled_binary_expr_program(gagp::evo::NodeKind::LT,
                                                                       Value::from_bool(false),
                                                                       Value::from_bool(true)),
                                     Value::from_bool(false),
@@ -3566,7 +3566,7 @@ int main() {
                                     "compiled LT bool ordering TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(g3pvm::evo::NodeKind::NOT,
+    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(gagp::evo::NodeKind::NOT,
                                                                 Value::from_bool(true)),
                                     Value::from_bool(false),
                                     1.0,
@@ -3576,7 +3576,7 @@ int main() {
                                     "compiled NOT bool CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(g3pvm::evo::NodeKind::NOT,
+    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(gagp::evo::NodeKind::NOT,
                                                                 Value::from_int(1)),
                                     Value::from_bool(false),
                                     -penalty,
@@ -3586,7 +3586,7 @@ int main() {
                                     "compiled NOT non-bool TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(g3pvm::evo::NodeKind::NEG,
+    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(gagp::evo::NodeKind::NEG,
                                                                 Value::from_int(7)),
                                     Value::from_int(-7),
                                     0.0,
@@ -3596,7 +3596,7 @@ int main() {
                                     "compiled NEG int CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(g3pvm::evo::NodeKind::NEG,
+    if (!check_single_cpu_gpu_exact(make_compiled_unary_program(gagp::evo::NodeKind::NEG,
                                                                 Value::from_bool(true)),
                                     Value::from_int(0),
                                     -penalty,
@@ -3606,7 +3606,7 @@ int main() {
                                     "compiled NEG non-numeric TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(g3pvm::evo::NodeKind::AND,
+    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(gagp::evo::NodeKind::AND,
                                                                       Value::from_bool(false),
                                                                       Value::from_int(1)),
                                     Value::from_bool(false),
@@ -3617,7 +3617,7 @@ int main() {
                                     "compiled AND short-circuit false CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(g3pvm::evo::NodeKind::AND,
+    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(gagp::evo::NodeKind::AND,
                                                                       Value::from_bool(true),
                                                                       Value::from_int(1)),
                                     Value::from_bool(false),
@@ -3628,7 +3628,7 @@ int main() {
                                     "compiled AND non-bool rhs TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(g3pvm::evo::NodeKind::OR,
+    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(gagp::evo::NodeKind::OR,
                                                                       Value::from_bool(true),
                                                                       Value::from_int(1)),
                                     Value::from_bool(true),
@@ -3639,7 +3639,7 @@ int main() {
                                     "compiled OR short-circuit true CPU/GPU parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(g3pvm::evo::NodeKind::OR,
+    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(gagp::evo::NodeKind::OR,
                                                                       Value::from_bool(false),
                                                                       Value::from_int(1)),
                                     Value::from_bool(true),
@@ -3650,7 +3650,7 @@ int main() {
                                     "compiled OR non-bool rhs TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(g3pvm::evo::NodeKind::AND,
+    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(gagp::evo::NodeKind::AND,
                                                                       Value::from_int(1),
                                                                       Value::from_bool(true)),
                                     Value::from_bool(false),
@@ -3661,7 +3661,7 @@ int main() {
                                     "compiled AND non-bool lhs TypeError parity")) {
       return 1;
     }
-    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(g3pvm::evo::NodeKind::OR,
+    if (!check_single_cpu_gpu_exact(make_compiled_bool_binary_program(gagp::evo::NodeKind::OR,
                                                                       Value::from_int(1),
                                                                       Value::from_bool(false)),
                                     Value::from_bool(true),
@@ -3765,7 +3765,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_compiled_map_list_program());
     programs.push_back(make_compiled_filter_list_program());
@@ -3773,21 +3773,21 @@ int main() {
 
     std::vector<CaseBindings> shared_cases(4);
     std::vector<Value> shared_answer = {
-        g3pvm::payload::make_int_list_value({Value::from_int(2), Value::from_int(4), Value::from_int(6)}),
-        g3pvm::payload::make_int_list_value({Value::from_int(3), Value::from_int(4)}),
+        gagp::payload::make_int_list_value({Value::from_int(2), Value::from_int(4), Value::from_int(6)}),
+        gagp::payload::make_int_list_value({Value::from_int(3), Value::from_int(4)}),
         Value::from_int(30621),
         Value::from_int(30621),
     };
     shared_cases.resize(shared_answer.size());
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 20000, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 20000, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 20000, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on compiled structured-expression case: "
@@ -3820,10 +3820,10 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(
             make_compiled_float_map_list_program(),
-            g3pvm::payload::make_float_list_value({Value::from_float(2.0), Value::from_float(5.0)}),
+            gagp::payload::make_float_list_value({Value::from_float(2.0), Value::from_float(5.0)}),
             1.0,
             20000,
             kParityBlocksize,
@@ -3832,11 +3832,11 @@ int main() {
       return 1;
     }
 
-    const Value aa = g3pvm::payload::make_string_value("aa");
-    const Value ccc = g3pvm::payload::make_string_value("ccc");
+    const Value aa = gagp::payload::make_string_value("aa");
+    const Value ccc = gagp::payload::make_string_value("ccc");
     if (!check_single_cpu_gpu_exact(
             make_compiled_string_filter_list_program(),
-            g3pvm::payload::make_string_list_value({aa, ccc}),
+            gagp::payload::make_string_list_value({aa, ccc}),
             1.0,
             20000,
             kParityBlocksize,
@@ -3846,7 +3846,7 @@ int main() {
     }
 
     if (!check_single_cpu_gpu_exact(make_compiled_empty_string_map_list_program(),
-                                    g3pvm::payload::make_string_list_value({}),
+                                    gagp::payload::make_string_list_value({}),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3866,7 +3866,7 @@ int main() {
     }
 
     if (!check_single_cpu_gpu_exact(make_compiled_string_linear_rec_program(),
-                                    g3pvm::payload::make_string_value("abc"),
+                                    gagp::payload::make_string_value("abc"),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3877,9 +3877,9 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dc_string_concat_program(),
-                                    g3pvm::payload::make_string_value("abc"),
+                                    gagp::payload::make_string_value("abc"),
                                     1.0,
                                     20000,
                                     kParityBlocksize,
@@ -3890,7 +3890,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_compiled_asgp_dc_hidden_local_program(),
                                     Value::from_int(7),
                                     -penalty,
@@ -3903,7 +3903,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_compiled_asgp_dc_divide_hidden_local_program(),
                                     Value::from_int(7),
                                     -penalty,
@@ -3916,7 +3916,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_asgp_dc_sum_program());
     programs.push_back(make_compiled_asgp_dc_program(false));
@@ -3937,13 +3937,13 @@ int main() {
     shared_cases.resize(shared_answer.size());
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 20000, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 20000, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 20000, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on ASGP-DC case: " << gpu_fit.err.message << "\n";
@@ -3963,7 +3963,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_asgp_dp1d_backward_sum_program());
 
@@ -3971,13 +3971,13 @@ int main() {
     std::vector<Value> shared_answer(8, Value::from_int(11));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 20000, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 20000, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 20000, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on ASGP-DP1D backward case: "
@@ -3996,7 +3996,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_asgp_dp1d_fib_program());
 
@@ -4004,13 +4004,13 @@ int main() {
     std::vector<Value> shared_answer(8, Value::from_int(34));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 500, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 500, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 500, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on ASGP-DP1D memo case: "
@@ -4029,9 +4029,9 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp1d_string_concat_program(),
-                                    g3pvm::payload::make_string_value("aaaaa"),
+                                    gagp::payload::make_string_value("aaaaa"),
                                     1.0,
                                     500,
                                     kParityBlocksize,
@@ -4042,7 +4042,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp1d_boundary_program(),
                                     Value::from_int(123),
                                     0.0,
@@ -4055,7 +4055,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp1d_dependency_type_error_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4068,7 +4068,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp1d_transition_type_error_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4081,7 +4081,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp1d_state_type_error_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4094,7 +4094,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp1d_fib_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4107,7 +4107,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_compiled_asgp_dp1d_transition_hidden_local_program(),
                                     Value::from_int(7),
                                     -penalty,
@@ -4120,7 +4120,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_compiled_asgp_dp1d_solve_hidden_local_program(),
                                     Value::from_int(7),
                                     -penalty,
@@ -4133,7 +4133,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     std::vector<BytecodeProgram> programs;
     programs.push_back(make_asgp_dp2d_grid_program());
 
@@ -4141,13 +4141,13 @@ int main() {
     std::vector<Value> shared_answer(8, Value::from_int(6));
 
     const std::vector<double> cpu_fit =
-        g3pvm::eval_fitness_cpu(programs, shared_cases, shared_answer, 500, penalty, kParityBlocksize);
-    const g3pvm::FitnessEvalResult gpu_fit =
+        gagp::eval_fitness_cpu(programs, shared_cases, shared_answer, 500, penalty, kParityBlocksize);
+    const gagp::FitnessEvalResult gpu_fit =
         eval_gpu_via_session(programs, shared_cases, shared_answer, 500, kParityBlocksize, penalty);
 
     if (!gpu_fit.ok) {
       if (gpu_fit.err.message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
+        std::cout << "gagp_test_fitness_cpu_gpu_parity: SKIP (" << gpu_fit.err.message << ")\n";
         return 0;
       }
       std::cerr << "FAIL: gpu fitness run failed on ASGP-DP2D grid case: "
@@ -4166,7 +4166,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_dep_kind_program(1, 1, 2, 2, 2),
                                     Value::from_int(1),
                                     0.0,
@@ -4179,7 +4179,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_dep_kind_program(2, 1, 1, 0, 0),
                                     Value::from_int(1),
                                     0.0,
@@ -4192,7 +4192,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_dep_kind_program(3, 1, 1, 2, 2),
                                     Value::from_int(1),
                                     0.0,
@@ -4205,7 +4205,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_dep_kind_program(4, 1, 1, 0, 0),
                                     Value::from_int(3),
                                     0.0,
@@ -4218,7 +4218,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_dep_kind_program(5, 1, 1, 2, 2),
                                     Value::from_int(3),
                                     0.0,
@@ -4231,7 +4231,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_grid_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4244,9 +4244,9 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_string_concat_program(),
-                                    g3pvm::payload::make_string_value("aaaaaa"),
+                                    gagp::payload::make_string_value("aaaaaa"),
                                     1.0,
                                     500,
                                     kParityBlocksize,
@@ -4257,7 +4257,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_boundary_program(),
                                     Value::from_int(321),
                                     0.0,
@@ -4270,7 +4270,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_state_type_error_program(true),
                                     Value::from_int(0),
                                     -penalty,
@@ -4283,7 +4283,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_state_type_error_program(false),
                                     Value::from_int(0),
                                     -penalty,
@@ -4296,7 +4296,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_dependency_type_error_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4309,7 +4309,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_asgp_dp2d_transition_type_error_program(),
                                     Value::from_int(0),
                                     -penalty,
@@ -4322,7 +4322,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_compiled_asgp_dp2d_transition_hidden_local_program(),
                                     Value::from_int(7),
                                     -penalty,
@@ -4335,7 +4335,7 @@ int main() {
   }
 
   {
-    g3pvm::payload::clear();
+    gagp::payload::clear();
     if (!check_single_cpu_gpu_exact(make_compiled_asgp_dp2d_solve_hidden_local_program(),
                                     Value::from_int(7),
                                     -penalty,
@@ -4347,6 +4347,6 @@ int main() {
     }
   }
 
-  std::cout << "g3pvm_test_fitness_cpu_gpu_parity: OK\n";
+  std::cout << "gagp_test_fitness_cpu_gpu_parity: OK\n";
   return 0;
 }

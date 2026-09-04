@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 __host__ __device__ inline std::uint64_t hash64(std::uint64_t x) {
   x ^= x >> 30;
@@ -13,4 +13,4 @@ __host__ __device__ inline std::uint64_t hash64(std::uint64_t x) {
   return x;
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

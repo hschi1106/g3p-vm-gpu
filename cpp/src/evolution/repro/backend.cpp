@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/repro/backend.hpp"
+#include "gagp/evolution/repro/backend.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -10,16 +10,16 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/evolution/crossover.hpp"
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/mutation.hpp"
-#include "g3pvm/evolution/repro/gpu.hpp"
-#include "g3pvm/evolution/repro/prep.hpp"
-#include "g3pvm/evolution/selection.hpp"
+#include "gagp/evolution/crossover.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/mutation.hpp"
+#include "gagp/evolution/repro/gpu.hpp"
+#include "gagp/evolution/repro/prep.hpp"
+#include "gagp/evolution/selection.hpp"
 #include "../subtree_utils.hpp"
 #include "../typed_expr_analysis.hpp"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
@@ -689,4 +689,4 @@ ReproductionResult run_reproduction_backend(const std::vector<ScoredGenomeRef>& 
   return run_cpu_backend(scored, cfg, rng);
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

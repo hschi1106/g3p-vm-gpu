@@ -4,11 +4,11 @@
 #include <stdexcept>
 #include <string>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 
 int main() {
-  using namespace g3pvm::evo;
+  using namespace gagp::evo;
 
   const auto& descriptors = all_node_descriptors();
   assert(descriptors.size() == k_node_kind_count);
@@ -31,9 +31,9 @@ int main() {
       ++builtin_count;
       assert(descriptor.category == NodeCategory::Expression);
       assert(descriptor.builtin_arity == descriptor.prefix_arity);
-      g3pvm::BuiltinId id = g3pvm::BuiltinId::Abs;
-      assert(g3pvm::builtin_id_from_int(descriptor.builtin_id, id));
-      assert(std::string(g3pvm::builtin_name(id)).size() > 0U);
+      gagp::BuiltinId id = gagp::BuiltinId::Abs;
+      assert(gagp::builtin_id_from_int(descriptor.builtin_id, id));
+      assert(std::string(gagp::builtin_name(id)).size() > 0U);
     } else {
       assert(descriptor.builtin_arity == -1);
     }
@@ -57,7 +57,7 @@ int main() {
   assert(node_descriptor(NodeKind::ASGP_DP2D).metadata == NodeMetadataKind::AsgpDp2dSpec);
   assert(node_descriptor(NodeKind::DP1_BACKWARD3).dependency_arity == 3);
   assert(node_descriptor(NodeKind::DP2_DIAGONAL_FORWARD).dependency_arity == 1);
-  assert(node_descriptor(NodeKind::CALL_INDEX).builtin_id == static_cast<int>(g3pvm::BuiltinId::Index));
+  assert(node_descriptor(NodeKind::CALL_INDEX).builtin_id == static_cast<int>(gagp::BuiltinId::Index));
 
   assert(!is_known_node_kind(-1));
   assert(!is_known_node_kind(static_cast<int>(NodeKind::COUNT)));

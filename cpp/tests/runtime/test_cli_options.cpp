@@ -3,15 +3,15 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/cli/options.hpp"
+#include "gagp/cli/options.hpp"
 
 namespace {
 
-g3pvm::cli_detail::CliOptions parse(std::vector<std::string> args) {
+gagp::cli_detail::CliOptions parse(std::vector<std::string> args) {
   std::vector<char*> argv;
   argv.reserve(args.size());
   for (std::string& arg : args) argv.push_back(arg.data());
-  return g3pvm::cli_detail::parse_cli_options(static_cast<int>(argv.size()), argv.data());
+  return gagp::cli_detail::parse_cli_options(static_cast<int>(argv.size()), argv.data());
 }
 
 void expect_error(const std::vector<std::string>& args, const std::string& message) {
@@ -28,7 +28,7 @@ void expect_error(const std::vector<std::string>& args, const std::string& messa
 
 int main() {
   {
-    const auto opts = parse({"g3pvm_evolve_cli", "--cases", "cases.json"});
+    const auto opts = parse({"gagp_evolve_cli", "--cases", "cases.json"});
     assert(opts.cases_path == "cases.json");
     assert(opts.engine == "cpu");
     assert(opts.repro_backend == "cpu");
@@ -55,7 +55,7 @@ int main() {
   }
   {
     const auto opts = parse({
-        "g3pvm_evolve_cli", "--cases", "cases.json",
+        "gagp_evolve_cli", "--cases", "cases.json",
         "--population-json", "population.json", "--grammar-config", "grammar.json",
         "--eval-ast-json", "ast.json", "--engine", "gpu", "--repro-backend", "cpu",
         "--cpu-repro-ablation", "gpu_candidates", "--repro-overlap", "on",

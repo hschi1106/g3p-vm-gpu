@@ -1,4 +1,4 @@
-# G3P-VM-GPU 實驗規格
+# GAGP 實驗規格
 
 狀態：draft for pre-registration  
 適用版本：執行正式實驗時鎖定單一 git commit，禁止混合不同 commit 的結果  
@@ -432,7 +432,7 @@ Current CUDA compiler: 12.2
 正式 timing protocol：
 
 1. 使用 Release build：`cmake -DCMAKE_BUILD_TYPE=Release`。
-2. 固定單一 GPU：`G3PVM_CUDA_DEVICE=0`；另一張 GPU 在 timing 期間保持 idle。
+2. 固定單一 GPU：`GAGP_CUDA_DEVICE=0`；另一張 GPU 在 timing 期間保持 idle。
 3. 每次只跑一個 measured process，不與其他 GPU/CPU-heavy job 共存。
 4. 記錄 GPU UUID、driver、CUDA、power limit、temperature、clock、CPU governor、kernel、compiler versions。
 5. GPU 開始 measured runs 前做 5 次 warm-up，但 cold metric 仍由每個新 process 的 `gpu_eval_init_ms` 計算。
@@ -465,7 +465,7 @@ python3 tools/make_population_seeds.py \
 ```
 
 ```bash
-G3PVM_CUDA_DEVICE=0 cpp/build_release/g3pvm_evolve_cli \
+GAGP_CUDA_DEVICE=0 cpp/build_release/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --population-json logs/experiment/fixed/simple_exp_p4096.seeds.json \
   --grammar-config configs/grammar/all.json \
@@ -485,13 +485,13 @@ G3PVM_CUDA_DEVICE=0 cpp/build_release/g3pvm_evolve_cli \
 
 ```bash
 SEEDS=$(seq -s, 0 99)
-G3PVM_CUDA_DEVICE=0 python3 tools/run_psb_regression.py \
+GAGP_CUDA_DEVICE=0 python3 tools/run_psb_regression.py \
   --suite psb1 \
   --profile compact \
   --cases-root data/fixtures/experiment/psb1-core-paper \
   --problems compare-string-lengths,count-odds,last-index-of-zero,median,smallest \
   --seeds "$SEEDS" \
-  --binary cpp/build_release/g3pvm_evolve_cli \
+  --binary cpp/build_release/gagp_evolve_cli \
   --base-grammar-config configs/grammar/all.json \
   --engine gpu \
   --repro-backend gpu \

@@ -142,7 +142,7 @@ These are the canonical metrics for reproduction attribution.
 The fixed-pop benchmark workflow now uses:
 
 ```bash
-cpp/build/g3pvm_evolve_cli \
+cpp/build/gagp_evolve_cli \
   --cases ... \
   --population-json ... \
   --generations 1 \
@@ -176,7 +176,7 @@ The canonical GPU eval detail fields remain:
 
 Any external analysis script should derive fixed-pop benchmark reports directly from these generation-0 values rather than inventing alternate names.
 
-## `g3pvm_evolve_cli`
+## `gagp_evolve_cli`
 
 The evolution CLI exposes the same timing families in three forms:
 

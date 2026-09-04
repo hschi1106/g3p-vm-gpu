@@ -1,4 +1,4 @@
-#include "g3pvm/runtime/gpu/fitness_gpu.hpp"
+#include "gagp/runtime/gpu/fitness_gpu.hpp"
 
 #include <cuda_runtime.h>
 
@@ -13,14 +13,14 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/runtime/payload/payload.hpp"
-#include "g3pvm/runtime/gpu/constants_gpu.hpp"
-#include "g3pvm/runtime/gpu/host_pack_gpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
+#include "gagp/runtime/gpu/constants_gpu.hpp"
+#include "gagp/runtime/gpu/host_pack_gpu.hpp"
 #include "device/kernels.cuh"
 #include "opcode_map_gpu.hpp"
-#include "g3pvm/runtime/gpu/device_types_gpu.hpp"
+#include "gagp/runtime/gpu/device_types_gpu.hpp"
 
-namespace g3pvm {
+namespace gagp {
 
 namespace {
 
@@ -208,7 +208,7 @@ bool query_device(int dev, cudaDeviceProp& props_out, std::string& message_out) 
 }
 
 bool parse_env_device_override(int* out_dev) {
-  const char* raw = std::getenv("G3PVM_CUDA_DEVICE");
+  const char* raw = std::getenv("GAGP_CUDA_DEVICE");
   if (raw == nullptr || *raw == '\0') {
     return false;
   }
@@ -277,7 +277,7 @@ bool select_gpu_device(cudaDeviceProp& props_out, std::string& message_out) {
 unsigned shared_cases_payload_mask(const std::vector<CaseBindings>& shared_cases) {
   unsigned mask = 0U;
   for (const CaseBindings& case_bindings : shared_cases) {
-    for (const g3pvm::InputBinding& binding : case_bindings) {
+    for (const gagp::InputBinding& binding : case_bindings) {
       mask |= value_payload_mask(binding.value);
     }
   }
@@ -542,4 +542,4 @@ FitnessEvalResult FitnessSessionGpu::eval_programs(const std::vector<BytecodePro
   return out;
 }
 
-}  // namespace g3pvm
+}  // namespace gagp

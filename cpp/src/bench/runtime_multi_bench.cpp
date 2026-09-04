@@ -3,21 +3,21 @@
 #include <iostream>
 #include <vector>
 
-#include "g3pvm/core/bytecode.hpp"
-#include "g3pvm/core/errors.hpp"
-#include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/core/bytecode.hpp"
+#include "gagp/core/errors.hpp"
+#include "gagp/core/value.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
 
 namespace {
 
-using g3pvm::BytecodeProgram;
-using g3pvm::ErrCode;
-using g3pvm::Value;
-using g3pvm::ExecResult;
-using g3pvm::Opcode;
+using gagp::BytecodeProgram;
+using gagp::ErrCode;
+using gagp::Value;
+using gagp::ExecResult;
+using gagp::Opcode;
 
-g3pvm::Instr ins(Opcode op) { return g3pvm::Instr{op, 0, 0, false, false}; }
-g3pvm::Instr ins_a(Opcode op, int a) { return g3pvm::Instr{op, a, 0, true, false}; }
+gagp::Instr ins(Opcode op) { return gagp::Instr{op, 0, 0, false, false}; }
+gagp::Instr ins_a(Opcode op, int a) { return gagp::Instr{op, a, 0, true, false}; }
 
 BytecodeProgram make_pass_program() {
   BytecodeProgram p;
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
       // Keep case shape identical across all programs. Programs that do not
       // use locals will ignore this binding.
       inputs.push_back({0, Value::from_int(ci)});
-      ExecResult out = g3pvm::execute_bytecode_cpu(*prog, inputs, fuel);
+      ExecResult out = gagp::execute_bytecode_cpu(*prog, inputs, fuel);
       total += 1;
       if (!out.is_error) {
         ret_ok += 1;

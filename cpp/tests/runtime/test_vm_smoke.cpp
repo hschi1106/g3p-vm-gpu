@@ -1,20 +1,20 @@
 #include <iostream>
 #include <vector>
 
-#include "g3pvm/core/bytecode.hpp"
-#include "g3pvm/core/errors.hpp"
-#include "g3pvm/core/value.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/core/bytecode.hpp"
+#include "gagp/core/errors.hpp"
+#include "gagp/core/value.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
 
 namespace {
 
-using g3pvm::BytecodeProgram;
-using g3pvm::ErrCode;
-using g3pvm::Instr;
-using g3pvm::ExecResult;
-using g3pvm::Opcode;
-using g3pvm::Value;
-using g3pvm::ValueTag;
+using gagp::BytecodeProgram;
+using gagp::ErrCode;
+using gagp::Instr;
+using gagp::ExecResult;
+using gagp::Opcode;
+using gagp::Value;
+using gagp::ValueTag;
 
 Instr ins(Opcode op) { return Instr{op, 0, 0, false, false}; }
 
@@ -37,7 +37,7 @@ bool test_basic_arithmetic() {
       ins(Opcode::Add),
       ins(Opcode::Return),
   };
-  ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 100);
+  ExecResult out = gagp::execute_bytecode_cpu(p, {}, 100);
   if (!check(!out.is_error, "basic arithmetic should return")) return false;
   if (!check(out.value.tag == ValueTag::Int, "basic arithmetic result should be int")) return false;
   if (!check(out.value.i == 3, "basic arithmetic result should be 3")) return false;
@@ -64,7 +64,7 @@ bool test_loop_like_control_flow() {
       ins_a(Opcode::Load, 0),
       ins(Opcode::Return),
   };
-  ExecResult out = g3pvm::execute_bytecode_cpu(p, {}, 1000);
+  ExecResult out = gagp::execute_bytecode_cpu(p, {}, 1000);
   if (!check(!out.is_error, "control-flow program should return")) return false;
   if (!check(out.value.tag == ValueTag::Int, "control-flow result should be int")) return false;
   if (!check(out.value.i == 5, "control-flow result should be 5")) return false;
@@ -76,6 +76,6 @@ bool test_loop_like_control_flow() {
 int main() {
   if (!test_basic_arithmetic()) return 1;
   if (!test_loop_like_control_flow()) return 1;
-  std::cout << "g3pvm_test_vm_smoke: OK\n";
+  std::cout << "gagp_test_vm_smoke: OK\n";
   return 0;
 }

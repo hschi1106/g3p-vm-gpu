@@ -13,7 +13,7 @@ TOOLS = ROOT / "tools"
 class TestToolCli(unittest.TestCase):
     def run_unified(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            ["python3", "-m", "g3pvm_tools", *args],
+            ["python3", "-m", "gagp_tools", *args],
             cwd=TOOLS,
             text=True,
             capture_output=True,
@@ -88,7 +88,7 @@ class TestToolCli(unittest.TestCase):
         for path in sorted(TOOLS.glob("*.py")):
             lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
             self.assertLessEqual(len(lines), 5, path.name)
-            self.assertIn("g3pvm_tools", path.read_text(encoding="utf-8"))
+            self.assertIn("gagp_tools", path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

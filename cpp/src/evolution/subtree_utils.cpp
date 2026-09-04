@@ -9,10 +9,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "g3pvm/evolution/node_descriptor.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
-namespace g3pvm::evo::subtree {
+namespace gagp::evo::subtree {
 
 namespace {
 
@@ -208,16 +208,16 @@ bool can_emit_asgp_dp2d_for_type(RType type, const GrammarConfig& grammar) {
 
 Value asgp_dc_source_literal(RType type) {
   if (type == RType::Float) {
-    return g3pvm::payload::make_float_list_value({
+    return gagp::payload::make_float_list_value({
         Value::from_float(1.0),
         Value::from_float(2.0),
         Value::from_float(3.0),
     });
   }
   if (type == RType::String) {
-    return g3pvm::payload::make_string_value("abc");
+    return gagp::payload::make_string_value("abc");
   }
-  return g3pvm::payload::make_int_list_value({
+  return gagp::payload::make_int_list_value({
       Value::from_int(1),
       Value::from_int(2),
       Value::from_int(3),
@@ -287,11 +287,11 @@ Value scalar_zero_literal(RType type) {
 }
 
 Value dp_one_literal(RType type) {
-  return type == RType::String ? g3pvm::payload::make_string_value("a") : scalar_one_literal(type);
+  return type == RType::String ? gagp::payload::make_string_value("a") : scalar_one_literal(type);
 }
 
 Value dp_zero_literal(RType type) {
-  return type == RType::String ? g3pvm::payload::make_string_value("") : scalar_zero_literal(type);
+  return type == RType::String ? gagp::payload::make_string_value("") : scalar_zero_literal(type);
 }
 
 std::vector<AstNode> make_asgp_dp1d_nodes_for_type(AstProgram& target, RType type) {
@@ -455,14 +455,14 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
                             (!grammar.expression_map_list || rand_prob(rng, 0.5));
     donor.names = {"__map_u"};
     if (type == RType::IntList) {
-      donor.consts.push_back(g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}));
+      donor.consts.push_back(gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}));
     } else if (type == RType::FloatList) {
       donor.consts.push_back(
-          g3pvm::payload::make_float_list_value({Value::from_float(1.0), Value::from_float(2.0)}));
+          gagp::payload::make_float_list_value({Value::from_float(1.0), Value::from_float(2.0)}));
     } else {
-      donor.consts.push_back(g3pvm::payload::make_string_list_value({
-          g3pvm::payload::make_string_value("a"),
-          g3pvm::payload::make_string_value("b"),
+      donor.consts.push_back(gagp::payload::make_string_list_value({
+          gagp::payload::make_string_value("a"),
+          gagp::payload::make_string_value("b"),
       }));
     }
     if (use_filter) {
@@ -550,7 +550,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
     for (int i = 0; i < len; ++i) {
       s.push_back(kAlphabet[rand_int(rng, 0, 25)]);
     }
-    value = g3pvm::payload::make_string_value(s);
+    value = gagp::payload::make_string_value(s);
   } else if (type == RType::IntList) {
     const int len = rand_int(rng, 0, 4);
     std::vector<Value> elems;
@@ -558,7 +558,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
     for (int i = 0; i < len; ++i) {
       elems.push_back(Value::from_int(rand_int(rng, -8, 8)));
     }
-    value = g3pvm::payload::make_int_list_value(elems);
+    value = gagp::payload::make_int_list_value(elems);
   } else if (type == RType::FloatList) {
     const int len = rand_int(rng, 0, 4);
     std::vector<Value> elems;
@@ -566,7 +566,7 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
     for (int i = 0; i < len; ++i) {
       elems.push_back(Value::from_float(std::round(rand_real(rng, -8.0, 8.0) * 1000.0) / 1000.0));
     }
-    value = g3pvm::payload::make_float_list_value(elems);
+    value = gagp::payload::make_float_list_value(elems);
   } else if (type == RType::StringList) {
     static constexpr char kAlphabet[] = "abcdefghijklmnopqrstuvwxyz";
     const int len = rand_int(rng, 0, 4);
@@ -577,9 +577,9 @@ std::vector<AstNode> make_random_expr_nodes_for_type(std::mt19937_64& rng,
       std::string s;
       s.reserve(static_cast<std::size_t>(s_len));
       for (int j = 0; j < s_len; ++j) s.push_back(kAlphabet[rand_int(rng, 0, 25)]);
-      elems.push_back(g3pvm::payload::make_string_value(s));
+      elems.push_back(gagp::payload::make_string_value(s));
     }
-    value = g3pvm::payload::make_string_list_value(elems);
+    value = gagp::payload::make_string_list_value(elems);
   } else if (grammar.value_int && (!grammar.value_float || rand_prob(rng, 0.5))) {
     value = Value::from_int(rand_int(rng, -8, 8));
   } else {
@@ -713,4 +713,4 @@ AstProgram replace_subtree(const AstProgram& base,
   return out;
 }
 
-}  // namespace g3pvm::evo::subtree
+}  // namespace gagp::evo::subtree

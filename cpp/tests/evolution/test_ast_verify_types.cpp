@@ -3,13 +3,13 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/genome_generation.hpp"
 #include "typed_expr_analysis.hpp"
 
 namespace {
 
-using namespace g3pvm::evo;
+using namespace gagp::evo;
 
 bool check(bool condition, const std::string& message) {
   if (!condition) std::cerr << "FAIL: " << message << "\n";
@@ -17,7 +17,7 @@ bool check(bool condition, const std::string& message) {
 }
 
 AstProgram return_program(std::vector<AstNode> expression,
-                          std::vector<g3pvm::Value> consts,
+                          std::vector<gagp::Value> consts,
                           std::vector<std::string> names = {}) {
   AstProgram ast;
   ast.names = std::move(names);
@@ -45,12 +45,12 @@ bool expect_code(const AstProgram& ast, const std::vector<InputSpec>& inputs,
 }  // namespace
 
 int main() {
-  using namespace g3pvm::evo;
+  using namespace gagp::evo;
 
   AstProgram ast = return_program(
       {AstNode{NodeKind::ADD, 0, 0}, AstNode{NodeKind::VAR, 0, 0},
        AstNode{NodeKind::CONST, 0, 0}},
-      {g3pvm::Value::from_int(2)}, {"x"});
+      {gagp::Value::from_int(2)}, {"x"});
   AstVerifyResult result = verify_ast(ast, {InputSpec{"x", RType::Int}});
   if (!check(result.ok, "typed input arithmetic") ||
       !check(result.verified.return_type == RType::Int, "inferred Int return") ||
@@ -70,25 +70,25 @@ int main() {
 
   ast = return_program({AstNode{NodeKind::ADD, 0, 0}, AstNode{NodeKind::CONST, 0, 0},
                         AstNode{NodeKind::CONST, 1, 0}},
-                       {g3pvm::Value::from_int(1), g3pvm::Value::from_float(2.0)});
+                       {gagp::Value::from_int(1), gagp::Value::from_float(2.0)});
   if (!expect_code(ast, {}, VerifyCode::TypeMismatch, "mixed numeric add")) return 1;
 
   ast = return_program({AstNode{NodeKind::IF_EXPR, 0, 0}, AstNode{NodeKind::CONST, 0, 0},
                         AstNode{NodeKind::CONST, 1, 0}, AstNode{NodeKind::CONST, 2, 0}},
-                       {g3pvm::Value::from_bool(true), g3pvm::Value::from_int(1),
-                        g3pvm::Value::from_float(1.0)});
+                       {gagp::Value::from_bool(true), gagp::Value::from_int(1),
+                        gagp::Value::from_float(1.0)});
   if (!expect_code(ast, {}, VerifyCode::TypeMismatch, "IfExpr branch mismatch")) return 1;
 
   ast = return_program({AstNode{NodeKind::CALL_INDEX, 0, 0}, AstNode{NodeKind::CONST, 0, 0},
                         AstNode{NodeKind::CONST, 1, 0}},
-                       {g3pvm::Value::from_string_hash_len(1, 3), g3pvm::Value::from_int(0)});
+                       {gagp::Value::from_string_hash_len(1, 3), gagp::Value::from_int(0)});
   result = verify_ast(ast, {});
   if (!check(result.ok && result.verified.return_type == RType::Char,
              "String index infers Char")) return 1;
 
   ast = return_program({AstNode{NodeKind::CALL_SINGLETON, 0, 0},
                         AstNode{NodeKind::CONST, 0, 0}},
-                       {g3pvm::Value::from_string_hash_len(2, 1)});
+                       {gagp::Value::from_string_hash_len(2, 1)});
   result = verify_ast(ast, {});
   if (!check(result.ok && result.verified.return_type == RType::StringList,
              "String singleton infers StringList")) return 1;
@@ -98,7 +98,7 @@ int main() {
   if (!expect_code(ast, {}, VerifyCode::DuplicateName, "duplicate AST name")) return 1;
 
   ast = return_program({AstNode{NodeKind::CONST, 0, 0}},
-                       {g3pvm::Value::from_string_hash_len(3, 1)});
+                       {gagp::Value::from_string_hash_len(3, 1)});
   GrammarConfig scalar = GrammarConfig::scalar();
   VerifyOptions options;
   options.grammar_config = &scalar;
@@ -106,7 +106,7 @@ int main() {
                    "grammar-config eligibility", options)) return 1;
 
   ast = return_program({AstNode{NodeKind::CONST, 0, 0}},
-                       {g3pvm::Value::from_int(1)});
+                       {gagp::Value::from_int(1)});
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
       AstNode{NodeKind::BLOCK_CONS, 0, 0},
@@ -137,12 +137,12 @@ int main() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
-  ast.consts = {g3pvm::Value::from_bool(true), g3pvm::Value::from_int(1)};
+  ast.consts = {gagp::Value::from_bool(true), gagp::Value::from_int(1)};
   ast.names.clear();
   result = verify_ast(ast, {});
   if (!check(result.ok && result.verified.return_type == RType::Int,
              "IfStmt branches preserve one program return type")) return 1;
-  ast.consts[0] = g3pvm::Value::from_int(1);
+  ast.consts[0] = gagp::Value::from_int(1);
   if (!expect_code(ast, {}, VerifyCode::TypeMismatch, "IfStmt non-Bool condition")) return 1;
 
   ast.nodes = {
@@ -155,7 +155,7 @@ int main() {
       AstNode{NodeKind::CONST, 1, 0},
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
-  ast.consts = {g3pvm::Value::from_int(1), g3pvm::Value::from_float(1.0)};
+  ast.consts = {gagp::Value::from_int(1), gagp::Value::from_float(1.0)};
   ast.names.clear();
   if (!expect_code(ast, {}, VerifyCode::InconsistentReturnType,
                    "inconsistent returns")) return 1;
@@ -165,7 +165,7 @@ int main() {
   if (!expect_code(ast, {}, VerifyCode::MissingReturn, "missing return")) return 1;
 
   ast = return_program({AstNode{NodeKind::CONST, 0, 0}},
-                       {g3pvm::Value::from_float(2.0)}, {"i"});
+                       {gagp::Value::from_float(2.0)}, {"i"});
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
       AstNode{NodeKind::BLOCK_CONS, 0, 0},

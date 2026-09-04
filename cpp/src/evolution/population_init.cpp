@@ -1,12 +1,12 @@
-#include "g3pvm/evolution/population_init.hpp"
+#include "gagp/evolution/population_init.hpp"
 
 #include <cstdint>
 #include <stdexcept>
 
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/genome_generation.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 namespace {
 
 bool should_seed_for_expected_return_type(RType type) {
@@ -47,4 +47,4 @@ PopulationInitialization initialize_population(
   return out;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

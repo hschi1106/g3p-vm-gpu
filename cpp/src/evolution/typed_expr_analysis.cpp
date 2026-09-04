@@ -8,10 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
-namespace g3pvm::evo::typed_expr {
+namespace gagp::evo::typed_expr {
 
 namespace {
 
@@ -866,4 +866,4 @@ bool typed_subtree_keys_compatible(const TypedExprRoot& a, const TypedExprRoot& 
          a.dp_dependency_arity == b.dp_dependency_arity;
 }
 
-}  // namespace g3pvm::evo::typed_expr
+}  // namespace gagp::evo::typed_expr

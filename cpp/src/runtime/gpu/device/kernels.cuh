@@ -3,7 +3,7 @@
 #include <cmath>
 #include "execute_bytecode_device.cuh"
 
-namespace g3pvm::gpu_detail {
+namespace gagp::gpu_detail {
 
 __device__ inline double d_canonicalize_fitness_accumulator(double value) {
   if (!isfinite(value) || value == 0.0) {
@@ -120,4 +120,4 @@ __global__ void evaluate_fitness_programs_impl(
   }
 }
 
-}  // namespace g3pvm::gpu_detail
+}  // namespace gagp::gpu_detail

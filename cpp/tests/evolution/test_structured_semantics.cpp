@@ -4,27 +4,27 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/core/errors.hpp"
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/genome.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/core/errors.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/genome.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 namespace {
 
-using Expr = std::vector<g3pvm::evo::AstNode>;
-using g3pvm::ErrCode;
-using g3pvm::ExecResult;
-using g3pvm::Value;
-using g3pvm::evo::AstNode;
-using g3pvm::evo::AstProgram;
-using g3pvm::evo::LinearRecBinders;
-using g3pvm::evo::ListTypeTag;
-using g3pvm::evo::NodeKind;
-using g3pvm::evo::ProgramGenome;
-using g3pvm::evo::VerifyCode;
+using Expr = std::vector<gagp::evo::AstNode>;
+using gagp::ErrCode;
+using gagp::ExecResult;
+using gagp::Value;
+using gagp::evo::AstNode;
+using gagp::evo::AstProgram;
+using gagp::evo::LinearRecBinders;
+using gagp::evo::ListTypeTag;
+using gagp::evo::NodeKind;
+using gagp::evo::ProgramGenome;
+using gagp::evo::VerifyCode;
 
 bool check(bool condition, const std::string& message) {
   if (!condition) std::cerr << "FAIL: " << message << "\n";
@@ -82,44 +82,44 @@ AstProgram return_program(const Expr& expression, std::vector<Value> consts,
 }
 
 ExecResult run(const AstProgram& ast, int fuel = 20000) {
-  const auto verified = g3pvm::evo::verify_ast(ast, {});
+  const auto verified = gagp::evo::verify_ast(ast, {});
   if (!verified.ok) {
     return {true, Value::invalid(),
             {ErrCode::Value,
              std::string("test AST did not verify: ") +
-                 g3pvm::evo::verify_code_name(verified.diagnostic.code) + " " +
+                 gagp::evo::verify_code_name(verified.diagnostic.code) + " " +
                  verified.diagnostic.message}};
   }
   ProgramGenome genome;
   genome.ast = ast;
-  genome.meta = g3pvm::evo::build_genome_meta(ast);
-  return g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, fuel);
+  genome.meta = gagp::evo::build_genome_meta(ast);
+  return gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, fuel);
 }
 
-bool exact_list(const Value& value, g3pvm::ValueTag tag,
+bool exact_list(const Value& value, gagp::ValueTag tag,
                 const std::vector<Value>& expected) {
   if (value.tag != tag) return false;
   std::vector<Value> actual;
-  if (!g3pvm::payload::lookup_list(value, &actual) || actual.size() != expected.size()) {
+  if (!gagp::payload::lookup_list(value, &actual) || actual.size() != expected.size()) {
     return false;
   }
   for (std::size_t i = 0; i < actual.size(); ++i) {
     if (actual[i].tag != expected[i].tag) return false;
-    if (actual[i].tag == g3pvm::ValueTag::Int && actual[i].i != expected[i].i) return false;
-    if (actual[i].tag == g3pvm::ValueTag::Float && actual[i].f != expected[i].f) return false;
-    if (actual[i].tag == g3pvm::ValueTag::String) {
+    if (actual[i].tag == gagp::ValueTag::Int && actual[i].i != expected[i].i) return false;
+    if (actual[i].tag == gagp::ValueTag::Float && actual[i].f != expected[i].f) return false;
+    if (actual[i].tag == gagp::ValueTag::String) {
       std::string lhs;
       std::string rhs;
-      if (!g3pvm::payload::lookup_string(actual[i], &lhs) ||
-          !g3pvm::payload::lookup_string(expected[i], &rhs) || lhs != rhs) return false;
+      if (!gagp::payload::lookup_string(actual[i], &lhs) ||
+          !gagp::payload::lookup_string(expected[i], &rhs) || lhs != rhs) return false;
     }
   }
   return true;
 }
 
 bool test_map_and_filter_order_and_empty_tags() {
-  g3pvm::payload::clear();
-  const Value ints = g3pvm::payload::make_int_list_value(
+  gagp::payload::clear();
+  const Value ints = gagp::payload::make_int_list_value(
       {Value::from_int(1), Value::from_int(2), Value::from_int(3)});
   AstProgram map = return_program(
       map_list(0, ListTypeTag::Int, leaf(NodeKind::CONST, 0),
@@ -128,11 +128,11 @@ bool test_map_and_filter_order_and_empty_tags() {
       {ints, Value::from_int(2)}, {"x"});
   const ExecResult mapped = run(map);
   if (!check(!mapped.is_error &&
-                 exact_list(mapped.value, g3pvm::ValueTag::IntList,
+                 exact_list(mapped.value, gagp::ValueTag::IntList,
                             {Value::from_int(2), Value::from_int(4), Value::from_int(6)}),
              "MapList should visit left-to-right and preserve IntList")) return false;
 
-  const Value unordered = g3pvm::payload::make_int_list_value(
+  const Value unordered = gagp::payload::make_int_list_value(
       {Value::from_int(3), Value::from_int(1), Value::from_int(4),
        Value::from_int(1), Value::from_int(5)});
   AstProgram filter = return_program(
@@ -142,22 +142,22 @@ bool test_map_and_filter_order_and_empty_tags() {
       {unordered, Value::from_int(2)}, {"x"});
   const ExecResult filtered = run(filter);
   if (!check(!filtered.is_error &&
-                 exact_list(filtered.value, g3pvm::ValueTag::IntList,
+                 exact_list(filtered.value, gagp::ValueTag::IntList,
                             {Value::from_int(3), Value::from_int(4), Value::from_int(5)}),
              "FilterList should preserve source order")) return false;
 
-  const Value empty_strings = g3pvm::payload::make_string_list_value({});
-  const Value suffix = g3pvm::payload::make_string_value("!");
+  const Value empty_strings = gagp::payload::make_string_list_value({});
+  const Value suffix = gagp::payload::make_string_value("!");
   const ExecResult empty_map = run(return_program(
       map_list(0, ListTypeTag::String, leaf(NodeKind::CONST, 0),
                binary(NodeKind::CALL_CONCAT, leaf(NodeKind::BOUND_VAR, 0),
                       leaf(NodeKind::CONST, 1))),
       {empty_strings, suffix}, {"s"}));
-  if (!check(!empty_map.is_error && empty_map.value.tag == g3pvm::ValueTag::StringList &&
-                 g3pvm::Value::container_len(empty_map.value) == 0,
+  if (!check(!empty_map.is_error && empty_map.value.tag == gagp::ValueTag::StringList &&
+                 gagp::Value::container_len(empty_map.value) == 0,
              "empty MapList should retain StringList tag")) return false;
 
-  const Value floats = g3pvm::payload::make_float_list_value(
+  const Value floats = gagp::payload::make_float_list_value(
       {Value::from_float(1.0), Value::from_float(2.0)});
   const ExecResult empty_filter = run(return_program(
       filter_list(0, leaf(NodeKind::CONST, 0),
@@ -165,15 +165,15 @@ bool test_map_and_filter_order_and_empty_tags() {
                          leaf(NodeKind::CONST, 1))),
       {floats, Value::from_float(5.0)}, {"x"}));
   return check(!empty_filter.is_error &&
-                   empty_filter.value.tag == g3pvm::ValueTag::FloatList &&
-                   g3pvm::Value::container_len(empty_filter.value) == 0,
+                   empty_filter.value.tag == gagp::ValueTag::FloatList &&
+                   gagp::Value::container_len(empty_filter.value) == 0,
                "empty FilterList should retain FloatList tag");
 }
 
 bool test_sources_are_lowered_once() {
-  g3pvm::payload::clear();
-  const Value first = g3pvm::payload::make_int_list_value({Value::from_int(1)});
-  const Value second = g3pvm::payload::make_int_list_value({Value::from_int(2)});
+  gagp::payload::clear();
+  const Value first = gagp::payload::make_int_list_value({Value::from_int(1)});
+  const Value second = gagp::payload::make_int_list_value({Value::from_int(2)});
   Expr source = leaf(NodeKind::CONST, 0);
   constexpr int reverse_count = 20;
   for (int i = 0; i < reverse_count; ++i) source = unary(NodeKind::CALL_REVERSE, source);
@@ -182,22 +182,22 @@ bool test_sources_are_lowered_once() {
   AstProgram ast = return_program(
       map_list(0, ListTypeTag::Int, source, leaf(NodeKind::BOUND_VAR, 0)),
       {first, second}, {"x"});
-  const auto verified = g3pvm::evo::verify_ast(ast, {});
+  const auto verified = gagp::evo::verify_ast(ast, {});
   if (!check(verified.ok, "source-evaluate-once AST should verify")) return false;
   ProgramGenome genome;
   genome.ast = ast;
-  genome.meta = g3pvm::evo::build_genome_meta(ast);
-  const g3pvm::BytecodeProgram bytecode = g3pvm::evo::compile_for_eval(genome);
+  genome.meta = gagp::evo::build_genome_meta(ast);
+  const gagp::BytecodeProgram bytecode = gagp::evo::compile_for_eval(genome);
   const int lowered_reverses = static_cast<int>(std::count_if(
-      bytecode.code.begin(), bytecode.code.end(), [](const g3pvm::Instr& instruction) {
-        return instruction.op == g3pvm::Opcode::CallBuiltin && instruction.has_a &&
-               instruction.a == static_cast<int>(g3pvm::BuiltinId::Reverse);
+      bytecode.code.begin(), bytecode.code.end(), [](const gagp::Instr& instruction) {
+        return instruction.op == gagp::Opcode::CallBuiltin && instruction.has_a &&
+               instruction.a == static_cast<int>(gagp::BuiltinId::Reverse);
       }));
   if (!check(lowered_reverses == reverse_count,
              "MapList source expression should appear once in lowered bytecode")) return false;
-  const ExecResult result = g3pvm::execute_bytecode_cpu(bytecode, {}, 20000);
+  const ExecResult result = gagp::execute_bytecode_cpu(bytecode, {}, 20000);
   if (!check(!result.is_error &&
-                 exact_list(result.value, g3pvm::ValueTag::IntList,
+                 exact_list(result.value, gagp::ValueTag::IntList,
                             {Value::from_int(1), Value::from_int(2)}),
              "source-evaluate-once MapList result mismatch")) return false;
 
@@ -208,19 +208,19 @@ bool test_sources_are_lowered_once() {
       {first, second, Value::from_int(0)}, {"x"});
   ProgramGenome filter_genome;
   filter_genome.ast = filter_ast;
-  filter_genome.meta = g3pvm::evo::build_genome_meta(filter_ast);
-  const g3pvm::BytecodeProgram filter_bytecode =
-      g3pvm::evo::compile_for_eval(filter_genome);
+  filter_genome.meta = gagp::evo::build_genome_meta(filter_ast);
+  const gagp::BytecodeProgram filter_bytecode =
+      gagp::evo::compile_for_eval(filter_genome);
   const int filter_reverses = static_cast<int>(std::count_if(
       filter_bytecode.code.begin(), filter_bytecode.code.end(),
-      [](const g3pvm::Instr& instruction) {
-        return instruction.op == g3pvm::Opcode::CallBuiltin && instruction.has_a &&
-               instruction.a == static_cast<int>(g3pvm::BuiltinId::Reverse);
+      [](const gagp::Instr& instruction) {
+        return instruction.op == gagp::Opcode::CallBuiltin && instruction.has_a &&
+               instruction.a == static_cast<int>(gagp::BuiltinId::Reverse);
       }));
   const ExecResult filter_result =
-      g3pvm::execute_bytecode_cpu(filter_bytecode, {}, 20000);
+      gagp::execute_bytecode_cpu(filter_bytecode, {}, 20000);
   return check(filter_reverses == reverse_count && !filter_result.is_error &&
-                   exact_list(filter_result.value, g3pvm::ValueTag::IntList,
+                   exact_list(filter_result.value, gagp::ValueTag::IntList,
                               {Value::from_int(1), Value::from_int(2)}),
                "FilterList source expression should be evaluated once");
 }
@@ -239,8 +239,8 @@ AstProgram linear_program(const Value& source, const Value& singleton,
 }
 
 bool test_linear_rec_cases_and_order() {
-  g3pvm::payload::clear();
-  const Value empty_list = g3pvm::payload::make_int_list_value({});
+  gagp::payload::clear();
+  const Value empty_list = gagp::payload::make_int_list_value({});
   const Expr unused = binary(NodeKind::MOD, leaf(NodeKind::CONST, 3),
                              leaf(NodeKind::CONST, 4));
   AstProgram empty = linear_program(empty_list, Value::from_int(5), Value::from_int(42),
@@ -248,12 +248,12 @@ bool test_linear_rec_cases_and_order() {
   empty.consts.push_back(Value::from_int(1));
   empty.consts.push_back(Value::from_int(0));
   const ExecResult empty_out = run(empty);
-  if (!check(!empty_out.is_error && empty_out.value.tag == g3pvm::ValueTag::Int &&
+  if (!check(!empty_out.is_error && empty_out.value.tag == gagp::ValueTag::Int &&
                  empty_out.value.i == 42,
              "LinearRec empty case must not evaluate other branches")) return false;
 
   const Value singleton_list =
-      g3pvm::payload::make_int_list_value({Value::from_int(7)});
+      gagp::payload::make_int_list_value({Value::from_int(7)});
   const Expr one = binary(
       NodeKind::ADD,
       binary(NodeKind::MUL, leaf(NodeKind::BOUND_VAR, 0), leaf(NodeKind::CONST, 3)),
@@ -268,7 +268,7 @@ bool test_linear_rec_cases_and_order() {
   if (!check(!singleton_out.is_error && singleton_out.value.i == 75,
              "LinearRec singleton case mismatch")) return false;
 
-  const Value list = g3pvm::payload::make_int_list_value(
+  const Value list = gagp::payload::make_int_list_value(
       {Value::from_int(1), Value::from_int(2), Value::from_int(3)});
   Expr step = binary(
       NodeKind::ADD,
@@ -283,16 +283,16 @@ bool test_linear_rec_cases_and_order() {
   ordered.consts.push_back(Value::from_int(10));
   ordered.consts.push_back(Value::from_int(100));
   const ExecResult ordered_out = run(ordered);
-  return check(!ordered_out.is_error && ordered_out.value.tag == g3pvm::ValueTag::Int &&
+  return check(!ordered_out.is_error && ordered_out.value.tag == gagp::ValueTag::Int &&
                    ordered_out.value.i == 30621,
                "LinearRec must apply the step from right to left");
 }
 
 bool test_binder_capture_and_ordinary_local_isolation() {
-  g3pvm::payload::clear();
-  const Value outer = g3pvm::payload::make_int_list_value(
+  gagp::payload::clear();
+  const Value outer = gagp::payload::make_int_list_value(
       {Value::from_int(1), Value::from_int(2)});
-  const Value inner = g3pvm::payload::make_int_list_value({Value::from_int(10)});
+  const Value inner = gagp::payload::make_int_list_value({Value::from_int(10)});
   const Expr nested = map_list(0, ListTypeTag::Int, leaf(NodeKind::CONST, 1),
                                leaf(NodeKind::BOUND_VAR, 0));
   const Expr inner_at_zero = binary(NodeKind::CALL_INDEX, nested,
@@ -302,14 +302,14 @@ bool test_binder_capture_and_ordinary_local_isolation() {
       map_list(0, ListTypeTag::Int, leaf(NodeKind::CONST, 0), body),
       {outer, inner, Value::from_int(0)}, {"x"}));
   if (!check(!nested_out.is_error &&
-                 exact_list(nested_out.value, g3pvm::ValueTag::IntList,
+                 exact_list(nested_out.value, gagp::ValueTag::IntList,
                             {Value::from_int(11), Value::from_int(12)}),
              "nested binders should be capture-safe")) return false;
 
   AstProgram ordinary;
   ordinary.names = {"x"};
   ordinary.consts = {Value::from_int(100),
-                     g3pvm::payload::make_int_list_value({Value::from_int(1)})};
+                     gagp::payload::make_int_list_value({Value::from_int(1)})};
   ordinary.nodes = {
       {NodeKind::PROGRAM, 0, 0}, {NodeKind::BLOCK_CONS, 0, 0},
       {NodeKind::ASSIGN, 0, 0}, {NodeKind::CONST, 0, 0},
@@ -321,24 +321,24 @@ bool test_binder_capture_and_ordinary_local_isolation() {
   };
   const ExecResult ordinary_out = run(ordinary);
   return check(!ordinary_out.is_error &&
-                   exact_list(ordinary_out.value, g3pvm::ValueTag::IntList,
+                   exact_list(ordinary_out.value, gagp::ValueTag::IntList,
                               {Value::from_int(101)}),
                "BoundVar must remain distinct from an ordinary local of the same name");
 }
 
 bool expect_verify_code(const AstProgram& ast, VerifyCode code,
                         const std::string& intent) {
-  const auto result = g3pvm::evo::verify_ast(ast, {});
+  const auto result = gagp::evo::verify_ast(ast, {});
   return check(!result.ok && result.diagnostic.code == code, intent);
 }
 
 bool test_errors_and_fuel() {
-  g3pvm::payload::clear();
-  const Value ints = g3pvm::payload::make_int_list_value({Value::from_int(1)});
+  gagp::payload::clear();
+  const Value ints = gagp::payload::make_int_list_value({Value::from_int(1)});
   if (!expect_verify_code(
           return_program(map_list(0, ListTypeTag::String, leaf(NodeKind::CONST, 0),
                                   leaf(NodeKind::BOUND_VAR, 0)),
-                         {g3pvm::payload::make_string_value("abc")}, {"c"}),
+                         {gagp::payload::make_string_value("abc")}, {"c"}),
           VerifyCode::TypeMismatch, "MapList should reject a non-list source")) return false;
   if (!expect_verify_code(
           return_program(filter_list(0, leaf(NodeKind::CONST, 0),
@@ -346,7 +346,7 @@ bool test_errors_and_fuel() {
                          {ints}, {"x"}),
           VerifyCode::TypeMismatch, "FilterList predicate must be Bool")) return false;
 
-  const Value zeros = g3pvm::payload::make_float_list_value(
+  const Value zeros = gagp::payload::make_float_list_value(
       {Value::from_float(0.0), Value::from_float(1.0)});
   const ExecResult zero_div = run(return_program(
       map_list(0, ListTypeTag::Float, leaf(NodeKind::CONST, 0),
@@ -359,17 +359,17 @@ bool test_errors_and_fuel() {
   const AstProgram map = return_program(
       map_list(0, ListTypeTag::Int, leaf(NodeKind::CONST, 0),
                leaf(NodeKind::BOUND_VAR, 0)),
-      {g3pvm::payload::make_int_list_value(
+      {gagp::payload::make_int_list_value(
           {Value::from_int(1), Value::from_int(2), Value::from_int(3)})},
       {"x"});
   const AstProgram filter = return_program(
       filter_list(0, leaf(NodeKind::CONST, 0),
                   binary(NodeKind::GT, leaf(NodeKind::BOUND_VAR, 0),
                          leaf(NodeKind::CONST, 1))),
-      {g3pvm::payload::make_int_list_value(
+      {gagp::payload::make_int_list_value(
            {Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
        Value::from_int(1)}, {"x"});
-  const Value list = g3pvm::payload::make_int_list_value(
+  const Value list = gagp::payload::make_int_list_value(
       {Value::from_int(1), Value::from_int(2), Value::from_int(3)});
   const AstProgram linear = linear_program(
       list, Value::from_int(0), Value::from_int(0),
@@ -392,6 +392,6 @@ int main() {
   if (!test_linear_rec_cases_and_order()) return 1;
   if (!test_binder_capture_and_ordinary_local_isolation()) return 1;
   if (!test_errors_and_fuel()) return 1;
-  std::cout << "g3pvm_test_structured_semantics: OK\n";
+  std::cout << "gagp_test_structured_semantics: OK\n";
   return 0;
 }

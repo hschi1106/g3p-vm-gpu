@@ -20,7 +20,7 @@ def write_summary(path: Path, runs):
 
 
 def native_cli_ready() -> bool:
-    binary = ROOT / "cpp/build/g3pvm_evolve_cli"
+    binary = ROOT / "cpp/build/gagp_evolve_cli"
     source = ROOT / "cpp/src/cli/evolve_cli.cpp"
     return binary.exists() and (not source.exists() or source.stat().st_mtime <= binary.stat().st_mtime)
 

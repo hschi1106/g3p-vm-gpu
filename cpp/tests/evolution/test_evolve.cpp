@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
-#include "g3pvm/evolution/selection.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/genome_generation.hpp"
+#include "gagp/evolution/selection.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 namespace {
 
@@ -21,12 +21,12 @@ bool check(bool cond, const std::string& msg) {
   return true;
 }
 
-g3pvm::evo::ProgramGenome make_nan_genome() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::AstProgram;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+gagp::evo::ProgramGenome make_nan_genome() {
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::AstProgram;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome genome;
   genome.ast = AstProgram{
@@ -40,13 +40,13 @@ g3pvm::evo::ProgramGenome make_nan_genome() {
       {},
       {Value::from_float(std::numeric_limits<double>::quiet_NaN())},
   };
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
   return genome;
 }
 
-std::vector<g3pvm::evo::EvalCase> simple_cases() {
-  using g3pvm::Value;
-  using g3pvm::evo::EvalCase;
+std::vector<gagp::evo::EvalCase> simple_cases() {
+  using gagp::Value;
+  using gagp::evo::EvalCase;
   return {
       EvalCase{{{"x", Value::from_int(0)}, {"y", Value::from_int(0)}}, Value::from_int(0)},
       EvalCase{{{"x", Value::from_int(1)}, {"y", Value::from_int(2)}}, Value::from_int(3)},
@@ -55,8 +55,8 @@ std::vector<g3pvm::evo::EvalCase> simple_cases() {
   };
 }
 
-g3pvm::evo::GrammarConfig const_return_grammar() {
-  g3pvm::evo::GrammarConfig grammar = g3pvm::evo::GrammarConfig::all_enabled();
+gagp::evo::GrammarConfig const_return_grammar() {
+  gagp::evo::GrammarConfig grammar = gagp::evo::GrammarConfig::all_enabled();
   grammar.statement_assign = false;
   grammar.statement_if_stmt = false;
   grammar.statement_for_range = false;
@@ -92,9 +92,9 @@ g3pvm::evo::GrammarConfig const_return_grammar() {
   return grammar;
 }
 
-bool expected_type_seed_case_has_no_type_penalty(const g3pvm::Value& expected,
+bool expected_type_seed_case_has_no_type_penalty(const gagp::Value& expected,
                                                  const std::string& label) {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.generations = 1;
   cfg.seed = 555;
@@ -102,7 +102,7 @@ bool expected_type_seed_case_has_no_type_penalty(const g3pvm::Value& expected,
   cfg.skip_final_eval = true;
   cfg.grammar = const_return_grammar();
 
-  const auto result = g3pvm::evo::evolve_population({g3pvm::evo::EvalCase{{}, expected}}, cfg);
+  const auto result = gagp::evo::evolve_population({gagp::evo::EvalCase{{}, expected}}, cfg);
   if (!check(result.history_mean_fitness.size() == 1, label + " history_mean_fitness length mismatch")) {
     return false;
   }
@@ -114,7 +114,7 @@ bool expected_type_seed_case_has_no_type_penalty(const g3pvm::Value& expected,
 }
 
 bool run_one(int selection_pressure) {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 24;
   cfg.generations = 8;
   cfg.mutation_rate = 0.7;
@@ -122,7 +122,7 @@ bool run_one(int selection_pressure) {
   cfg.selection_pressure = selection_pressure;
   cfg.seed = 42;
 
-  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+  const auto result = gagp::evo::evolve_population(simple_cases(), cfg);
   if (!check(static_cast<int>(result.history_best_fitness.size()) == cfg.generations,
              "history_best_fitness length mismatch")) {
     return false;
@@ -152,14 +152,14 @@ bool test_selection_pressure_variants() {
 }
 
 bool test_determinism_seed() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 12;
   cfg.generations = 5;
   cfg.seed = 123;
   cfg.selection_pressure = 3;
 
-  const auto a = g3pvm::evo::evolve_population(simple_cases(), cfg);
-  const auto b = g3pvm::evo::evolve_population(simple_cases(), cfg);
+  const auto a = gagp::evo::evolve_population(simple_cases(), cfg);
+  const auto b = gagp::evo::evolve_population(simple_cases(), cfg);
 
   if (!check(a.history_best_fitness.size() == b.history_best_fitness.size(),
              "determinism history length mismatch")) {
@@ -180,14 +180,14 @@ bool test_determinism_seed() {
 }
 
 bool test_skip_final_eval() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 12;
   cfg.generations = 3;
   cfg.seed = 321;
   cfg.selection_pressure = 3;
   cfg.skip_final_eval = true;
 
-  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+  const auto result = gagp::evo::evolve_population(simple_cases(), cfg);
   if (!check(result.final_eval_skipped, "skip_final_eval should mark final eval as skipped")) {
     return false;
   }
@@ -206,14 +206,14 @@ bool test_skip_final_eval() {
 }
 
 bool test_retain_final_population_off_keeps_best_only() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 12;
   cfg.generations = 3;
   cfg.seed = 777;
   cfg.selection_pressure = 3;
   cfg.retain_final_population = false;
 
-  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+  const auto result = gagp::evo::evolve_population(simple_cases(), cfg);
   if (!check(!result.final_eval_skipped, "retain_final_population off should still run final eval")) {
     return false;
   }
@@ -229,24 +229,24 @@ bool test_retain_final_population_off_keeps_best_only() {
 }
 
 bool test_initial_population_override() {
-  g3pvm::evo::EvolutionConfig cfg_a;
+  gagp::evo::EvolutionConfig cfg_a;
   cfg_a.population_size = 6;
   cfg_a.generations = 1;
   cfg_a.seed = 11;
   cfg_a.selection_pressure = 3;
 
-  std::vector<g3pvm::evo::ProgramGenome> initial_population;
+  std::vector<gagp::evo::ProgramGenome> initial_population;
   initial_population.reserve(static_cast<std::size_t>(cfg_a.population_size));
   for (int i = 0; i < cfg_a.population_size; ++i) {
     initial_population.push_back(
-        g3pvm::evo::generate_random_genome(1000 + static_cast<std::uint64_t>(i), cfg_a.limits));
+        gagp::evo::generate_random_genome(1000 + static_cast<std::uint64_t>(i), cfg_a.limits));
   }
 
-  g3pvm::evo::EvolutionConfig cfg_b = cfg_a;
+  gagp::evo::EvolutionConfig cfg_b = cfg_a;
   cfg_b.seed = 9999;
 
-  const auto a = g3pvm::evo::evolve_population(simple_cases(), cfg_a, &initial_population);
-  const auto b = g3pvm::evo::evolve_population(simple_cases(), cfg_b, &initial_population);
+  const auto a = gagp::evo::evolve_population(simple_cases(), cfg_a, &initial_population);
+  const auto b = gagp::evo::evolve_population(simple_cases(), cfg_b, &initial_population);
   if (!check(a.history_best.size() == 1 && b.history_best.size() == 1,
              "initial_population override history length mismatch")) {
     return false;
@@ -263,17 +263,17 @@ bool test_initial_population_override() {
 }
 
 bool test_generated_initial_population_uses_expected_return_type() {
-  using g3pvm::Value;
+  using gagp::Value;
   if (!expected_type_seed_case_has_no_type_penalty(
-          g3pvm::payload::make_string_value("target"), "string expected")) {
+          gagp::payload::make_string_value("target"), "string expected")) {
     return false;
   }
   if (!expected_type_seed_case_has_no_type_penalty(
-          g3pvm::payload::make_int_list_value({Value::from_int(42)}), "int list expected")) {
+          gagp::payload::make_int_list_value({Value::from_int(42)}), "int list expected")) {
     return false;
   }
   if (!expected_type_seed_case_has_no_type_penalty(
-          g3pvm::payload::make_string_list_value({g3pvm::payload::make_string_value("x")}),
+          gagp::payload::make_string_list_value({gagp::payload::make_string_value("x")}),
           "string list expected")) {
     return false;
   }
@@ -281,15 +281,15 @@ bool test_generated_initial_population_uses_expected_return_type() {
 }
 
 bool test_nonfinite_fitness_is_clamped_to_penalty() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 4;
   cfg.generations = 1;
   cfg.penalty = 3.5;
   cfg.skip_final_eval = true;
 
-  std::vector<g3pvm::evo::ProgramGenome> initial_population(
+  std::vector<gagp::evo::ProgramGenome> initial_population(
       static_cast<std::size_t>(cfg.population_size), make_nan_genome());
-  const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg, &initial_population);
+  const auto result = gagp::evo::evolve_population(simple_cases(), cfg, &initial_population);
 
   if (!check(result.history_best_fitness.size() == 1, "nonfinite clamp best history length mismatch")) {
     return false;
@@ -309,22 +309,22 @@ bool test_nonfinite_fitness_is_clamped_to_penalty() {
 }
 
 bool test_cpu_repro_ablation_modes_smoke_and_determinism() {
-  for (const auto ablation : {g3pvm::evo::repro::CpuReproAblation::GpuSelection,
-                              g3pvm::evo::repro::CpuReproAblation::GpuCandidates,
-                              g3pvm::evo::repro::CpuReproAblation::GpuCoupledDonor}) {
-    g3pvm::evo::EvolutionConfig cfg;
+  for (const auto ablation : {gagp::evo::repro::CpuReproAblation::GpuSelection,
+                              gagp::evo::repro::CpuReproAblation::GpuCandidates,
+                              gagp::evo::repro::CpuReproAblation::GpuCoupledDonor}) {
+    gagp::evo::EvolutionConfig cfg;
     cfg.population_size = 16;
     cfg.generations = 4;
     cfg.seed = 2024;
     cfg.selection_pressure = 3;
     cfg.mutation_rate = 0.7;
     cfg.mutation_subtree_prob = 0.6;
-    cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Cpu;
+    cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Cpu;
     cfg.cpu_repro_ablation = ablation;
-    cfg.grammar = g3pvm::evo::GrammarConfig::scalar();
+    cfg.grammar = gagp::evo::GrammarConfig::scalar();
 
-    const auto a = g3pvm::evo::evolve_population(simple_cases(), cfg);
-    const auto b = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    const auto a = gagp::evo::evolve_population(simple_cases(), cfg);
+    const auto b = gagp::evo::evolve_population(simple_cases(), cfg);
     if (!check(static_cast<int>(a.history_best_fitness.size()) == cfg.generations,
                "cpu repro ablation history_best_fitness length mismatch")) {
       return false;
@@ -350,14 +350,14 @@ bool test_cpu_repro_ablation_modes_smoke_and_determinism() {
 }
 
 bool test_cpu_repro_ablation_rejects_gpu_backend() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.generations = 2;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
-  cfg.cpu_repro_ablation = g3pvm::evo::repro::CpuReproAblation::GpuSelection;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
+  cfg.cpu_repro_ablation = gagp::evo::repro::CpuReproAblation::GpuSelection;
 
   try {
-    (void)g3pvm::evo::evolve_population(simple_cases(), cfg);
+    (void)gagp::evo::evolve_population(simple_cases(), cfg);
   } catch (const std::invalid_argument& err) {
     return std::string(err.what()).find("cpu_repro_ablation") != std::string::npos;
   }
@@ -366,42 +366,42 @@ bool test_cpu_repro_ablation_rejects_gpu_backend() {
 }
 
 bool test_legacy_num_list_input_compat_uses_any_for_generation() {
-  using g3pvm::evo::RType;
+  using gagp::evo::RType;
 
-  g3pvm::evo::GrammarConfig grammar = g3pvm::evo::GrammarConfig::all_enabled();
-  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::IntList, grammar) == RType::IntList,
+  gagp::evo::GrammarConfig grammar = gagp::evo::GrammarConfig::all_enabled();
+  if (!check(gagp::evo::generation_input_type_for_grammar(RType::IntList, grammar) == RType::IntList,
              "exact current int list input should stay IntList")) {
     return false;
   }
-  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::FloatList, grammar) == RType::FloatList,
+  if (!check(gagp::evo::generation_input_type_for_grammar(RType::FloatList, grammar) == RType::FloatList,
              "exact current float list input should stay FloatList")) {
     return false;
   }
 
   grammar.compat_legacy_num_list_inputs_as_any = true;
-  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::IntList, grammar) == RType::Any,
+  if (!check(gagp::evo::generation_input_type_for_grammar(RType::IntList, grammar) == RType::Any,
              "legacy NumList compat should generate from Any for IntList inputs")) {
     return false;
   }
-  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::FloatList, grammar) == RType::Any,
+  if (!check(gagp::evo::generation_input_type_for_grammar(RType::FloatList, grammar) == RType::Any,
              "legacy NumList compat should generate from Any for FloatList inputs")) {
     return false;
   }
-  if (!check(g3pvm::evo::generation_input_type_for_grammar(RType::StringList, grammar) == RType::StringList,
+  if (!check(gagp::evo::generation_input_type_for_grammar(RType::StringList, grammar) == RType::StringList,
              "legacy NumList compat should not change StringList inputs")) {
     return false;
   }
   return true;
 }
 
-g3pvm::evo::ProgramGenome make_dummy_genome(const std::string& key) {
-  g3pvm::evo::ProgramGenome genome;
+gagp::evo::ProgramGenome make_dummy_genome(const std::string& key) {
+  gagp::evo::ProgramGenome genome;
   genome.meta.program_key = key;
   return genome;
 }
 
 bool test_round_based_tournament_selection_without_replacement_repeats_winners() {
-  using g3pvm::evo::ScoredGenome;
+  using gagp::evo::ScoredGenome;
 
   std::vector<ScoredGenome> scored;
   scored.push_back(ScoredGenome{make_dummy_genome("best"), 10.0});
@@ -411,7 +411,7 @@ bool test_round_based_tournament_selection_without_replacement_repeats_winners()
 
   std::mt19937_64 rng(123);
   const std::vector<std::size_t> selected =
-      g3pvm::evo::tournament_selection_indices_without_replacement(scored, rng, 4, 4);
+      gagp::evo::tournament_selection_indices_without_replacement(scored, rng, 4, 4);
 
   if (!check(selected.size() == 4, "selection_count size mismatch")) {
     return false;
@@ -426,7 +426,7 @@ bool test_round_based_tournament_selection_without_replacement_repeats_winners()
 }
 
 bool test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one() {
-  using g3pvm::evo::ScoredGenome;
+  using gagp::evo::ScoredGenome;
 
   std::vector<ScoredGenome> scored;
   scored.push_back(ScoredGenome{make_dummy_genome("a"), 1.0});
@@ -438,7 +438,7 @@ bool test_round_based_tournament_selection_without_replacement_visits_each_genom
 
   std::mt19937_64 rng(321);
   const std::vector<std::size_t> selected =
-      g3pvm::evo::tournament_selection_indices_without_replacement(scored, rng, 1, 6);
+      gagp::evo::tournament_selection_indices_without_replacement(scored, rng, 1, 6);
   if (!check(selected.size() == 6, "selection_count mismatch at k=1")) {
     return false;
   }
@@ -462,16 +462,16 @@ bool test_round_based_tournament_selection_without_replacement_visits_each_genom
 }
 
 bool test_gpu_backend_smoke() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.generations = 2;
   cfg.seed = 7;
-  cfg.eval_engine = g3pvm::evo::EvalEngine::CPU;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.eval_engine = gagp::evo::EvalEngine::CPU;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
 
   try {
-    const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    const auto result = gagp::evo::evolve_population(simple_cases(), cfg);
     if (!check(static_cast<int>(result.final_population.size()) == cfg.population_size,
                "gpu reproduction final_population length mismatch")) {
       return false;
@@ -491,7 +491,7 @@ bool test_gpu_backend_smoke() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_evolve: SKIP gpu (" << message << ")\n";
+      std::cout << "gagp_test_evolve: SKIP gpu (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: gpu reproduction backend failed: " << message << "\n";
@@ -502,17 +502,17 @@ bool test_gpu_backend_smoke() {
 }
 
 bool test_repro_overlap_smoke() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.generations = 2;
   cfg.seed = 9;
-  cfg.eval_engine = g3pvm::evo::EvalEngine::GPU;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.eval_engine = gagp::evo::EvalEngine::GPU;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
   cfg.repro_overlap = true;
 
   try {
-    const auto result = g3pvm::evo::evolve_population(simple_cases(), cfg);
+    const auto result = gagp::evo::evolve_population(simple_cases(), cfg);
     if (!check(static_cast<int>(result.final_population.size()) == cfg.population_size,
                "gpu reproduction overlap final_population length mismatch")) {
       return false;
@@ -528,7 +528,7 @@ bool test_repro_overlap_smoke() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_evolve: SKIP gpu overlap (" << message << ")\n";
+      std::cout << "gagp_test_evolve: SKIP gpu overlap (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: gpu reproduction overlap failed: " << message << "\n";
@@ -555,6 +555,6 @@ int main() {
   if (!test_round_based_tournament_selection_without_replacement_visits_each_genome_once_when_k_is_one()) return 1;
   if (!test_gpu_backend_smoke()) return 1;
   if (!test_repro_overlap_smoke()) return 1;
-  std::cout << "g3pvm_test_evolve: OK\n";
+  std::cout << "gagp_test_evolve: OK\n";
   return 0;
 }

@@ -4,7 +4,7 @@ This document explains how C++ runtime container values work under `cpp/` and ho
 
 ## Why This Layer Exists
 
-`g3pvm::Value` must stay compact and trivially copyable so it can move through:
+`gagp::Value` must stay compact and trivially copyable so it can move through:
 
 - VM stacks
 - bytecode const pools
@@ -20,7 +20,7 @@ Instead, `String`, `IntList`, `FloatList`, and `StringList` values use a two-lay
 
 ## Base Container Representation
 
-In [cpp/include/g3pvm/core/value.hpp](../../cpp/include/g3pvm/core/value.hpp), `String`, `IntList`, `FloatList`, and `StringList` use `Value.i` as:
+In [cpp/include/gagp/core/value.hpp](../../cpp/include/gagp/core/value.hpp), `String`, `IntList`, `FloatList`, and `StringList` use `Value.i` as:
 
 - upper 16 bits: saturated length
 - lower 48 bits: deterministic hash
@@ -41,7 +41,7 @@ This compact representation is the public runtime transport form for containers.
 
 The host-side registry lives in:
 
-- [cpp/include/g3pvm/runtime/payload/payload.hpp](../../cpp/include/g3pvm/runtime/payload/payload.hpp)
+- [cpp/include/gagp/runtime/payload/payload.hpp](../../cpp/include/gagp/runtime/payload/payload.hpp)
 - [cpp/src/runtime/payload/payload.cpp](../../cpp/src/runtime/payload/payload.cpp)
 
 It stores:
@@ -258,8 +258,8 @@ Costs:
 
 For the full runtime picture, read these in order:
 
-1. [cpp/include/g3pvm/core/value.hpp](../../cpp/include/g3pvm/core/value.hpp)
-2. [cpp/include/g3pvm/runtime/payload/payload.hpp](../../cpp/include/g3pvm/runtime/payload/payload.hpp)
+1. [cpp/include/gagp/core/value.hpp](../../cpp/include/gagp/core/value.hpp)
+2. [cpp/include/gagp/runtime/payload/payload.hpp](../../cpp/include/gagp/runtime/payload/payload.hpp)
 3. [cpp/src/runtime/payload/payload.cpp](../../cpp/src/runtime/payload/payload.cpp)
 4. [cpp/src/runtime/cpu/builtins_cpu.cpp](../../cpp/src/runtime/cpu/builtins_cpu.cpp)
 5. GPU mirrors under `cpp/src/runtime/gpu/`

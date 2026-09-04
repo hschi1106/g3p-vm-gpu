@@ -93,8 +93,8 @@ also completed the documented one-problem PSB runner smoke successfully.
 
 ## Ownership and obsolete-path audit
 
-- CMake exposes `g3pvm_core`, `g3pvm_runtime_cpu`, `g3pvm_evolution`,
-  `g3pvm_cli_support`, and `g3pvm_gpu`; `g3pvm_cpu` is interface-only
+- CMake exposes `gagp_core`, `gagp_runtime_cpu`, `gagp_evolution`,
+  `gagp_cli_support`, and `gagp_gpu`; `gagp_cpu` is interface-only
   compatibility.
 - No C++ implementation file includes another `.cpp` file.
 - Python files are limited to operational tools, their tests, and repository

@@ -1,8 +1,8 @@
-#include "g3pvm/cli/options.hpp"
+#include "gagp/cli/options.hpp"
 
 #include <stdexcept>
 
-namespace g3pvm::cli_detail {
+namespace gagp::cli_detail {
 
 CliOptions parse_cli_options(int argc, char** argv) {
   CliOptions opts;
@@ -122,4 +122,4 @@ CliOptions parse_cli_options(int argc, char** argv) {
   return opts;
 }
 
-}  // namespace g3pvm::cli_detail
+}  // namespace gagp::cli_detail

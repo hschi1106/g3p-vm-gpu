@@ -1,4 +1,4 @@
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -7,13 +7,13 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/core/opcode.hpp"
-#include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/cpu/builtins_cpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/core/opcode.hpp"
+#include "gagp/core/value_semantics.hpp"
+#include "gagp/runtime/cpu/builtins_cpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
-namespace g3pvm {
+namespace gagp {
 
 namespace {
 
@@ -710,4 +710,4 @@ ExecResult execute_bytecode_cpu(const BytecodeProgram& program,
                   &program);
 }
 
-}  // namespace g3pvm
+}  // namespace gagp

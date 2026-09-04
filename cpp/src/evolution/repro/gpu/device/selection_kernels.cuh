@@ -5,7 +5,7 @@
 #include "pack_types.cuh"
 #include "random_device.cuh"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 __device__ inline int d_clamp_tournament_size(int population_size, int tournament_k) {
   if (population_size <= 0) {
@@ -257,4 +257,4 @@ __global__ void tournament_select_kernel(const double* fitness,
   d_choose_typed_candidate_pair(candidates, candidates_per_program, pa, pb, cseed, &cand_a[idx], &cand_b[idx]);
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

@@ -99,7 +99,7 @@ Common args:
 - `--cases-root PATH`: directory containing `*.train.json` fitness-case files
 - `--problems LIST`: optional comma-separated problem subset; omit to run all train fixtures under `--cases-root`
 - `--seeds LIST`: comma-separated seed list
-- `--binary PATH`: native `g3pvm_evolve_cli` path; defaults to `cpp/build/g3pvm_evolve_cli`
+- `--binary PATH`: native `gagp_evolve_cli` path; defaults to `cpp/build/gagp_evolve_cli`
 - `--grammar-config PATH`: grammar config passed to the native CLI
 - `--base-grammar-config PATH`: old `grammar-config` source used for
   compatibility-profile reporting; when `--profile compat` or

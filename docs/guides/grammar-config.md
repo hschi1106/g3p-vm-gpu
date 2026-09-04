@@ -22,7 +22,7 @@ Presets live under `configs/grammar/`:
 Pass one to the native CLI:
 
 ```bash
-cpp/build/g3pvm_evolve_cli \
+cpp/build/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --grammar-config configs/grammar/scalar.json \
   --engine gpu --repro-backend gpu --repro-overlap on \
@@ -43,7 +43,7 @@ search-space comparability; it does not reintroduce legacy runtime values.
 The tool package can derive deterministic profiles:
 
 ```bash
-g3pvm-tools grammar profile \
+gagp-tools grammar profile \
   --profile compact \
   --base-grammar-config configs/grammar/num_list.json \
   --fixture-cases data/fixtures/psb1/count-odds.train.json \
@@ -55,7 +55,7 @@ g3pvm-tools grammar profile \
   comparisons and records its compatibility metadata.
 - `full` emits the full native profile for experiments.
 
-`g3pvm-tools psb run --profile compat|compact --base-grammar-config PATH`
+`gagp-tools psb run --profile compat|compact --base-grammar-config PATH`
 creates per-problem configs under the run output directory and records base,
 generated-config, and fixture-schema hashes.
 
@@ -72,11 +72,11 @@ its output JSON.
 
 ## Implementation and tests
 
-- `cpp/include/g3pvm/evolution/grammar_config.hpp` and
+- `cpp/include/gagp/evolution/grammar_config.hpp` and
   `cpp/src/evolution/grammar_config.cpp`: native configuration model/validation
 - `cpp/src/evolution/genome_generation.cpp` and reproduction modules: search
   gating consumers
-- `tools/g3pvm_tools/experiments/grammar_profiles.py`: profile generation
+- `tools/gagp_tools/experiments/grammar_profiles.py`: profile generation
 - `cpp/tests/evolution/test_genome_properties.cpp`: deterministic generation
   conformance
 - `cpp/tests/evolution/test_repro_prep.cpp`: reproduction preprocessing

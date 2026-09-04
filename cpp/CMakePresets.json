@@ -16,7 +16,7 @@
       "displayName": "Debug with CUDA parity",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "G3PVM_ENABLE_CUDA": "ON"
+        "GAGP_ENABLE_CUDA": "ON"
       }
     },
     {
@@ -25,7 +25,7 @@
       "displayName": "Release with CUDA",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "G3PVM_ENABLE_CUDA": "ON"
+        "GAGP_ENABLE_CUDA": "ON"
       }
     },
     {
@@ -39,8 +39,8 @@
       "displayName": "CPU ASan and UBSan",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "G3PVM_ENABLE_CUDA": "OFF",
-        "G3PVM_ENABLE_SANITIZERS": "ON"
+        "GAGP_ENABLE_CUDA": "OFF",
+        "GAGP_ENABLE_SANITIZERS": "ON"
       }
     },
     {
@@ -50,8 +50,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_COMPILER": "clang++",
-        "G3PVM_ENABLE_CUDA": "OFF",
-        "G3PVM_BUILD_FUZZERS": "ON"
+        "GAGP_ENABLE_CUDA": "OFF",
+        "GAGP_BUILD_FUZZERS": "ON"
       }
     }
   ]

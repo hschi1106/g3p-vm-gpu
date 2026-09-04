@@ -10,7 +10,7 @@ nearest component documentation, not here.
 | `AGENTS.md` | Contributor and coding-agent rules |
 | `README.md` | Product entry point and quick start |
 | `VERSION.md` | Release and compatibility history |
-| `cpp/include/g3pvm/` | Public native headers |
+| `cpp/include/gagp/` | Public native headers |
 | `cpp/src/runtime/` | CPU/GPU runtime and payload implementation |
 | `cpp/src/evolution/` | Compiler, generation, evaluation, selection, and reproduction |
 | `cpp/src/cli/` | Native CLI parsing, codecs, commands, and output adaptation |
@@ -26,7 +26,7 @@ nearest component documentation, not here.
 | `docs/reference/` | Mechanically checked interfaces and inventories |
 | `docs/refactor/` | Historical refactor evidence |
 | `spec/` | Normative behavior contracts |
-| `tools/g3pvm_tools/` | Installable operational tool package |
+| `tools/gagp_tools/` | Installable operational tool package |
 | `tools/tests/` | Operational tool tests |
 | `tests/repository/` | Runtime-independent repository contract checks |
 | `benchmarks/` | Compact committed validation manifests |

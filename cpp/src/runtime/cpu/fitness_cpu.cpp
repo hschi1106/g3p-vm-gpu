@@ -1,14 +1,14 @@
-#include "g3pvm/runtime/cpu/fitness_cpu.hpp"
+#include "gagp/runtime/cpu/fitness_cpu.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>
 
-#include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/core/value_semantics.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
 
-namespace g3pvm {
+namespace gagp {
 
 namespace {
 
@@ -79,4 +79,4 @@ std::vector<double> eval_fitness_cpu(
   return fitness;
 }
 
-}  // namespace g3pvm
+}  // namespace gagp

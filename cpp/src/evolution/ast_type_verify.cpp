@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/ast_verify.hpp"
+#include "gagp/evolution/ast_verify.hpp"
 
 #include <algorithm>
 #include <set>
@@ -7,9 +7,9 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 namespace {
 
 using TypeEnv = std::unordered_map<int, RType>;
@@ -636,4 +636,4 @@ AstVerifyResult verify_ast(const AstProgram& ast, const std::vector<InputSpec>& 
   return TypedVerifier(ast, inputs, options, std::move(structural)).run();
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

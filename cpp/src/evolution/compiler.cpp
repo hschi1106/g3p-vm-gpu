@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/compiler.hpp"
+#include "gagp/evolution/compiler.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -7,12 +7,12 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/core/bytecode_verify.hpp"
-#include "g3pvm/evolution/node_descriptor.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/core/bytecode_verify.hpp"
+#include "gagp/evolution/node_descriptor.hpp"
 #include "subtree_utils.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -274,12 +274,12 @@ class Compiler {
     mark_label(loop_label);
     emit(Opcode::Load, counter_i, true);
     emit(Opcode::Load, xs_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Len), true, 1, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Len), true, 1, true);
     emit(Opcode::Lt);
     emit_jump(Opcode::JmpIfFalse, end_label);
     emit(Opcode::Load, xs_local, true);
     emit(Opcode::Load, counter_i, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), true, 2, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), true, 2, true);
     emit(Opcode::Store, binder_local, true);
     push_binder(node.i0, binder_local);
     const std::size_t compiled_body_end = compile_expr_prefix(program, body_idx);
@@ -290,7 +290,7 @@ class Compiler {
     emit(Opcode::Store, val_local, true);
     emit(Opcode::Load, out_local, true);
     emit(Opcode::Load, val_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Append), true, 2, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Append), true, 2, true);
     emit(Opcode::Store, out_local, true);
     emit(Opcode::Load, counter_i, true);
     emit(Opcode::PushConst, add_const(Value::from_int(1)), true);
@@ -326,12 +326,12 @@ class Compiler {
     mark_label(loop_label);
     emit(Opcode::Load, counter_i, true);
     emit(Opcode::Load, xs_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Len), true, 1, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Len), true, 1, true);
     emit(Opcode::Lt);
     emit_jump(Opcode::JmpIfFalse, end_label);
     emit(Opcode::Load, xs_local, true);
     emit(Opcode::Load, counter_i, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), true, 2, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), true, 2, true);
     emit(Opcode::Store, binder_local, true);
     push_binder(node.i0, binder_local);
     const std::size_t compiled_pred_end = compile_expr_prefix(program, pred_idx);
@@ -342,7 +342,7 @@ class Compiler {
     emit_jump(Opcode::JmpIfFalse, skip_label);
     emit(Opcode::Load, out_local, true);
     emit(Opcode::Load, binder_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Append), true, 2, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Append), true, 2, true);
     emit(Opcode::Store, out_local, true);
     mark_label(skip_label);
     emit(Opcode::Load, counter_i, true);
@@ -380,7 +380,7 @@ class Compiler {
     emit(Opcode::CheckList);
     emit(Opcode::Store, xs_local, true);
     emit(Opcode::Load, xs_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Len), true, 1, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Len), true, 1, true);
     emit(Opcode::Store, len_local, true);
     emit(Opcode::Load, len_local, true);
     emit(Opcode::PushConst, add_const(Value::from_int(0)), true);
@@ -399,7 +399,7 @@ class Compiler {
     emit(Opcode::Store, counter_local, true);
     emit(Opcode::Load, xs_local, true);
     emit(Opcode::Load, counter_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), true, 2, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), true, 2, true);
     emit(Opcode::Store, elem_local, true);
     emit(Opcode::Load, start_local, true);
     emit(Opcode::Load, counter_local, true);
@@ -426,7 +426,7 @@ class Compiler {
     emit(Opcode::Store, counter_local, true);
     emit(Opcode::Load, xs_local, true);
     emit(Opcode::Load, counter_local, true);
-    emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::Index), true, 2, true);
+    emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::Index), true, 2, true);
     emit(Opcode::Store, elem_local, true);
     emit(Opcode::Load, start_local, true);
     emit(Opcode::Load, counter_local, true);
@@ -826,7 +826,7 @@ class Compiler {
       std::size_t next = compile_expr_prefix(program, idx + 1);
       emit(Opcode::Store, bound_local, true);
       emit(Opcode::Load, bound_local, true);
-      emit(Opcode::CallBuiltin, static_cast<int>(g3pvm::BuiltinId::IsInt), true, 1, true);
+      emit(Opcode::CallBuiltin, static_cast<int>(gagp::BuiltinId::IsInt), true, 1, true);
       emit_jump(Opcode::JmpIfFalse, bad_label);
       emit(Opcode::Load, bound_local, true);
       emit(Opcode::PushConst, add_const(Value::from_int(0)), true);
@@ -870,4 +870,4 @@ BytecodeProgram compile_for_eval(const ProgramGenome& genome,
   return compiler.build(genome.ast);
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

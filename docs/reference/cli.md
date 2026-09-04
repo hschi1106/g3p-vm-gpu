@@ -1,10 +1,10 @@
 # Native CLI Reference
 
 This table is mechanically checked against `CliOptions` and the parser in
-`cpp/include/g3pvm/cli/options.hpp` and `cpp/src/cli/options.cpp`. Update all
+`cpp/include/gagp/cli/options.hpp` and `cpp/src/cli/options.cpp`. Update all
 three together when a flag or default changes.
 
-`g3pvm_evolve_cli` requires `--cases`. It supports evolution by default and
+`gagp_evolve_cli` requires `--cases`. It supports evolution by default and
 switches to one-AST evaluation when `--eval-ast-json` is supplied. `--help` is
 not supported; it follows the unknown-argument error contract.
 

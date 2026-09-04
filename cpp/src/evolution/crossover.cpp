@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/crossover.hpp"
+#include "gagp/evolution/crossover.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -11,7 +11,7 @@
 #include "subtree_utils.hpp"
 #include "typed_expr_analysis.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 namespace {
 
@@ -165,4 +165,4 @@ std::pair<ProgramGenome, ProgramGenome> crossover(const ProgramGenome& parent_a,
   return crossover_impl(parent_a, &verified_a, parent_b, &verified_b, seed, limits);
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

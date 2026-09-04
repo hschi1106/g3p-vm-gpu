@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/repro/pack.hpp"
+#include "gagp/evolution/repro/pack.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -9,12 +9,12 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 #include "../subtree_utils.hpp"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
@@ -353,14 +353,14 @@ bool decoded_child_has_valid_binders(const ProgramGenome& genome) {
 bool payload_available_for_value(const Value& value) {
   if (value.tag == ValueTag::String) {
     std::string ignored;
-    return g3pvm::payload::lookup_string(value, &ignored);
+    return gagp::payload::lookup_string(value, &ignored);
   }
   if (value.tag != ValueTag::IntList && value.tag != ValueTag::FloatList &&
       value.tag != ValueTag::StringList) {
     return true;
   }
   std::vector<Value> elems;
-  if (!g3pvm::payload::lookup_list(value, &elems)) {
+  if (!gagp::payload::lookup_list(value, &elems)) {
     return false;
   }
   for (const Value& elem : elems) {
@@ -1510,4 +1510,4 @@ std::vector<ProgramGenome> decode_gpu_repro_children(const PackedHostData& packe
   return out;
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

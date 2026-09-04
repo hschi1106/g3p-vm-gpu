@@ -1,12 +1,12 @@
-#include "g3pvm/runtime/gpu/host_pack_gpu.hpp"
+#include "gagp/runtime/gpu/host_pack_gpu.hpp"
 
 #include <cstdint>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/runtime/gpu/constants_gpu.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/runtime/gpu/constants_gpu.hpp"
 #include "opcode_map_gpu.hpp"
 
-namespace g3pvm::gpu_detail {
+namespace gagp::gpu_detail {
 
 namespace {
 
@@ -318,4 +318,4 @@ DeviceArena::~DeviceArena() {
   if (d_list_payload_values) cudaFree(d_list_payload_values);
 }
 
-}  // namespace g3pvm::gpu_detail
+}  // namespace gagp::gpu_detail

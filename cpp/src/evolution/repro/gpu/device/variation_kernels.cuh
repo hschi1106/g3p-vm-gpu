@@ -2,12 +2,12 @@
 
 #include <cstdint>
 
-#include "g3pvm/core/value.hpp"
-#include "g3pvm/evolution/repro/types.hpp"
+#include "gagp/core/value.hpp"
+#include "gagp/evolution/repro/types.hpp"
 #include "pack_types.cuh"
 #include "random_device.cuh"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 __device__ inline int dmin_int(int a, int b) { return (a < b) ? a : b; }
 __device__ inline int dmax_int(int a, int b) { return (a > b) ? a : b; }
@@ -750,4 +750,4 @@ __global__ void variation_kernel(const DPlainNode* program_nodes,
   }
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

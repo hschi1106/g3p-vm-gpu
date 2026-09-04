@@ -5,22 +5,22 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/evolution/ast_verify.hpp"
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
-#include "g3pvm/evolution/grammar_config.hpp"
-#include "g3pvm/evolution/repro/backend.hpp"
-#include "g3pvm/evolution/repro/gpu.hpp"
-#include "g3pvm/evolution/repro/pack.hpp"
-#include "g3pvm/evolution/repro/prep.hpp"
-#include "g3pvm/evolution/selection.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/evolution/ast_verify.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/genome_generation.hpp"
+#include "gagp/evolution/grammar_config.hpp"
+#include "gagp/evolution/repro/backend.hpp"
+#include "gagp/evolution/repro/gpu.hpp"
+#include "gagp/evolution/repro/pack.hpp"
+#include "gagp/evolution/repro/prep.hpp"
+#include "gagp/evolution/selection.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 #include "../../src/evolution/subtree_utils.hpp"
 
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
 #include "../../src/evolution/repro/gpu/internal.hpp"
 #endif
 
@@ -34,8 +34,8 @@ bool check(bool cond, const std::string& msg) {
   return true;
 }
 
-bool same_candidate(const g3pvm::evo::repro::CandidateRange& a,
-                    const g3pvm::evo::repro::CandidateRange& b) {
+bool same_candidate(const gagp::evo::repro::CandidateRange& a,
+                    const gagp::evo::repro::CandidateRange& b) {
   return a.start == b.start && a.stop == b.stop && a.tag == b.tag &&
          a.aux == b.aux && a.scope_signature == b.scope_signature &&
          a.binder_signature == b.binder_signature &&
@@ -44,62 +44,62 @@ bool same_candidate(const g3pvm::evo::repro::CandidateRange& a,
          a.dp_dependency_arity == b.dp_dependency_arity;
 }
 
-bool verify_and_compile_child(const g3pvm::evo::ProgramGenome& child,
+bool verify_and_compile_child(const gagp::evo::ProgramGenome& child,
                               const std::string& context) {
-  const auto verified = g3pvm::evo::verify_ast(child.ast, {});
+  const auto verified = gagp::evo::verify_ast(child.ast, {});
   if (!check(verified.ok,
              context + " should verify: " +
-                 g3pvm::evo::verify_code_name(verified.diagnostic.code) + " " +
+                 gagp::evo::verify_code_name(verified.diagnostic.code) + " " +
                  verified.diagnostic.message + " program=" +
-                 g3pvm::evo::ast_to_string(child.ast))) {
+                 gagp::evo::ast_to_string(child.ast))) {
     return false;
   }
-  const auto bytecode = g3pvm::evo::compile_for_eval(child);
+  const auto bytecode = gagp::evo::compile_for_eval(child);
   return check(!bytecode.code.empty(), context + " should compile");
 }
 
-std::vector<g3pvm::evo::ProgramGenome> make_population(
+std::vector<gagp::evo::ProgramGenome> make_population(
     int count = 4,
-    const g3pvm::evo::GrammarConfig& grammar = g3pvm::evo::GrammarConfig{}) {
-  g3pvm::evo::Limits limits;
+    const gagp::evo::GrammarConfig& grammar = gagp::evo::GrammarConfig{}) {
+  gagp::evo::Limits limits;
   limits.max_expr_depth = 5;
   limits.max_stmts_per_block = 6;
   limits.max_total_nodes = 80;
   limits.max_for_k = 16;
   limits.max_call_args = 3;
 
-  std::vector<g3pvm::evo::ProgramGenome> out;
+  std::vector<gagp::evo::ProgramGenome> out;
   out.reserve(static_cast<std::size_t>(count));
   for (int seed = 1; seed <= count; ++seed) {
-    out.push_back(g3pvm::evo::generate_random_genome(seed, limits, grammar));
+    out.push_back(gagp::evo::generate_random_genome(seed, limits, grammar));
   }
   return out;
 }
 
-bool scalar_config_allows_program(const g3pvm::evo::ProgramGenome& genome) {
-  const g3pvm::evo::GrammarConfig grammar = g3pvm::evo::GrammarConfig::scalar();
-  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
+bool scalar_config_allows_program(const gagp::evo::ProgramGenome& genome) {
+  const gagp::evo::GrammarConfig grammar = gagp::evo::GrammarConfig::scalar();
+  for (const gagp::evo::AstNode& node : genome.ast.nodes) {
     if (!grammar.allows_node_kind(node.kind)) {
       return false;
     }
   }
-  for (const g3pvm::Value& value : genome.ast.consts) {
-    if (value.tag == g3pvm::ValueTag::String ||
-        value.tag == g3pvm::ValueTag::IntList ||
-        value.tag == g3pvm::ValueTag::FloatList ||
-        value.tag == g3pvm::ValueTag::StringList) {
+  for (const gagp::Value& value : genome.ast.consts) {
+    if (value.tag == gagp::ValueTag::String ||
+        value.tag == gagp::ValueTag::IntList ||
+        value.tag == gagp::ValueTag::FloatList ||
+        value.tag == gagp::ValueTag::StringList) {
       return false;
     }
   }
   return true;
 }
 
-g3pvm::evo::ProgramGenome make_linear_rec_genome(int suffix) {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::LinearRecBinders;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+gagp::evo::ProgramGenome make_linear_rec_genome(int suffix) {
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::LinearRecBinders;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome genome;
   genome.ast.names = {
@@ -109,7 +109,7 @@ g3pvm::evo::ProgramGenome make_linear_rec_genome(int suffix) {
       "__lr_i" + std::to_string(suffix),
   };
   genome.ast.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2), Value::from_int(3)}),
       Value::from_int(0),
       Value::from_int(suffix),
   };
@@ -128,38 +128,38 @@ g3pvm::evo::ProgramGenome make_linear_rec_genome(int suffix) {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   genome.ast.linear_rec_binders = {LinearRecBinders{3, 1, 2, 3}};
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
   return genome;
 }
 
-bool program_contains_linear_rec(const g3pvm::evo::ProgramGenome& genome) {
-  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
-    if (node.kind == g3pvm::evo::NodeKind::LINEAR_REC) {
+bool program_contains_linear_rec(const gagp::evo::ProgramGenome& genome) {
+  for (const gagp::evo::AstNode& node : genome.ast.nodes) {
+    if (node.kind == gagp::evo::NodeKind::LINEAR_REC) {
       return true;
     }
   }
   return false;
 }
 
-g3pvm::evo::GrammarConfig grammar_with_only_asgp_form(g3pvm::evo::NodeKind form) {
-  g3pvm::evo::GrammarConfig grammar;
-  grammar.expression_asgp_dc = form == g3pvm::evo::NodeKind::ASGP_DC;
-  grammar.expression_asgp_dp1d = form == g3pvm::evo::NodeKind::ASGP_DP1D;
-  grammar.expression_asgp_dp2d = form == g3pvm::evo::NodeKind::ASGP_DP2D;
+gagp::evo::GrammarConfig grammar_with_only_asgp_form(gagp::evo::NodeKind form) {
+  gagp::evo::GrammarConfig grammar;
+  grammar.expression_asgp_dc = form == gagp::evo::NodeKind::ASGP_DC;
+  grammar.expression_asgp_dp1d = form == gagp::evo::NodeKind::ASGP_DP1D;
+  grammar.expression_asgp_dp2d = form == gagp::evo::NodeKind::ASGP_DP2D;
   return grammar;
 }
 
-g3pvm::evo::ProgramGenome make_asgp_dc_genome() {
-  using g3pvm::Value;
-  using g3pvm::evo::AsgpDcBinders;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+gagp::evo::ProgramGenome make_asgp_dc_genome() {
+  using gagp::Value;
+  using gagp::evo::AsgpDcBinders;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome genome;
   genome.ast.names = {"xs", "n", "lo", "r1", "r2"};
   genome.ast.consts = {
-      g3pvm::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
+      gagp::payload::make_int_list_value({Value::from_int(1), Value::from_int(2)}),
       Value::from_int(0),
       Value::from_int(999),
   };
@@ -179,32 +179,32 @@ g3pvm::evo::ProgramGenome make_asgp_dc_genome() {
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
   genome.ast.asgp_dc_binders = {AsgpDcBinders{3, 0, 1, 2, 1, 3, 4}};
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
   return genome;
 }
 
-bool candidate_contains_asgp(const g3pvm::evo::ProgramGenome& genome,
-                             const g3pvm::evo::repro::CandidateRange& candidate) {
+bool candidate_contains_asgp(const gagp::evo::ProgramGenome& genome,
+                             const gagp::evo::repro::CandidateRange& candidate) {
   if (candidate.start < 0 || candidate.stop <= candidate.start ||
       static_cast<std::size_t>(candidate.stop) > genome.ast.nodes.size()) {
     return false;
   }
   for (int i = candidate.start; i < candidate.stop; ++i) {
-    const g3pvm::evo::NodeKind kind = genome.ast.nodes[static_cast<std::size_t>(i)].kind;
-    if (kind == g3pvm::evo::NodeKind::ASGP_DC ||
-        kind == g3pvm::evo::NodeKind::ASGP_DP1D ||
-        kind == g3pvm::evo::NodeKind::ASGP_DP2D) {
+    const gagp::evo::NodeKind kind = genome.ast.nodes[static_cast<std::size_t>(i)].kind;
+    if (kind == gagp::evo::NodeKind::ASGP_DC ||
+        kind == gagp::evo::NodeKind::ASGP_DP1D ||
+        kind == gagp::evo::NodeKind::ASGP_DP2D) {
       return true;
     }
   }
   return false;
 }
 
-bool program_contains_asgp(const g3pvm::evo::ProgramGenome& genome) {
-  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
-    if (node.kind == g3pvm::evo::NodeKind::ASGP_DC ||
-        node.kind == g3pvm::evo::NodeKind::ASGP_DP1D ||
-        node.kind == g3pvm::evo::NodeKind::ASGP_DP2D) {
+bool program_contains_asgp(const gagp::evo::ProgramGenome& genome) {
+  for (const gagp::evo::AstNode& node : genome.ast.nodes) {
+    if (node.kind == gagp::evo::NodeKind::ASGP_DC ||
+        node.kind == gagp::evo::NodeKind::ASGP_DP1D ||
+        node.kind == gagp::evo::NodeKind::ASGP_DP2D) {
       return true;
     }
   }
@@ -212,7 +212,7 @@ bool program_contains_asgp(const g3pvm::evo::ProgramGenome& genome) {
 }
 
 bool test_preprocess_and_pack() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 4;
   cfg.selection_pressure = 3;
   cfg.seed = 42;
@@ -222,29 +222,29 @@ bool test_preprocess_and_pack() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population = make_population();
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
-  std::vector<g3pvm::evo::VerifiedAst> verified;
+  const std::vector<gagp::evo::ProgramGenome> population = make_population();
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  std::vector<gagp::evo::VerifiedAst> verified;
   verified.reserve(population.size());
   for (const auto& genome : population) {
-    const auto result = g3pvm::evo::verify_ast(genome.ast, {});
+    const auto result = gagp::evo::verify_ast(genome.ast, {});
     if (!check(result.ok, "preprocess population should verify")) return false;
     verified.push_back(result.verified);
   }
-  const g3pvm::evo::repro::PreprocessOutput verified_prep =
-      g3pvm::evo::repro::preprocess_population(
+  const gagp::evo::repro::PreprocessOutput verified_prep =
+      gagp::evo::repro::preprocess_population(
           population, verified, repro_cfg, cfg.grammar);
-  const g3pvm::evo::repro::PreprocessOutput verified_replay =
-      g3pvm::evo::repro::preprocess_population(
+  const gagp::evo::repro::PreprocessOutput verified_replay =
+      gagp::evo::repro::preprocess_population(
           population, verified, repro_cfg, cfg.grammar);
 
   if (!check(prep.subtree_ends.size() == population.size(), "subtree_ends size mismatch")) return false;
   if (!check(prep.candidates.size() == population.size(), "candidates size mismatch")) return false;
   if (!check(static_cast<int>(prep.donor_pool.size()) ==
-                 repro_cfg.donor_pool_size_per_type * g3pvm::evo::repro::kGpuReproDonorTypeCount,
+                 repro_cfg.donor_pool_size_per_type * gagp::evo::repro::kGpuReproDonorTypeCount,
              "donor_pool size mismatch")) {
     return false;
   }
@@ -278,19 +278,19 @@ bool test_preprocess_and_pack() {
   }
 
   try {
-    std::vector<g3pvm::evo::VerifiedAst> wrong_count = verified;
+    std::vector<gagp::evo::VerifiedAst> wrong_count = verified;
     wrong_count.pop_back();
-    (void)g3pvm::evo::repro::preprocess_population(
+    (void)gagp::evo::repro::preprocess_population(
         population, wrong_count, repro_cfg, cfg.grammar);
     return check(false, "preprocess should reject mismatched annotation count");
   } catch (const std::invalid_argument&) {
   }
 
-  const g3pvm::evo::repro::PackedHostData packed =
-      g3pvm::evo::repro::pack_population(population, prep, repro_cfg);
+  const gagp::evo::repro::PackedHostData packed =
+      gagp::evo::repro::pack_population(population, prep, repro_cfg);
   if (!check(static_cast<int>(packed.metas.size()) == repro_cfg.population_size, "meta size mismatch")) return false;
   if (!check(static_cast<int>(packed.donor_lens.size()) ==
-                 repro_cfg.donor_pool_size_per_type * g3pvm::evo::repro::kGpuReproDonorTypeCount,
+                 repro_cfg.donor_pool_size_per_type * gagp::evo::repro::kGpuReproDonorTypeCount,
              "donor_lens size mismatch")) {
     return false;
   }
@@ -306,7 +306,7 @@ bool test_preprocess_and_pack() {
 }
 
 bool test_gpu_repro_prep_includes_asgp_candidates() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 2;
   cfg.selection_pressure = 2;
   cfg.seed = 42;
@@ -316,18 +316,18 @@ bool test_gpu_repro_prep_includes_asgp_candidates() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population = {
+  const std::vector<gagp::evo::ProgramGenome> population = {
       make_asgp_dc_genome(),
       make_asgp_dc_genome(),
   };
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
 
   bool saw_asgp_candidate = false;
   for (std::size_t p = 0; p < prep.candidates.size(); ++p) {
-    for (const g3pvm::evo::repro::CandidateRange& candidate : prep.candidates[p]) {
+    for (const gagp::evo::repro::CandidateRange& candidate : prep.candidates[p]) {
       saw_asgp_candidate = saw_asgp_candidate || candidate_contains_asgp(population[p], candidate);
     }
   }
@@ -339,12 +339,12 @@ bool test_gpu_repro_prep_includes_asgp_candidates() {
 }
 
 bool test_gpu_repro_backend_preserves_asgp_metadata() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 2;
   cfg.selection_pressure = 2;
   cfg.seed = 43;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
   cfg.mutation_rate = 0.0;
   cfg.limits.max_expr_depth = 8;
   cfg.limits.max_stmts_per_block = 4;
@@ -352,44 +352,44 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population = {
+  const std::vector<gagp::evo::ProgramGenome> population = {
       make_asgp_dc_genome(),
       make_asgp_dc_genome(),
   };
-  std::vector<g3pvm::evo::ScoredGenome> scored;
+  std::vector<gagp::evo::ScoredGenome> scored;
   scored.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    scored.push_back(g3pvm::evo::ScoredGenome{population[i], static_cast<double>(i + 1)});
+    scored.push_back(gagp::evo::ScoredGenome{population[i], static_cast<double>(i + 1)});
   }
 
-  g3pvm::evo::repro::ReproductionStats prep_stats;
+  gagp::evo::repro::ReproductionStats prep_stats;
   try {
     auto prepared =
-        g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
-    const g3pvm::evo::repro::CandidateRange asgp_root{
-        3, 12, static_cast<int>(g3pvm::evo::repro::CandidateTag::Expr), static_cast<int>(g3pvm::evo::RType::Int)};
+        gagp::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
+    const gagp::evo::repro::CandidateRange asgp_root{
+        3, 12, static_cast<int>(gagp::evo::repro::CandidateTag::Expr), static_cast<int>(gagp::evo::RType::Int)};
     for (int p = 0; p < prepared.config.population_size; ++p) {
       const int base = p * prepared.config.candidates_per_program;
       for (int i = 0; i < prepared.config.candidates_per_program; ++i) {
         prepared.packed.candidates[static_cast<std::size_t>(base + i)] = asgp_root;
       }
     }
-    g3pvm::evo::repro::GpuReproArena arena;
-    g3pvm::evo::repro::GpuReproHostStaging staging;
+    gagp::evo::repro::GpuReproArena arena;
+    gagp::evo::repro::GpuReproHostStaging staging;
     struct Cleanup {
-      g3pvm::evo::repro::GpuReproArena* arena = nullptr;
-      g3pvm::evo::repro::GpuReproHostStaging* staging = nullptr;
+      gagp::evo::repro::GpuReproArena* arena = nullptr;
+      gagp::evo::repro::GpuReproHostStaging* staging = nullptr;
       ~Cleanup() {
-        if (staging != nullptr) g3pvm::evo::repro::destroy_gpu_repro_host_staging(staging);
-        if (arena != nullptr) g3pvm::evo::repro::destroy_gpu_repro_arena(arena);
+        if (staging != nullptr) gagp::evo::repro::destroy_gpu_repro_host_staging(staging);
+        if (arena != nullptr) gagp::evo::repro::destroy_gpu_repro_arena(arena);
       }
     } cleanup{&arena, &staging};
 
     std::string message;
-    if (!g3pvm::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, &message) ||
-        !g3pvm::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, &message)) {
+    if (!gagp::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, &message) ||
+        !gagp::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, &message)) {
       if (message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_repro_prep: SKIP ASGP metadata gpu prepared (" << message << ")\n";
+        std::cout << "gagp_test_repro_prep: SKIP ASGP metadata gpu prepared (" << message << ")\n";
         return true;
       }
       std::cerr << "FAIL: ASGP metadata gpu setup failed: " << message << "\n";
@@ -399,18 +399,18 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
     std::vector<double> ranked_fitness;
     ranked_fitness.reserve(scored.size());
     for (const auto& one : scored) {
-      ranked_fitness.push_back(g3pvm::evo::canonicalize_fitness_for_ranking(one.fitness));
+      ranked_fitness.push_back(gagp::evo::canonicalize_fitness_for_ranking(one.fitness));
     }
 
-    g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
-    if (!g3pvm::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, &message) ||
-        !g3pvm::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, &message)) {
+    gagp::evo::repro::ReproductionStats run_stats = prep_stats;
+    if (!gagp::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, &message) ||
+        !gagp::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, &message)) {
       std::cerr << "FAIL: ASGP metadata gpu kernels failed: " << message << "\n";
       return false;
     }
 
-    g3pvm::evo::repro::GpuReproChildView copyback;
-    if (!g3pvm::evo::repro::copyback_gpu_repro_children(
+    gagp::evo::repro::GpuReproChildView copyback;
+    if (!gagp::evo::repro::copyback_gpu_repro_children(
             arena, prepared.config, &staging, &copyback, &run_stats, &message)) {
       std::cerr << "FAIL: ASGP metadata gpu copyback failed: " << message << "\n";
       return false;
@@ -424,11 +424,11 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
       }
       const int node_base = copyback.child_node_offsets[child];
       for (int i = 0; i < copyback.child_used_len[child]; ++i) {
-        const g3pvm::evo::NodeKind kind =
-            static_cast<g3pvm::evo::NodeKind>(copyback.child_nodes[node_base + i].kind);
-        if (kind == g3pvm::evo::NodeKind::ASGP_DC ||
-            kind == g3pvm::evo::NodeKind::ASGP_DP1D ||
-            kind == g3pvm::evo::NodeKind::ASGP_DP2D) {
+        const gagp::evo::NodeKind kind =
+            static_cast<gagp::evo::NodeKind>(copyback.child_nodes[node_base + i].kind);
+        if (kind == gagp::evo::NodeKind::ASGP_DC ||
+            kind == gagp::evo::NodeKind::ASGP_DP1D ||
+            kind == gagp::evo::NodeKind::ASGP_DP2D) {
           saw_valid_asgp_child = true;
         }
       }
@@ -438,13 +438,13 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
     }
 
     const auto decoded =
-        g3pvm::evo::repro::decode_gpu_repro_children(prepared.packed, copyback, scored, cfg);
+        gagp::evo::repro::decode_gpu_repro_children(prepared.packed, copyback, scored, cfg);
     if (!check(static_cast<int>(decoded.size()) == cfg.population_size,
                "ASGP metadata decoded child count mismatch")) {
       return false;
     }
     bool saw_decoded_asgp_child = false;
-    for (const g3pvm::evo::ProgramGenome& child : decoded) {
+    for (const gagp::evo::ProgramGenome& child : decoded) {
       if (program_contains_asgp(child)) {
         saw_decoded_asgp_child = true;
         if (!check(!child.ast.asgp_dc_binders.empty(),
@@ -462,7 +462,7 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_repro_prep: SKIP ASGP metadata gpu prepared (" << message << ")\n";
+      std::cout << "gagp_test_repro_prep: SKIP ASGP metadata gpu prepared (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: ASGP metadata gpu reproduction failed: " << message << "\n";
@@ -473,7 +473,7 @@ bool test_gpu_repro_backend_preserves_asgp_metadata() {
 }
 
 bool test_gpu_decode_preserves_asgp_metadata() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 2;
   cfg.selection_pressure = 2;
   cfg.seed = 44;
@@ -485,25 +485,25 @@ bool test_gpu_decode_preserves_asgp_metadata() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population = {
+  const std::vector<gagp::evo::ProgramGenome> population = {
       make_asgp_dc_genome(),
       make_asgp_dc_genome(),
   };
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
-  g3pvm::evo::repro::PackedHostData packed =
-      g3pvm::evo::repro::pack_population(population, prep, repro_cfg);
-  packed.candidates[0] = g3pvm::evo::repro::CandidateRange{
-      4, 5, static_cast<int>(g3pvm::evo::repro::CandidateTag::Expr), static_cast<int>(g3pvm::evo::RType::IntList)};
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  gagp::evo::repro::PackedHostData packed =
+      gagp::evo::repro::pack_population(population, prep, repro_cfg);
+  packed.candidates[0] = gagp::evo::repro::CandidateRange{
+      4, 5, static_cast<int>(gagp::evo::repro::CandidateTag::Expr), static_cast<int>(gagp::evo::RType::IntList)};
   packed.candidates[static_cast<std::size_t>(repro_cfg.candidates_per_program)] =
-      g3pvm::evo::repro::CandidateRange{
-          4, 5, static_cast<int>(g3pvm::evo::repro::CandidateTag::Expr), static_cast<int>(g3pvm::evo::RType::IntList)};
+      gagp::evo::repro::CandidateRange{
+          4, 5, static_cast<int>(gagp::evo::repro::CandidateTag::Expr), static_cast<int>(gagp::evo::RType::IntList)};
 
-  std::vector<g3pvm::evo::ScoredGenome> scored = {
-      g3pvm::evo::ScoredGenome{population[0], 2.0},
-      g3pvm::evo::ScoredGenome{population[1], 1.0},
+  std::vector<gagp::evo::ScoredGenome> scored = {
+      gagp::evo::ScoredGenome{population[0], 2.0},
+      gagp::evo::ScoredGenome{population[1], 1.0},
   };
 
   std::vector<int> parent_a = {0};
@@ -524,10 +524,10 @@ bool test_gpu_decode_preserves_asgp_metadata() {
       static_cast<int>(population[0].ast.consts.size()),
       static_cast<int>(population[1].ast.consts.size()),
   };
-  std::vector<g3pvm::evo::repro::PlainNode> child_nodes;
-  for (const g3pvm::evo::ProgramGenome& genome : population) {
-    for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
-      child_nodes.push_back(g3pvm::evo::repro::PlainNode{static_cast<int>(node.kind), node.i0, node.i1});
+  std::vector<gagp::evo::repro::PlainNode> child_nodes;
+  for (const gagp::evo::ProgramGenome& genome : population) {
+    for (const gagp::evo::AstNode& node : genome.ast.nodes) {
+      child_nodes.push_back(gagp::evo::repro::PlainNode{static_cast<int>(node.kind), node.i0, node.i1});
     }
   }
   std::vector<std::uint64_t> child_name_ids;
@@ -537,21 +537,21 @@ bool test_gpu_decode_preserves_asgp_metadata() {
       child_name_ids.push_back(packed.program_name_ids[base + static_cast<std::size_t>(i)]);
     }
   }
-  std::vector<g3pvm::Value> child_consts;
+  std::vector<gagp::Value> child_consts;
   for (std::size_t p = 0; p < population.size(); ++p) {
     const std::size_t base = p * static_cast<std::size_t>(repro_cfg.max_consts);
     for (int i = 0; i < child_const_counts[p]; ++i) {
       child_consts.push_back(packed.program_consts[base + static_cast<std::size_t>(i)]);
     }
   }
-  std::vector<g3pvm::evo::repro::PackedChildMeta> child_meta = {
-      g3pvm::evo::repro::PackedChildMeta{
+  std::vector<gagp::evo::repro::PackedChildMeta> child_meta = {
+      gagp::evo::repro::PackedChildMeta{
           population[0].meta.node_count,
           population[0].meta.max_depth,
           static_cast<unsigned char>(population[0].meta.uses_builtins ? 1 : 0),
           1,
       },
-      g3pvm::evo::repro::PackedChildMeta{
+      gagp::evo::repro::PackedChildMeta{
           population[1].meta.node_count,
           population[1].meta.max_depth,
           static_cast<unsigned char>(population[1].meta.uses_builtins ? 1 : 0),
@@ -559,7 +559,7 @@ bool test_gpu_decode_preserves_asgp_metadata() {
       },
   };
 
-  g3pvm::evo::repro::GpuReproChildView view;
+  gagp::evo::repro::GpuReproChildView view;
   view.config = repro_cfg;
   view.parent_a = parent_a.data();
   view.parent_b = parent_b.data();
@@ -576,23 +576,23 @@ bool test_gpu_decode_preserves_asgp_metadata() {
   view.child_const_counts = child_const_counts.data();
   view.child_meta = child_meta.data();
 
-  const std::vector<g3pvm::evo::ProgramGenome> decoded =
-      g3pvm::evo::repro::decode_gpu_repro_children(packed, view, scored, cfg);
+  const std::vector<gagp::evo::ProgramGenome> decoded =
+      gagp::evo::repro::decode_gpu_repro_children(packed, view, scored, cfg);
   if (!check(decoded.size() == 2, "ASGP metadata decode child count mismatch")) return false;
   if (!check(!decoded[0].ast.asgp_dc_binders.empty(),
              "ASGP metadata should be rebuilt from packed program metadata")) {
     return false;
   }
-  const auto bc = g3pvm::evo::compile_for_eval(decoded[0]);
+  const auto bc = gagp::evo::compile_for_eval(decoded[0]);
   return check(!bc.code.empty(), "decoded ASGP metadata child should compile");
 }
 
 bool test_gpu_donor_pool_emits_asgp_dc_metadata() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
 
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 32;
   cfg.selection_pressure = 3;
   cfg.seed = 42;
@@ -602,26 +602,26 @@ bool test_gpu_donor_pool_emits_asgp_dc_metadata() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population =
+  const std::vector<gagp::evo::ProgramGenome> population =
       make_population(cfg.population_size, cfg.grammar);
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
-  const g3pvm::evo::repro::PackedHostData packed =
-      g3pvm::evo::repro::pack_population(population, prep, repro_cfg);
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  const gagp::evo::repro::PackedHostData packed =
+      gagp::evo::repro::pack_population(population, prep, repro_cfg);
 
   bool saw_asgp_dc_donor = false;
   bool saw_string_asgp_dc_donor = false;
   for (std::size_t i = 0; i < prep.donor_pool.size(); ++i) {
-    const g3pvm::evo::repro::DonorProgram& donor = prep.donor_pool[i];
+    const gagp::evo::repro::DonorProgram& donor = prep.donor_pool[i];
     if (donor.ast.asgp_dc_binders.empty()) {
       continue;
     }
     saw_asgp_dc_donor = true;
-    saw_string_asgp_dc_donor = saw_string_asgp_dc_donor || donor.type == g3pvm::evo::RType::String;
-    if (!check(donor.type == g3pvm::evo::RType::Int || donor.type == g3pvm::evo::RType::Float ||
-                   donor.type == g3pvm::evo::RType::String,
+    saw_string_asgp_dc_donor = saw_string_asgp_dc_donor || donor.type == gagp::evo::RType::String;
+    if (!check(donor.type == gagp::evo::RType::Int || donor.type == gagp::evo::RType::Float ||
+                   donor.type == gagp::evo::RType::String,
                "GPU ASGP-DC donor should only appear in supported Int/Float/String buckets")) {
       return false;
     }
@@ -630,12 +630,12 @@ bool test_gpu_donor_pool_emits_asgp_dc_metadata() {
       return false;
     }
 
-    g3pvm::evo::AstProgram base;
-    base.version = g3pvm::evo::k_ast_prefix_version_current;
-    if (donor.type == g3pvm::evo::RType::String) {
-      base.consts = {g3pvm::payload::make_string_value("")};
+    gagp::evo::AstProgram base;
+    base.version = gagp::evo::k_ast_prefix_version_current;
+    if (donor.type == gagp::evo::RType::String) {
+      base.consts = {gagp::payload::make_string_value("")};
     } else {
-      base.consts = {donor.type == g3pvm::evo::RType::Float ? Value::from_float(0.0)
+      base.consts = {donor.type == gagp::evo::RType::Float ? Value::from_float(0.0)
                                                             : Value::from_int(0)};
     }
     base.nodes = {
@@ -645,11 +645,11 @@ bool test_gpu_donor_pool_emits_asgp_dc_metadata() {
         AstNode{NodeKind::CONST, 0, 0},
         AstNode{NodeKind::BLOCK_NIL, 0, 0},
     };
-    g3pvm::evo::ProgramGenome wrapped;
-    wrapped.ast = g3pvm::evo::subtree::replace_subtree(
+    gagp::evo::ProgramGenome wrapped;
+    wrapped.ast = gagp::evo::subtree::replace_subtree(
         base, 3, 4, donor.ast, 0, donor.ast.nodes.size());
-    wrapped.meta = g3pvm::evo::build_genome_meta(wrapped.ast);
-    const auto bc = g3pvm::evo::compile_for_eval(wrapped);
+    wrapped.meta = gagp::evo::build_genome_meta(wrapped.ast);
+    const auto bc = gagp::evo::compile_for_eval(wrapped);
     if (!check(!bc.code.empty(), "GPU ASGP-DC donor should compile after subtree replacement")) {
       return false;
     }
@@ -662,12 +662,12 @@ bool test_gpu_donor_pool_emits_asgp_dc_metadata() {
 }
 
 bool test_gpu_donor_pool_emits_asgp_dp_metadata() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
 
   auto check_form = [](NodeKind form, std::uint64_t seed) {
-    g3pvm::evo::EvolutionConfig cfg;
+    gagp::evo::EvolutionConfig cfg;
     cfg.population_size = 8;
     cfg.selection_pressure = 3;
     cfg.seed = seed;
@@ -678,19 +678,19 @@ bool test_gpu_donor_pool_emits_asgp_dp_metadata() {
     cfg.limits.max_for_k = 16;
     cfg.limits.max_call_args = 3;
 
-    const std::vector<g3pvm::evo::ProgramGenome> population =
+    const std::vector<gagp::evo::ProgramGenome> population =
         make_population(cfg.population_size, cfg.grammar);
-    const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-        g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-    const g3pvm::evo::repro::PreprocessOutput prep =
-        g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
-    const g3pvm::evo::repro::PackedHostData packed =
-        g3pvm::evo::repro::pack_population(population, prep, repro_cfg);
+    const gagp::evo::repro::GpuReproConfig repro_cfg =
+        gagp::evo::repro::make_gpu_repro_config(population, cfg);
+    const gagp::evo::repro::PreprocessOutput prep =
+        gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+    const gagp::evo::repro::PackedHostData packed =
+        gagp::evo::repro::pack_population(population, prep, repro_cfg);
 
     bool saw_asgp_dp_donor = false;
     bool saw_string_asgp_dp_donor = false;
     for (std::size_t i = 0; i < prep.donor_pool.size(); ++i) {
-      const g3pvm::evo::repro::DonorProgram& donor = prep.donor_pool[i];
+      const gagp::evo::repro::DonorProgram& donor = prep.donor_pool[i];
       const bool has_dp1d = !donor.ast.asgp_dp1d_specs.empty();
       const bool has_dp2d = !donor.ast.asgp_dp2d_specs.empty();
       if ((form == NodeKind::ASGP_DP1D && !has_dp1d) ||
@@ -698,9 +698,9 @@ bool test_gpu_donor_pool_emits_asgp_dp_metadata() {
         continue;
       }
       saw_asgp_dp_donor = true;
-      saw_string_asgp_dp_donor = saw_string_asgp_dp_donor || donor.type == g3pvm::evo::RType::String;
-      if (!check(donor.type == g3pvm::evo::RType::Int || donor.type == g3pvm::evo::RType::Float ||
-                     donor.type == g3pvm::evo::RType::String,
+      saw_string_asgp_dp_donor = saw_string_asgp_dp_donor || donor.type == gagp::evo::RType::String;
+      if (!check(donor.type == gagp::evo::RType::Int || donor.type == gagp::evo::RType::Float ||
+                     donor.type == gagp::evo::RType::String,
                  "GPU ASGP-DP donor should only appear in supported Int/Float/String buckets")) {
         return false;
       }
@@ -715,12 +715,12 @@ bool test_gpu_donor_pool_emits_asgp_dp_metadata() {
         return false;
       }
 
-      g3pvm::evo::AstProgram base;
-      base.version = g3pvm::evo::k_ast_prefix_version_current;
-      if (donor.type == g3pvm::evo::RType::String) {
-        base.consts = {g3pvm::payload::make_string_value("")};
+      gagp::evo::AstProgram base;
+      base.version = gagp::evo::k_ast_prefix_version_current;
+      if (donor.type == gagp::evo::RType::String) {
+        base.consts = {gagp::payload::make_string_value("")};
       } else {
-        base.consts = {donor.type == g3pvm::evo::RType::Float ? Value::from_float(0.0)
+        base.consts = {donor.type == gagp::evo::RType::Float ? Value::from_float(0.0)
                                                               : Value::from_int(0)};
       }
       base.nodes = {
@@ -730,11 +730,11 @@ bool test_gpu_donor_pool_emits_asgp_dp_metadata() {
           AstNode{NodeKind::CONST, 0, 0},
           AstNode{NodeKind::BLOCK_NIL, 0, 0},
       };
-      g3pvm::evo::ProgramGenome wrapped;
-      wrapped.ast = g3pvm::evo::subtree::replace_subtree(
+      gagp::evo::ProgramGenome wrapped;
+      wrapped.ast = gagp::evo::subtree::replace_subtree(
           base, 3, 4, donor.ast, 0, donor.ast.nodes.size());
-      wrapped.meta = g3pvm::evo::build_genome_meta(wrapped.ast);
-      const auto bc = g3pvm::evo::compile_for_eval(wrapped);
+      wrapped.meta = gagp::evo::build_genome_meta(wrapped.ast);
+      const auto bc = gagp::evo::compile_for_eval(wrapped);
       if (!check(!bc.code.empty(), "GPU ASGP-DP donor should compile after subtree replacement")) {
         return false;
       }
@@ -754,36 +754,36 @@ bool test_gpu_donor_pool_emits_asgp_dp_metadata() {
   return check_form(NodeKind::ASGP_DP2D, 46);
 }
 
-g3pvm::ValueTag value_tag_for_rtype(g3pvm::evo::RType type) {
+gagp::ValueTag value_tag_for_rtype(gagp::evo::RType type) {
   switch (type) {
-    case g3pvm::evo::RType::Int:
-      return g3pvm::ValueTag::Int;
-    case g3pvm::evo::RType::Float:
-      return g3pvm::ValueTag::Float;
-    case g3pvm::evo::RType::Bool:
-      return g3pvm::ValueTag::Bool;
-    case g3pvm::evo::RType::Char:
-      return g3pvm::ValueTag::Char;
-    case g3pvm::evo::RType::String:
-      return g3pvm::ValueTag::String;
-    case g3pvm::evo::RType::IntList:
-      return g3pvm::ValueTag::IntList;
-    case g3pvm::evo::RType::FloatList:
-      return g3pvm::ValueTag::FloatList;
-    case g3pvm::evo::RType::StringList:
-      return g3pvm::ValueTag::StringList;
+    case gagp::evo::RType::Int:
+      return gagp::ValueTag::Int;
+    case gagp::evo::RType::Float:
+      return gagp::ValueTag::Float;
+    case gagp::evo::RType::Bool:
+      return gagp::ValueTag::Bool;
+    case gagp::evo::RType::Char:
+      return gagp::ValueTag::Char;
+    case gagp::evo::RType::String:
+      return gagp::ValueTag::String;
+    case gagp::evo::RType::IntList:
+      return gagp::ValueTag::IntList;
+    case gagp::evo::RType::FloatList:
+      return gagp::ValueTag::FloatList;
+    case gagp::evo::RType::StringList:
+      return gagp::ValueTag::StringList;
     default:
-      return g3pvm::ValueTag::Invalid;
+      return gagp::ValueTag::Invalid;
   }
 }
 
-g3pvm::evo::ProgramGenome wrap_donor_as_return(const g3pvm::evo::repro::DonorProgram& donor) {
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
-  using g3pvm::evo::ProgramGenome;
+gagp::evo::ProgramGenome wrap_donor_as_return(const gagp::evo::repro::DonorProgram& donor) {
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
+  using gagp::evo::ProgramGenome;
 
   ProgramGenome genome;
-  genome.ast.version = g3pvm::evo::k_ast_prefix_version_current;
+  genome.ast.version = gagp::evo::k_ast_prefix_version_current;
   genome.ast.names = donor.ast.names;
   genome.ast.consts = donor.ast.consts;
   genome.ast.linear_rec_binders = donor.ast.linear_rec_binders;
@@ -797,24 +797,24 @@ g3pvm::evo::ProgramGenome wrap_donor_as_return(const g3pvm::evo::repro::DonorPro
   };
   genome.ast.nodes.insert(genome.ast.nodes.end(), donor.ast.nodes.begin(), donor.ast.nodes.end());
   genome.ast.nodes.push_back(AstNode{NodeKind::BLOCK_NIL, 0, 0});
-  for (g3pvm::evo::LinearRecBinders& binders : genome.ast.linear_rec_binders) {
+  for (gagp::evo::LinearRecBinders& binders : genome.ast.linear_rec_binders) {
     binders.node_index += 3;
   }
-  for (g3pvm::evo::AsgpDcBinders& binders : genome.ast.asgp_dc_binders) {
+  for (gagp::evo::AsgpDcBinders& binders : genome.ast.asgp_dc_binders) {
     binders.node_index += 3;
   }
-  for (g3pvm::evo::AsgpDp1dSpec& spec : genome.ast.asgp_dp1d_specs) {
+  for (gagp::evo::AsgpDp1dSpec& spec : genome.ast.asgp_dp1d_specs) {
     spec.node_index += 3;
   }
-  for (g3pvm::evo::AsgpDp2dSpec& spec : genome.ast.asgp_dp2d_specs) {
+  for (gagp::evo::AsgpDp2dSpec& spec : genome.ast.asgp_dp2d_specs) {
     spec.node_index += 3;
   }
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
   return genome;
 }
 
 bool test_gpu_donor_pool_preserves_target_runtime_type() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.selection_pressure = 3;
   cfg.seed = 1042;
@@ -824,26 +824,26 @@ bool test_gpu_donor_pool_preserves_target_runtime_type() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population =
+  const std::vector<gagp::evo::ProgramGenome> population =
       make_population(cfg.population_size, cfg.grammar);
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
 
-  std::vector<bool> saw_type(static_cast<std::size_t>(g3pvm::evo::RType::Invalid), false);
-  for (const g3pvm::evo::repro::DonorProgram& donor : prep.donor_pool) {
-    if (donor.type == g3pvm::evo::RType::Any) {
+  std::vector<bool> saw_type(static_cast<std::size_t>(gagp::evo::RType::Invalid), false);
+  for (const gagp::evo::repro::DonorProgram& donor : prep.donor_pool) {
+    if (donor.type == gagp::evo::RType::Any) {
       continue;
     }
-    const g3pvm::ValueTag expected = value_tag_for_rtype(donor.type);
-    if (expected == g3pvm::ValueTag::Invalid) {
+    const gagp::ValueTag expected = value_tag_for_rtype(donor.type);
+    if (expected == gagp::ValueTag::Invalid) {
       continue;
     }
     saw_type[static_cast<std::size_t>(donor.type)] = true;
-    const g3pvm::evo::ProgramGenome genome = wrap_donor_as_return(donor);
-    const g3pvm::ExecResult out =
-        g3pvm::execute_bytecode_cpu(g3pvm::evo::compile_for_eval(genome), {}, 20000);
+    const gagp::evo::ProgramGenome genome = wrap_donor_as_return(donor);
+    const gagp::ExecResult out =
+        gagp::execute_bytecode_cpu(gagp::evo::compile_for_eval(genome), {}, 20000);
     if (!check(!out.is_error, "GPU donor-pool donor should execute as a standalone return expression")) {
       return false;
     }
@@ -853,15 +853,15 @@ bool test_gpu_donor_pool_preserves_target_runtime_type() {
     }
   }
 
-  for (g3pvm::evo::RType type : {
-           g3pvm::evo::RType::Int,
-           g3pvm::evo::RType::Float,
-           g3pvm::evo::RType::Bool,
-           g3pvm::evo::RType::Char,
-           g3pvm::evo::RType::String,
-           g3pvm::evo::RType::IntList,
-           g3pvm::evo::RType::FloatList,
-           g3pvm::evo::RType::StringList,
+  for (gagp::evo::RType type : {
+           gagp::evo::RType::Int,
+           gagp::evo::RType::Float,
+           gagp::evo::RType::Bool,
+           gagp::evo::RType::Char,
+           gagp::evo::RType::String,
+           gagp::evo::RType::IntList,
+           gagp::evo::RType::FloatList,
+           gagp::evo::RType::StringList,
        }) {
     if (!check(saw_type[static_cast<std::size_t>(type)],
                "GPU donor pool should include every concrete public current donor type")) {
@@ -872,38 +872,38 @@ bool test_gpu_donor_pool_preserves_target_runtime_type() {
 }
 
 bool test_preprocess_respects_scalar_grammar_config() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.selection_pressure = 3;
   cfg.seed = 42;
-  cfg.grammar = g3pvm::evo::GrammarConfig::scalar();
+  cfg.grammar = gagp::evo::GrammarConfig::scalar();
   cfg.limits.max_expr_depth = 5;
   cfg.limits.max_stmts_per_block = 6;
   cfg.limits.max_total_nodes = 80;
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population =
+  const std::vector<gagp::evo::ProgramGenome> population =
       make_population(cfg.population_size, cfg.grammar);
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
 
   for (const auto& candidates : prep.candidates) {
-    for (const g3pvm::evo::repro::CandidateRange& candidate : candidates) {
-      const auto type = static_cast<g3pvm::evo::RType>(candidate.aux);
-      if (type != g3pvm::evo::RType::Invalid &&
+    for (const gagp::evo::repro::CandidateRange& candidate : candidates) {
+      const auto type = static_cast<gagp::evo::RType>(candidate.aux);
+      if (type != gagp::evo::RType::Invalid &&
           !check(cfg.grammar.allows_type(type), "scalar gpu candidate type should be grammar-allowed")) {
         return false;
       }
     }
   }
-  for (const g3pvm::evo::repro::DonorProgram& donor : prep.donor_pool) {
+  for (const gagp::evo::repro::DonorProgram& donor : prep.donor_pool) {
     if (!check(cfg.grammar.allows_type(donor.type), "scalar gpu donor type should be grammar-allowed")) {
       return false;
     }
-    g3pvm::evo::ProgramGenome donor_genome;
+    gagp::evo::ProgramGenome donor_genome;
     donor_genome.ast = donor.ast;
     if (!check(scalar_config_allows_program(donor_genome),
                "scalar gpu donor pool should not contain disabled sequence features")) {
@@ -914,12 +914,12 @@ bool test_preprocess_respects_scalar_grammar_config() {
 }
 
 bool test_gpu_preprocess_packs_typed_candidate_keys() {
-  using g3pvm::Value;
-  using g3pvm::evo::AstNode;
-  using g3pvm::evo::NodeKind;
+  using gagp::Value;
+  using gagp::evo::AstNode;
+  using gagp::evo::NodeKind;
 
-  g3pvm::evo::ProgramGenome genome;
-  genome.ast.version = g3pvm::evo::k_ast_prefix_version_current;
+  gagp::evo::ProgramGenome genome;
+  genome.ast.version = gagp::evo::k_ast_prefix_version_current;
   genome.ast.names = {"x"};
   genome.ast.consts = {Value::from_int(1), Value::from_int(2)};
   genome.ast.nodes = {
@@ -934,24 +934,24 @@ bool test_gpu_preprocess_packs_typed_candidate_keys() {
       AstNode{NodeKind::CONST, 1, 0},
       AstNode{NodeKind::BLOCK_NIL, 0, 0},
   };
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
 
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 2;
   cfg.selection_pressure = 2;
   cfg.seed = 42;
-  const std::vector<g3pvm::evo::ProgramGenome> population = {genome, genome};
-  const g3pvm::evo::repro::GpuReproConfig repro_cfg =
-      g3pvm::evo::repro::make_gpu_repro_config(population, cfg);
-  const g3pvm::evo::repro::PreprocessOutput prep =
-      g3pvm::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
-  const g3pvm::evo::repro::PackedHostData packed =
-      g3pvm::evo::repro::pack_population(population, prep, repro_cfg);
+  const std::vector<gagp::evo::ProgramGenome> population = {genome, genome};
+  const gagp::evo::repro::GpuReproConfig repro_cfg =
+      gagp::evo::repro::make_gpu_repro_config(population, cfg);
+  const gagp::evo::repro::PreprocessOutput prep =
+      gagp::evo::repro::preprocess_population(population, repro_cfg, cfg.grammar);
+  const gagp::evo::repro::PackedHostData packed =
+      gagp::evo::repro::pack_population(population, prep, repro_cfg);
 
-  const g3pvm::evo::repro::CandidateRange* assign_const = nullptr;
-  const g3pvm::evo::repro::CandidateRange* scoped_var = nullptr;
-  const g3pvm::evo::repro::CandidateRange* scoped_const = nullptr;
-  for (const g3pvm::evo::repro::CandidateRange& candidate : prep.candidates[0]) {
+  const gagp::evo::repro::CandidateRange* assign_const = nullptr;
+  const gagp::evo::repro::CandidateRange* scoped_var = nullptr;
+  const gagp::evo::repro::CandidateRange* scoped_const = nullptr;
+  for (const gagp::evo::repro::CandidateRange& candidate : prep.candidates[0]) {
     if (candidate.start == 3) assign_const = &candidate;
     if (candidate.start == 7) scoped_var = &candidate;
     if (candidate.start == 8) scoped_const = &candidate;
@@ -969,7 +969,7 @@ bool test_gpu_preprocess_packs_typed_candidate_keys() {
              "GPU candidate key should preserve common visible environment for compatible ordinary roots")) {
     return false;
   }
-  const g3pvm::evo::repro::CandidateRange& packed_first = packed.candidates[0];
+  const gagp::evo::repro::CandidateRange& packed_first = packed.candidates[0];
   if (!check(packed_first.scope_signature == prep.candidates[0][0].scope_signature &&
                  packed_first.binder_signature == prep.candidates[0][0].binder_signature &&
                  packed_first.visible_env_signature == prep.candidates[0][0].visible_env_signature,
@@ -979,42 +979,42 @@ bool test_gpu_preprocess_packs_typed_candidate_keys() {
   return true;
 }
 
-g3pvm::evo::ProgramGenome make_bloated_const_table_genome() {
-  g3pvm::evo::AstProgram ast;
-  ast.version = g3pvm::evo::k_ast_prefix_version_current;
+gagp::evo::ProgramGenome make_bloated_const_table_genome() {
+  gagp::evo::AstProgram ast;
+  ast.version = gagp::evo::k_ast_prefix_version_current;
   ast.names = {"unused_name"};
   ast.consts.reserve(static_cast<std::size_t>(160));
-  ast.consts.push_back(g3pvm::Value::from_int(7));
+  ast.consts.push_back(gagp::Value::from_int(7));
   for (int i = 1; i < 160; ++i) {
-    ast.consts.push_back(g3pvm::Value::from_int(1000 + i));
+    ast.consts.push_back(gagp::Value::from_int(1000 + i));
   }
   ast.nodes = {
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::PROGRAM, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::BLOCK_CONS, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::RETURN, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::CONST, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::BLOCK_NIL, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::PROGRAM, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::BLOCK_CONS, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::RETURN, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::CONST, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::BLOCK_NIL, 0, 0},
   };
-  g3pvm::evo::ProgramGenome genome;
+  gagp::evo::ProgramGenome genome;
   genome.ast = std::move(ast);
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
   return genome;
 }
 
-g3pvm::evo::ProgramGenome make_const_return_genome(int value) {
-  g3pvm::evo::AstProgram ast;
-  ast.version = g3pvm::evo::k_ast_prefix_version_current;
-  ast.consts = {g3pvm::Value::from_int(value)};
+gagp::evo::ProgramGenome make_const_return_genome(int value) {
+  gagp::evo::AstProgram ast;
+  ast.version = gagp::evo::k_ast_prefix_version_current;
+  ast.consts = {gagp::Value::from_int(value)};
   ast.nodes = {
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::PROGRAM, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::BLOCK_CONS, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::RETURN, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::CONST, 0, 0},
-      g3pvm::evo::AstNode{g3pvm::evo::NodeKind::BLOCK_NIL, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::PROGRAM, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::BLOCK_CONS, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::RETURN, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::CONST, 0, 0},
+      gagp::evo::AstNode{gagp::evo::NodeKind::BLOCK_NIL, 0, 0},
   };
-  g3pvm::evo::ProgramGenome genome;
+  gagp::evo::ProgramGenome genome;
   genome.ast = std::move(ast);
-  genome.meta = g3pvm::evo::build_genome_meta(genome.ast);
+  genome.meta = gagp::evo::build_genome_meta(genome.ast);
   return genome;
 }
 
@@ -1027,9 +1027,9 @@ std::uint64_t test_hash_name(const std::string& s) {
   return h;
 }
 
-bool program_contains_bound_var(const g3pvm::evo::ProgramGenome& genome) {
-  for (const g3pvm::evo::AstNode& node : genome.ast.nodes) {
-    if (node.kind == g3pvm::evo::NodeKind::BOUND_VAR) {
+bool program_contains_bound_var(const gagp::evo::ProgramGenome& genome) {
+  for (const gagp::evo::AstNode& node : genome.ast.nodes) {
+    if (node.kind == gagp::evo::NodeKind::BOUND_VAR) {
       return true;
     }
   }
@@ -1037,7 +1037,7 @@ bool program_contains_bound_var(const g3pvm::evo::ProgramGenome& genome) {
 }
 
 bool test_gpu_repro_compacts_dead_tables_before_pack() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 2;
   cfg.selection_pressure = 2;
   cfg.seed = 42;
@@ -1047,29 +1047,29 @@ bool test_gpu_repro_compacts_dead_tables_before_pack() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  std::vector<g3pvm::evo::ProgramGenome> population = {
+  std::vector<gagp::evo::ProgramGenome> population = {
       make_bloated_const_table_genome(),
       make_bloated_const_table_genome(),
   };
-  if (!check(population.front().ast.consts.size() > g3pvm::evo::repro::kGpuReproMaxConsts,
+  if (!check(population.front().ast.consts.size() > gagp::evo::repro::kGpuReproMaxConsts,
              "test setup should exceed gpu repro const scratch")) {
     return false;
   }
 
-  const g3pvm::evo::ProgramGenome compacted =
-      g3pvm::evo::repro::compact_genome_tables(population.front());
+  const gagp::evo::ProgramGenome compacted =
+      gagp::evo::repro::compact_genome_tables(population.front());
   if (!check(compacted.ast.names.empty(), "compaction should remove unused names")) return false;
   if (!check(compacted.ast.consts.size() == 1, "compaction should remove unused consts")) return false;
   if (!check(compacted.ast.nodes[3].i0 == 0, "compaction should remap const node")) return false;
 
-  g3pvm::evo::repro::ReproductionStats stats;
-  const g3pvm::evo::repro::GpuReproPreparedData prepared =
-      g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &stats);
-  if (!check(prepared.config.max_consts <= g3pvm::evo::repro::kGpuReproMaxConsts,
+  gagp::evo::repro::ReproductionStats stats;
+  const gagp::evo::repro::GpuReproPreparedData prepared =
+      gagp::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &stats);
+  if (!check(prepared.config.max_consts <= gagp::evo::repro::kGpuReproMaxConsts,
              "prepare should compact dead consts before scratch-capacity checks")) {
     return false;
   }
-  if (!check(prepared.config.max_names <= g3pvm::evo::repro::kGpuReproMaxNames,
+  if (!check(prepared.config.max_names <= gagp::evo::repro::kGpuReproMaxNames,
              "prepare should compact dead names before scratch-capacity checks")) {
     return false;
   }
@@ -1077,15 +1077,15 @@ bool test_gpu_repro_compacts_dead_tables_before_pack() {
 }
 
 bool test_decode_falls_back_on_escaped_bound_var_child() {
-  g3pvm::evo::EvolutionConfig cfg;
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 2;
 
-  std::vector<g3pvm::evo::ScoredGenome> scored = {
-      g3pvm::evo::ScoredGenome{make_const_return_genome(11), 2.0},
-      g3pvm::evo::ScoredGenome{make_const_return_genome(22), 1.0},
+  std::vector<gagp::evo::ScoredGenome> scored = {
+      gagp::evo::ScoredGenome{make_const_return_genome(11), 2.0},
+      gagp::evo::ScoredGenome{make_const_return_genome(22), 1.0},
   };
 
-  g3pvm::evo::repro::PackedHostData packed;
+  gagp::evo::repro::PackedHostData packed;
   packed.config.population_size = 2;
   packed.config.pair_count = 1;
   packed.config.candidates_per_program = 1;
@@ -1094,14 +1094,14 @@ bool test_decode_falls_back_on_escaped_bound_var_child() {
   const std::uint64_t map_name_id = test_hash_name("__map_u0");
   packed.name_lookup[map_name_id] = "__map_u0";
   packed.metas = {
-      g3pvm::evo::repro::PackedProgramMeta{5, 0, 1, 0},
-      g3pvm::evo::repro::PackedProgramMeta{5, 0, 1, 0},
+      gagp::evo::repro::PackedProgramMeta{5, 0, 1, 0},
+      gagp::evo::repro::PackedProgramMeta{5, 0, 1, 0},
   };
   packed.candidates = {
-      g3pvm::evo::repro::CandidateRange{3, 4, static_cast<int>(g3pvm::evo::repro::CandidateTag::Expr),
-                                        static_cast<int>(g3pvm::evo::RType::Int)},
-      g3pvm::evo::repro::CandidateRange{3, 4, static_cast<int>(g3pvm::evo::repro::CandidateTag::Expr),
-                                        static_cast<int>(g3pvm::evo::RType::Int)},
+      gagp::evo::repro::CandidateRange{3, 4, static_cast<int>(gagp::evo::repro::CandidateTag::Expr),
+                                        static_cast<int>(gagp::evo::RType::Int)},
+      gagp::evo::repro::CandidateRange{3, 4, static_cast<int>(gagp::evo::repro::CandidateTag::Expr),
+                                        static_cast<int>(gagp::evo::RType::Int)},
   };
   packed.program_linear_rec_binders.resize(2);
 
@@ -1115,25 +1115,25 @@ bool test_decode_falls_back_on_escaped_bound_var_child() {
   std::vector<int> child_name_counts = {1, 1};
   std::vector<int> child_const_counts = {0, 0};
   std::vector<std::uint64_t> child_name_ids = {map_name_id, map_name_id};
-  std::vector<g3pvm::evo::repro::PlainNode> child_nodes = {
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::PROGRAM), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::BLOCK_CONS), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::RETURN), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::BOUND_VAR), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::BLOCK_NIL), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::PROGRAM), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::BLOCK_CONS), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::RETURN), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::BOUND_VAR), 0, 0},
-      g3pvm::evo::repro::PlainNode{static_cast<int>(g3pvm::evo::NodeKind::BLOCK_NIL), 0, 0},
+  std::vector<gagp::evo::repro::PlainNode> child_nodes = {
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::PROGRAM), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::BLOCK_CONS), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::RETURN), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::BOUND_VAR), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::BLOCK_NIL), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::PROGRAM), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::BLOCK_CONS), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::RETURN), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::BOUND_VAR), 0, 0},
+      gagp::evo::repro::PlainNode{static_cast<int>(gagp::evo::NodeKind::BLOCK_NIL), 0, 0},
   };
-  std::vector<g3pvm::Value> child_consts;
-  std::vector<g3pvm::evo::repro::PackedChildMeta> child_meta = {
-      g3pvm::evo::repro::PackedChildMeta{5, 4, 0, 1},
-      g3pvm::evo::repro::PackedChildMeta{5, 4, 0, 1},
+  std::vector<gagp::Value> child_consts;
+  std::vector<gagp::evo::repro::PackedChildMeta> child_meta = {
+      gagp::evo::repro::PackedChildMeta{5, 4, 0, 1},
+      gagp::evo::repro::PackedChildMeta{5, 4, 0, 1},
   };
 
-  g3pvm::evo::repro::GpuReproChildView copyback;
+  gagp::evo::repro::GpuReproChildView copyback;
   copyback.config = packed.config;
   copyback.parent_a = parent_a.data();
   copyback.parent_b = parent_b.data();
@@ -1150,7 +1150,7 @@ bool test_decode_falls_back_on_escaped_bound_var_child() {
   copyback.child_const_counts = child_const_counts.data();
   copyback.child_meta = child_meta.data();
 
-  const auto decoded = g3pvm::evo::repro::decode_gpu_repro_children(packed, copyback, scored, cfg);
+  const auto decoded = gagp::evo::repro::decode_gpu_repro_children(packed, copyback, scored, cfg);
   if (!check(decoded.size() == 2, "escaped bound var fallback decoded size mismatch")) return false;
   for (const auto& child : decoded) {
     if (!check(!program_contains_bound_var(child),
@@ -1164,42 +1164,42 @@ bool test_decode_falls_back_on_escaped_bound_var_child() {
   return true;
 }
 
-#ifdef G3PVM_HAS_CUDA
-bool copyback_gpu_selection_parents(const g3pvm::evo::EvolutionConfig& cfg,
-                                    const std::vector<g3pvm::evo::ProgramGenome>& population,
+#ifdef GAGP_HAS_CUDA
+bool copyback_gpu_selection_parents(const gagp::evo::EvolutionConfig& cfg,
+                                    const std::vector<gagp::evo::ProgramGenome>& population,
                                     const std::vector<double>& ranked_fitness,
                                     std::uint64_t seed,
                                     std::vector<int>* parent_a_out,
                                     std::vector<int>* parent_b_out,
                                     std::string* message_out) {
-  g3pvm::evo::repro::ReproductionStats prep_stats;
+  gagp::evo::repro::ReproductionStats prep_stats;
   const auto prepared =
-      g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, seed, &prep_stats);
+      gagp::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, seed, &prep_stats);
 
-  g3pvm::evo::repro::GpuReproArena arena;
-  g3pvm::evo::repro::GpuReproHostStaging staging;
+  gagp::evo::repro::GpuReproArena arena;
+  gagp::evo::repro::GpuReproHostStaging staging;
   struct Cleanup {
-    g3pvm::evo::repro::GpuReproArena* arena = nullptr;
-    g3pvm::evo::repro::GpuReproHostStaging* staging = nullptr;
+    gagp::evo::repro::GpuReproArena* arena = nullptr;
+    gagp::evo::repro::GpuReproHostStaging* staging = nullptr;
     ~Cleanup() {
-      if (staging != nullptr) g3pvm::evo::repro::destroy_gpu_repro_host_staging(staging);
-      if (arena != nullptr) g3pvm::evo::repro::destroy_gpu_repro_arena(arena);
+      if (staging != nullptr) gagp::evo::repro::destroy_gpu_repro_host_staging(staging);
+      if (arena != nullptr) gagp::evo::repro::destroy_gpu_repro_arena(arena);
     }
   } cleanup{&arena, &staging};
 
-  if (!g3pvm::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, message_out) ||
-      !g3pvm::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, message_out)) {
+  if (!gagp::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, message_out) ||
+      !gagp::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, message_out)) {
     return false;
   }
 
-  g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
-  if (!g3pvm::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, message_out) ||
-      !g3pvm::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, message_out)) {
+  gagp::evo::repro::ReproductionStats run_stats = prep_stats;
+  if (!gagp::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, message_out) ||
+      !gagp::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, message_out)) {
     return false;
   }
 
-  g3pvm::evo::repro::GpuReproChildView copyback;
-  if (!g3pvm::evo::repro::copyback_gpu_repro_children(
+  gagp::evo::repro::GpuReproChildView copyback;
+  if (!gagp::evo::repro::copyback_gpu_repro_children(
           arena, prepared.config, &staging, &copyback, &run_stats, message_out)) {
     return false;
   }
@@ -1211,35 +1211,35 @@ bool copyback_gpu_selection_parents(const g3pvm::evo::EvolutionConfig& cfg,
 #endif
 
 bool test_gpu_prepared_backend_smoke() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 4;
   cfg.selection_pressure = 3;
   cfg.seed = 42;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
   cfg.limits.max_expr_depth = 5;
   cfg.limits.max_stmts_per_block = 6;
   cfg.limits.max_total_nodes = 80;
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population = make_population();
-  std::vector<g3pvm::evo::ScoredGenome> scored;
+  const std::vector<gagp::evo::ProgramGenome> population = make_population();
+  std::vector<gagp::evo::ScoredGenome> scored;
   scored.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    scored.push_back(g3pvm::evo::ScoredGenome{
+    scored.push_back(gagp::evo::ScoredGenome{
         population[i],
         static_cast<double>(population.size() - i),
     });
   }
 
-  g3pvm::evo::repro::ReproductionStats prep_stats;
+  gagp::evo::repro::ReproductionStats prep_stats;
   try {
     const auto prepared =
-        g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
-    g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
+        gagp::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
+    gagp::evo::repro::ReproductionStats run_stats = prep_stats;
     const auto reproduction =
-        g3pvm::evo::repro::run_gpu_repro_backend_prepared(scored, cfg, prepared, &run_stats);
+        gagp::evo::repro::run_gpu_repro_backend_prepared(scored, cfg, prepared, &run_stats);
     if (!check(static_cast<int>(reproduction.next_population.size()) == cfg.population_size,
                "prepared gpu reproduction child count mismatch")) {
       return false;
@@ -1258,7 +1258,7 @@ bool test_gpu_prepared_backend_smoke() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_repro_prep: SKIP gpu prepared (" << message << ")\n";
+      std::cout << "gagp_test_repro_prep: SKIP gpu prepared (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: gpu reproduction prepared backend failed: " << message << "\n";
@@ -1269,12 +1269,12 @@ bool test_gpu_prepared_backend_smoke() {
 }
 
 bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 4;
   cfg.selection_pressure = 1;
   cfg.seed = 77;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
   cfg.mutation_rate = 0.0;
   cfg.mutation_subtree_prob = 1.0;
   cfg.limits.max_expr_depth = 8;
@@ -1283,40 +1283,40 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  std::vector<g3pvm::evo::ProgramGenome> population;
+  std::vector<gagp::evo::ProgramGenome> population;
   for (int i = 0; i < cfg.population_size; ++i) {
     population.push_back(make_linear_rec_genome(i + 1));
   }
 
-  std::vector<g3pvm::evo::ScoredGenome> scored;
+  std::vector<gagp::evo::ScoredGenome> scored;
   scored.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    scored.push_back(g3pvm::evo::ScoredGenome{
+    scored.push_back(gagp::evo::ScoredGenome{
         population[i],
         static_cast<double>(population.size() - i),
     });
   }
 
-  g3pvm::evo::repro::ReproductionStats prep_stats;
+  gagp::evo::repro::ReproductionStats prep_stats;
   try {
     const auto prepared =
-        g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 321, &prep_stats);
-    g3pvm::evo::repro::GpuReproArena arena;
-    g3pvm::evo::repro::GpuReproHostStaging staging;
+        gagp::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 321, &prep_stats);
+    gagp::evo::repro::GpuReproArena arena;
+    gagp::evo::repro::GpuReproHostStaging staging;
     struct Cleanup {
-      g3pvm::evo::repro::GpuReproArena* arena = nullptr;
-      g3pvm::evo::repro::GpuReproHostStaging* staging = nullptr;
+      gagp::evo::repro::GpuReproArena* arena = nullptr;
+      gagp::evo::repro::GpuReproHostStaging* staging = nullptr;
       ~Cleanup() {
-        if (staging != nullptr) g3pvm::evo::repro::destroy_gpu_repro_host_staging(staging);
-        if (arena != nullptr) g3pvm::evo::repro::destroy_gpu_repro_arena(arena);
+        if (staging != nullptr) gagp::evo::repro::destroy_gpu_repro_host_staging(staging);
+        if (arena != nullptr) gagp::evo::repro::destroy_gpu_repro_arena(arena);
       }
     } cleanup{&arena, &staging};
 
     std::string message;
-    if (!g3pvm::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, &message) ||
-        !g3pvm::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, &message)) {
+    if (!gagp::evo::repro::ensure_gpu_repro_arena_capacity(&arena, prepared.config, &message) ||
+        !gagp::evo::repro::ensure_gpu_repro_host_staging_capacity(&staging, prepared.config, &message)) {
       if (message.find("cuda device unavailable") != std::string::npos) {
-        std::cout << "g3pvm_test_repro_prep: SKIP linear metadata gpu prepared (" << message << ")\n";
+        std::cout << "gagp_test_repro_prep: SKIP linear metadata gpu prepared (" << message << ")\n";
         return true;
       }
       std::cerr << "FAIL: linear metadata gpu setup failed: " << message << "\n";
@@ -1326,18 +1326,18 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
     std::vector<double> ranked_fitness;
     ranked_fitness.reserve(scored.size());
     for (const auto& one : scored) {
-      ranked_fitness.push_back(g3pvm::evo::canonicalize_fitness_for_ranking(one.fitness));
+      ranked_fitness.push_back(gagp::evo::canonicalize_fitness_for_ranking(one.fitness));
     }
 
-    g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
-    if (!g3pvm::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, &message) ||
-        !g3pvm::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, &message)) {
+    gagp::evo::repro::ReproductionStats run_stats = prep_stats;
+    if (!gagp::evo::repro::upload_gpu_repro_inputs(prepared.packed, &arena, &run_stats, &message) ||
+        !gagp::evo::repro::launch_gpu_repro_kernels(&arena, prepared.config, ranked_fitness, &run_stats, &message)) {
       std::cerr << "FAIL: linear metadata gpu kernels failed: " << message << "\n";
       return false;
     }
 
-    g3pvm::evo::repro::GpuReproChildView copyback;
-    if (!g3pvm::evo::repro::copyback_gpu_repro_children(
+    gagp::evo::repro::GpuReproChildView copyback;
+    if (!gagp::evo::repro::copyback_gpu_repro_children(
             arena, prepared.config, &staging, &copyback, &run_stats, &message)) {
       std::cerr << "FAIL: linear metadata gpu copyback failed: " << message << "\n";
       return false;
@@ -1351,8 +1351,8 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
       }
       const int node_base = copyback.child_node_offsets[child];
       for (int i = 0; i < copyback.child_used_len[child]; ++i) {
-        if (static_cast<g3pvm::evo::NodeKind>(copyback.child_nodes[node_base + i].kind) ==
-            g3pvm::evo::NodeKind::LINEAR_REC) {
+        if (static_cast<gagp::evo::NodeKind>(copyback.child_nodes[node_base + i].kind) ==
+            gagp::evo::NodeKind::LINEAR_REC) {
           saw_valid_linear_child = true;
         }
       }
@@ -1362,7 +1362,7 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
     }
 
     const auto decoded =
-        g3pvm::evo::repro::decode_gpu_repro_children(prepared.packed, copyback, scored, cfg);
+        gagp::evo::repro::decode_gpu_repro_children(prepared.packed, copyback, scored, cfg);
     if (!check(static_cast<int>(decoded.size()) == cfg.population_size,
                "linear metadata decoded child count mismatch")) {
       return false;
@@ -1382,7 +1382,7 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_repro_prep: SKIP linear metadata gpu prepared (" << message << ")\n";
+      std::cout << "gagp_test_repro_prep: SKIP linear metadata gpu prepared (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: linear metadata gpu reproduction failed: " << message << "\n";
@@ -1393,37 +1393,37 @@ bool test_gpu_prepared_backend_preserves_linear_rec_metadata() {
 }
 
 bool test_gpu_prepared_backend_scalar_config_smoke() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 4;
   cfg.selection_pressure = 3;
   cfg.seed = 42;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
-  cfg.grammar = g3pvm::evo::GrammarConfig::scalar();
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
+  cfg.grammar = gagp::evo::GrammarConfig::scalar();
   cfg.limits.max_expr_depth = 5;
   cfg.limits.max_stmts_per_block = 6;
   cfg.limits.max_total_nodes = 80;
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population =
+  const std::vector<gagp::evo::ProgramGenome> population =
       make_population(cfg.population_size, cfg.grammar);
-  std::vector<g3pvm::evo::ScoredGenome> scored;
+  std::vector<gagp::evo::ScoredGenome> scored;
   scored.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
-    scored.push_back(g3pvm::evo::ScoredGenome{
+    scored.push_back(gagp::evo::ScoredGenome{
         population[i],
         static_cast<double>(population.size() - i),
     });
   }
 
-  g3pvm::evo::repro::ReproductionStats prep_stats;
+  gagp::evo::repro::ReproductionStats prep_stats;
   try {
     const auto prepared =
-        g3pvm::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
-    g3pvm::evo::repro::ReproductionStats run_stats = prep_stats;
+        gagp::evo::repro::prepare_gpu_repro_backend_inputs(population, cfg, 123, &prep_stats);
+    gagp::evo::repro::ReproductionStats run_stats = prep_stats;
     const auto reproduction =
-        g3pvm::evo::repro::run_gpu_repro_backend_prepared(scored, cfg, prepared, &run_stats);
+        gagp::evo::repro::run_gpu_repro_backend_prepared(scored, cfg, prepared, &run_stats);
     if (!check(static_cast<int>(reproduction.next_population.size()) == cfg.population_size,
                "scalar config gpu reproduction child count mismatch")) {
       return false;
@@ -1436,7 +1436,7 @@ bool test_gpu_prepared_backend_scalar_config_smoke() {
   } catch (const std::runtime_error& err) {
     const std::string message = err.what();
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_repro_prep: SKIP scalar gpu prepared (" << message << ")\n";
+      std::cout << "gagp_test_repro_prep: SKIP scalar gpu prepared (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: scalar config gpu reproduction prepared backend failed: " << message << "\n";
@@ -1447,23 +1447,23 @@ bool test_gpu_prepared_backend_scalar_config_smoke() {
 }
 
 bool test_gpu_selection_preserves_round_based_tournament_invariants() {
-#ifdef G3PVM_HAS_CUDA
-  g3pvm::evo::EvolutionConfig cfg;
+#ifdef GAGP_HAS_CUDA
+  gagp::evo::EvolutionConfig cfg;
   cfg.population_size = 8;
   cfg.seed = 42;
-  cfg.reproduction_backend = g3pvm::evo::repro::ReproductionBackend::Gpu;
+  cfg.reproduction_backend = gagp::evo::repro::ReproductionBackend::Gpu;
   cfg.limits.max_expr_depth = 5;
   cfg.limits.max_stmts_per_block = 6;
   cfg.limits.max_total_nodes = 80;
   cfg.limits.max_for_k = 16;
   cfg.limits.max_call_args = 3;
 
-  const std::vector<g3pvm::evo::ProgramGenome> population = make_population(cfg.population_size);
+  const std::vector<gagp::evo::ProgramGenome> population = make_population(cfg.population_size);
   std::vector<double> ranked_fitness;
   ranked_fitness.reserve(population.size());
   for (std::size_t i = 0; i < population.size(); ++i) {
     ranked_fitness.push_back(
-        g3pvm::evo::canonicalize_fitness_for_ranking(static_cast<double>(i + 1)));
+        gagp::evo::canonicalize_fitness_for_ranking(static_cast<double>(i + 1)));
   }
 
   std::string message;
@@ -1473,7 +1473,7 @@ bool test_gpu_selection_preserves_round_based_tournament_invariants() {
   cfg.selection_pressure = cfg.population_size;
   if (!copyback_gpu_selection_parents(cfg, population, ranked_fitness, 777, &parent_a, &parent_b, &message)) {
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_repro_prep: SKIP gpu selection invariants (" << message << ")\n";
+      std::cout << "gagp_test_repro_prep: SKIP gpu selection invariants (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: gpu selection invariant setup failed: " << message << "\n";
@@ -1491,7 +1491,7 @@ bool test_gpu_selection_preserves_round_based_tournament_invariants() {
   message.clear();
   if (!copyback_gpu_selection_parents(cfg, population, ranked_fitness, 778, &parent_a, &parent_b, &message)) {
     if (message.find("cuda device unavailable") != std::string::npos) {
-      std::cout << "g3pvm_test_repro_prep: SKIP gpu selection invariants (" << message << ")\n";
+      std::cout << "gagp_test_repro_prep: SKIP gpu selection invariants (" << message << ")\n";
       return true;
     }
     std::cerr << "FAIL: gpu selection invariant rerun failed: " << message << "\n";
@@ -1539,6 +1539,6 @@ int main() {
   if (!test_gpu_prepared_backend_preserves_linear_rec_metadata()) return 1;
   if (!test_gpu_prepared_backend_scalar_config_smoke()) return 1;
   if (!test_gpu_selection_preserves_round_based_tournament_invariants()) return 1;
-  std::cout << "g3pvm_test_repro_prep: OK\n";
+  std::cout << "gagp_test_repro_prep: OK\n";
   return 0;
 }

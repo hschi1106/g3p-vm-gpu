@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/repro/prep.hpp"
+#include "gagp/evolution/repro/prep.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -7,12 +7,12 @@
 #include <stdexcept>
 #include <vector>
 
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/grammar_config.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/grammar_config.hpp"
 #include "../subtree_utils.hpp"
 #include "../typed_expr_analysis.hpp"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
@@ -275,4 +275,4 @@ PreprocessOutput preprocess_population(const std::vector<ProgramGenome>& populat
   return preprocess_population_impl(population, &verified, config, grammar);
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

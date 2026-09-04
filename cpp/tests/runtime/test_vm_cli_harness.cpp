@@ -6,20 +6,20 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/cli/codec.hpp"
-#include "g3pvm/cli/json.hpp"
-#include "g3pvm/core/errors.hpp"
-#include "g3pvm/runtime/cpu/execute_bytecode_cpu.hpp"
-#include "g3pvm/runtime/payload/payload.hpp"
+#include "gagp/cli/codec.hpp"
+#include "gagp/cli/json.hpp"
+#include "gagp/core/errors.hpp"
+#include "gagp/runtime/cpu/execute_bytecode_cpu.hpp"
+#include "gagp/runtime/payload/payload.hpp"
 
 namespace {
 
-using g3pvm::BytecodeProgram;
-using g3pvm::CaseBindings;
-using g3pvm::ExecResult;
-using g3pvm::Value;
-using g3pvm::ValueTag;
-using g3pvm::cli_detail::JsonValue;
+using gagp::BytecodeProgram;
+using gagp::CaseBindings;
+using gagp::ExecResult;
+using gagp::Value;
+using gagp::ValueTag;
+using gagp::cli_detail::JsonValue;
 
 std::vector<std::pair<int, Value>> to_vm_inputs(const CaseBindings& one_case) {
   std::vector<std::pair<int, Value>> inputs;
@@ -38,8 +38,8 @@ bool exact_value_equal(const Value& lhs, const Value& rhs) {
     case ValueTag::String: {
       std::string lhs_value;
       std::string rhs_value;
-      if (g3pvm::payload::lookup_string(lhs, &lhs_value) &&
-          g3pvm::payload::lookup_string(rhs, &rhs_value)) {
+      if (gagp::payload::lookup_string(lhs, &lhs_value) &&
+          gagp::payload::lookup_string(rhs, &rhs_value)) {
         return lhs_value == rhs_value;
       }
       return lhs.i == rhs.i;
@@ -49,8 +49,8 @@ bool exact_value_equal(const Value& lhs, const Value& rhs) {
     case ValueTag::StringList: {
       std::vector<Value> lhs_values;
       std::vector<Value> rhs_values;
-      if (g3pvm::payload::lookup_list(lhs, &lhs_values) &&
-          g3pvm::payload::lookup_list(rhs, &rhs_values)) {
+      if (gagp::payload::lookup_list(lhs, &lhs_values) &&
+          gagp::payload::lookup_list(rhs, &rhs_values)) {
         if (lhs_values.size() != rhs_values.size()) return false;
         for (std::size_t i = 0; i < lhs_values.size(); ++i) {
           if (!exact_value_equal(lhs_values[i], rhs_values[i])) return false;
@@ -73,11 +73,11 @@ const JsonValue* optional_field(const JsonValue& object, const char* key) {
 
 int optional_fuel(const JsonValue& object, int fallback) {
   const JsonValue* raw = optional_field(object, "fuel");
-  return raw == nullptr ? fallback : g3pvm::cli_detail::require_int(*raw, "fuel");
+  return raw == nullptr ? fallback : gagp::cli_detail::require_int(*raw, "fuel");
 }
 
 std::string read_input(int argc, char** argv) {
-  if (argc > 2) throw std::runtime_error("usage: g3pvm_test_vm_cli_harness [fixture.json]");
+  if (argc > 2) throw std::runtime_error("usage: gagp_test_vm_cli_harness [fixture.json]");
   std::stringstream buffer;
   if (argc == 2) {
     std::ifstream input(argv[1]);
@@ -107,22 +107,22 @@ void run_fixture_cases(const BytecodeProgram& program, const JsonValue& cases,
   }
   counts->scenarios += 1;
   for (const JsonValue& one_case : cases.array_v) {
-    const CaseBindings bindings = g3pvm::cli_detail::decode_input_case(
-        g3pvm::cli_detail::require_object_field(one_case, "inputs"));
+    const CaseBindings bindings = gagp::cli_detail::decode_input_case(
+        gagp::cli_detail::require_object_field(one_case, "inputs"));
     const JsonValue* expected_value = optional_field(one_case, "expected");
     const JsonValue* expected_error = optional_field(one_case, "expected_error");
     if ((expected_value == nullptr) == (expected_error == nullptr)) {
       throw std::runtime_error("fixture case requires exactly one of expected or expected_error");
     }
 
-    const ExecResult result = g3pvm::execute_bytecode_cpu(program, to_vm_inputs(bindings), fuel);
+    const ExecResult result = gagp::execute_bytecode_cpu(program, to_vm_inputs(bindings), fuel);
     bool passed = false;
     if (expected_error != nullptr) {
       const std::string name =
-          g3pvm::cli_detail::require_string(*expected_error, "expected_error");
-      passed = result.is_error && name == g3pvm::err_code_name(result.err.code);
+          gagp::cli_detail::require_string(*expected_error, "expected_error");
+      passed = result.is_error && name == gagp::err_code_name(result.err.code);
     } else {
-      const Value expected = g3pvm::cli_detail::decode_typed_value(*expected_value);
+      const Value expected = gagp::cli_detail::decode_typed_value(*expected_value);
       passed = !result.is_error && exact_value_equal(result.value, expected);
     }
 
@@ -134,7 +134,7 @@ void run_fixture_cases(const BytecodeProgram& program, const JsonValue& cases,
       std::cerr << "FAIL fixture scenario: " << scenario_intent << " case "
                 << counts->cases << "\n";
       if (result.is_error) {
-        std::cerr << "  actual error: " << g3pvm::err_code_name(result.err.code)
+        std::cerr << "  actual error: " << gagp::err_code_name(result.err.code)
                   << " (" << result.err.message << ")\n";
       } else {
         std::cerr << "  actual value tag: " << static_cast<int>(result.value.tag) << "\n";
@@ -151,17 +151,17 @@ int run_fixture(const JsonValue& root, int default_fuel) {
       throw std::runtime_error("fixture scenarios must be a non-empty array");
     }
     for (const JsonValue& scenario : scenarios->array_v) {
-      const std::string intent = g3pvm::cli_detail::require_string(
-          g3pvm::cli_detail::require_object_field(scenario, "intent"), "intent");
-      const BytecodeProgram program = g3pvm::cli_detail::decode_program(
-          g3pvm::cli_detail::require_object_field(scenario, "program"));
-      run_fixture_cases(program, g3pvm::cli_detail::require_object_field(scenario, "cases"),
+      const std::string intent = gagp::cli_detail::require_string(
+          gagp::cli_detail::require_object_field(scenario, "intent"), "intent");
+      const BytecodeProgram program = gagp::cli_detail::decode_program(
+          gagp::cli_detail::require_object_field(scenario, "program"));
+      run_fixture_cases(program, gagp::cli_detail::require_object_field(scenario, "cases"),
                         optional_fuel(scenario, default_fuel), intent, &counts);
     }
   } else {
-    const BytecodeProgram program = g3pvm::cli_detail::decode_program(
-        g3pvm::cli_detail::require_object_field(root, "program"));
-    run_fixture_cases(program, g3pvm::cli_detail::require_object_field(root, "cases"),
+    const BytecodeProgram program = gagp::cli_detail::decode_program(
+        gagp::cli_detail::require_object_field(root, "program"));
+    run_fixture_cases(program, gagp::cli_detail::require_object_field(root, "cases"),
                       default_fuel, "legacy single-program fixture", &counts);
   }
 
@@ -171,10 +171,10 @@ int run_fixture(const JsonValue& root, int default_fuel) {
 }
 
 int run_bytecode_request(const JsonValue& root, int fuel) {
-  const std::vector<BytecodeProgram> programs = g3pvm::cli_detail::decode_programs(
-      g3pvm::cli_detail::require_object_field(root, "programs"));
-  const std::vector<CaseBindings> shared_cases = g3pvm::cli_detail::decode_cases(
-      g3pvm::cli_detail::require_object_field(root, "shared_cases"));
+  const std::vector<BytecodeProgram> programs = gagp::cli_detail::decode_programs(
+      gagp::cli_detail::require_object_field(root, "programs"));
+  const std::vector<CaseBindings> shared_cases = gagp::cli_detail::decode_cases(
+      gagp::cli_detail::require_object_field(root, "shared_cases"));
   if (root.object_v.find("shared_answer") != root.object_v.end()) {
     std::cout << "ERR ValueError\nMSG test harness only supports raw cpu execution\n";
     return 0;
@@ -183,17 +183,17 @@ int run_bytecode_request(const JsonValue& root, int fuel) {
   std::vector<std::vector<ExecResult>> output(programs.size());
   for (std::size_t p = 0; p < programs.size(); ++p) {
     for (const CaseBindings& one_case : shared_cases) {
-      output[p].push_back(g3pvm::execute_bytecode_cpu(programs[p], to_vm_inputs(one_case), fuel));
+      output[p].push_back(gagp::execute_bytecode_cpu(programs[p], to_vm_inputs(one_case), fuel));
     }
   }
   if (output.size() == 1 && output[0].size() == 1) {
     const ExecResult& result = output[0][0];
     if (result.is_error) {
-      std::cout << "ERR " << g3pvm::err_code_name(result.err.code) << "\n";
+      std::cout << "ERR " << gagp::err_code_name(result.err.code) << "\n";
       if (!result.err.message.empty()) std::cout << "MSG " << result.err.message << "\n";
     } else {
       std::cout << "OK ";
-      g3pvm::cli_detail::print_value(result.value);
+      gagp::cli_detail::print_value(result.value);
     }
     return 0;
   }
@@ -212,19 +212,19 @@ int run_bytecode_request(const JsonValue& root, int fuel) {
 
 int main(int argc, char** argv) {
   try {
-    const JsonValue root = g3pvm::cli_detail::JsonParser(read_input(argc, argv)).parse();
+    const JsonValue root = gagp::cli_detail::JsonParser(read_input(argc, argv)).parse();
     if (root.kind != JsonValue::Kind::Object) throw std::runtime_error("top-level JSON must be object");
-    const std::string format = g3pvm::cli_detail::require_string(
-        g3pvm::cli_detail::require_object_field(root, "format_version"), "format_version");
+    const std::string format = gagp::cli_detail::require_string(
+        gagp::cli_detail::require_object_field(root, "format_version"), "format_version");
     if (format != "bytecode-json" && format != "bytecode-fixture") {
       throw std::runtime_error("unsupported format_version");
     }
-    const int fuel = g3pvm::cli_detail::require_int(
-        g3pvm::cli_detail::require_object_field(root, "fuel"), "fuel");
+    const int fuel = gagp::cli_detail::require_int(
+        gagp::cli_detail::require_object_field(root, "fuel"), "fuel");
     return format == "bytecode-fixture" ? run_fixture(root, fuel)
                                          : run_bytecode_request(root, fuel);
   } catch (const std::exception& error) {
-    std::cerr << "g3pvm_test_vm_cli_harness error: " << error.what() << "\n";
+    std::cerr << "gagp_test_vm_cli_harness error: " << error.what() << "\n";
     return 2;
   }
 }

@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/evolution/repro/stats.hpp"
-#include "g3pvm/evolution/repro/types.hpp"
+#include "gagp/evolution/repro/stats.hpp"
+#include "gagp/evolution/repro/types.hpp"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 struct GpuReproArena {
   int device_id = -1;
@@ -87,4 +87,4 @@ bool copyback_gpu_repro_children(const GpuReproArena& arena,
                                  ReproductionStats* stats,
                                  std::string* message_out);
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

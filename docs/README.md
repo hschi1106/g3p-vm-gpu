@@ -1,6 +1,6 @@
 # Documentation
 
-This index is the entry point for maintained project documentation. Each fact
+This index is the entry point for maintained GAGP project documentation. Each fact
 has one owner: specifications define behavior, design documents explain the
 implementation, guides describe workflows, and references record checked
 interfaces. Documents may link to another layer but must not restate its

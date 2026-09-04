@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <vector>
 
-#include "g3pvm/evolution/ast_program.hpp"
-#include "g3pvm/evolution/ast_verify.hpp"
+#include "gagp/evolution/ast_program.hpp"
+#include "gagp/evolution/ast_verify.hpp"
 
-namespace g3pvm::evo::typed_expr {
+namespace gagp::evo::typed_expr {
 
 struct TypedExprRoot {
   std::size_t start = 0;
@@ -31,4 +31,4 @@ bool is_asgp_phase_body_root(const AstProgram& program,
 bool is_statement_value_root(const AstProgram& program, const TypedExprRoot& root);
 bool typed_subtree_keys_compatible(const TypedExprRoot& a, const TypedExprRoot& b);
 
-}  // namespace g3pvm::evo::typed_expr
+}  // namespace gagp::evo::typed_expr

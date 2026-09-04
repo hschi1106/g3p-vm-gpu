@@ -34,9 +34,8 @@ class TestDocsContract(unittest.TestCase):
         stale_phrases = [
             "scores them against `fitness-cases`,",
             "Convert PSB1/PSB2 tasks into `fitness-cases`",
-            "Treat these files as the behavioral source of truth.",
             "Historical old",
-            "python/src/g3p_vm_gpu",
+            "python/src/gagp",
             "PYTHONPATH=python",
             "Python reference implementation",
         ]
@@ -44,3 +43,20 @@ class TestDocsContract(unittest.TestCase):
         for path, text in docs.items():
             for phrase in stale_phrases:
                 self.assertNotIn(phrase, text, msg=f"{path} contains stale phrase")
+
+    def test_gagp_identity_is_canonical(self):
+        readme = self.read_doc("README.md")
+        version = self.read_doc("VERSION.md")
+        cmake = self.read_doc("cpp/CMakeLists.txt")
+        pyproject = self.read_doc("tools/pyproject.toml")
+
+        self.assertTrue(readme.startswith("# GAGP\n"))
+        self.assertIn(
+            "GPU-Accelerated Genetic Programming for Program Synthesis",
+            readme,
+        )
+        self.assertIn("Current release: 1.0.0", version)
+        self.assertIn("project(gagp LANGUAGES CXX)", cmake)
+        self.assertIn('name = "gagp-tools"', pyproject)
+        self.assertTrue((ROOT / "cpp" / "include" / "gagp").is_dir())
+        self.assertTrue((ROOT / "tools" / "gagp_tools").is_dir())

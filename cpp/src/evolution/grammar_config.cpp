@@ -1,8 +1,8 @@
-#include "g3pvm/evolution/grammar_config.hpp"
+#include "gagp/evolution/grammar_config.hpp"
 
 #include <stdexcept>
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 GrammarConfig GrammarConfig::all_enabled() {
   return GrammarConfig{};
@@ -244,4 +244,4 @@ bool GrammarConfig::allows_node_kind(NodeKind kind) const {
   return false;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

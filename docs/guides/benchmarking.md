@@ -15,7 +15,7 @@ python3 tools/make_population_seeds.py \
   --count 1024 \
   --out logs/fixed_population.seeds.json
 
-cpp/build/g3pvm_evolve_cli \
+cpp/build/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --population-json logs/fixed_population.seeds.json \
   --engine gpu \
@@ -48,7 +48,7 @@ Important timing interpretations:
 ### Evolution progress run
 
 ```bash
-cpp/build/g3pvm_evolve_cli \
+cpp/build/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
   --repro-backend gpu \
@@ -62,7 +62,7 @@ cpp/build/g3pvm_evolve_cli \
 ### Fixed-population timing smoke
 
 ```bash
-cpp/build/g3pvm_evolve_cli \
+cpp/build/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --population-json logs/fixed_population.seeds.json \
   --engine gpu \

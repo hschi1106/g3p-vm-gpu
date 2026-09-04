@@ -1,9 +1,9 @@
 #pragma once
 
-#include "g3pvm/core/opcode.hpp"
+#include "gagp/core/opcode.hpp"
 
-namespace g3pvm::gpu_detail {
+namespace gagp::gpu_detail {
 
 int host_opcode(Opcode op);
 
-}  // namespace g3pvm::gpu_detail
+}  // namespace gagp::gpu_detail

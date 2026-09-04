@@ -1,4 +1,4 @@
-#include "g3pvm/evolution/repro/gpu.hpp"
+#include "gagp/evolution/repro/gpu.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -7,17 +7,17 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/evolution/evolve.hpp"
-#include "g3pvm/evolution/selection.hpp"
-#include "g3pvm/evolution/repro/pack.hpp"
-#include "g3pvm/evolution/repro/prep.hpp"
+#include "gagp/evolution/evolve.hpp"
+#include "gagp/evolution/selection.hpp"
+#include "gagp/evolution/repro/pack.hpp"
+#include "gagp/evolution/repro/prep.hpp"
 #include "gpu/internal.hpp"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
-#ifdef G3PVM_HAS_CUDA
+#ifdef GAGP_HAS_CUDA
 struct GpuReproRuntimeCache {
   GpuReproArena arena;
   GpuReproHostStaging staging;
@@ -110,7 +110,7 @@ ReproductionResult run_gpu_repro_backend_prepared(const std::vector<ScoredGenome
                                                   const EvolutionConfig& cfg,
                                                   const GpuReproPreparedData& prepared,
                                                   ReproductionStats* stats) {
-#ifndef G3PVM_HAS_CUDA
+#ifndef GAGP_HAS_CUDA
   (void)scored;
   (void)cfg;
   (void)prepared;
@@ -171,7 +171,7 @@ ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenome>& scored
 ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenomeRef>& scored,
                                          const EvolutionConfig& cfg,
                                          std::mt19937_64& rng) {
-#ifndef G3PVM_HAS_CUDA
+#ifndef GAGP_HAS_CUDA
   (void)scored;
   (void)cfg;
   (void)rng;
@@ -192,4 +192,4 @@ ReproductionResult run_gpu_repro_backend(const std::vector<ScoredGenomeRef>& sco
 #endif
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

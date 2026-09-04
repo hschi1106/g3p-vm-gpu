@@ -91,7 +91,7 @@ class TestDocumentationStructure(unittest.TestCase):
         self.assertEqual([], failures, "invalid JSON documentation examples")
 
     def test_cli_reference_matches_parser_fields_and_defaults(self) -> None:
-        header = (ROOT / "cpp" / "include" / "g3pvm" / "cli" / "options.hpp").read_text(
+        header = (ROOT / "cpp" / "include" / "gagp" / "cli" / "options.hpp").read_text(
             encoding="utf-8"
         )
         parser = (ROOT / "cpp" / "src" / "cli" / "options.cpp").read_text(

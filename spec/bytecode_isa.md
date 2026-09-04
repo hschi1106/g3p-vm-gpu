@@ -82,7 +82,7 @@ Current native private helper opcodes for structured-expression lowering are:
 - `ASGP_DP1D`
 - `ASGP_DP2D`
 
-These helpers belong to the native g3pvm private execution profile. The native
+These helpers belong to the native GAGP private execution profile. The native
 `bytecode-json` codec and verifier accept them with their required segment and
 metadata checks, but another consumer may reject them. No private helper opcode
 adds source-language behavior beyond the public grammar contract.

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "g3pvm/core/value_semantics.hpp"
-#include "g3pvm/runtime/gpu/device_types_gpu.hpp"
+#include "gagp/core/value_semantics.hpp"
+#include "gagp/runtime/gpu/device_types_gpu.hpp"
 
-namespace g3pvm::gpu_detail {
+namespace gagp::gpu_detail {
 
 __device__ inline bool d_is_num(const Value& v) {
   return is_numeric(v);
@@ -48,4 +48,4 @@ __device__ inline bool d_compare(const int op, const Value& a, const Value& b, b
   return false;
 }
 
-}  // namespace g3pvm::gpu_detail
+}  // namespace gagp::gpu_detail

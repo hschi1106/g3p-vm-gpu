@@ -1,4 +1,4 @@
-# Operational Toolchain
+# GAGP Operational Toolchain
 
 The tools are a standard-library Python package organized by responsibility:
 
@@ -9,7 +9,7 @@ PSB upstream JSONL
   -> fitness-cases fixtures and support manifests
   -> grammar profile (when compatibility shaping is needed)
   -> benchmark population-seeds (for fixed-population runs)
-  -> psb run -> g3pvm_evolve_cli
+  -> psb run -> gagp_evolve_cli
   -> psb compare
   -> report psb-manifest / report simple-manifest
   -> reviewed compact evidence under benchmarks/
@@ -20,7 +20,7 @@ Install an editable command in an isolated environment:
 ```bash
 python3 -m venv .venv-tools
 .venv-tools/bin/pip install -e tools
-.venv-tools/bin/g3pvm-tools --help
+.venv-tools/bin/gagp-tools --help
 ```
 
 The historical `tools/*.py` paths remain thin compatibility wrappers during
@@ -29,9 +29,9 @@ the migration. They and the unified command execute the same package functions.
 ## Dataset commands
 
 ```bash
-g3pvm-tools psb fetch --suite psb1 --problems count-odds --dry-run
-g3pvm-tools psb convert --suite psb1 --problem count-odds --out /tmp/count-odds.train.json
-g3pvm-tools psb materialize --suite psb1 --datasets-root data/psb1_datasets --out-dir /tmp/psb1
+gagp-tools psb fetch --suite psb1 --problems count-odds --dry-run
+gagp-tools psb convert --suite psb1 --problem count-odds --out /tmp/count-odds.train.json
+gagp-tools psb materialize --suite psb1 --datasets-root data/psb1_datasets --out-dir /tmp/psb1
 ```
 
 Dataset commands own acquisition and conversion only. They emit typed
@@ -40,11 +40,11 @@ Dataset commands own acquisition and conversion only. They emit typed
 ## Experiment commands
 
 ```bash
-g3pvm-tools grammar profile --help
-g3pvm-tools benchmark population-seeds \
+gagp-tools grammar profile --help
+gagp-tools benchmark population-seeds \
   --cases data/fixtures/simple_exp_1024.json --count 1024 \
   --out logs/fixed_population.seeds.json
-g3pvm-tools psb run --suite psb1 --cases-root data/fixtures/psb1 --dry-run
+gagp-tools psb run --suite psb1 --cases-root data/fixtures/psb1 --dry-run
 ```
 
 Experiment execution records cases/config hashes, seeds, native binary path,
@@ -53,9 +53,9 @@ backend choices, and run status needed for replay.
 ## Report commands
 
 ```bash
-g3pvm-tools psb compare --baseline baseline.json --candidate candidate.json
-g3pvm-tools report psb-manifest --help
-g3pvm-tools report simple-manifest --help
+gagp-tools psb compare --baseline baseline.json --candidate candidate.json
+gagp-tools report psb-manifest --help
+gagp-tools report simple-manifest --help
 ```
 
 Comparisons reject incompatible run metadata before computing ratios. Report

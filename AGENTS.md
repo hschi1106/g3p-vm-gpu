@@ -1,12 +1,12 @@
-# Repository Guidelines
+# GAGP Repository Guidelines
 
 ## Project Structure & Module Organization
 - The implementation lives under `cpp/`.
   Current structure:
-  - `include/g3pvm/`: public C++ headers
+  - `include/gagp/`: public C++ headers
   - `src/runtime/`: CPU runtime, GPU runtime, payload support
   - `src/evolution/`: compiler, genome generation, operators, evolution loop
-  - `src/cli/`: native CLIs such as `g3pvm_evolve_cli`
+  - `src/cli/`: native CLIs such as `gagp_evolve_cli`
   - `tests/`: runtime, GPU smoke, parity, and evolution tests
 - Native tests live in `cpp/tests/`.
 - Operational tool tests live in `tools/tests/`; runtime-independent repository
@@ -48,7 +48,7 @@
   ```
 - Run the main native GPU/parity regression set:
   ```bash
-  ctest --test-dir cpp/build -R 'g3pvm_test_vm_gpu_smoke|g3pvm_test_fitness_cpu_gpu_parity|g3pvm_test_evolution_cpu_gpu_parity' --output-on-failure
+  ctest --test-dir cpp/build -R 'gagp_test_vm_gpu_smoke|gagp_test_fitness_cpu_gpu_parity|gagp_test_evolution_cpu_gpu_parity' --output-on-failure
   ```
 - Run commands from the repository root so relative fixtures and configs resolve.
 
@@ -74,15 +74,15 @@
 - GPU profiling must use `nsys` only.
 - Do not use `ncu` in this project environment.
 - GPU-capable C++ paths select the least-used visible CUDA device internally.
-- To force a specific visible-device index for a run, use `G3PVM_CUDA_DEVICE=0` or `G3PVM_CUDA_DEVICE=1`.
+- To force a specific visible-device index for a run, use `GAGP_CUDA_DEVICE=0` or `GAGP_CUDA_DEVICE=1`.
 
 ## GPU Device Runbook
 - Run GPU-capable binaries directly.
 - The C++ GPU runtime selects the least-used visible CUDA device automatically.
 - Recommended examples:
   ```bash
-  ctest --test-dir cpp/build -R g3pvm_test_vm_gpu --output-on-failure -V
-  cpp/build/g3pvm_evolve_cli --cases data/fixtures/simple_exp_1024.json --engine gpu --repro-backend gpu --repro-overlap on --blocksize 1024 --population-size 64 --generations 2 --out-json logs/simple_exp_1024.run.json
+  ctest --test-dir cpp/build -R gagp_test_vm_gpu --output-on-failure -V
+  cpp/build/gagp_evolve_cli --cases data/fixtures/simple_exp_1024.json --engine gpu --repro-backend gpu --repro-overlap on --blocksize 1024 --population-size 64 --generations 2 --out-json logs/simple_exp_1024.run.json
   ```
 
 ## Commit & Pull Request Guidelines
@@ -98,9 +98,9 @@
 A skill is a set of local instructions stored in a `SKILL.md` file.
 
 Repo-stable skill:
-- `g3p-vm-gpu-repo`: repository-specific guidance for architecture, parity constraints, benchmark workflow, payload behavior, and change impact
+- `gagp-repo`: repository-specific guidance for architecture, parity constraints, benchmark workflow, payload behavior, and change impact
 
 Use repo skills this way:
-- If the task clearly matches the repo skill, open `/home/hschi1106/.codex/skills/g3p-vm-gpu-repo/SKILL.md` and read only the referenced material you need.
+- If the task clearly matches the repo skill, open `/home/hschi1106/.codex/skills/gagp-repo/SKILL.md` and read only the referenced material you need.
 - Keep context small; avoid bulk-loading unrelated references.
 - System-provided skills may vary by session, so treat the live session skill list as the source of truth for non-repo skills.

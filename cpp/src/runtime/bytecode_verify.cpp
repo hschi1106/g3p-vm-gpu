@@ -1,4 +1,4 @@
-#include "g3pvm/core/bytecode_verify.hpp"
+#include "gagp/core/bytecode_verify.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -8,9 +8,9 @@
 #include <utility>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
+#include "gagp/core/builtin.hpp"
 
-namespace g3pvm {
+namespace gagp {
 
 const char* bytecode_verify_code_name(BytecodeVerifyCode code) noexcept {
   switch (code) {
@@ -720,4 +720,4 @@ BytecodeVerifyResult verify_bytecode(const BytecodeProgram& program,
   return Verifier(program, options).run();
 }
 
-}  // namespace g3pvm
+}  // namespace gagp

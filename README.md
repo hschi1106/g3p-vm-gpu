@@ -1,8 +1,10 @@
-# g3p-vm-gpu
+# GAGP
 
-Native prefix-AST genetic programming with CPU execution/evolution and CUDA
-fitness/reproduction backends. The former Python semantic implementation has
-been retired; Python remains only in the independent operational tool package.
+**GPU-Accelerated Genetic Programming for Program Synthesis.** GAGP is a
+native prefix-AST genetic programming system with CPU execution/evolution and
+CUDA-accelerated fitness and reproduction backends. The former Python semantic
+implementation has been retired; Python remains only in the independent
+operational tool package.
 
 ## Supported backends
 
@@ -31,7 +33,7 @@ ctest --test-dir cpp/build --output-on-failure
 Run a small GPU evolution job:
 
 ```bash
-cpp/build/g3pvm_evolve_cli \
+cpp/build/gagp_evolve_cli \
   --cases data/fixtures/simple_exp_1024.json \
   --engine gpu \
   --repro-backend gpu \
@@ -42,7 +44,7 @@ cpp/build/g3pvm_evolve_cli \
 ```
 
 The runtime selects the least-used visible CUDA device. Set
-`G3PVM_CUDA_DEVICE=0` to force a visible-device index.
+`GAGP_CUDA_DEVICE=0` to force a visible-device index.
 
 ## Operational tools
 
@@ -51,7 +53,7 @@ Install the standard-library tool package in a virtual environment:
 ```bash
 python3 -m venv .venv-tools
 .venv-tools/bin/pip install -e tools
-.venv-tools/bin/g3pvm-tools --help
+.venv-tools/bin/gagp-tools --help
 ```
 
 Compatibility wrapper scripts remain available during the command migration.
@@ -103,4 +105,3 @@ documentation index, checked repository layout, and external repository skill
 references with file moves. Keep compact validation evidence in `benchmarks/`;
 keep generated datasets, populations, profiler captures, and raw logs out of
 version control.
-

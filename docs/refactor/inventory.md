@@ -2,7 +2,7 @@
 
 ## Node metadata duplication
 
-`NodeKind` contains 71 values in `cpp/include/g3pvm/evolution/ast_program.hpp`.
+`NodeKind` contains 71 values in `cpp/include/gagp/evolution/ast_program.hpp`.
 Host and device code currently rediscover arity, category, builtin mapping,
 typing, metadata, or dependency properties in the following owners:
 
@@ -54,14 +54,14 @@ temporary wrappers.
 
 | Target/source | Class | Ownership decision |
 | --- | --- | --- |
-| `g3pvm_evolve_cli` | product CLI | default build; split into reusable CLI support and commands |
+| `gagp_evolve_cli` | product CLI | default build; split into reusable CLI support and commands |
 | `cpp/tests/runtime/test_vm_cli_harness.cpp` | test harness | register in CMake through the fixture-runner support library |
-| `g3pvm_runtime_multi_bench` | benchmark | maintained, but build only with an explicit benchmark option |
-| `g3pvm_simple_exp_population_probe` | experiment probe | maintained parity diagnostic; build only with an explicit experiment option |
-| `g3pvm_test_*` | tests | normal CTest ownership with contract/property/parity labels |
+| `gagp_runtime_multi_bench` | benchmark | maintained, but build only with an explicit benchmark option |
+| `gagp_simple_exp_population_probe` | experiment probe | maintained parity diagnostic; build only with an explicit experiment option |
+| `gagp_test_*` | tests | normal CTest ownership with contract/property/parity labels |
 
 Stage 11 replaced the CLI's textual inclusion of `json.cpp` and `codec.cpp`
-and its second incomplete parser with the linked `g3pvm_cli_support` library.
+and its second incomplete parser with the linked `gagp_cli_support` library.
 `options.cpp` and `options.hpp` now own the complete product parser, and focused
 contract tests preserve its flags, defaults, and validation. No C++ source
 inclusion is an accepted compatibility surface.

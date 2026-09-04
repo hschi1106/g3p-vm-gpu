@@ -5,10 +5,10 @@
 #include <random>
 #include <vector>
 
-#include "g3pvm/evolution/ast_program.hpp"
-#include "g3pvm/evolution/grammar_config.hpp"
+#include "gagp/evolution/ast_program.hpp"
+#include "gagp/evolution/grammar_config.hpp"
 
-namespace g3pvm::evo::subtree {
+namespace gagp::evo::subtree {
 
 int node_arity(NodeKind kind);
 std::vector<std::size_t> build_subtree_end(const AstProgram& program);
@@ -25,4 +25,4 @@ AstProgram replace_subtree(const AstProgram& base,
                            std::size_t donor_start,
                            std::size_t donor_stop);
 
-}  // namespace g3pvm::evo::subtree
+}  // namespace gagp::evo::subtree

@@ -1,8 +1,8 @@
 # Native Refactor Evidence
 
-This directory records the evidence and responsibility mapping used while the
-native-only refactor is in progress. It is descriptive, not normative:
-language and wire behavior remains owned by [`spec/`](../../spec/).
+This directory records the evidence and responsibility mapping from the
+completed native-only refactor. It is descriptive, not normative: language and
+wire behavior remains owned by [`spec/`](../../spec/).
 
 - [`baseline.md`](baseline.md): reproducible pre-refactor build, test, parity,
   performance, quality, and CLI observations

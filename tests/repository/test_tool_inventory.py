@@ -11,14 +11,14 @@ class TestToolInventory(unittest.TestCase):
     def test_native_library_ownership_is_explicit(self) -> None:
         cmake = (ROOT / "cpp" / "CMakeLists.txt").read_text(encoding="utf-8")
         for target in (
-            "g3pvm_core",
-            "g3pvm_runtime_cpu",
-            "g3pvm_evolution",
-            "g3pvm_cli_support",
-            "g3pvm_gpu",
+            "gagp_core",
+            "gagp_runtime_cpu",
+            "gagp_evolution",
+            "gagp_cli_support",
+            "gagp_gpu",
         ):
             self.assertIn(f"add_library({target}", cmake)
-        self.assertIn("add_library(g3pvm_cpu INTERFACE)", cmake)
+        self.assertIn("add_library(gagp_cpu INTERFACE)", cmake)
 
     def test_every_top_level_tool_is_classified(self) -> None:
         inventory = (ROOT / "docs" / "reference" / "tooling.md").read_text(
@@ -32,8 +32,8 @@ class TestToolInventory(unittest.TestCase):
     def test_tool_package_has_one_dependency_free_entrypoint(self) -> None:
         pyproject = (ROOT / "tools" / "pyproject.toml").read_text(encoding="utf-8")
         setup_cfg = (ROOT / "tools" / "setup.cfg").read_text(encoding="utf-8")
-        self.assertIn('g3pvm-tools = "g3pvm_tools.cli:main"', pyproject)
-        self.assertIn("g3pvm-tools = g3pvm_tools.cli:main", setup_cfg)
+        self.assertIn('gagp-tools = "gagp_tools.cli:main"', pyproject)
+        self.assertIn("gagp-tools = gagp_tools.cli:main", setup_cfg)
         self.assertIn("dependencies = []", pyproject)
         expected_modules = {
             "datasets/convert_psb.py",
@@ -50,7 +50,7 @@ class TestToolInventory(unittest.TestCase):
             "shared/metrics.py",
             "shared/schemas.py",
         }
-        package = ROOT / "tools" / "g3pvm_tools"
+        package = ROOT / "tools" / "gagp_tools"
         self.assertTrue(all((package / path).is_file() for path in expected_modules))
 
     def test_legacy_plot_surface_is_absent(self) -> None:
@@ -65,10 +65,10 @@ class TestToolInventory(unittest.TestCase):
 
     def test_auxiliary_native_targets_are_opt_in(self) -> None:
         cmake = (ROOT / "cpp" / "CMakeLists.txt").read_text(encoding="utf-8")
-        self.assertIn('option(G3PVM_BUILD_BENCHMARKS', cmake)
-        self.assertIn('option(G3PVM_BUILD_EXPERIMENTS', cmake)
-        self.assertIn("if(G3PVM_BUILD_BENCHMARKS)", cmake)
-        self.assertIn("if(G3PVM_BUILD_EXPERIMENTS)", cmake)
+        self.assertIn('option(GAGP_BUILD_BENCHMARKS', cmake)
+        self.assertIn('option(GAGP_BUILD_EXPERIMENTS', cmake)
+        self.assertIn("if(GAGP_BUILD_BENCHMARKS)", cmake)
+        self.assertIn("if(GAGP_BUILD_EXPERIMENTS)", cmake)
         self.assertTrue(
             (ROOT / "cpp" / "src" / "experiments" / "simple_exp_population_probe.cpp").is_file()
         )

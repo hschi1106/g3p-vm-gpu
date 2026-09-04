@@ -4,9 +4,9 @@
 #include <stdexcept>
 #include <string>
 
-#include "g3pvm/cli/commands.hpp"
-#include "g3pvm/cli/json.hpp"
-#include "g3pvm/evolution/ast_program.hpp"
+#include "gagp/cli/commands.hpp"
+#include "gagp/cli/json.hpp"
+#include "gagp/evolution/ast_program.hpp"
 
 namespace {
 
@@ -15,9 +15,9 @@ bool check(bool condition, const std::string& message) {
   return condition;
 }
 
-bool throws_with(const g3pvm::cli_detail::JsonValue& raw, const std::string& expected) {
+bool throws_with(const gagp::cli_detail::JsonValue& raw, const std::string& expected) {
   try {
-    (void)g3pvm::cli_detail::decode_grammar_config_json(raw);
+    (void)gagp::cli_detail::decode_grammar_config_json(raw);
   } catch (const std::exception& ex) {
     return check(std::string(ex.what()).find(expected) != std::string::npos,
                  "unexpected grammar diagnostic: " + std::string(ex.what()));
@@ -34,17 +34,17 @@ int main(int argc, char** argv) {
   std::ostringstream text;
   text << input.rdbuf();
 
-  const auto raw = g3pvm::cli_detail::JsonParser(text.str()).parse();
-  const auto config = g3pvm::cli_detail::decode_grammar_config_json(raw);
+  const auto raw = gagp::cli_detail::JsonParser(text.str()).parse();
+  const auto config = gagp::cli_detail::decode_grammar_config_json(raw);
   if (!check(config.statement_return && config.expression_const,
              "canonical config must retain required grammar forms")) return 1;
-  if (!check(config.allows_type(g3pvm::evo::RType::Int) &&
-                 !config.allows_type(g3pvm::evo::RType::Char),
+  if (!check(config.allows_type(gagp::evo::RType::Int) &&
+                 !config.allows_type(gagp::evo::RType::Char),
              "canonical config value domain mismatch")) return 1;
-  if (!check(config.allows_node_kind(g3pvm::evo::NodeKind::CALL_ABS) &&
-                 !config.allows_node_kind(g3pvm::evo::NodeKind::CALL_CHR),
+  if (!check(config.allows_node_kind(gagp::evo::NodeKind::CALL_ABS) &&
+                 !config.allows_node_kind(gagp::evo::NodeKind::CALL_CHR),
              "canonical config builtin domain mismatch")) return 1;
-  if (!check(!config.allows_node_kind(g3pvm::evo::NodeKind::COUNT),
+  if (!check(!config.allows_node_kind(gagp::evo::NodeKind::COUNT),
              "node sentinel must not be a grammar form")) return 1;
 
   auto unknown = raw;
@@ -62,10 +62,10 @@ int main(int argc, char** argv) {
 
   auto no_calls = raw;
   no_calls.object_v["expressions"].object_v["call"].bool_v = false;
-  const auto calls_disabled = g3pvm::cli_detail::decode_grammar_config_json(no_calls);
-  if (!check(!calls_disabled.allows_node_kind(g3pvm::evo::NodeKind::CALL_ABS),
+  const auto calls_disabled = gagp::cli_detail::decode_grammar_config_json(no_calls);
+  if (!check(!calls_disabled.allows_node_kind(gagp::evo::NodeKind::CALL_ABS),
              "expressions.call=false must disable builtin nodes")) return 1;
 
-  std::cout << "g3pvm_test_grammar_config: OK\n";
+  std::cout << "gagp_test_grammar_config: OK\n";
   return 0;
 }

@@ -1,6 +1,6 @@
-#include "g3pvm/evolution/timing.hpp"
+#include "gagp/evolution/timing.hpp"
 
-namespace g3pvm::evo {
+namespace gagp::evo {
 
 void accumulate_timing(EvaluationTiming* total, const EvaluationTiming& value) {
   total->cpu_compile_ms += value.cpu_compile_ms;
@@ -31,4 +31,4 @@ void accumulate_timing(ReproductionTiming* total, const ReproductionTiming& valu
   total->variation_kernel_ms += value.variation_kernel_ms;
 }
 
-}  // namespace g3pvm::evo
+}  // namespace gagp::evo

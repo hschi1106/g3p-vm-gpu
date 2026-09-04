@@ -10,7 +10,7 @@
 #include "device/selection_kernels.cuh"
 #include "device/variation_kernels.cuh"
 
-namespace g3pvm::evo::repro {
+namespace gagp::evo::repro {
 
 namespace {
 
@@ -139,4 +139,4 @@ bool launch_gpu_repro_kernels(GpuReproArena* arena,
   return true;
 }
 
-}  // namespace g3pvm::evo::repro
+}  // namespace gagp::evo::repro

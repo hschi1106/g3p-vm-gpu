@@ -3,14 +3,14 @@
 #include <string>
 #include <vector>
 
-#include "g3pvm/core/builtin.hpp"
-#include "g3pvm/core/bytecode_verify.hpp"
-#include "g3pvm/evolution/compiler.hpp"
-#include "g3pvm/evolution/genome_generation.hpp"
+#include "gagp/core/builtin.hpp"
+#include "gagp/core/bytecode_verify.hpp"
+#include "gagp/evolution/compiler.hpp"
+#include "gagp/evolution/genome_generation.hpp"
 
 namespace {
 
-using namespace g3pvm;
+using namespace gagp;
 
 Instr ins(Opcode op) { return Instr{op, 0, 0, false, false}; }
 Instr ins_a(Opcode op, int a) { return Instr{op, a, 0, true, false}; }
@@ -115,7 +115,7 @@ BytecodeProgram dp2_program() {
 }  // namespace
 
 int main() {
-  using namespace g3pvm;
+  using namespace gagp;
 
   BytecodeProgram program = constant_program();
   BytecodeVerifyResult result = verify_bytecode(program);
@@ -236,12 +236,12 @@ int main() {
   limited.max_instructions_per_code = 1;
   if (!expect_code(program, BytecodeVerifyCode::ResourceLimit, "instruction limit", limited)) return 1;
 
-  const g3pvm::evo::Limits limits;
-  const std::vector<g3pvm::evo::InputSpec> inputs{{"x", g3pvm::evo::RType::Int}};
+  const gagp::evo::Limits limits;
+  const std::vector<gagp::evo::InputSpec> inputs{{"x", gagp::evo::RType::Int}};
   for (std::uint64_t seed = 0; seed < 128; ++seed) {
-    const g3pvm::evo::ProgramGenome genome =
-        g3pvm::evo::generate_random_genome(seed, limits, inputs);
-    const BytecodeProgram compiled = g3pvm::evo::compile_for_eval(genome, {"x"});
+    const gagp::evo::ProgramGenome genome =
+        gagp::evo::generate_random_genome(seed, limits, inputs);
+    const BytecodeProgram compiled = gagp::evo::compile_for_eval(genome, {"x"});
     result = verify_bytecode(compiled);
     if (!check(result.ok, "compiler output verifies for seed " + std::to_string(seed) +
                               " at " + result.diagnostic.path + ": " +

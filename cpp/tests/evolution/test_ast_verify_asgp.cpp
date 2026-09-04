@@ -1,11 +1,11 @@
 #include <iostream>
 #include <string>
 
-#include "g3pvm/evolution/ast_verify.hpp"
+#include "gagp/evolution/ast_verify.hpp"
 
 namespace {
 
-using namespace g3pvm::evo;
+using namespace gagp::evo;
 
 bool check(bool condition, const std::string& message) {
   if (!condition) std::cerr << "FAIL: " << message << "\n";
@@ -24,9 +24,9 @@ AstProgram dc_program() {
   AstProgram ast;
   ast.names = {"xs", "n", "lo", "divide_n", "left", "right", "ordinary"};
   ast.consts = {
-      g3pvm::Value::from_int_list_hash_len(1, 3),
-      g3pvm::Value::from_int(0),
-      g3pvm::Value::from_int(1),
+      gagp::Value::from_int_list_hash_len(1, 3),
+      gagp::Value::from_int(0),
+      gagp::Value::from_int(1),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -51,9 +51,9 @@ AstProgram dp1_program() {
   AstProgram ast;
   ast.names = {"solve_s", "transition_s", "dep"};
   ast.consts = {
-      g3pvm::Value::from_int(4),
-      g3pvm::Value::from_int(1),
-      g3pvm::Value::from_int(0),
+      gagp::Value::from_int(4),
+      gagp::Value::from_int(1),
+      gagp::Value::from_int(0),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -77,9 +77,9 @@ AstProgram dp2_program() {
   AstProgram ast;
   ast.names = {"solve_i", "solve_j", "transition_i", "transition_j", "a", "b"};
   ast.consts = {
-      g3pvm::Value::from_int(2),
-      g3pvm::Value::from_int(1),
-      g3pvm::Value::from_int(0),
+      gagp::Value::from_int(2),
+      gagp::Value::from_int(1),
+      gagp::Value::from_int(0),
   };
   ast.nodes = {
       AstNode{NodeKind::PROGRAM, 0, 0},
@@ -104,7 +104,7 @@ AstProgram dp2_program() {
 }  // namespace
 
 int main() {
-  using namespace g3pvm::evo;
+  using namespace gagp::evo;
 
   AstProgram ast = dc_program();
   AstVerifyResult result = verify_ast(ast, {});
@@ -131,7 +131,7 @@ int main() {
   if (!check(result.ok && result.verified.return_type == RType::Int,
              "ASGP-DP1D phase/result typing")) return 1;
 
-  ast.consts[2] = g3pvm::Value::from_float(0.0);
+  ast.consts[2] = gagp::Value::from_float(0.0);
   if (!expect_code(ast, VerifyCode::TypeMismatch, "ASGP-DP1D boundary type")) return 1;
 
   ast = dp1_program();
@@ -146,7 +146,7 @@ int main() {
              "ASGP-DP2D phase/result typing")) return 1;
 
   ast.nodes[4] = AstNode{NodeKind::CONST, 1, 0};
-  ast.consts[1] = g3pvm::Value::from_float(1.0);
+  ast.consts[1] = gagp::Value::from_float(1.0);
   if (!expect_code(ast, VerifyCode::TypeMismatch, "ASGP-DP2D state type")) return 1;
 
   ast = dc_program();
