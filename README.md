@@ -1,36 +1,78 @@
 # GAGP
 
-**GPU-Accelerated Genetic Programming for Program Synthesis.** GAGP is a
-native prefix-AST genetic programming system with CPU execution/evolution and
-CUDA-accelerated fitness and reproduction backends. The former Python semantic
-implementation has been retired; Python remains only in the independent
-operational tool package.
+<p align="center">
+  <strong>GPU-Accelerated Genetic Programming for Program Synthesis</strong>
+</p>
 
-## Supported backends
+<p align="center">
+  <a href="VERSION.md"><img alt="Release 1.0.0" src="https://img.shields.io/badge/release-1.0.0-2563eb"></a>
+  <img alt="C++ 17" src="https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&amp;logoColor=white">
+  <img alt="CUDA accelerated" src="https://img.shields.io/badge/CUDA-accelerated-76B900?logo=nvidia&amp;logoColor=white">
+  <img alt="CPU and GPU parity" src="https://img.shields.io/badge/parity-CPU%20%2B%20GPU-7c3aed">
+</p>
 
-| Area | CPU | CUDA GPU |
-| --- | --- | --- |
-| Bytecode execution / fitness | Supported | Supported within documented device payload limits |
-| Population evaluation | Supported | Supported |
-| Reproduction | Supported | Supported, with optional preparation/evaluation overlap |
-| AST evaluation command | Supported | CPU command path only |
+GAGP evolves typed prefix-AST programs, compiles them to a compact bytecode,
+and evaluates entire populations on either a native CPU runtime or CUDA. It
+combines GPU-accelerated fitness and reproduction with a verified, contract-led
+program-synthesis pipeline.
 
-Public language, bytecode, builtin, fitness, fixture, and grammar-config
-contracts are indexed in [`spec/README.md`](spec/README.md). Implementation and
-workflow documents must link to those specifications instead of redefining
-their semantics.
+> One semantic contract, two execution backends: the CPU path anchors correctness
+> while CUDA accelerates population-scale search.
 
-## Five-minute start
+## Why GAGP?
 
-Build and run every configured test:
+- **GPU-first search** — CUDA backends accelerate both population fitness and
+  reproduction, with optional preparation/evaluation overlap.
+- **Correctness by construction** — typed generation, structural verification,
+  bytecode verification, and dedicated CPU/GPU parity tests guard every trust
+  boundary.
+- **Reproducible experiments** — fixed populations, deterministic seeds,
+  grammar profiles, timing output, and compact benchmark manifests support fair
+  comparisons.
+- **A lean native core** — language semantics, compilation, evolution, and
+  execution live in C++/CUDA. Python is limited to independent dataset and
+  experiment tooling.
+- **Contract-led development** — grammar, bytecode, builtins, fitness, fixtures,
+  and search-space configuration are defined in release-governed specifications.
+
+## Capabilities
+
+| Capability | CPU | CUDA GPU |
+| --- | :---: | :---: |
+| Bytecode execution and fitness | ✓ | ✓ |
+| Population evaluation | ✓ | ✓ |
+| Tournament selection and reproduction | ✓ | ✓ |
+| Typed-subtree crossover and mutation | ✓ | ✓ |
+| Reproduction preparation/evaluation overlap | — | ✓ |
+| One-AST evaluation command | ✓ | — |
+
+CUDA execution supports the documented device payload limits and deterministic
+fallback behavior. The exact public contracts live in the
+[specification index](spec/README.md).
+
+## Quick start
+
+### Requirements
+
+- CMake 3.16 or newer
+- A C++17 compiler
+- An NVIDIA CUDA toolkit and compatible GPU for CUDA backends
+- Python 3.10 or newer only for operational tools and repository checks
+
+### Build and test
 
 ```bash
+git clone https://github.com/hschi1106/gagp.git
+cd gagp
+
 cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build cpp/build -j
 ctest --test-dir cpp/build --output-on-failure
 ```
 
-Run a small GPU evolution job:
+For a CPU-only build, configure with `-DGAGP_ENABLE_CUDA=OFF`.
+
+### Run GPU-accelerated evolution
 
 ```bash
 cpp/build/gagp_evolve_cli \
@@ -38,17 +80,50 @@ cpp/build/gagp_evolve_cli \
   --engine gpu \
   --repro-backend gpu \
   --repro-overlap on \
+  --blocksize 256 \
   --population-size 64 \
   --generations 2 \
-  --out-json logs/simple_exp_1024.run.json
+  --show-program ast \
+  --out-json /tmp/gagp-simple-exp.run.json
 ```
 
-The runtime selects the least-used visible CUDA device. Set
-`GAGP_CUDA_DEVICE=0` to force a visible-device index.
+GPU-capable paths automatically choose the least-used visible CUDA device. Set
+`GAGP_CUDA_DEVICE=0` to select a specific visible-device index.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Fitness cases] --> B[CaseSet + input schema]
+    C[Grammar config + seed] --> D[Typed prefix AstProgram]
+    B --> D
+    D --> E[Verify + compile]
+    E --> F[Bytecode population]
+    B --> G{Fitness backend}
+    F --> G
+    G -->|CPU| H[CPU VM]
+    G -->|CUDA| I[GPU fitness session]
+    H --> J[Canonical fitness vector]
+    I --> J
+    J --> K[Tournament ranking]
+    K --> L{Reproduction backend}
+    L -->|CPU| M[Host crossover + mutation]
+    L -->|CUDA| N[GPU selection + variation]
+    M --> O[Verified next generation]
+    N --> O
+    O --> D
+```
+
+CPU and GPU evaluation converge on the same fitness-vector boundary before
+ranking. Selecting a GPU backend changes execution and scheduling, not the
+language or operator contract. See the [architecture](docs/design/architecture.md)
+and [native dataflow](docs/design/dataflow.md) for the full model.
 
 ## Operational tools
 
-Install the standard-library tool package in a virtual environment:
+The dependency-free Python package handles PSB datasets, fixture conversion,
+population seeds, regression runs, comparisons, and manifests. It does not
+implement product runtime semantics.
 
 ```bash
 python3 -m venv .venv-tools
@@ -56,52 +131,65 @@ python3 -m venv .venv-tools
 .venv-tools/bin/gagp-tools --help
 ```
 
-Compatibility wrapper scripts remain available during the command migration.
-The complete fetch → convert/materialize → run → compare → manifest flow is in
-[`tools/README.md`](tools/README.md).
+Follow the complete artifact pipeline in the
+[operational tools guide](tools/README.md).
 
-## Common workflows
+## Documentation
 
-- [Development](docs/guides/development.md): builds, named configurations,
-  tests, sanitizers/fuzzing, GPU policy, and CLI entry points
-- [Native CLI reference](docs/reference/cli.md): mechanically checked flags and
-  defaults
-- [Benchmarking](docs/guides/benchmarking.md): reproducible fixed-population
-  CPU/GPU comparisons
-- [PSB workflow](docs/guides/psb-workflow.md): datasets, fixture materialization,
-  regression runs, comparisons, and manifests
-- [Experiment protocol](docs/guides/experiment-protocol.md): formal performance
-  and effectiveness controls
-- [Grammar config guide](docs/guides/grammar-config.md): selecting and deriving
-  evolution search spaces
+| Start here | What it covers |
+| --- | --- |
+| [Specifications](spec/README.md) | Normative grammar, bytecode, builtin, fitness, fixture, and grammar-config contracts |
+| [Architecture](docs/design/architecture.md) | Native components, dependency direction, and stable invariants |
+| [Dataflow](docs/design/dataflow.md) | End-to-end execution, evolution, and artifact flow |
+| [Development](docs/guides/development.md) | Builds, presets, tests, sanitizers, fuzzing, and GPU policy |
+| [CLI reference](docs/reference/cli.md) | Mechanically checked flags and defaults |
+| [Benchmarking](docs/guides/benchmarking.md) | Reproducible fixed-population CPU/GPU comparisons |
+| [PSB workflow](docs/guides/psb-workflow.md) | Dataset acquisition, fixtures, regression, and reports |
+| [Grammar configuration](docs/guides/grammar-config.md) | Search-space profiles and replay |
+| [Documentation index](docs/README.md) | Ownership of every maintained document |
 
-Repository and tool checks can also be run directly:
+## Repository layout
 
-```bash
-python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
-python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+```text
+gagp/
+├── cpp/
+│   ├── include/gagp/     Public C++ interfaces
+│   ├── src/runtime/      CPU VM, CUDA runtime, and payload transport
+│   ├── src/evolution/    Compiler, generation, operators, and evolution loop
+│   ├── src/cli/          Native command-line entry points
+│   └── tests/            Unit, contract, property, fuzz, and parity tests
+├── spec/                 Normative behavioral contracts
+├── docs/                 Design, guides, references, and refactor evidence
+├── tools/                Independent operational Python package
+├── tests/repository/     Runtime-independent repository checks
+├── configs/grammar/      Search-space profiles
+└── benchmarks/           Compact validation manifests and provenance
 ```
 
-They require no product/runtime Python package and no `PYTHONPATH`.
+The mechanically checked directory map is maintained in the
+[repository-layout reference](docs/reference/repository-layout.md).
 
-## Documentation ownership
+## Testing
 
-- [`docs/README.md`](docs/README.md): design, guide, reference, and refactor
-  document ownership
-- [`spec/README.md`](spec/README.md): normative contracts
-- [`benchmarks/README.md`](benchmarks/README.md): committed validation evidence
-- [`tools/README.md`](tools/README.md): operational command/artifact lifecycle
-- [`AGENTS.md`](AGENTS.md): contributor constraints
-- [`VERSION.md`](VERSION.md): release and compatibility history
+Run all three verification layers from the repository root:
 
-The checked stable directory map is
-[`docs/reference/repository-layout.md`](docs/reference/repository-layout.md).
+```bash
+ctest --test-dir cpp/build --output-on-failure
+python3 -m unittest discover -s tools/tests -p 'test_*.py' -v
+python3 -m unittest discover -s tests/repository -p 'test_*.py' -v
+```
 
-## Change discipline
+Focused CTest labels include `unit`, `contract`, `property`, `gpu`,
+`cpu_gpu_parity`, and `tooling`. Sanitizer and libFuzzer workflows are described
+in the [development guide](docs/guides/development.md).
 
-Update an owning spec and its conformance tests with semantic changes. Update
-the CLI reference and command contracts with parser/output changes. Update the
-documentation index, checked repository layout, and external repository skill
-references with file moves. Keep compact validation evidence in `benchmarks/`;
-keep generated datasets, populations, profiler captures, and raw logs out of
-version control.
+## Contributing
+
+Before changing behavior, identify the owning document in
+[spec/](spec/README.md) and update its conformance tests in the same change.
+Parser or output changes must also update the checked
+[CLI reference](docs/reference/cli.md). Repository conventions and GPU profiling
+rules are collected in [AGENTS.md](AGENTS.md).
+
+GAGP is currently at release **1.0.0**. See [VERSION.md](VERSION.md) for the
+release contract.
