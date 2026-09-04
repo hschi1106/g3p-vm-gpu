@@ -93,25 +93,15 @@ GPU-capable paths automatically choose the least-used visible CUDA device. Set
 ## How it works
 
 ```mermaid
-flowchart LR
-    A[Fitness cases] --> B[CaseSet + input schema]
-    C[Grammar config + seed] --> D[Typed prefix AstProgram]
-    B --> D
-    D --> E[Verify + compile]
-    E --> F[Bytecode population]
-    B --> G{Fitness backend}
-    F --> G
-    G -->|CPU| H[CPU VM]
-    G -->|CUDA| I[GPU fitness session]
-    H --> J[Canonical fitness vector]
-    I --> J
-    J --> K[Tournament ranking]
-    K --> L{Reproduction backend}
-    L -->|CPU| M[Host crossover + mutation]
-    L -->|CUDA| N[GPU selection + variation]
-    M --> O[Verified next generation]
-    N --> O
-    O --> D
+flowchart TB
+    A[Cases · grammar config · seed]
+    A --> B[Prepare typed AST population]
+    B --> C[Verify + compile to bytecode]
+    C --> D[CPU or CUDA fitness]
+    D --> E[Canonical ranking]
+    E --> F[CPU or CUDA reproduction]
+    F --> G[Verify next generation]
+    G --> C
 ```
 
 CPU and GPU evaluation converge on the same fitness-vector boundary before
